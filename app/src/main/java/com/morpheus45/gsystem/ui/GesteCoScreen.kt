@@ -9,7 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +26,6 @@ import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.email.EmailSender
-import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorGesteCo
 import com.morpheus45.gsystem.util.DateUtil
@@ -45,24 +44,14 @@ fun GesteCoScreen(
     val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
     val periodEntries = store.gesteCo.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
-    }.sortedBy { it.date }
-
-    val grandTotal = periodEntries.sumOf {
-        settings.prices.priceFor(it.type) * it.quantite
-    }
-    val totalsPerType: Map<String, Pair<Int, Double>> = GesteCoPrices.TYPES.associateWith { type ->
-        val sub = periodEntries.filter { it.type == type }
-        val qty = sub.sumOf { it.quantite }
-        val total = qty * settings.prices.priceFor(type)
-        qty to total
-    }
+    }.sortedByDescending { it.date }
 
     var showAdd by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("GESTE CO") },
+                title = { Text("GESTE CO — par site") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
@@ -73,95 +62,35 @@ fun GesteCoScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAdd = true }, containerColor = ColorGesteCo) {
-                Icon(Icons.Filled.Add, "Ajouter", tint = Color.White)
-            }
+            ExtendedFloatingActionButton(
+                onClick = { showAdd = true },
+                containerColor = ColorGesteCo,
+                icon = { Icon(Icons.Filled.Add, "Ajouter", tint = Color.White) },
+                text = { Text("Nouveau site", color = Color.White) }
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            PeriodHeader(start, end, periodEntries.size, "lignes")
+            PeriodHeader(start, end, periodEntries.size, "envois ce cycle")
             Spacer(Modifier.height(10.dp))
-
-            // Récap totaux
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("Récap période", fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                        color = ColorGesteCo)
-                    Spacer(Modifier.height(6.dp))
-                    GesteCoPrices.TYPES.forEach { t ->
-                        val (q, total) = totalsPerType[t] ?: (0 to 0.0)
-                        val prix = settings.prices.priceFor(t)
-                        Row(modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("$t  (×$q  à %.2f €)".format(prix), fontSize = 13.sp)
-                            Text("%.2f €".format(total), fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    Divider(modifier = Modifier.padding(vertical = 6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("TOTAL", fontWeight = FontWeight.Bold)
-                        Text("%.2f €".format(grandTotal), fontWeight = FontWeight.Bold,
-                            color = ColorGesteCo)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(
-                    onClick = {
-                        val csv = CsvExporter.exportGesteCo(context, store.gesteCo, settings.prices, start, end)
-                        EmailSender.send(
-                            context = context, to = settings.emailGesteCo,
-                            subject = "GESTE CO ${DateUtil.fr(start)} → ${DateUtil.fr(end)}  —  %.2f €".format(grandTotal),
-                            body = "Bonjour,\n\nCi-joint le récap GESTE CO ${DateUtil.fr(start)} → ${DateUtil.fr(end)}.\nTotal : %.2f €\n\n${settings.nomUtilisateur}".format(grandTotal),
-                            attachment = csv
-                        )
-                    },
-                    enabled = periodEntries.isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
-                ) {
-                    Icon(Icons.Filled.Email, null, tint = Color.White)
-                    Text("  Envoyer", color = Color.White)
-                }
-            }
+            Text("Historique du cycle en cours (récap cumulé → bouton « RÉCAP GESTE CO » depuis l'accueil)",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(Modifier.height(8.dp))
-            Divider()
-            Spacer(Modifier.height(8.dp))
+
             if (periodEntries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucune ligne. Appuie sur + pour ajouter.",
+                    Text("Aucun envoi ce cycle.\nAppuie sur « Nouveau site » pour saisir et envoyer un email.",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(periodEntries, key = { it.id }) { e ->
-                        val st = e.quantite * settings.prices.priceFor(e.type)
-                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
-                            Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("${DateUtil.fr(DateUtil.parseIso(e.date))}  ·  ${e.type} ×${e.quantite}",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                                    Text(e.nomClient.ifBlank { "(sans nom)" },
-                                        fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                    if (e.observations.isNotBlank()) {
-                                        Text(e.observations, fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                                    }
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("%.2f €".format(st), fontWeight = FontWeight.Bold,
-                                        color = ColorGesteCo)
-                                    IconButton(onClick = { scope.launch { repo.removeGesteCo(e.id) } }) {
-                                        Icon(Icons.Filled.Delete, "Supprimer")
-                                    }
-                                }
-                            }
-                        }
+                        SiteCard(
+                            entry = e, prices = settings.prices, settings = settings,
+                            onResend = { sendGesteCoEmail(context, settings, e) },
+                            onDelete = { scope.launch { repo.removeGesteCo(e.id) } }
+                        )
                     }
                 }
             }
@@ -169,9 +98,84 @@ fun GesteCoScreen(
     }
 
     if (showAdd) {
-        AddGesteCoDialog(settings, onDismiss = { showAdd = false }) { entry ->
-            scope.launch { repo.addGesteCo(entry) }
-            showAdd = false
+        AddGesteCoDialog(
+            settings = settings,
+            onDismiss = { showAdd = false },
+            onSendAndSave = { entry ->
+                scope.launch { repo.addGesteCo(entry) }
+                sendGesteCoEmail(context, settings, entry)
+                showAdd = false
+            }
+        )
+    }
+}
+
+private fun sendGesteCoEmail(
+    context: android.content.Context,
+    settings: AppSettings,
+    entry: GesteCoEntry
+) {
+    val total = entry.totalEur(settings.prices)
+    val subject = "GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}"
+    val extensionsLine = entry.extensionsList().joinToString(", ") { "${it.first}×${it.second}" }
+    val body = buildString {
+        append("Bonjour,\n\n")
+        append("Extensions installées sur site n° ${entry.siteNumber} :\n")
+        for ((type, qty) in entry.extensionsList()) {
+            val price = settings.prices.priceFor(type)
+            append("  - $type × $qty  →  %.2f €\n".format(price * qty))
+        }
+        append("\nGeste commercial : %.2f €\n".format(total))
+        if (entry.nomClient.isNotBlank()) append("Client : ${entry.nomClient}\n")
+        if (entry.observations.isNotBlank()) append("Observations : ${entry.observations}\n")
+        append("Date : ${DateUtil.fr(DateUtil.parseIso(entry.date))}\n\n")
+        append("Cordialement,\n${settings.nomUtilisateur}")
+    }
+    EmailSender.send(
+        context = context,
+        to = settings.emailGesteCoTo,
+        cc = listOf(settings.emailGesteCoCc1, settings.emailGesteCoCc2),
+        subject = subject,
+        body = body
+    )
+}
+
+@Composable
+private fun SiteCard(
+    entry: GesteCoEntry,
+    prices: GesteCoPrices,
+    settings: AppSettings,
+    onResend: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val total = entry.totalEur(prices)
+    val list = entry.extensionsList().joinToString(", ") { "${it.first}×${it.second}" }
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
+        Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Site ${entry.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(entry.date))}",
+                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("Sujet : GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(list, fontSize = 13.sp)
+                if (entry.nomClient.isNotBlank()) {
+                    Text("Client : ${entry.nomClient}", fontSize = 12.sp)
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("%.2f €".format(total),
+                    fontWeight = FontWeight.Bold, color = ColorGesteCo, fontSize = 16.sp)
+                Row {
+                    IconButton(onClick = onResend) {
+                        Icon(Icons.Filled.Send, "Renvoyer", tint = ColorGesteCo)
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, "Supprimer")
+                    }
+                }
+            }
         }
     }
 }
@@ -179,60 +183,83 @@ fun GesteCoScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddGesteCoDialog(
-    settings: AppSettings, onDismiss: () -> Unit, onAdd: (GesteCoEntry) -> Unit
+    settings: AppSettings,
+    onDismiss: () -> Unit,
+    onSendAndSave: (GesteCoEntry) -> Unit
 ) {
     var date by remember { mutableStateOf(DateUtil.today().toString()) }
-    var type by remember { mutableStateOf(GesteCoPrices.TYPES.first()) }
-    var qte by remember { mutableStateOf("1") }
+    var siteNumber by remember { mutableStateOf("") }
     var nom by remember { mutableStateOf("") }
     var obs by remember { mutableStateOf("") }
-    var typeExpanded by remember { mutableStateOf(false) }
-    val q = qte.toIntOrNull() ?: 0
-    val sousTotal = q * settings.prices.priceFor(type)
+    var qtyGsm by remember { mutableStateOf("0") }
+    var qtyCo by remember { mutableStateOf("0") }
+    var qtyDmp by remember { mutableStateOf("0") }
+    var qtySe by remember { mutableStateOf("0") }
+
+    val nGsm = qtyGsm.toIntOrNull() ?: 0
+    val nCo = qtyCo.toIntOrNull() ?: 0
+    val nDmp = qtyDmp.toIntOrNull() ?: 0
+    val nSe = qtySe.toIntOrNull() ?: 0
+    val total = nGsm * settings.prices.gsm + nCo * settings.prices.co +
+                nDmp * settings.prices.dmp + nSe * settings.prices.se
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nouvelle ligne GESTE CO") },
+        title = { Text("Nouveau GESTE CO") },
         text = {
             Column {
+                Text("Sujet prévisualisé :",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text("GESTE CO - ${settings.siteCodeFixe} - ${siteNumber.ifBlank { "<n° site>" }}",
+                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    color = ColorGesteCo)
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(value = siteNumber,
+                    onValueChange = { siteNumber = it.trim() },
+                    label = { Text("N° de site (apparaît dans le sujet)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = date, onValueChange = { date = it },
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(12.dp))
+                Text("Extensions installées :",
+                    fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ExposedDropdownMenuBox(
-                        expanded = typeExpanded,
-                        onExpandedChange = { typeExpanded = it },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        OutlinedTextField(
-                            value = type, onValueChange = {}, readOnly = true,
-                            label = { Text("Type") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
-                        )
-                        ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                            GesteCoPrices.TYPES.forEach { t ->
-                                DropdownMenuItem(
-                                    text = { Text("$t  (%.2f €)".format(settings.prices.priceFor(t))) },
-                                    onClick = { type = t; typeExpanded = false })
-                            }
-                        }
-                    }
-                    OutlinedTextField(value = qte, onValueChange = { qte = it.filter(Char::isDigit).take(4) },
-                        label = { Text("Quantité") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f))
+                    QtyField("GSM (%.0f€)".format(settings.prices.gsm), qtyGsm,
+                        { qtyGsm = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f))
+                    QtyField("CO (%.0f€)".format(settings.prices.co), qtyCo,
+                        { qtyCo = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f))
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("Sous-total : %.2f €".format(sousTotal),
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                    color = ColorGesteCo)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QtyField("DMP (%.0f€)".format(settings.prices.dmp), qtyDmp,
+                        { qtyDmp = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f))
+                    QtyField("SE (%.0f€)".format(settings.prices.se), qtySe,
+                        { qtySe = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f))
+                }
+
+                Spacer(Modifier.height(10.dp))
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = ColorGesteCo.copy(alpha = 0.1f))) {
+                    Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total geste commercial", fontWeight = FontWeight.SemiBold)
+                        Text("%.2f €".format(total),
+                            fontWeight = FontWeight.Bold, color = ColorGesteCo)
+                    }
+                }
+
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = nom, onValueChange = { nom = it },
                     label = { Text("Client (optionnel)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(value = obs, onValueChange = { obs = it },
                     label = { Text("Note (optionnel)") },
                     modifier = Modifier.fillMaxWidth())
@@ -241,15 +268,32 @@ private fun AddGesteCoDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onAdd(GesteCoEntry(
+                    onSendAndSave(GesteCoEntry(
                         id = EntriesRepository.newId(),
-                        date = date.trim(), type = type, quantite = q,
+                        date = date.trim(),
+                        siteNumber = siteNumber.trim(),
+                        countGsm = nGsm, countCo = nCo, countDmp = nDmp, countSe = nSe,
                         nomClient = nom.trim(), observations = obs.trim()
                     ))
                 },
-                enabled = q > 0 && date.isNotBlank()
-            ) { Text("Ajouter") }
+                enabled = siteNumber.isNotBlank() && date.isNotBlank() &&
+                          (nGsm + nCo + nDmp + nSe) > 0,
+                colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
+            ) {
+                Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
+                Text("  Enregistrer & envoyer", color = Color.White)
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+    )
+}
+
+@Composable
+private fun QtyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier) {
+    OutlinedTextField(
+        value = value, onValueChange = onChange,
+        label = { Text(label, fontSize = 11.sp) }, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = modifier
     )
 }

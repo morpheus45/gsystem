@@ -2,24 +2,29 @@ package com.morpheus45.gsystem.email
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.content.FileProvider
 import java.io.File
 
 /**
  * Ouvre l'app email du système (Gmail / Outlook / autre) pré-remplie avec
- * destinataire, sujet, corps et pièce jointe. C'est l'utilisateur qui clique
- * sur "Envoyer" dans son app email — donc pas besoin de configurer SMTP.
+ * destinataire principal, destinataires en CC, sujet, corps et pièce jointe
+ * optionnelle. L'utilisateur clique sur "Envoyer" dans son app email — pas
+ * besoin de configurer SMTP.
  */
 object EmailSender {
 
     fun send(
         context: Context,
         to: String,
+        cc: List<String> = emptyList(),
         subject: String,
         body: String,
         attachment: File? = null,
         chooserTitle: String = "Envoyer via…"
     ) {
+        val ccClean = cc.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+
         val intent = Intent(if (attachment != null) Intent.ACTION_SEND else Intent.ACTION_SENDTO).apply {
             if (attachment != null) {
                 type = "text/csv"
@@ -29,9 +34,10 @@ object EmailSender {
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             } else {
-                data = android.net.Uri.parse("mailto:")
+                data = Uri.parse("mailto:")
             }
             putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
+            if (ccClean.isNotEmpty()) putExtra(Intent.EXTRA_CC, ccClean)
             putExtra(Intent.EXTRA_SUBJECT, subject)
             putExtra(Intent.EXTRA_TEXT, body)
         }

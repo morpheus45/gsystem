@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
@@ -34,13 +36,15 @@ fun HomeScreen(
     onTemps: () -> Unit,
     onGsmSeul: () -> Unit,
     onGesteCo: () -> Unit,
+    onGesteCoRecap: () -> Unit,
     onSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp),
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -60,19 +64,38 @@ fun HomeScreen(
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(20.dp))
         Text(
-            text = "Choisis ce que tu veux enregistrer",
+            text = "Choisis ce que tu veux saisir",
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )
 
+        Spacer(Modifier.height(16.dp))
+        BigButton(
+            label = "TEMPS",
+            sub = "Feuille de temps (interventions)",
+            color = ColorTemps, onClick = onTemps
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "GSM SEUL",
+            sub = "1 site → 1 email immédiat",
+            color = ColorGsmSeul, onClick = onGsmSeul
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "GESTE CO",
+            sub = "1 site + extensions → 1 email immédiat",
+            color = ColorGesteCo, onClick = onGesteCo
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "RÉCAP GESTE CO",
+            sub = "Cumul du cycle + total €",
+            color = ColorGesteCo.copy(alpha = 0.75f), onClick = onGesteCoRecap
+        )
         Spacer(Modifier.height(20.dp))
-        BigButton(label = "TEMPS",      sub = "Feuille de temps (interventions)", color = ColorTemps,   onClick = onTemps)
-        Spacer(Modifier.height(14.dp))
-        BigButton(label = "GSM SEUL",   sub = "Installations GSM uniquement",      color = ColorGsmSeul, onClick = onGsmSeul)
-        Spacer(Modifier.height(14.dp))
-        BigButton(label = "GESTE CO",   sub = "Extensions vendues (€)",            color = ColorGesteCo, onClick = onGesteCo)
     }
 }
 
@@ -82,12 +105,12 @@ private fun BigButton(label: String, sub: String, color: Color, onClick: () -> U
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp),
+            .height(86.dp),
         colors = ButtonDefaults.buttonColors(containerColor = color),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Text(sub, fontSize = 12.sp, color = Color.White.copy(alpha = 0.9f))
         }
     }

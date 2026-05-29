@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
+import com.morpheus45.gsystem.ui.GesteCoRecapScreen
 import com.morpheus45.gsystem.ui.GesteCoScreen
 import com.morpheus45.gsystem.ui.GsmSeulScreen
 import com.morpheus45.gsystem.ui.HomeScreen
@@ -51,7 +52,6 @@ fun AppNav() {
     val store by repo.store.collectAsState()
 
     val navController = rememberNavController()
-    // Premier lancement : on force le passage par "settings" jusqu'à ce que les 3 emails soient saisis
     val startDestination = if (settings.isReady) "home" else "settings"
 
     NavHost(navController = navController, startDestination = startDestination) {
@@ -60,6 +60,7 @@ fun AppNav() {
                 onTemps = { navController.navigate("temps") },
                 onGsmSeul = { navController.navigate("gsm") },
                 onGesteCo = { navController.navigate("gesteco") },
+                onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -93,6 +94,12 @@ fun AppNav() {
         }
         composable("gesteco") {
             GesteCoScreen(
+                settings = settings, store = store, repo = repo,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("gesteco_recap") {
+            GesteCoRecapScreen(
                 settings = settings, store = store, repo = repo,
                 onBack = { navController.popBackStack() }
             )

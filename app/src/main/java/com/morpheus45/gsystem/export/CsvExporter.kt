@@ -1,8 +1,6 @@
 package com.morpheus45.gsystem.export
 
 import android.content.Context
-import com.morpheus45.gsystem.data.AppSettings
-import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.data.GsmSeulEntry
@@ -11,11 +9,12 @@ import java.io.File
 import java.time.LocalDate
 
 /**
- * Génère des fichiers CSV simples (séparateur ';' pour Excel FR) que l'app
- * pourra joindre à un email via FileProvider.
+ * Génère des CSV (séparateur `;` pour Excel FR) joignables aux emails via
+ * FileProvider.
  */
 object CsvExporter {
     private const val SEP = ";"
+
     private fun escape(s: String): String =
         if (s.contains(';') || s.contains('"') || s.contains('\n'))
             "\"" + s.replace("\"", "\"\"") + "\""
@@ -39,7 +38,8 @@ object CsvExporter {
         val sb = StringBuilder()
         sb.appendLine(row("Date", "Département", "Type", "Client", "N°", "Heures", "Observations"))
         for (e in filtered) {
-            sb.appendLine(row(e.date, e.departement, e.typeMission, e.nomClient, e.numeroClient, e.heures, e.observations))
+            sb.appendLine(row(e.date, e.departement, e.typeMission, e.nomClient,
+                e.numeroClient, e.heures, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
         out.writeText(sb.toString())
@@ -53,12 +53,12 @@ object CsvExporter {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
         val sb = StringBuilder()
-        sb.appendLine(row("Date", "Département", "Client", "Observations"))
+        sb.appendLine(row("Date", "Site", "Client", "Observations"))
         for (e in filtered) {
-            sb.appendLine(row(e.date, e.departement, e.nomClient, e.observations))
+            sb.appendLine(row(e.date, e.siteNumber, e.nomClient, e.observations))
         }
         sb.appendLine()
-        sb.appendLine(row("TOTAL interventions GSM SEUL", filtered.size))
+        sb.appendLine(row("TOTAL installations GSM SEUL", filtered.size))
         val out = File(ensureExportDir(context), "GSM_SEUL_${start}_${end}.csv")
         out.writeText(sb.toString())
         return out
@@ -71,23 +71,26 @@ object CsvExporter {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
         val sb = StringBuilder()
-        sb.appendLine(row("Date", "Type", "Quantité", "Prix unitaire €", "Sous-total €", "Client", "Observations"))
+        sb.appendLine(row("Date", "Site", "GSM", "CO", "DMP", "SE", "Total €", "Client", "Observations"))
         var grandTotal = 0.0
-        val totalsPerType = mutableMapOf<String, Pair<Int, Double>>()
+        val totalsPerType = mutableMapOf("GSM" to 0, "CO" to 0, "DMP" to 0, "SE" to 0)
         for (e in filtered) {
-            val p = prices.priceFor(e.type)
-            val st = p * e.quantite
-            grandTotal += st
-            val prev = totalsPerType[e.type] ?: (0 to 0.0)
-            totalsPerType[e.type] = (prev.first + e.quantite) to (prev.second + st)
-            sb.appendLine(row(e.date, e.type, e.quantite, "%.2f".format(p), "%.2f".format(st), e.nomClient, e.observations))
+            val total = e.totalEur(prices)
+            grandTotal += total
+            totalsPerType["GSM"] = (totalsPerType["GSM"] ?: 0) + e.countGsm
+            totalsPerType["CO"]  = (totalsPerType["CO"]  ?: 0) + e.countCo
+            totalsPerType["DMP"] = (totalsPerType["DMP"] ?: 0) + e.countDmp
+            totalsPerType["SE"]  = (totalsPerType["SE"]  ?: 0) + e.countSe
+            sb.appendLine(row(e.date, e.siteNumber, e.countGsm, e.countCo, e.countDmp,
+                e.countSe, "%.2f".format(total), e.nomClient, e.observations))
         }
         sb.appendLine()
         sb.appendLine(row("--- RÉCAP PAR TYPE ---"))
-        sb.appendLine(row("Type", "Quantité totale", "Total €"))
+        sb.appendLine(row("Type", "Quantité totale", "Prix unitaire €", "Total €"))
         for (type in GesteCoPrices.TYPES) {
-            val (q, total) = totalsPerType[type] ?: (0 to 0.0)
-            sb.appendLine(row(type, q, "%.2f".format(total)))
+            val q = totalsPerType[type] ?: 0
+            val p = prices.priceFor(type)
+            sb.appendLine(row(type, q, "%.2f".format(p), "%.2f".format(q * p)))
         }
         sb.appendLine()
         sb.appendLine(row("TOTAL GÉNÉRAL €", "%.2f".format(grandTotal)))

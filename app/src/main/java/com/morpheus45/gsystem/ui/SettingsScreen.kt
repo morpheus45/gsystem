@@ -14,21 +14,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -45,8 +32,16 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     var emailTemps by remember { mutableStateOf(settings.emailTemps) }
-    var emailGsm by remember { mutableStateOf(settings.emailGsmSeul) }
-    var emailGesteCo by remember { mutableStateOf(settings.emailGesteCo) }
+
+    var emailGsmTo by remember { mutableStateOf(settings.emailGsmSeulTo) }
+    var emailGsmCc1 by remember { mutableStateOf(settings.emailGsmSeulCc1) }
+    var emailGsmCc2 by remember { mutableStateOf(settings.emailGsmSeulCc2) }
+
+    var emailGcTo by remember { mutableStateOf(settings.emailGesteCoTo) }
+    var emailGcCc1 by remember { mutableStateOf(settings.emailGesteCoCc1) }
+    var emailGcCc2 by remember { mutableStateOf(settings.emailGesteCoCc2) }
+
+    var siteCode by remember { mutableStateOf(settings.siteCodeFixe) }
     var nom by remember { mutableStateOf(settings.nomUtilisateur) }
     var dept by remember { mutableStateOf(settings.departementDefaut) }
     var cycle by remember { mutableStateOf(settings.cycleStartDay.toString()) }
@@ -63,9 +58,7 @@ fun SettingsScreen(
                 title = { Text(if (firstRun) "Bienvenue — configuration" else "Réglages") },
                 navigationIcon = {
                     if (!firstRun) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Filled.ArrowBack, "Retour")
-                        }
+                        IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                     }
                 }
             )
@@ -80,31 +73,44 @@ fun SettingsScreen(
         ) {
             if (firstRun) {
                 Text(
-                    "Première utilisation : saisis les 3 adresses email où les récaps seront envoyés. Tu pourras les modifier plus tard ici.",
+                    "Première utilisation : saisis les destinataires email. Tu pourras tout modifier plus tard ici.",
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.height(12.dp))
             }
-            SectionTitle("Adresses email des destinataires")
+
+            SectionTitle("TEMPS — destinataire")
+            EmailField(value = emailTemps, onChange = { emailTemps = it }, label = "Email TEMPS")
+
+            Spacer(Modifier.height(16.dp))
+            SectionTitle("GSM SEUL — destinataires")
+            EmailField(value = emailGsmTo, onChange = { emailGsmTo = it }, label = "Destinataire principal (To)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailGsmCc1, onChange = { emailGsmCc1 = it }, label = "Copie 1 (Cc)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailGsmCc2, onChange = { emailGsmCc2 = it }, label = "Copie 2 (Cc)")
+
+            Spacer(Modifier.height(16.dp))
+            SectionTitle("GESTE CO — destinataires")
+            EmailField(value = emailGcTo, onChange = { emailGcTo = it }, label = "Destinataire principal (To)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailGcCc1, onChange = { emailGcCc1 = it }, label = "Copie 1 (Cc)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailGcCc2, onChange = { emailGcCc2 = it }, label = "Copie 2 (Cc)")
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("Code site (préfixe sujet email)")
             OutlinedTextField(
-                value = emailTemps, onValueChange = { emailTemps = it },
-                label = { Text("Email TEMPS") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                value = siteCode, onValueChange = { siteCode = it },
+                label = { Text("Code site fixe (ex : ISTGS54)") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = emailGsm, onValueChange = { emailGsm = it },
-                label = { Text("Email GSM SEUL") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = emailGesteCo, onValueChange = { emailGesteCo = it },
-                label = { Text("Email GESTE CO") }, singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth()
+            Text(
+                "Apparaît dans le sujet : « GSM SEUL - $siteCode - <n° site> »",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp)
             )
 
             Spacer(Modifier.height(20.dp))
@@ -153,8 +159,13 @@ fun SettingsScreen(
                     onSave(
                         settings.copy(
                             emailTemps = emailTemps.trim(),
-                            emailGsmSeul = emailGsm.trim(),
-                            emailGesteCo = emailGesteCo.trim(),
+                            emailGsmSeulTo = emailGsmTo.trim(),
+                            emailGsmSeulCc1 = emailGsmCc1.trim(),
+                            emailGsmSeulCc2 = emailGsmCc2.trim(),
+                            emailGesteCoTo = emailGcTo.trim(),
+                            emailGesteCoCc1 = emailGcCc1.trim(),
+                            emailGesteCoCc2 = emailGcCc2.trim(),
+                            siteCodeFixe = siteCode.trim().ifBlank { "ISTGS54" },
                             cycleStartDay = cycleInt,
                             prices = newPrices,
                             nomUtilisateur = nom.trim(),
@@ -162,11 +173,10 @@ fun SettingsScreen(
                         )
                     )
                 },
-                enabled = emailTemps.isNotBlank() && emailGsm.isNotBlank() && emailGesteCo.isNotBlank(),
+                enabled = emailTemps.isNotBlank() && emailGsmTo.isNotBlank() && emailGcTo.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Icon(Icons.Filled.Save, contentDescription = null)
-                Spacer(Modifier.height(0.dp))
                 Text("  Enregistrer", fontSize = 16.sp)
             }
             Spacer(Modifier.height(40.dp))
@@ -179,6 +189,16 @@ private fun SectionTitle(text: String) {
     Text(text, fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary, fontSize = 14.sp)
     Spacer(Modifier.height(6.dp))
+}
+
+@Composable
+private fun EmailField(value: String, onChange: (String) -> Unit, label: String) {
+    OutlinedTextField(
+        value = value, onValueChange = onChange,
+        label = { Text(label) }, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
