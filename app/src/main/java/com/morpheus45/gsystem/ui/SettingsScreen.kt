@@ -13,8 +13,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
+import com.morpheus45.gsystem.BuildConfig
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +31,8 @@ import com.morpheus45.gsystem.data.GesteCoPrices
 fun SettingsScreen(
     settings: AppSettings,
     onSave: (AppSettings) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onCheckUpdate: () -> Unit = {}
 ) {
     var emailTemps by remember { mutableStateOf(settings.emailTemps) }
 
@@ -143,6 +146,24 @@ fun SettingsScreen(
                 PriceField(label = "DMP", value = priceDmp, onChange = { priceDmp = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "SE",  value = priceSe,  onChange = { priceSe = it },  modifier = Modifier.weight(1f))
             }
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("Mises à jour")
+            Text("Version installée : ${BuildConfig.VERSION_NAME}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onCheckUpdate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null)
+                Text("  Vérifier maintenant")
+            }
+            Text("La vérification se fait aussi automatiquement au démarrage de l'app.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(24.dp))
             Divider()

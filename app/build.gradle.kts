@@ -12,8 +12,8 @@ android {
         applicationId = "com.morpheus45.gsystem"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -37,6 +37,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true  // requis pour exposer VERSION_NAME au runtime
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

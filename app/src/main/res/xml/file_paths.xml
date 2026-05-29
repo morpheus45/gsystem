@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Permet à FileProvider d'exposer les exports CSV/XLSX générés en interne. -->
+    <!-- Exports CSV/XLSX et APK de mise à jour, partagés via FileProvider. -->
     <files-path name="exports" path="exports/" />
     <cache-path name="cache_exports" path="exports/" />
+    <cache-path name="updates" path="updates/" />
 </paths>

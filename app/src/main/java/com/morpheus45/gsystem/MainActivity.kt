@@ -6,10 +6,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
@@ -25,6 +28,9 @@ import com.morpheus45.gsystem.ui.HomeScreen
 import com.morpheus45.gsystem.ui.SettingsScreen
 import com.morpheus45.gsystem.ui.TempsScreen
 import com.morpheus45.gsystem.ui.theme.GSystemTheme
+import com.morpheus45.gsystem.update.UpdateChecker
+import com.morpheus45.gsystem.update.UpdateDialog
+import com.morpheus45.gsystem.update.checkForUpdateSilently
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -54,6 +60,16 @@ fun AppNav() {
     val navController = rememberNavController()
     val startDestination = if (settings.isReady) "home" else "settings"
 
+    // Check de mise à jour discret au démarrage (1 fois par session)
+    var pendingUpdate by remember { mutableStateOf<UpdateChecker.UpdateAvailable?>(null) }
+    var updateCheckedThisSession by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!updateCheckedThisSession) {
+            updateCheckedThisSession = true
+            pendingUpdate = checkForUpdateSilently()
+        }
+    }
+
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
             HomeScreen(
@@ -77,6 +93,16 @@ fun AppNav() {
                 },
                 onBack = {
                     if (settings.isReady) navController.popBackStack()
+                },
+                onCheckUpdate = {
+                    scope.launch {
+                        val result = UpdateChecker.check()
+                        pendingUpdate = result
+                        if (result == null) {
+                            // Pas de mise à jour : afficher un message via le state
+                            // (le bouton lui-même affiche son retour via une Snackbar locale)
+                        }
+                    }
                 }
             )
         }
@@ -104,5 +130,10 @@ fun AppNav() {
                 onBack = { navController.popBackStack() }
             )
         }
+    }
+
+    // Dialogue de mise à jour, affiché par-dessus n'importe quel écran
+    pendingUpdate?.let { update ->
+        UpdateDialog(update = update, onDismiss = { pendingUpdate = null })
     }
 }
