@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Permet à FileProvider d'exposer les exports CSV/XLSX générés en interne. -->
+    <files-path name="exports" path="exports/" />
+    <cache-path name="cache_exports" path="exports/" />
+</paths>

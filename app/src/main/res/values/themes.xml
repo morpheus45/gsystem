@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Thème de base attendu par Compose Material 3 ; les couleurs viennent de Color.kt. -->
+    <style name="Theme.GSystem" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

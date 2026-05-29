@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.cxx/
+local.properties
+captures/
+
+# Keystore
+*.jks
+*.keystore
+keystore.properties
+
+# Misc
+.DS_Store
+*.log
+hs_err_pid*
+
+# Generated
+app/release/
+app/debug/
