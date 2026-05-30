@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
+import com.morpheus45.gsystem.data.GesteCoClientGifts
 import com.morpheus45.gsystem.data.GesteCoPrices
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +53,11 @@ fun SettingsScreen(
     var priceCo by remember { mutableStateOf(settings.prices.co.toString()) }
     var priceDmp by remember { mutableStateOf(settings.prices.dmp.toString()) }
     var priceSe by remember { mutableStateOf(settings.prices.se.toString()) }
+
+    var giftGsm by remember { mutableStateOf(settings.clientGifts.gsm.toString()) }
+    var giftCo by remember { mutableStateOf(settings.clientGifts.co.toString()) }
+    var giftDmp by remember { mutableStateOf(settings.clientGifts.dmp.toString()) }
+    var giftSe by remember { mutableStateOf(settings.clientGifts.se.toString()) }
 
     val firstRun = !settings.firstRunDone
 
@@ -139,12 +145,29 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle("Tarifs GESTE CO (€/unité)")
+            SectionTitle("Primes (€/unité — mes commissions, RÉCAP seulement)")
+            Text("Ces montants n'apparaissent PAS dans l'email envoyé. Ils servent uniquement au cumul de ton RÉCAP GESTE CO.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PriceField(label = "GSM", value = priceGsm, onChange = { priceGsm = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "CO",  value = priceCo,  onChange = { priceCo = it },  modifier = Modifier.weight(1f))
                 PriceField(label = "DMP", value = priceDmp, onChange = { priceDmp = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "SE",  value = priceSe,  onChange = { priceSe = it },  modifier = Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("Cadeau client (€/unité — apparaît dans l'email)")
+            Text("Le montant offert au client par extension installée. Ces montants apparaissent dans le corps du mail GESTE CO.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriceField(label = "GSM", value = giftGsm, onChange = { giftGsm = it }, modifier = Modifier.weight(1f))
+                PriceField(label = "CO",  value = giftCo,  onChange = { giftCo = it },  modifier = Modifier.weight(1f))
+                PriceField(label = "DMP", value = giftDmp, onChange = { giftDmp = it }, modifier = Modifier.weight(1f))
+                PriceField(label = "SE",  value = giftSe,  onChange = { giftSe = it },  modifier = Modifier.weight(1f))
             }
 
             Spacer(Modifier.height(20.dp))
@@ -177,6 +200,12 @@ fun SettingsScreen(
                         dmp = priceDmp.replace(",", ".").toDoubleOrNull() ?: 2.0,
                         se = priceSe.replace(",", ".").toDoubleOrNull() ?: 4.0,
                     )
+                    val newGifts = GesteCoClientGifts(
+                        gsm = giftGsm.replace(",", ".").toDoubleOrNull() ?: 3.0,
+                        co = giftCo.replace(",", ".").toDoubleOrNull() ?: 1.5,
+                        dmp = giftDmp.replace(",", ".").toDoubleOrNull() ?: 3.0,
+                        se = giftSe.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                    )
                     onSave(
                         settings.copy(
                             emailTemps = emailTemps.trim(),
@@ -189,6 +218,7 @@ fun SettingsScreen(
                             siteCodeFixe = siteCode.trim().ifBlank { "ISTGS54" },
                             cycleStartDay = cycleInt,
                             prices = newPrices,
+                            clientGifts = newGifts,
                             nomUtilisateur = nom.trim(),
                             departementDefaut = dept.trim(),
                         )

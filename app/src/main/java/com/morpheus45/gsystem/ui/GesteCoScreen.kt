@@ -115,17 +115,19 @@ private fun sendGesteCoEmail(
     settings: AppSettings,
     entry: GesteCoEntry
 ) {
-    val total = entry.totalEur(settings.prices)
+    val totalGift = entry.totalClientGift(settings.clientGifts)
     val subject = "GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}"
-    val extensionsLine = entry.extensionsList().joinToString(", ") { "${it.first}×${it.second}" }
     val body = buildString {
         append("Bonjour,\n\n")
         append("Extensions installées sur site n° ${entry.siteNumber} :\n")
         for ((type, qty) in entry.extensionsList()) {
-            val price = settings.prices.priceFor(type)
-            append("  - $type × $qty  →  %.2f €\n".format(price * qty))
+            val giftUnit = settings.clientGifts.priceFor(type)
+            val giftTotal = giftUnit * qty
+            append("  - %s × %d  (cadeau client : %.2f € — %d × %.2f €)\n".format(
+                type, qty, giftTotal, qty, giftUnit
+            ))
         }
-        append("\nGeste commercial : %.2f €\n".format(total))
+        append("\nTotal cadeau client offert : %.2f €\n".format(totalGift))
         if (entry.nomClient.isNotBlank()) append("Client : ${entry.nomClient}\n")
         if (entry.observations.isNotBlank()) append("Observations : ${entry.observations}\n")
         append("Date : ${DateUtil.fr(DateUtil.parseIso(entry.date))}\n\n")
@@ -200,8 +202,10 @@ private fun AddGesteCoDialog(
     val nCo = qtyCo.toIntOrNull() ?: 0
     val nDmp = qtyDmp.toIntOrNull() ?: 0
     val nSe = qtySe.toIntOrNull() ?: 0
-    val total = nGsm * settings.prices.gsm + nCo * settings.prices.co +
-                nDmp * settings.prices.dmp + nSe * settings.prices.se
+    val totalGift = nGsm * settings.clientGifts.gsm + nCo * settings.clientGifts.co +
+                    nDmp * settings.clientGifts.dmp + nSe * settings.clientGifts.se
+    val totalPrime = nGsm * settings.prices.gsm + nCo * settings.prices.co +
+                     nDmp * settings.prices.dmp + nSe * settings.prices.se
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -245,13 +249,36 @@ private fun AddGesteCoDialog(
                 }
 
                 Spacer(Modifier.height(10.dp))
+                // Cadeau client : ce qui sera dans le mail
                 Card(colors = CardDefaults.cardColors(
                     containerColor = ColorGesteCo.copy(alpha = 0.1f))) {
-                    Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total geste commercial", fontWeight = FontWeight.SemiBold)
-                        Text("%.2f €".format(total),
-                            fontWeight = FontWeight.Bold, color = ColorGesteCo)
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total cadeau client", fontWeight = FontWeight.SemiBold)
+                            Text("%.2f €".format(totalGift),
+                                fontWeight = FontWeight.Bold, color = ColorGesteCo)
+                        }
+                        Text("Apparaîtra dans le corps du mail",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                // Prime : info personnelle
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Ta prime (info perso)", fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp)
+                            Text("%.2f €".format(totalPrime),
+                                fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                        Text("N'apparaîtra PAS dans le mail",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     }
                 }
 

@@ -48,11 +48,22 @@ data class GesteCoEntry(
     val nomClient: String = "",
     val observations: String = ""
 ) {
-    fun totalEur(prices: GesteCoPrices): Double =
+    /** Total des PRIMES (commissions internes — n'apparait QUE dans RÉCAP). */
+    fun totalPrime(prices: GesteCoPrices): Double =
         countGsm * prices.gsm +
         countCo * prices.co +
         countDmp * prices.dmp +
         countSe * prices.se
+
+    /** Total des CADEAUX CLIENT (ce qu'on offre — apparaît dans l'email). */
+    fun totalClientGift(gifts: GesteCoClientGifts): Double =
+        countGsm * gifts.gsm +
+        countCo * gifts.co +
+        countDmp * gifts.dmp +
+        countSe * gifts.se
+
+    /** Alias pour compat éventuelle avec l'ancien code (= prime). */
+    fun totalEur(prices: GesteCoPrices): Double = totalPrime(prices)
 
     fun isEmpty(): Boolean =
         countGsm == 0 && countCo == 0 && countDmp == 0 && countSe == 0
@@ -65,7 +76,10 @@ data class GesteCoEntry(
     }
 }
 
-/** Tarifs des items GESTE CO, configurables dans Réglages. */
+/**
+ * PRIMES (commissions internes que touche l'utilisateur, n'apparaissent QUE
+ * dans l'écran RÉCAP GESTE CO). Pas envoyées par email au client.
+ */
 @Serializable
 data class GesteCoPrices(
     val gsm: Double = 3.0,
@@ -86,6 +100,26 @@ data class GesteCoPrices(
 }
 
 /**
+ * CADEAUX CLIENT (ce qu'on offre au client à chaque extension installée,
+ * apparaît dans l'email GESTE CO).
+ */
+@Serializable
+data class GesteCoClientGifts(
+    val gsm: Double = 3.0,
+    val co: Double = 1.5,
+    val dmp: Double = 3.0,
+    val se: Double = 0.0,
+) {
+    fun priceFor(type: String): Double = when (type.uppercase()) {
+        "GSM" -> gsm
+        "CO" -> co
+        "DMP" -> dmp
+        "SE" -> se
+        else -> 0.0
+    }
+}
+
+/**
  * Réglages globaux. Chaque catégorie GSM SEUL et GESTE CO a 1 destinataire
  * principal (To) et jusqu'à 2 destinataires en copie (Cc1, Cc2).
  */
@@ -101,6 +135,7 @@ data class AppSettings(
     val siteCodeFixe: String = "ISTGS54",
     val cycleStartDay: Int = 21,
     val prices: GesteCoPrices = GesteCoPrices(),
+    val clientGifts: GesteCoClientGifts = GesteCoClientGifts(),
     val nomUtilisateur: String = "Cedric LAGO GOMEZ",
     val departementDefaut: String = "34",
     val firstRunDone: Boolean = false
