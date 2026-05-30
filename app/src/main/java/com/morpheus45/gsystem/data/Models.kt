@@ -160,15 +160,15 @@ data class GesteCoClientGifts(
  */
 @Serializable
 data class AppSettings(
-    // === GROUPE ADMIN === (TEMPS + Frais + Compteur)
-    val emailAdminTo: String = "",
-    val emailAdminCc1: String = "",
-    val emailAdminCc2: String = "",
+    // === GROUPE GS === (TEMPS + Frais + Compteur — destinataires G-Systems)
+    val emailGsTo: String = "",
+    val emailGsCc1: String = "",
+    val emailGsCc2: String = "",
 
-    // === GROUPE OPS === (GSM SEUL + GESTE CO)
-    val emailOpsTo: String = "",
-    val emailOpsCc1: String = "",
-    val emailOpsCc2: String = "",
+    // === GROUPE EPS === (GSM SEUL + GESTE CO — destinataires EPS)
+    val emailEpsTo: String = "",
+    val emailEpsCc1: String = "",
+    val emailEpsCc2: String = "",
 
     // --- Champs hérités v0.11 (alimentent les groupes au démarrage si vides ;
     // gardés pour compat ascendante et migration de données existantes) ---
@@ -196,17 +196,17 @@ data class AppSettings(
     val excelFileName: String = "",
     val firstRunDone: Boolean = false
 ) {
-    /** Adresses effectives en lecture (priorité aux nouveaux champs Admin/Ops, fallback v0.11). */
-    val effectiveAdminTo: String get() = emailAdminTo.ifBlank { emailTemps.ifBlank { emailFrais } }
-    val effectiveAdminCc1: String get() = emailAdminCc1
-    val effectiveAdminCc2: String get() = emailAdminCc2
-    val effectiveOpsTo: String get() = emailOpsTo.ifBlank { emailGsmSeulTo.ifBlank { emailGesteCoTo } }
-    val effectiveOpsCc1: String get() = emailOpsCc1.ifBlank { emailGsmSeulCc1.ifBlank { emailGesteCoCc1 } }
-    val effectiveOpsCc2: String get() = emailOpsCc2.ifBlank { emailGsmSeulCc2.ifBlank { emailGesteCoCc2 } }
+    /** Adresses effectives en lecture (priorité GS/EPS v0.12+, fallback v0.11). */
+    val effectiveGsTo: String get() = emailGsTo.ifBlank { emailTemps.ifBlank { emailFrais } }
+    val effectiveGsCc1: String get() = emailGsCc1
+    val effectiveGsCc2: String get() = emailGsCc2
+    val effectiveEpsTo: String get() = emailEpsTo.ifBlank { emailGsmSeulTo.ifBlank { emailGesteCoTo } }
+    val effectiveEpsCc1: String get() = emailEpsCc1.ifBlank { emailGsmSeulCc1.ifBlank { emailGesteCoCc1 } }
+    val effectiveEpsCc2: String get() = emailEpsCc2.ifBlank { emailGsmSeulCc2.ifBlank { emailGesteCoCc2 } }
 
     val isReady: Boolean
-        get() = effectiveAdminTo.isNotBlank() &&
-                effectiveOpsTo.isNotBlank() &&
+        get() = effectiveGsTo.isNotBlank() &&
+                effectiveEpsTo.isNotBlank() &&
                 nomUtilisateur.isNotBlank()
 }
 

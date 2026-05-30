@@ -36,14 +36,14 @@ fun SettingsScreen(
     onCheckUpdate: () -> Unit = {}
 ) {
     // Groupe ADMIN (TEMPS + Frais + Compteur) — pré-rempli depuis emailTemps si présent
-    var emailAdminTo by remember { mutableStateOf(settings.effectiveAdminTo) }
-    var emailAdminCc1 by remember { mutableStateOf(settings.effectiveAdminCc1) }
-    var emailAdminCc2 by remember { mutableStateOf(settings.effectiveAdminCc2) }
+    var emailGsTo by remember { mutableStateOf(settings.effectiveGsTo) }
+    var emailGsCc1 by remember { mutableStateOf(settings.effectiveGsCc1) }
+    var emailGsCc2 by remember { mutableStateOf(settings.effectiveGsCc2) }
 
     // Groupe OPS (GSM SEUL + GESTE CO) — pré-rempli depuis emailGsmSeul/emailGesteCo si présent
-    var emailOpsTo by remember { mutableStateOf(settings.effectiveOpsTo) }
-    var emailOpsCc1 by remember { mutableStateOf(settings.effectiveOpsCc1) }
-    var emailOpsCc2 by remember { mutableStateOf(settings.effectiveOpsCc2) }
+    var emailEpsTo by remember { mutableStateOf(settings.effectiveEpsTo) }
+    var emailEpsCc1 by remember { mutableStateOf(settings.effectiveEpsCc1) }
+    var emailEpsCc2 by remember { mutableStateOf(settings.effectiveEpsCc2) }
 
     var plaque by remember { mutableStateOf(settings.plaqueVoiture) }
 
@@ -90,28 +90,28 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            SectionTitle("Groupe ADMIN — TEMPS + Frais + Compteur voiture")
-            Text("Mêmes destinataires pour la feuille de temps, les tickets de frais et la photo compteur. À remplir une fois ici.",
+            SectionTitle("Groupe GS — TEMPS + Frais + Compteur voiture")
+            Text("Destinataires G-Systems pour la feuille de temps, les tickets de frais et la photo compteur. À remplir une fois ici.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))
-            EmailField(value = emailAdminTo, onChange = { emailAdminTo = it }, label = "Destinataire principal (To)")
+            EmailField(value = emailGsTo, onChange = { emailGsTo = it }, label = "Destinataire principal (To)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailAdminCc1, onChange = { emailAdminCc1 = it }, label = "Copie 1 (Cc)")
+            EmailField(value = emailGsCc1, onChange = { emailGsCc1 = it }, label = "Copie 1 (Cc)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailAdminCc2, onChange = { emailAdminCc2 = it }, label = "Copie 2 (Cc)")
+            EmailField(value = emailGsCc2, onChange = { emailGsCc2 = it }, label = "Copie 2 (Cc)")
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("Groupe OPS — GSM SEUL + GESTE CO")
-            Text("Mêmes destinataires pour les emails GSM SEUL et GESTE CO. À remplir une fois ici.",
+            SectionTitle("Groupe EPS — GSM SEUL + GESTE CO")
+            Text("Destinataires EPS pour les emails GSM SEUL et GESTE CO. À remplir une fois ici.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))
-            EmailField(value = emailOpsTo, onChange = { emailOpsTo = it }, label = "Destinataire principal (To)")
+            EmailField(value = emailEpsTo, onChange = { emailEpsTo = it }, label = "Destinataire principal (To)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailOpsCc1, onChange = { emailOpsCc1 = it }, label = "Copie 1 (Cc)")
+            EmailField(value = emailEpsCc1, onChange = { emailEpsCc1 = it }, label = "Copie 1 (Cc)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailOpsCc2, onChange = { emailOpsCc2 = it }, label = "Copie 2 (Cc)")
+            EmailField(value = emailEpsCc2, onChange = { emailEpsCc2 = it }, label = "Copie 2 (Cc)")
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Véhicule")
@@ -230,21 +230,21 @@ fun SettingsScreen(
                         dmp = giftDmp.replace(",", ".").toDoubleOrNull() ?: 3.0,
                         se = giftSe.replace(",", ".").toDoubleOrNull() ?: 4.5,
                     )
-                    val newAdminTo = emailAdminTo.trim()
-                    val newAdminCc1 = emailAdminCc1.trim()
-                    val newAdminCc2 = emailAdminCc2.trim()
-                    val newOpsTo = emailOpsTo.trim()
-                    val newOpsCc1 = emailOpsCc1.trim()
-                    val newOpsCc2 = emailOpsCc2.trim()
+                    val newAdminTo = emailGsTo.trim()
+                    val newAdminCc1 = emailGsCc1.trim()
+                    val newAdminCc2 = emailGsCc2.trim()
+                    val newOpsTo = emailEpsTo.trim()
+                    val newOpsCc1 = emailEpsCc1.trim()
+                    val newOpsCc2 = emailEpsCc2.trim()
                     onSave(
                         settings.copy(
                             // Nouveaux champs Admin/Ops (source de vérité v0.12+)
-                            emailAdminTo = newAdminTo,
-                            emailAdminCc1 = newAdminCc1,
-                            emailAdminCc2 = newAdminCc2,
-                            emailOpsTo = newOpsTo,
-                            emailOpsCc1 = newOpsCc1,
-                            emailOpsCc2 = newOpsCc2,
+                            emailGsTo = newAdminTo,
+                            emailGsCc1 = newAdminCc1,
+                            emailGsCc2 = newAdminCc2,
+                            emailEpsTo = newOpsTo,
+                            emailEpsCc1 = newOpsCc1,
+                            emailEpsCc2 = newOpsCc2,
                             // Anciens champs synchronisés pour compatibilité (au cas où
                             // un écran les lit encore directement)
                             emailTemps = newAdminTo,
@@ -265,8 +265,8 @@ fun SettingsScreen(
                         )
                     )
                 },
-                enabled = emailAdminTo.isNotBlank() &&
-                          emailOpsTo.isNotBlank() &&
+                enabled = emailGsTo.isNotBlank() &&
+                          emailEpsTo.isNotBlank() &&
                           nom.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {

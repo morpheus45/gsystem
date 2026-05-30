@@ -260,8 +260,8 @@ fun EnvoiMensuelScreen(
                             // 3. Envoyer un seul mail avec tout
                             EmailSender.sendMulti(
                                 context = context,
-                                to = settings.effectiveAdminTo,
-                                cc = listOf(settings.effectiveAdminCc1, settings.effectiveAdminCc2),
+                                to = settings.effectiveGsTo,
+                                cc = listOf(settings.effectiveGsCc1, settings.effectiveGsCc2),
                                 subject = "ENVOI MENSUEL ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
                                 body = buildString {
                                     append("Bonjour,\n\n")
@@ -286,7 +286,7 @@ fun EnvoiMensuelScreen(
                         working = false
                     }
                 },
-                enabled = !working && validRange && settings.effectiveAdminTo.isNotBlank(),
+                enabled = !working && validRange && settings.effectiveGsTo.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = EnvoiColor)
             ) {
