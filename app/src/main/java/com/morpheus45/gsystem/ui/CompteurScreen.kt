@@ -66,8 +66,9 @@ fun CompteurScreen(
                 timestamp = System.currentTimeMillis(),
                 fileName = file.name
             )
+            // Le kilometrage est visible sur la photo elle-meme, pas besoin de saisir.
+            // L'utilisateur peut quand meme ajouter une note en tapant sur la carte.
             scope.launch { repo.addCompteur(entry) }
-            editing = entry
         }
     }
 
@@ -156,11 +157,11 @@ fun CompteurScreen(
                                         subject = "COMPTEUR ${settings.plaqueVoiture} - ${DateUtil.fr(DateUtil.parseIso(e.date))}",
                                         body = buildString {
                                             append("Bonjour,\n\n")
-                                            append("Relevé du compteur véhicule ${settings.plaqueVoiture}\n")
+                                            append("Photo du compteur du véhicule ${settings.plaqueVoiture}.\n")
                                             append("Date : ${DateUtil.fr(DateUtil.parseIso(e.date))}\n")
-                                            append("Kilométrage : ${e.kilometres} km\n")
+                                            append("Le kilométrage est visible sur la photo jointe.\n")
                                             if (e.observations.isNotBlank()) {
-                                                append("Observations : ${e.observations}\n")
+                                                append("Note : ${e.observations}\n")
                                             }
                                             append("\nCordialement,\n${settings.nomUtilisateur}")
                                         },
@@ -221,13 +222,16 @@ private fun CompteurCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(DateUtil.fr(DateUtil.parseIso(entry.date)),
                     fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text("${entry.kilometres} km",
-                    fontSize = 13.sp, color = CompteurColor,
-                    fontWeight = FontWeight.SemiBold)
+                Text("Photo du compteur ${settings.plaqueVoiture}",
+                    fontSize = 12.sp, color = CompteurColor)
                 if (entry.observations.isNotBlank()) {
                     Text(entry.observations, fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 2)
+                } else {
+                    Text("Tape pour ajouter une note (facultatif)",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
             Column {
@@ -248,36 +252,27 @@ private fun EditCompteurDialog(
     onDismiss: () -> Unit,
     onSave: (CompteurEntry) -> Unit
 ) {
-    var km by remember { mutableStateOf(if (entry.kilometres == 0) "" else entry.kilometres.toString()) }
     var obs by remember { mutableStateOf(entry.observations) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Saisir le kilométrage") },
+        title = { Text("Ajouter une note") },
         text = {
             Column {
-                OutlinedTextField(
-                    value = km,
-                    onValueChange = { km = it.filter(Char::isDigit).take(7) },
-                    label = { Text("Kilométrage") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
+                Text("Le kilométrage est lu directement sur la photo, " +
+                     "pas besoin de le retaper. Tu peux ajouter une note " +
+                     "si tu veux (vidange faite, plein, etc.).",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Spacer(Modifier.height(10.dp))
                 OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Note (optionnel)") },
+                    label = { Text("Note (facultatif)") },
                     modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
             Button(
-                onClick = {
-                    onSave(entry.copy(
-                        kilometres = km.toIntOrNull() ?: 0,
-                        observations = obs.trim()
-                    ))
-                },
+                onClick = { onSave(entry.copy(observations = obs.trim())) },
                 colors = ButtonDefaults.buttonColors(containerColor = CompteurColor)
             ) { Text("Enregistrer", color = Color.White) }
         },
