@@ -123,10 +123,14 @@ fun SettingsScreen(
             )
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle("Identité")
+            SectionTitle("Technicien (obligatoire)")
             OutlinedTextField(value = nom, onValueChange = { nom = it },
-                label = { Text("Nom complet") }, singleLine = true,
+                label = { Text("Nom du technicien") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
+            Text("Apparaît en signature des emails et en sous-titre de l'app.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(value = dept, onValueChange = { dept = it },
                 label = { Text("Département par défaut (ex : 34)") }, singleLine = true,
@@ -224,7 +228,10 @@ fun SettingsScreen(
                         )
                     )
                 },
-                enabled = emailTemps.isNotBlank() && emailGsmTo.isNotBlank() && emailGcTo.isNotBlank(),
+                enabled = emailTemps.isNotBlank() &&
+                          emailGsmTo.isNotBlank() &&
+                          emailGcTo.isNotBlank() &&
+                          nom.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Icon(Icons.Filled.Save, contentDescription = null)

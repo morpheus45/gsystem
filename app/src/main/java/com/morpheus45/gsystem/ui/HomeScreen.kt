@@ -27,12 +27,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.ui.theme.ColorGesteCo
 import com.morpheus45.gsystem.ui.theme.ColorGsmSeul
 import com.morpheus45.gsystem.ui.theme.ColorTemps
 
 @Composable
 fun HomeScreen(
+    settings: AppSettings,
     onTemps: () -> Unit,
     onGsmSeul: () -> Unit,
     onGesteCo: () -> Unit,
@@ -53,12 +55,21 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "G-Systems Cedric",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Column {
+                Text(
+                    text = "G-Systems",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (settings.nomUtilisateur.isNotBlank()) {
+                    Text(
+                        text = settings.nomUtilisateur,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    )
+                }
+            }
             IconButton(onClick = onSettings) {
                 Icon(Icons.Filled.Settings, contentDescription = "Réglages")
             }

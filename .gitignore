@@ -12,9 +12,12 @@ gradle-app.setting
 local.properties
 captures/
 
-# Keystore
+# Keystore : on garde le debug.keystore commité (signature stable pour
+# permettre les mises à jour de l'app sans réinstaller). Les keystores
+# de release (avec mots de passe réels) doivent rester hors du repo.
 *.jks
 *.keystore
+!keystore/debug.keystore
 keystore.properties
 
 # Misc

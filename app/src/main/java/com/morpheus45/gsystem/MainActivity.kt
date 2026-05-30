@@ -73,6 +73,7 @@ fun AppNav() {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
             HomeScreen(
+                settings = settings,
                 onTemps = { navController.navigate("temps") },
                 onGsmSeul = { navController.navigate("gsm") },
                 onGesteCo = { navController.navigate("gesteco") },

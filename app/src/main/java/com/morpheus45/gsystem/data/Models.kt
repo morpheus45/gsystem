@@ -136,14 +136,16 @@ data class AppSettings(
     val cycleStartDay: Int = 21,
     val prices: GesteCoPrices = GesteCoPrices(),
     val clientGifts: GesteCoClientGifts = GesteCoClientGifts(),
-    val nomUtilisateur: String = "Cedric LAGO GOMEZ",
+    /** Nom du technicien : utilisé dans la signature des emails et en sous-titre de l'app. */
+    val nomUtilisateur: String = "",
     val departementDefaut: String = "34",
     val firstRunDone: Boolean = false
 ) {
     val isReady: Boolean
         get() = emailTemps.isNotBlank() &&
                 emailGsmSeulTo.isNotBlank() &&
-                emailGesteCoTo.isNotBlank()
+                emailGesteCoTo.isNotBlank() &&
+                nomUtilisateur.isNotBlank()
 }
 
 @Serializable

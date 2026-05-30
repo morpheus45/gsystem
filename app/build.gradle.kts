@@ -12,18 +12,31 @@ android {
         applicationId = "com.morpheus45.gsystem"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    // Clé de signature debug STABLE, partagée par tous les builds (CI ou local)
+    // pour permettre les mises à jour seamless sans réinstaller.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
