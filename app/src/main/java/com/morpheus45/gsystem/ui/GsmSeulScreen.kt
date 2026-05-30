@@ -129,8 +129,8 @@ private fun sendGsmEmail(
     }
     EmailSender.send(
         context = context,
-        to = settings.emailGsmSeulTo,
-        cc = listOf(settings.emailGsmSeulCc1, settings.emailGsmSeulCc2),
+        to = settings.effectiveOpsTo,
+        cc = listOf(settings.effectiveOpsCc1, settings.effectiveOpsCc2),
         subject = subject,
         body = body
     )

@@ -151,7 +151,8 @@ fun CompteurScreen(
                                 if (f.exists()) {
                                     EmailSender.sendMulti(
                                         context = context,
-                                        to = settings.emailFrais.ifBlank { settings.emailTemps },
+                                        to = settings.effectiveAdminTo,
+                                        cc = listOf(settings.effectiveAdminCc1, settings.effectiveAdminCc2),
                                         subject = "COMPTEUR ${settings.plaqueVoiture} - ${DateUtil.fr(DateUtil.parseIso(e.date))}",
                                         body = buildString {
                                             append("Bonjour,\n\n")
@@ -230,7 +231,7 @@ private fun CompteurCard(
                 }
             }
             Column {
-                IconButton(onClick = onSend, enabled = settings.emailFrais.isNotBlank() || settings.emailTemps.isNotBlank()) {
+                IconButton(onClick = onSend, enabled = settings.effectiveAdminTo.isNotBlank()) {
                     Icon(Icons.Filled.Email, "Envoyer par email", tint = CompteurColor)
                 }
                 IconButton(onClick = onDelete) {

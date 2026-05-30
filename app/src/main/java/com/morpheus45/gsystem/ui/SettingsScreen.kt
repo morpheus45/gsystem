@@ -35,16 +35,16 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onCheckUpdate: () -> Unit = {}
 ) {
-    var emailTemps by remember { mutableStateOf(settings.emailTemps) }
+    // Groupe ADMIN (TEMPS + Frais + Compteur) — pré-rempli depuis emailTemps si présent
+    var emailAdminTo by remember { mutableStateOf(settings.effectiveAdminTo) }
+    var emailAdminCc1 by remember { mutableStateOf(settings.effectiveAdminCc1) }
+    var emailAdminCc2 by remember { mutableStateOf(settings.effectiveAdminCc2) }
 
-    var emailGsmTo by remember { mutableStateOf(settings.emailGsmSeulTo) }
-    var emailGsmCc1 by remember { mutableStateOf(settings.emailGsmSeulCc1) }
-    var emailGsmCc2 by remember { mutableStateOf(settings.emailGsmSeulCc2) }
+    // Groupe OPS (GSM SEUL + GESTE CO) — pré-rempli depuis emailGsmSeul/emailGesteCo si présent
+    var emailOpsTo by remember { mutableStateOf(settings.effectiveOpsTo) }
+    var emailOpsCc1 by remember { mutableStateOf(settings.effectiveOpsCc1) }
+    var emailOpsCc2 by remember { mutableStateOf(settings.effectiveOpsCc2) }
 
-    var emailGcTo by remember { mutableStateOf(settings.emailGesteCoTo) }
-    var emailGcCc1 by remember { mutableStateOf(settings.emailGesteCoCc1) }
-    var emailGcCc2 by remember { mutableStateOf(settings.emailGesteCoCc2) }
-    var emailFrais by remember { mutableStateOf(settings.emailFrais) }
     var plaque by remember { mutableStateOf(settings.plaqueVoiture) }
 
     var siteCode by remember { mutableStateOf(settings.siteCodeFixe) }
@@ -90,30 +90,31 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            SectionTitle("TEMPS — destinataire")
-            EmailField(value = emailTemps, onChange = { emailTemps = it }, label = "Email TEMPS")
+            SectionTitle("Groupe ADMIN — TEMPS + Frais + Compteur voiture")
+            Text("Mêmes destinataires pour la feuille de temps, les tickets de frais et la photo compteur. À remplir une fois ici.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp))
+            EmailField(value = emailAdminTo, onChange = { emailAdminTo = it }, label = "Destinataire principal (To)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailAdminCc1, onChange = { emailAdminCc1 = it }, label = "Copie 1 (Cc)")
+            Spacer(Modifier.height(6.dp))
+            EmailField(value = emailAdminCc2, onChange = { emailAdminCc2 = it }, label = "Copie 2 (Cc)")
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("GSM SEUL — destinataires")
-            EmailField(value = emailGsmTo, onChange = { emailGsmTo = it }, label = "Destinataire principal (To)")
+            SectionTitle("Groupe OPS — GSM SEUL + GESTE CO")
+            Text("Mêmes destinataires pour les emails GSM SEUL et GESTE CO. À remplir une fois ici.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp))
+            EmailField(value = emailOpsTo, onChange = { emailOpsTo = it }, label = "Destinataire principal (To)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailGsmCc1, onChange = { emailGsmCc1 = it }, label = "Copie 1 (Cc)")
+            EmailField(value = emailOpsCc1, onChange = { emailOpsCc1 = it }, label = "Copie 1 (Cc)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailGsmCc2, onChange = { emailGsmCc2 = it }, label = "Copie 2 (Cc)")
+            EmailField(value = emailOpsCc2, onChange = { emailOpsCc2 = it }, label = "Copie 2 (Cc)")
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("GESTE CO — destinataires")
-            EmailField(value = emailGcTo, onChange = { emailGcTo = it }, label = "Destinataire principal (To)")
-            Spacer(Modifier.height(6.dp))
-            EmailField(value = emailGcCc1, onChange = { emailGcCc1 = it }, label = "Copie 1 (Cc)")
-            Spacer(Modifier.height(6.dp))
-            EmailField(value = emailGcCc2, onChange = { emailGcCc2 = it }, label = "Copie 2 (Cc)")
-
-            Spacer(Modifier.height(16.dp))
-            SectionTitle("Tickets de frais & Compteur voiture")
-            EmailField(value = emailFrais, onChange = { emailFrais = it },
-                label = "Email destinataire (frais + compteur)")
-            Spacer(Modifier.height(6.dp))
+            SectionTitle("Véhicule")
             OutlinedTextField(
                 value = plaque,
                 onValueChange = { plaque = it.uppercase() },
@@ -229,16 +230,31 @@ fun SettingsScreen(
                         dmp = giftDmp.replace(",", ".").toDoubleOrNull() ?: 3.0,
                         se = giftSe.replace(",", ".").toDoubleOrNull() ?: 4.5,
                     )
+                    val newAdminTo = emailAdminTo.trim()
+                    val newAdminCc1 = emailAdminCc1.trim()
+                    val newAdminCc2 = emailAdminCc2.trim()
+                    val newOpsTo = emailOpsTo.trim()
+                    val newOpsCc1 = emailOpsCc1.trim()
+                    val newOpsCc2 = emailOpsCc2.trim()
                     onSave(
                         settings.copy(
-                            emailTemps = emailTemps.trim(),
-                            emailGsmSeulTo = emailGsmTo.trim(),
-                            emailGsmSeulCc1 = emailGsmCc1.trim(),
-                            emailGsmSeulCc2 = emailGsmCc2.trim(),
-                            emailGesteCoTo = emailGcTo.trim(),
-                            emailGesteCoCc1 = emailGcCc1.trim(),
-                            emailGesteCoCc2 = emailGcCc2.trim(),
-                            emailFrais = emailFrais.trim(),
+                            // Nouveaux champs Admin/Ops (source de vérité v0.12+)
+                            emailAdminTo = newAdminTo,
+                            emailAdminCc1 = newAdminCc1,
+                            emailAdminCc2 = newAdminCc2,
+                            emailOpsTo = newOpsTo,
+                            emailOpsCc1 = newOpsCc1,
+                            emailOpsCc2 = newOpsCc2,
+                            // Anciens champs synchronisés pour compatibilité (au cas où
+                            // un écran les lit encore directement)
+                            emailTemps = newAdminTo,
+                            emailFrais = newAdminTo,
+                            emailGsmSeulTo = newOpsTo,
+                            emailGsmSeulCc1 = newOpsCc1,
+                            emailGsmSeulCc2 = newOpsCc2,
+                            emailGesteCoTo = newOpsTo,
+                            emailGesteCoCc1 = newOpsCc1,
+                            emailGesteCoCc2 = newOpsCc2,
                             plaqueVoiture = plaque.trim(),
                             siteCodeFixe = siteCode.trim().ifBlank { "ISTGS54" },
                             cycleStartDay = cycleInt,
@@ -249,9 +265,8 @@ fun SettingsScreen(
                         )
                     )
                 },
-                enabled = emailTemps.isNotBlank() &&
-                          emailGsmTo.isNotBlank() &&
-                          emailGcTo.isNotBlank() &&
+                enabled = emailAdminTo.isNotBlank() &&
+                          emailOpsTo.isNotBlank() &&
                           nom.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {

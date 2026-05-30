@@ -149,7 +149,8 @@ fun FraisScreen(
                         }
                         EmailSender.sendMulti(
                             context = context,
-                            to = settings.emailFrais.ifBlank { settings.emailTemps },
+                            to = settings.effectiveAdminTo,
+                            cc = listOf(settings.effectiveAdminCc1, settings.effectiveAdminCc2),
                             subject = "FRAIS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
                             body = buildString {
                                 append("Bonjour,\n\n")
@@ -164,8 +165,7 @@ fun FraisScreen(
                             mimeType = "image/jpeg"
                         )
                     },
-                    enabled = periodTickets.isNotEmpty() &&
-                              (settings.emailFrais.isNotBlank() || settings.emailTemps.isNotBlank()),
+                    enabled = periodTickets.isNotEmpty() && settings.effectiveAdminTo.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = FraisColor)
                 ) {
                     Icon(Icons.Filled.Email, null, tint = Color.White)

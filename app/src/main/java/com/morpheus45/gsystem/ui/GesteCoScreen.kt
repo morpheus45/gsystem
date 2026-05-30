@@ -164,8 +164,8 @@ private fun sendGesteCoEmail(
     }
     EmailSender.send(
         context = context,
-        to = settings.emailGesteCoTo,
-        cc = listOf(settings.emailGesteCoCc1, settings.emailGesteCoCc2),
+        to = settings.effectiveOpsTo,
+        cc = listOf(settings.effectiveOpsCc1, settings.effectiveOpsCc2),
         subject = subject,
         body = body
     )

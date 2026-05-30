@@ -84,7 +84,8 @@ fun TempsScreen(
                         val csv = CsvExporter.exportTemps(context, store.temps, start, end)
                         EmailSender.send(
                             context = context,
-                            to = settings.emailTemps,
+                            to = settings.effectiveAdminTo,
+                            cc = listOf(settings.effectiveAdminCc1, settings.effectiveAdminCc2),
                             subject = "TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)}",
                             body = "Bonjour,\n\nCi-joint la feuille de temps de la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} (${periodEntries.size} interventions).\n\n${settings.nomUtilisateur}",
                             attachment = csv

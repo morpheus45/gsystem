@@ -160,6 +160,18 @@ data class GesteCoClientGifts(
  */
 @Serializable
 data class AppSettings(
+    // === GROUPE ADMIN === (TEMPS + Frais + Compteur)
+    val emailAdminTo: String = "",
+    val emailAdminCc1: String = "",
+    val emailAdminCc2: String = "",
+
+    // === GROUPE OPS === (GSM SEUL + GESTE CO)
+    val emailOpsTo: String = "",
+    val emailOpsCc1: String = "",
+    val emailOpsCc2: String = "",
+
+    // --- Champs hérités v0.11 (alimentent les groupes au démarrage si vides ;
+    // gardés pour compat ascendante et migration de données existantes) ---
     val emailTemps: String = "",
     val emailGsmSeulTo: String = "",
     val emailGsmSeulCc1: String = "",
@@ -184,10 +196,17 @@ data class AppSettings(
     val excelFileName: String = "",
     val firstRunDone: Boolean = false
 ) {
+    /** Adresses effectives en lecture (priorité aux nouveaux champs Admin/Ops, fallback v0.11). */
+    val effectiveAdminTo: String get() = emailAdminTo.ifBlank { emailTemps.ifBlank { emailFrais } }
+    val effectiveAdminCc1: String get() = emailAdminCc1
+    val effectiveAdminCc2: String get() = emailAdminCc2
+    val effectiveOpsTo: String get() = emailOpsTo.ifBlank { emailGsmSeulTo.ifBlank { emailGesteCoTo } }
+    val effectiveOpsCc1: String get() = emailOpsCc1.ifBlank { emailGsmSeulCc1.ifBlank { emailGesteCoCc1 } }
+    val effectiveOpsCc2: String get() = emailOpsCc2.ifBlank { emailGsmSeulCc2.ifBlank { emailGesteCoCc2 } }
+
     val isReady: Boolean
-        get() = emailTemps.isNotBlank() &&
-                emailGsmSeulTo.isNotBlank() &&
-                emailGesteCoTo.isNotBlank() &&
+        get() = effectiveAdminTo.isNotBlank() &&
+                effectiveOpsTo.isNotBlank() &&
                 nomUtilisateur.isNotBlank()
 }
 
