@@ -39,6 +39,8 @@ fun HomeScreen(
     onGsmSeul: () -> Unit,
     onGesteCo: () -> Unit,
     onGesteCoRecap: () -> Unit,
+    onFrais: () -> Unit,
+    onCompteur: () -> Unit,
     onSettings: () -> Unit
 ) {
     Column(
@@ -105,6 +107,18 @@ fun HomeScreen(
             label = "RÉCAP GESTE CO",
             sub = "Cumul du cycle + total €",
             color = ColorGesteCo.copy(alpha = 0.75f), onClick = onGesteCoRecap
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "TICKETS DE FRAIS",
+            sub = "Photos au fil de l'eau + envoi lot",
+            color = Color(0xFFD84315), onClick = onFrais
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "COMPTEUR VOITURE",
+            sub = "Photo + km du véhicule",
+            color = Color(0xFF00838F), onClick = onCompteur
         )
         Spacer(Modifier.height(20.dp))
     }

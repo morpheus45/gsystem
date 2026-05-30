@@ -14,6 +14,36 @@ import java.io.File
  */
 object EmailSender {
 
+    /** Envoi avec plusieurs pièces jointes (photos par exemple). */
+    fun sendMulti(
+        context: Context,
+        to: String,
+        cc: List<String> = emptyList(),
+        subject: String,
+        body: String,
+        attachments: List<File>,
+        mimeType: String = "*/*",
+        chooserTitle: String = "Envoyer via…"
+    ) {
+        val ccClean = cc.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+        val uris = ArrayList(attachments.map {
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
+        })
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = mimeType
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
+            if (ccClean.isNotEmpty()) putExtra(Intent.EXTRA_CC, ccClean)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        val chooser = Intent.createChooser(intent, chooserTitle).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+    }
+
     fun send(
         context: Context,
         to: String,

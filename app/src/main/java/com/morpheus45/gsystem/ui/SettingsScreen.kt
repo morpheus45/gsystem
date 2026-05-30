@@ -44,6 +44,8 @@ fun SettingsScreen(
     var emailGcTo by remember { mutableStateOf(settings.emailGesteCoTo) }
     var emailGcCc1 by remember { mutableStateOf(settings.emailGesteCoCc1) }
     var emailGcCc2 by remember { mutableStateOf(settings.emailGesteCoCc2) }
+    var emailFrais by remember { mutableStateOf(settings.emailFrais) }
+    var plaque by remember { mutableStateOf(settings.plaqueVoiture) }
 
     var siteCode by remember { mutableStateOf(settings.siteCodeFixe) }
     var nom by remember { mutableStateOf(settings.nomUtilisateur) }
@@ -106,6 +108,23 @@ fun SettingsScreen(
             EmailField(value = emailGcCc1, onChange = { emailGcCc1 = it }, label = "Copie 1 (Cc)")
             Spacer(Modifier.height(6.dp))
             EmailField(value = emailGcCc2, onChange = { emailGcCc2 = it }, label = "Copie 2 (Cc)")
+
+            Spacer(Modifier.height(16.dp))
+            SectionTitle("Tickets de frais & Compteur voiture")
+            EmailField(value = emailFrais, onChange = { emailFrais = it },
+                label = "Email destinataire (frais + compteur)")
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = plaque,
+                onValueChange = { plaque = it.uppercase() },
+                label = { Text("Plaque immatriculation (ex : AB-123-CD)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text("Utilisée pour le nommage automatique des photos : ${plaque.ifBlank { "<plaque>" }}_<date>.jpg",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(20.dp))
             SectionTitle("Code site (préfixe sujet email)")
@@ -219,6 +238,8 @@ fun SettingsScreen(
                             emailGesteCoTo = emailGcTo.trim(),
                             emailGesteCoCc1 = emailGcCc1.trim(),
                             emailGesteCoCc2 = emailGcCc2.trim(),
+                            emailFrais = emailFrais.trim(),
+                            plaqueVoiture = plaque.trim(),
                             siteCodeFixe = siteCode.trim().ifBlank { "ISTGS54" },
                             cycleStartDay = cycleInt,
                             prices = newPrices,

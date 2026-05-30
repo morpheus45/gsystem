@@ -174,6 +174,10 @@ data class AppSettings(
     /** Nom du technicien : utilisé dans la signature des emails et en sous-titre de l'app. */
     val nomUtilisateur: String = "",
     val departementDefaut: String = "34",
+    /** Plaque d'immatriculation de la voiture du tech (ex: "AB-123-CD"). */
+    val plaqueVoiture: String = "",
+    /** Email destinataire pour les tickets de frais et compteur (peut être identique à emailTemps). */
+    val emailFrais: String = "",
     val firstRunDone: Boolean = false
 ) {
     val isReady: Boolean
@@ -183,9 +187,37 @@ data class AppSettings(
                 nomUtilisateur.isNotBlank()
 }
 
+/**
+ * Un ticket de frais photographié (carburant, péage, repas, etc.).
+ * Le fichier image est stocké dans filesDir/photos/<fileName>.
+ */
+@Serializable
+data class FraisTicket(
+    val id: String,
+    val date: String,           // ISO yyyy-MM-dd
+    val timestamp: Long,        // pour tri précis
+    val fileName: String,       // nom du fichier dans filesDir/photos/
+    val categorie: String = "", // Carburant / Péage / Repas / Parking / Autre
+    val montantEur: Double = 0.0,
+    val observations: String = ""
+)
+
+/** Photo mensuelle du compteur de la voiture. */
+@Serializable
+data class CompteurEntry(
+    val id: String,
+    val date: String,
+    val timestamp: Long,
+    val fileName: String,
+    val kilometres: Int = 0,
+    val observations: String = ""
+)
+
 @Serializable
 data class EntriesStore(
     val temps: List<TempsEntry> = emptyList(),
     val gsmSeul: List<GsmSeulEntry> = emptyList(),
-    val gesteCo: List<GesteCoEntry> = emptyList()
+    val gesteCo: List<GesteCoEntry> = emptyList(),
+    val frais: List<FraisTicket> = emptyList(),
+    val compteur: List<CompteurEntry> = emptyList()
 )

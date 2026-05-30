@@ -21,6 +21,8 @@ import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
+import com.morpheus45.gsystem.ui.CompteurScreen
+import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
 import com.morpheus45.gsystem.ui.GesteCoScreen
 import com.morpheus45.gsystem.ui.GsmSeulScreen
@@ -78,6 +80,8 @@ fun AppNav() {
                 onGsmSeul = { navController.navigate("gsm") },
                 onGesteCo = { navController.navigate("gesteco") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
+                onFrais = { navController.navigate("frais") },
+                onCompteur = { navController.navigate("compteur") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -127,6 +131,18 @@ fun AppNav() {
         }
         composable("gesteco_recap") {
             GesteCoRecapScreen(
+                settings = settings, store = store, repo = repo,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("frais") {
+            FraisScreen(
+                settings = settings, store = store, repo = repo,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("compteur") {
+            CompteurScreen(
                 settings = settings, store = store, repo = repo,
                 onBack = { navController.popBackStack() }
             )

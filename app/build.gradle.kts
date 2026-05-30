@@ -12,8 +12,8 @@ android {
         applicationId = "com.morpheus45.gsystem"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.8.0"
+        versionCode = 11
+        versionName = "0.9.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -88,6 +88,9 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
+
+    // Coil pour afficher les miniatures des tickets/compteur dans Compose
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

@@ -37,10 +37,21 @@ class EntriesRepository private constructor(context: Context) {
     suspend fun addTemps(e: TempsEntry) = persist(_store.value.copy(temps = _store.value.temps + e))
     suspend fun addGsmSeul(e: GsmSeulEntry) = persist(_store.value.copy(gsmSeul = _store.value.gsmSeul + e))
     suspend fun addGesteCo(e: GesteCoEntry) = persist(_store.value.copy(gesteCo = _store.value.gesteCo + e))
+    suspend fun addFrais(e: FraisTicket) = persist(_store.value.copy(frais = _store.value.frais + e))
+    suspend fun addCompteur(e: CompteurEntry) = persist(_store.value.copy(compteur = _store.value.compteur + e))
+
+    suspend fun updateFrais(updated: FraisTicket) {
+        persist(_store.value.copy(frais = _store.value.frais.map { if (it.id == updated.id) updated else it }))
+    }
+    suspend fun updateCompteur(updated: CompteurEntry) {
+        persist(_store.value.copy(compteur = _store.value.compteur.map { if (it.id == updated.id) updated else it }))
+    }
 
     suspend fun removeTemps(id: String) = persist(_store.value.copy(temps = _store.value.temps.filterNot { it.id == id }))
     suspend fun removeGsmSeul(id: String) = persist(_store.value.copy(gsmSeul = _store.value.gsmSeul.filterNot { it.id == id }))
     suspend fun removeGesteCo(id: String) = persist(_store.value.copy(gesteCo = _store.value.gesteCo.filterNot { it.id == id }))
+    suspend fun removeFrais(id: String) = persist(_store.value.copy(frais = _store.value.frais.filterNot { it.id == id }))
+    suspend fun removeCompteur(id: String) = persist(_store.value.copy(compteur = _store.value.compteur.filterNot { it.id == id }))
 
     suspend fun clearAll() = persist(EntriesStore())
 
