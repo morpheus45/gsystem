@@ -178,6 +178,10 @@ data class AppSettings(
     val plaqueVoiture: String = "",
     /** Email destinataire pour les tickets de frais et compteur (peut être identique à emailTemps). */
     val emailFrais: String = "",
+    /** URI persistant du fichier .xlsm personnel du tech (Storage Access Framework). */
+    val excelFileUri: String = "",
+    /** Nom d'affichage du fichier Excel choisi (pour la GUI). */
+    val excelFileName: String = "",
     val firstRunDone: Boolean = false
 ) {
     val isReady: Boolean

@@ -22,6 +22,7 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.ui.CompteurScreen
+import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
 import com.morpheus45.gsystem.ui.GesteCoScreen
@@ -82,6 +83,7 @@ fun AppNav() {
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
                 onCompteur = { navController.navigate("compteur") },
+                onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -144,6 +146,13 @@ fun AppNav() {
         composable("compteur") {
             CompteurScreen(
                 settings = settings, store = store, repo = repo,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("envoi_mensuel") {
+            EnvoiMensuelScreen(
+                settings = settings, store = store,
+                settingsStore = settingsStore,
                 onBack = { navController.popBackStack() }
             )
         }

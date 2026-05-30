@@ -12,8 +12,8 @@ android {
         applicationId = "com.morpheus45.gsystem"
         minSdk = 24
         targetSdk = 34
-        versionCode = 11
-        versionName = "0.9.0"
+        versionCode = 12
+        versionName = "0.10.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -57,7 +57,25 @@ android {
     }
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += listOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/*.kotlin_module",
+                "META-INF/maven/**",
+                "META-INF/services/javax.imageio.spi.*",
+                "META-INF/versions/**/module-info.class",
+                "schemaorg_apache_xmlbeans/**"
+            )
+            pickFirsts += listOf(
+                "META-INF/services/javax.xml.stream.XMLEventFactory",
+                "META-INF/services/javax.xml.stream.XMLInputFactory",
+                "META-INF/services/javax.xml.stream.XMLOutputFactory",
+                "META-INF/services/javax.xml.parsers.SAXParserFactory",
+                "META-INF/services/org.apache.xmlbeans.impl.common.SystemCache"
+            )
         }
     }
 }
@@ -91,6 +109,18 @@ dependencies {
 
     // Coil pour afficher les miniatures des tickets/compteur dans Compose
     implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Apache POI : remplissage .xlsm directement sur le téléphone.
+    // Macros VBA préservées lors de la sauvegarde.
+    implementation("org.apache.poi:poi:5.2.5") {
+        exclude(group = "org.apache.logging.log4j")
+    }
+    implementation("org.apache.poi:poi-ooxml:5.2.5") {
+        exclude(group = "org.apache.logging.log4j")
+    }
+    implementation("org.apache.poi:poi-ooxml-lite:5.2.5")
+    // SLF4J no-op pour éviter les avertissements POI
+    implementation("org.slf4j:slf4j-nop:2.0.11")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

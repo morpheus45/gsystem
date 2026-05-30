@@ -41,6 +41,7 @@ fun HomeScreen(
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCompteur: () -> Unit,
+    onEnvoiMensuel: () -> Unit,
     onSettings: () -> Unit
 ) {
     Column(
@@ -119,6 +120,12 @@ fun HomeScreen(
             label = "COMPTEUR VOITURE",
             sub = "Photo + km du véhicule",
             color = Color(0xFF00838F), onClick = onCompteur
+        )
+        Spacer(Modifier.height(20.dp))
+        BigButton(
+            label = "ENVOI MENSUEL",
+            sub = "Excel rempli + tickets + compteur en 1 mail",
+            color = Color(0xFF1976D2), onClick = onEnvoiMensuel
         )
         Spacer(Modifier.height(20.dp))
     }
