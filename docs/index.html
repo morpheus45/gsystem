@@ -4,19 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>G-Systems · Installation pour techniciens</title>
-  <meta name="description" content="Tutoriel d'installation de l'app G-Systems sur téléphone Android." />
+  <meta name="description" content="Tutoriel d'installation pas-à-pas de l'app G-Systems sur téléphone Android." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%235B3EB1'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
       --accent: #5b3eb1;
       --accent-light: #efeaff;
+      --accent-soft: #f6f3ff;
       --bg: #f7f6fb;
       --card: #ffffff;
       --text: #1f1f23;
       --muted: #66666b;
       --border: #e6e3ee;
       --success: #2e7d32;
+      --success-bg: #ecf8ed;
       --warning: #c87600;
+      --warning-bg: #fff8ee;
+      --danger: #c62828;
+      --danger-bg: #fdecea;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -27,14 +32,14 @@
       line-height: 1.55;
     }
     .container {
-      max-width: 720px;
+      max-width: 740px;
       margin: 0 auto;
-      padding: 24px 18px 64px;
+      padding: 20px 16px 80px;
     }
     header {
       text-align: center;
-      padding-top: 16px;
-      margin-bottom: 28px;
+      padding-top: 12px;
+      margin-bottom: 24px;
     }
     .logo {
       width: 72px; height: 72px;
@@ -56,15 +61,79 @@
     }
     .subtitle {
       color: var(--muted);
-      margin: 0 0 8px;
-      font-size: 15px;
+      margin: 0;
+      font-size: 14.5px;
     }
-    .download-card {
+    h2 {
+      margin: 30px 0 12px;
+      font-size: 19px;
+      color: var(--accent);
+      letter-spacing: -.2px;
+    }
+    h2 .num {
+      display: inline-block;
+      width: 28px; height: 28px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      font-size: 14px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    /* Cartes */
+    .card {
       background: var(--card);
       border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 18px 16px;
+      margin-bottom: 12px;
+    }
+    .card.green {
+      background: var(--success-bg);
+      border-left: 4px solid var(--success);
+      border-radius: 10px;
+    }
+    .card.orange {
+      background: var(--warning-bg);
+      border-left: 4px solid var(--warning);
+      border-radius: 10px;
+    }
+    .card.red {
+      background: var(--danger-bg);
+      border-left: 4px solid var(--danger);
+      border-radius: 10px;
+    }
+    .card.purple {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+    }
+    .card p:first-child { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul, .card ol {
+      margin: 6px 0; padding-left: 22px;
+    }
+    .card li { margin: 4px 0; }
+    .card code {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
+      color: var(--accent);
+    }
+
+    /* Bouton de téléchargement */
+    .download-card {
+      background: white;
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 22px 20px;
-      margin-bottom: 24px;
+      padding: 22px 18px;
+      margin-bottom: 20px;
       text-align: center;
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
@@ -72,101 +141,86 @@
       display: inline-block;
       width: 100%;
       max-width: 360px;
-      padding: 16px 24px;
+      padding: 17px 24px;
       background: var(--accent);
       color: white;
       text-decoration: none;
-      border-radius: 12px;
+      border-radius: 14px;
       font-size: 17px;
-      font-weight: 600;
-      box-shadow: 0 2px 8px rgba(91,62,177,.3);
+      font-weight: 700;
+      box-shadow: 0 3px 10px rgba(91,62,177,.35);
       transition: transform .08s, box-shadow .08s;
     }
     .download-btn:active {
       transform: translateY(1px);
-      box-shadow: 0 1px 4px rgba(91,62,177,.3);
+      box-shadow: 0 1px 5px rgba(91,62,177,.3);
     }
     .meta {
-      margin-top: 10px;
+      margin-top: 12px;
       font-size: 13px;
       color: var(--muted);
     }
-    .meta strong { color: var(--accent); font-weight: 600; }
-    .step {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 18px 16px;
-      margin-bottom: 14px;
-    }
-    .step-number {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 26px; height: 26px;
-      background: var(--accent);
-      color: white;
-      border-radius: 50%;
-      font-weight: 700;
-      font-size: 13px;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-    .step h2 {
-      margin: 0 0 8px;
-      font-size: 17px;
-      display: flex;
-      align-items: center;
-    }
-    .step p, .step ul {
-      margin: 6px 0;
-      font-size: 14.5px;
-      color: #2a2a2e;
-    }
-    .step ul { padding-left: 20px; }
-    .step li { margin: 3px 0; }
-    .step code {
-      background: var(--accent-light);
-      color: var(--accent);
-      padding: 2px 6px;
-      border-radius: 5px;
-      font-size: 13px;
-      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
-    }
-    .callout {
-      padding: 10px 12px;
-      background: #fff8ee;
-      border-left: 3px solid var(--warning);
-      border-radius: 6px;
-      margin: 10px 0;
-      font-size: 13.5px;
-    }
-    .callout strong { color: var(--warning); }
-    .ok {
-      padding: 10px 12px;
-      background: #ecf8ed;
-      border-left: 3px solid var(--success);
-      border-radius: 6px;
-      margin: 10px 0;
-      font-size: 13.5px;
-    }
-    .ok strong { color: var(--success); }
+    .meta strong { color: var(--accent); font-weight: 700; }
+
+    /* Liste des fonctionnalités (grille) */
     .features {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin: 10px 0;
+      gap: 10px;
+      margin: 12px 0;
     }
     .feature {
-      padding: 10px 12px;
-      background: var(--accent-light);
-      border-radius: 8px;
+      padding: 12px;
+      background: var(--accent-soft);
+      border-radius: 10px;
       font-size: 13px;
     }
-    .feature b { color: var(--accent); display: block; margin-bottom: 2px; }
+    .feature .ic {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      color: white;
+      text-align: center;
+      font-weight: 700;
+      line-height: 28px;
+      font-size: 12px;
+    }
+    .feature b { display: block; margin: 2px 0 4px; color: var(--text); font-size: 14px; }
+
+    /* Mini-écrans (mockups) */
+    .mock {
+      background: #2b2b30;
+      color: #f0f0f5;
+      padding: 12px;
+      border-radius: 10px;
+      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+
+    .summary {
+      background: var(--accent);
+      color: white;
+      padding: 18px;
+      border-radius: 14px;
+      text-align: center;
+      margin: 28px 0 12px;
+    }
+    .summary p { margin: 6px 0; }
+    .summary .big {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
     footer {
       text-align: center;
-      margin-top: 36px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
       font-size: 12.5px;
       color: var(--muted);
     }
@@ -174,160 +228,268 @@
     @media (max-width: 480px) {
       .features { grid-template-columns: 1fr; }
       h1 { font-size: 24px; }
+      .container { padding: 14px 12px 60px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+<div class="container">
 
-    <header>
-      <div class="logo">G</div>
-      <h1>G-Systems</h1>
-      <p class="subtitle">Application Android pour saisie TEMPS · GSM SEUL · GESTE CO</p>
-    </header>
+  <header>
+    <div class="logo">G</div>
+    <h1>G-Systems</h1>
+    <p class="subtitle">Application pour techniciens · Android</p>
+  </header>
 
-    <!-- Bouton de téléchargement avec URL toujours à jour -->
-    <div class="download-card">
-      <a class="download-btn"
-         href="https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk"
-         id="dl-btn">
-        📥 Télécharger l'application
-      </a>
-      <div class="meta">
-        Version : <strong id="version">chargement…</strong>
-        &nbsp;·&nbsp;
-        Android 7.0+ requis
-        &nbsp;·&nbsp;
-        APK ~17 MB
-      </div>
+  <!-- Bouton de téléchargement -->
+  <div class="download-card">
+    <a class="download-btn"
+       href="https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk"
+       id="dl-btn">
+      Télécharger l'application
+    </a>
+    <div class="meta">
+      Dernière version : <strong id="version">…</strong> &nbsp;·&nbsp;
+      Android 8.0+ requis &nbsp;·&nbsp;
+      ~26 MB
     </div>
-
-    <div class="callout">
-      <strong>⚠ Ouvre cette page depuis ton téléphone</strong>, c'est là que tu installes l'app.
-      Le bouton ci-dessus déclenche le téléchargement.
-    </div>
-
-    <!-- Étapes -->
-    <div class="step">
-      <h2><span class="step-number">1</span>Télécharge l'APK</h2>
-      <p>Tape le bouton violet ci-dessus. Ton navigateur (Chrome / Edge / Samsung Internet)
-         télécharge le fichier <code>app-debug.apk</code>.</p>
-    </div>
-
-    <div class="step">
-      <h2><span class="step-number">2</span>Autorise l'installation depuis cette source</h2>
-      <p>Quand tu ouvres l'APK, Android demande l'autorisation. C'est normal — il s'agit
-         d'une app interne à G-Systems, pas distribuée via le Play Store.</p>
-      <ul>
-        <li>Tape <code>Paramètres</code> sur la pop-up qui apparaît</li>
-        <li>Active <code>Autoriser depuis cette source</code> pour Chrome (ou ton navigateur)</li>
-        <li>Reviens en arrière et tape <code>Installer</code></li>
-      </ul>
-      <div class="ok"><strong>✓ Une seule fois</strong> par téléphone. Ensuite, les mises à jour passent toutes seules.</div>
-    </div>
-
-    <div class="step">
-      <h2><span class="step-number">3</span>Lance l'app et configure-toi</h2>
-      <p>Au premier lancement, l'app te demande :</p>
-      <ul>
-        <li><strong>Ton nom complet</strong> (apparaît dans la signature des emails)</li>
-        <li>3 adresses email destinataires :
-          <ul>
-            <li><code>TEMPS</code> : où envoyer la feuille de temps</li>
-            <li><code>GSM SEUL</code> : destinataire principal + jusqu'à 2 en copie (Cc)</li>
-            <li><code>GESTE CO</code> : destinataire principal + jusqu'à 2 en copie (Cc)</li>
-          </ul>
-        </li>
-        <li><strong>Code site fixe</strong> : <code>ISTGS54</code> par défaut, modifiable</li>
-        <li><strong>Cycle mensuel</strong> : <code>21</code> par défaut (= du 21 au 20)</li>
-        <li>Tarifs primes et cadeaux clients (pré-remplis)</li>
-      </ul>
-      <p>Ces réglages sont sauvegardés et modifiables à tout moment via l'icône ⚙ engrenage.</p>
-    </div>
-
-    <div class="step">
-      <h2><span class="step-number">4</span>Utilise les 4 boutons</h2>
-      <div class="features">
-        <div class="feature">
-          <b>TEMPS</b>
-          Formulaire complet d'intervention. À l'enregistrement, Viber s'ouvre
-          avec le message déjà tapé (ex&nbsp;: <code>34 inst dupont sete 4300… ok</code>).
-        </div>
-        <div class="feature">
-          <b>GSM SEUL</b>
-          1 site = 1 email immédiat. Toggles « MEDIAS » et « Câbles ». Sujet
-          <code>GSM SEUL - ISTGS54 - n° site</code>.
-        </div>
-        <div class="feature">
-          <b>GESTE CO</b>
-          Tableau Installé / Cadeau par type (GSM, CO, DMP, SE).
-          Validation auto des règles (4,50 € max, moitié max),
-          dérogation EPS dispo.
-        </div>
-        <div class="feature">
-          <b>RÉCAP GESTE CO</b>
-          Cumul du cycle, totaux par type, total des primes. Envoi récap CSV
-          par email à la demande.
-        </div>
-      </div>
-    </div>
-
-    <div class="step">
-      <h2><span class="step-number">5</span>Les mises à jour sont automatiques</h2>
-      <p>À chaque ouverture, l'app vérifie s'il y a une nouvelle version. Si oui,
-         une popup s'affiche :</p>
-      <ul>
-        <li>Tape <strong>Mettre à jour</strong></li>
-        <li>L'APK se télécharge en quelques secondes</li>
-        <li>Android te demande d'installer par-dessus → confirme</li>
-      </ul>
-      <p>Tu peux aussi forcer la vérification via <code>⚙ Réglages → Vérifier maintenant</code>.</p>
-    </div>
-
-    <div class="step">
-      <h2><span class="step-number">6</span>En cas de souci</h2>
-      <ul>
-        <li><strong>« Package en conflit »</strong> : tu avais une ancienne version d'avant v0.6.0 ?
-          Désinstalle l'app puis réinstalle. Toutes les versions à partir de 0.6.0
-          gardent la même signature → ce problème ne reviendra plus.</li>
-        <li><strong>Le popup de mise à jour ne s'affiche pas</strong> : vérifie que ton téléphone est connecté
-          à Internet, ouvre l'app, puis va dans <code>⚙ Réglages → Vérifier maintenant</code>.</li>
-        <li><strong>L'email ne s'ouvre pas avec destinataire</strong> : assure-toi d'avoir une app email
-          configurée sur le téléphone (Gmail, Outlook…).</li>
-      </ul>
-    </div>
-
-    <footer>
-      <p>
-        Repo : <a href="https://github.com/morpheus45/gsystem">github.com/morpheus45/gsystem</a><br/>
-        <a href="https://github.com/morpheus45/gsystem/releases">Toutes les versions</a>
-        &nbsp;·&nbsp;
-        <a href="https://github.com/morpheus45/gsystem/issues">Signaler un problème</a>
-      </p>
-    </footer>
-
   </div>
 
-  <script>
-    // Récupère la dernière release via l'API GitHub pour afficher la version.
-    // Le bouton de téléchargement utilise déjà l'URL "latest" automatique.
-    fetch("https://api.github.com/repos/morpheus45/gsystem/releases/latest", {
-      headers: { "Accept": "application/vnd.github+json" }
+  <div class="card orange">
+    <p><strong>⚠ Important — ouvre cette page <u>depuis ton téléphone</u></strong>
+       (pas depuis un ordinateur). Le bouton ci-dessus télécharge l'app
+       directement sur ton mobile.</p>
+  </div>
+
+  <!-- ============ AVANT DE COMMENCER ============ -->
+  <h2><span class="num">1</span>Avant de commencer (5 min)</h2>
+
+  <div class="card">
+    <p><b>Ce qu'il faut sur ton téléphone avant d'installer :</b></p>
+    <ol>
+      <li><b>Une boîte mail configurée</b> (Gmail, Outlook, Mail…). C'est elle qui va envoyer les emails au boulot. Si tu peux lire tes emails sur le tél, c'est déjà bon.</li>
+      <li><b>Ton fichier <code>TEMPS xxxx.xlsm</code> accessible sur le téléphone</b>. Trois options :
+        <ul>
+          <li>Installe <b>OneDrive</b> sur ton tél et connecte-toi avec ton compte pro → ton fichier apparaît automatiquement.</li>
+          <li>Ou <b>Google Drive</b> si ton fichier est là.</li>
+          <li>Ou copie-le par <b>câble USB / WhatsApp à toi-même / email à toi-même</b> dans <code>Téléchargements</code>.</li>
+        </ul>
+        Le fichier peut s'appeler <b>n'importe comment</b> (<code>TEMPS 2026.xlsm</code>, <code>feuille_jean.xlsm</code>, etc.) du moment qu'il a la <b>même structure de feuilles</b> que celui de l'équipe (semaines S.1 à S.53).
+      </li>
+    </ol>
+  </div>
+
+  <!-- ============ INSTALLATION ============ -->
+  <h2><span class="num">2</span>Installer l'application</h2>
+
+  <div class="card">
+    <p><b>Tape le gros bouton violet en haut de cette page.</b></p>
+    <p>Ton navigateur (Chrome / Edge / Samsung Internet) télécharge le fichier <code>app-debug.apk</code>. Le téléchargement prend quelques secondes (~26 MB).</p>
+  </div>
+
+  <div class="card orange">
+    <p><b>Android va te demander d'autoriser l'installation.</b> C'est normal — l'app vient de GitHub, pas du Play Store.</p>
+    <ol>
+      <li>Une fenêtre s'ouvre : <i>« Pour votre sécurité, votre téléphone n'autorise pas… »</i></li>
+      <li>Tape <b>Paramètres</b> sur cette fenêtre</li>
+      <li>Active <b>« Autoriser depuis cette source »</b> pour Chrome (ou ton navigateur)</li>
+      <li>Reviens en arrière (flèche)</li>
+      <li>Tape <b>Installer</b></li>
+    </ol>
+    <p>👉 <b>À faire une seule fois</b>. Les futures mises à jour passeront toutes seules.</p>
+  </div>
+
+  <!-- ============ PREMIER LANCEMENT ============ -->
+  <h2><span class="num">3</span>Premier lancement (à remplir une fois)</h2>
+
+  <div class="card">
+    <p>L'app s'ouvre sur un écran de réglages. <b>Remplis ces champs :</b></p>
+
+    <p><b>👤 Ton identité</b></p>
+    <ul>
+      <li><b>Nom du technicien</b> : ton nom complet (apparaîtra dans la signature des emails)</li>
+      <li><b>Département</b> : ton département (ex : <code>34</code>)</li>
+    </ul>
+
+    <p><b>📧 Les emails de destination (qui reçoit quoi)</b></p>
+    <ul>
+      <li><b>Email TEMPS</b> : qui reçoit la feuille de temps remplie</li>
+      <li><b>Email GSM SEUL</b> : destinataire principal + 2 personnes en copie (Cc)</li>
+      <li><b>Email GESTE CO</b> : destinataire principal + 2 en copie</li>
+      <li><b>Email Frais + Compteur</b> : qui reçoit les tickets et photos compteur</li>
+    </ul>
+
+    <p><b>🚗 Ton véhicule</b></p>
+    <ul>
+      <li><b>Plaque immatriculation</b> (ex: <code>AB-123-CD</code>) — sert à nommer automatiquement tes photos (<code>AB-123-CD_2026-05-30_compteur.jpg</code>)</li>
+    </ul>
+
+    <p><b>🔧 Autres réglages (les défauts conviennent à 95 % des cas)</b></p>
+    <ul>
+      <li><b>Code site fixe</b> : <code>ISTGS54</code> (apparaît dans le sujet des emails)</li>
+      <li><b>Cycle mensuel</b> : <code>21</code> (= période du 21 au 20 du mois suivant — c'est la période <i>par défaut</i> pour le récap, tu peux la changer au moment de l'envoi)</li>
+      <li><b>Tarifs primes & cadeau client</b> : déjà pré-remplis aux bonnes valeurs</li>
+    </ul>
+
+    <p>Une fois tout rempli, tape <b>Enregistrer</b>. Tu arrives sur l'écran d'accueil.</p>
+  </div>
+
+  <!-- ============ LIER LE FICHIER EXCEL ============ -->
+  <h2><span class="num">4</span>Lier ton fichier TEMPS .xlsm</h2>
+
+  <div class="card purple">
+    <p><b>C'est ICI qu'on dit à l'app où est ton fichier Excel.</b> Tu le fais <b>une seule fois</b>, l'app s'en souvient ensuite.</p>
+    <ol>
+      <li>Sur l'écran d'accueil, tape <b>ENVOI MENSUEL</b> (le bouton bleu en bas)</li>
+      <li>Section <b>« Mon fichier TEMPS .xlsm »</b> → tape <b>Choisir mon fichier .xlsm</b></li>
+      <li>Le sélecteur Android s'ouvre. Navigue vers ton fichier :
+        <ul>
+          <li>Si tu utilises OneDrive : tape ☰ → <b>OneDrive</b> → ton dossier → ton fichier</li>
+          <li>Si Drive : tape ☰ → <b>Google Drive</b></li>
+          <li>Sinon : <b>Téléchargements</b> ou autre dossier local</li>
+        </ul>
+      </li>
+      <li>Tape sur ton fichier <code>.xlsm</code> → c'est lié</li>
+    </ol>
+    <p>L'écran affiche maintenant : <i>« Fichier choisi : Mon_TEMPS_2026.xlsm »</i> ✓</p>
+  </div>
+
+  <!-- ============ UTILISATION ============ -->
+  <h2><span class="num">5</span>Utilisation quotidienne</h2>
+
+  <p>L'écran d'accueil te montre <b>7 boutons</b>. Voici à quoi sert chacun :</p>
+
+  <div class="features">
+    <div class="feature">
+      <span class="ic" style="background:#5b3eb1">T</span>
+      <b>TEMPS</b>
+      Saisie d'une intervention (date, dept, type, client, ville, n°, NR…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé prêt à envoyer au groupe.
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#1565c0">G</span>
+      <b>GSM SEUL</b>
+      Une installation GSM uniquement = un email immédiat (sujet <code>GSM SEUL - ISTGS54 - n°site</code>, destinataire + 2 copies).
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#2e7d32">C</span>
+      <b>GESTE CO</b>
+      Tableau "Installé / Cadeau" par type (GSM, CO, DMP, SE). L'app vérifie les règles automatiquement (4,50 € max, moitié max…). Dérogation EPS dispo.
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#7ba87f">R</span>
+      <b>RÉCAP GESTE CO</b>
+      Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €.
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#d84315">F</span>
+      <b>TICKETS DE FRAIS</b>
+      Tape "Prendre photo" pour chaque ticket (carburant, péage, repas…). Saisis le montant. À la fin, "Envoyer le lot" = tous les tickets dans un mail.
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#00838f">K</span>
+      <b>COMPTEUR VOITURE</b>
+      Photo du compteur + km saisi. Auto-nommé avec ta plaque + date. Envoi par email d'un clic.
+    </div>
+    <div class="feature" style="grid-column: 1 / -1; background:#e8eef7">
+      <span class="ic" style="background:#1976d2">E</span>
+      <b>ENVOI MENSUEL — le gros bouton</b>
+      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente.
+    </div>
+  </div>
+
+  <!-- ============ MISES À JOUR ============ -->
+  <h2><span class="num">6</span>Mises à jour : tu n'as rien à faire</h2>
+
+  <div class="card green">
+    <p>À chaque ouverture de l'app, elle vérifie automatiquement si une nouvelle version existe.</p>
+    <p><b>Quand c'est le cas :</b></p>
+    <ul>
+      <li>Une fenêtre s'affiche : <i>« Nouvelle version disponible »</i></li>
+      <li>Tape <b>Mettre à jour</b></li>
+      <li>L'app se télécharge et s'installe en 30 secondes par-dessus l'ancienne</li>
+    </ul>
+    <p>Tes données et tes réglages sont conservés.</p>
+  </div>
+
+  <!-- ============ DÉPANNAGE ============ -->
+  <h2><span class="num">7</span>Si ça coince…</h2>
+
+  <div class="card red">
+    <p><b>❌ « Package en conflit » à l'installation</b></p>
+    <p>Tu avais une très vieille version (avant v0.6.0). Va dans <code>Paramètres Android → Apps → G-Systems → Désinstaller</code>, puis réinstalle. C'est la dernière fois que ça arrivera.</p>
+  </div>
+
+  <div class="card red">
+    <p><b>❌ « Cette app demande Android 8.0 ou supérieur »</b></p>
+    <p>Ton téléphone est trop ancien. Tu auras besoin d'un téléphone sorti après 2018 environ.</p>
+  </div>
+
+  <div class="card red">
+    <p><b>❌ Le sélecteur ne trouve pas mon fichier .xlsm</b></p>
+    <ul>
+      <li>Vérifie qu'il est bien sur le téléphone (pas seulement sur le PC).</li>
+      <li>Sur OneDrive : ouvre une fois le fichier dans l'app OneDrive du tél pour le télécharger en cache.</li>
+      <li>Essaie depuis <code>Téléchargements</code> en le copiant via USB d'abord.</li>
+    </ul>
+  </div>
+
+  <div class="card red">
+    <p><b>❌ Le mail ne s'ouvre pas avec destinataire pré-rempli</b></p>
+    <p>Vérifie que tu as une <b>app email</b> installée et connectée sur le téléphone (Gmail, Outlook). Sinon télécharge Gmail depuis le Play Store et configure ton compte.</p>
+  </div>
+
+  <div class="card red">
+    <p><b>❌ Viber ne s'ouvre pas après "Enregistrer & ouvrir Viber"</b></p>
+    <p>Vérifie que <b>Viber est installé</b> sur ton téléphone. Si oui, quand Android te propose la liste des apps, choisis Viber.</p>
+  </div>
+
+  <div class="card red">
+    <p><b>❌ Le popup de mise à jour n'apparaît pas</b></p>
+    <p>Vérifie ta connexion Internet, puis dans l'app : <b>⚙ Réglages → Vérifier maintenant</b>.</p>
+  </div>
+
+  <!-- ============ RÉSUMÉ ============ -->
+  <div class="summary">
+    <p class="big">Pour résumer :</p>
+    <p>1️⃣ &nbsp; Télécharge l'APK ↑</p>
+    <p>2️⃣ &nbsp; Autorise l'install une fois</p>
+    <p>3️⃣ &nbsp; Remplis tes infos (5 min)</p>
+    <p>4️⃣ &nbsp; Lie ton fichier .xlsm</p>
+    <p>5️⃣ &nbsp; Tu peux travailler 🚀</p>
+  </div>
+
+  <footer>
+    <p>
+      Repo : <a href="https://github.com/morpheus45/gsystem">github.com/morpheus45/gsystem</a><br/>
+      <a href="https://github.com/morpheus45/gsystem/releases">Toutes les versions</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/morpheus45/gsystem/issues">Signaler un souci</a>
+    </p>
+    <p style="margin-top:14px; font-size:11px; color:#aaa;">
+      Cette app est un outil interne G-Systems, pas distribué via le Play Store.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+  // Récupère la dernière release via l'API GitHub pour afficher le numéro de version.
+  // Le bouton utilise déjà l'URL "latest" qui est toujours à jour.
+  fetch("https://api.github.com/repos/morpheus45/gsystem/releases/latest", {
+    headers: { "Accept": "application/vnd.github+json" }
+  })
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(d){
+      var v = document.getElementById("version");
+      v.textContent = d.tag_name || "?";
+      var apk = (d.assets || []).find(function(a){ return /\.apk$/i.test(a.name); });
+      if (apk) {
+        document.getElementById("dl-btn").setAttribute("href", apk.browser_download_url);
+      }
     })
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(d => {
-        document.getElementById("version").textContent = d.tag_name || "?";
-        const apk = (d.assets || []).find(a => /\.apk$/i.test(a.name));
-        if (apk) {
-          const mb = (apk.size / 1024 / 1024).toFixed(1);
-          document.getElementById("dl-btn").setAttribute(
-            "href", apk.browser_download_url
-          );
-        }
-      })
-      .catch(() => {
-        document.getElementById("version").textContent = "dernière";
-      });
-  </script>
+    .catch(function(){
+      document.getElementById("version").textContent = "dernière";
+    });
+</script>
 </body>
 </html>
