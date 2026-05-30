@@ -204,7 +204,7 @@ fun SettingsScreen(
                         gsm = giftGsm.replace(",", ".").toDoubleOrNull() ?: 3.0,
                         co = giftCo.replace(",", ".").toDoubleOrNull() ?: 1.5,
                         dmp = giftDmp.replace(",", ".").toDoubleOrNull() ?: 3.0,
-                        se = giftSe.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                        se = giftSe.replace(",", ".").toDoubleOrNull() ?: 4.5,
                     )
                     onSave(
                         settings.copy(

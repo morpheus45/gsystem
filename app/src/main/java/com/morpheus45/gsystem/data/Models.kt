@@ -108,7 +108,7 @@ data class GesteCoClientGifts(
     val gsm: Double = 3.0,
     val co: Double = 1.5,
     val dmp: Double = 3.0,
-    val se: Double = 0.0,
+    val se: Double = 4.5,
 ) {
     fun priceFor(type: String): Double = when (type.uppercase()) {
         "GSM" -> gsm
