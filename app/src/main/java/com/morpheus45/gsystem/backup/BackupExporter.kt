@@ -14,9 +14,9 @@ import java.util.zip.ZipOutputStream
  * puisse l'envoyer en pièce jointe ou le sauver dans son drive.
  *
  * Contenu du ZIP :
- *   - entries.json           : toutes les saisies TEMPS, GSM, GESTE CO, frais, compteur
- *   - photos/*.jpg|pdf|...   : toutes les photos et fichiers attachés
- *   - settings.json          : copie lisible des réglages (DataStore est binaire)
+ *   - entries.json     : toutes les saisies TEMPS, GSM, GESTE CO, frais, compteur
+ *   - photos/          : toutes les photos et fichiers attachés (jpg, pdf, etc.)
+ *   - settings.json    : copie lisible des réglages (DataStore est binaire)
  *
  * Le fichier est créé dans cacheDir/exports/ et exposé via FileProvider.
  */
