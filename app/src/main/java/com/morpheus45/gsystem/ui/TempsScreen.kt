@@ -34,7 +34,10 @@ import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 
-private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU")
+private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
+    "VACANCES", "FORMATION")
+/** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
+private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,7 +135,10 @@ fun TempsScreen(
             onDismiss = { showAdd = false },
             onSaveAndShare = { entry ->
                 scope.launch { repo.addTemps(entry) }
-                ViberSender.share(context, ViberSender.buildMessage(entry))
+                // Pas de Viber pour VACANCES / FORMATION (journée entière)
+                if (entry.typeMission !in WHOLE_DAY_TYPES) {
+                    ViberSender.share(context, ViberSender.buildMessage(entry))
+                }
                 showAdd = false
             }
         )
@@ -197,6 +203,8 @@ private fun AddTempsDialog(
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
+    val isWholeDay = type in WHOLE_DAY_TYPES
+
     // Prévisualisation du message Viber
     val tempEntry = TempsEntry(
         id = "", date = date, departement = dept, typeMission = type,
@@ -215,84 +223,110 @@ private fun AddTempsDialog(
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
+                // Type de mission EN PREMIER (détermine les champs suivants)
+                ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
+                    OutlinedTextField(
+                        value = type, onValueChange = {}, readOnly = true,
+                        label = { Text("Type") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                        MISSION_TYPES.forEach { t ->
+                            DropdownMenuItem(
+                                text = {
+                                    val suffix = if (t in WHOLE_DAY_TYPES) "  (journée 7h)" else ""
+                                    Text("$t$suffix")
+                                },
+                                onClick = { type = t; typeExpanded = false }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     OutlinedTextField(value = dept,
                         onValueChange = { dept = it.filter(Char::isDigit).take(3) },
                         label = { Text("Département") }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f))
-                    // Dropdown Slot Matin/Aprem
-                    ExposedDropdownMenuBox(
-                        expanded = slotExpanded,
-                        onExpandedChange = { slotExpanded = it },
-                        modifier = Modifier.weight(1.4f)
-                    ) {
+                    // Slot Matin/Aprem seulement pour les vraies missions
+                    if (!isWholeDay) {
+                        ExposedDropdownMenuBox(
+                            expanded = slotExpanded,
+                            onExpandedChange = { slotExpanded = it },
+                            modifier = Modifier.weight(1.4f)
+                        ) {
+                            OutlinedTextField(
+                                value = if (slot == "MATIN") "Matin" else "Après-midi",
+                                onValueChange = {}, readOnly = true,
+                                label = { Text("Slot") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = slotExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(expanded = slotExpanded, onDismissRequest = { slotExpanded = false }) {
+                                DropdownMenuItem(text = { Text("Matin") },
+                                    onClick = { slot = "MATIN"; slotExpanded = false })
+                                DropdownMenuItem(text = { Text("Après-midi") },
+                                    onClick = { slot = "APREM"; slotExpanded = false })
+                            }
+                        }
+                    } else {
+                        // Pour VACANCES / FORMATION : juste un texte "Journée entière"
+                        Box(modifier = Modifier.weight(1.4f).fillMaxWidth(),
+                            contentAlignment = Alignment.Center) {
+                            Text("Journée entière (7h)", fontSize = 12.sp,
+                                color = ColorTemps, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                if (!isWholeDay) {
+                    // Champs intervention classiques
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = nom, onValueChange = { nom = it },
+                        label = { Text("Nom client") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = ville, onValueChange = { ville = it },
+                        label = { Text("Ville") }, singleLine = true,
+                        modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = numero,
+                        onValueChange = { numero = it.filter(Char::isDigit).take(12) },
+                        label = { Text("N° intervention") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(6.dp))
+                    val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
+                    ExposedDropdownMenuBox(expanded = obsExpanded, onExpandedChange = { obsExpanded = it }) {
                         OutlinedTextField(
-                            value = if (slot == "MATIN") "Matin" else "Après-midi",
-                            onValueChange = {}, readOnly = true,
-                            label = { Text("Slot") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = slotExpanded) },
+                            value = obsLabel, onValueChange = {}, readOnly = true,
+                            label = { Text("Observation (NR ...)") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = obsExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
-                        ExposedDropdownMenu(expanded = slotExpanded, onDismissRequest = { slotExpanded = false }) {
-                            DropdownMenuItem(text = { Text("Matin") },
-                                onClick = { slot = "MATIN"; slotExpanded = false })
-                            DropdownMenuItem(text = { Text("Après-midi") },
-                                onClick = { slot = "APREM"; slotExpanded = false })
+                        ExposedDropdownMenu(expanded = obsExpanded, onDismissRequest = { obsExpanded = false }) {
+                            ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
+                                DropdownMenuItem(text = { Text(label) },
+                                    onClick = { obsType = code; obsExpanded = false })
+                            }
                         }
                     }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = obs, onValueChange = { obs = it },
+                        label = { Text("Note libre (optionnel)") }, singleLine = false,
+                        modifier = Modifier.fillMaxWidth())
+                } else {
+                    // Pour VACANCES / FORMATION : juste un champ note optionnel
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(value = obs, onValueChange = { obs = it },
+                        label = {
+                            Text(if (type == "VACANCES") "Note (optionnel — ex: congés payés)"
+                                 else "Précisions (lieu, intitulé formation…)")
+                        },
+                        modifier = Modifier.fillMaxWidth())
                 }
-                Spacer(Modifier.height(6.dp))
-                ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
-                    OutlinedTextField(
-                        value = type, onValueChange = {}, readOnly = true,
-                        label = { Text("Type mission") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                        MISSION_TYPES.forEach { t ->
-                            DropdownMenuItem(text = { Text(t) },
-                                onClick = { type = t; typeExpanded = false })
-                        }
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(value = nom, onValueChange = { nom = it },
-                    label = { Text("Nom client") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(value = ville, onValueChange = { ville = it },
-                    label = { Text("Ville") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(value = numero,
-                    onValueChange = { numero = it.filter(Char::isDigit).take(12) },
-                    label = { Text("N° intervention") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
-
-                // Menu observation
-                val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
-                ExposedDropdownMenuBox(expanded = obsExpanded, onExpandedChange = { obsExpanded = it }) {
-                    OutlinedTextField(
-                        value = obsLabel, onValueChange = {}, readOnly = true,
-                        label = { Text("Observation (NR ...)") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = obsExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = obsExpanded, onDismissRequest = { obsExpanded = false }) {
-                        ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
-                            DropdownMenuItem(text = { Text(label) },
-                                onClick = { obsType = code; obsExpanded = false })
-                        }
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Note libre (optionnel)") }, singleLine = false,
-                    modifier = Modifier.fillMaxWidth())
 
                 Spacer(Modifier.height(10.dp))
                 Card(colors = CardDefaults.cardColors(
@@ -324,11 +358,16 @@ private fun AddTempsDialog(
                         heures = 0.0 // calculé automatiquement au moment du remplissage Excel
                     ))
                 },
-                enabled = nom.isNotBlank() && date.isNotBlank() && dept.isNotBlank(),
+                enabled = date.isNotBlank() && dept.isNotBlank() &&
+                          (isWholeDay || nom.isNotBlank()),
                 colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
             ) {
                 Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
-                Text("  Enregistrer & ouvrir Viber", color = Color.White)
+                Text(
+                    if (isWholeDay) "  Enregistrer (sans Viber)"
+                    else "  Enregistrer & ouvrir Viber",
+                    color = Color.White
+                )
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }

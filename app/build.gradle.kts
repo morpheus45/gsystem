@@ -15,8 +15,8 @@ android {
         // téléphones Android modernes.
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "0.13.10"
+        versionCode = 28
+        versionName = "0.13.11"
         vectorDrawables { useSupportLibrary = true }
     }
 

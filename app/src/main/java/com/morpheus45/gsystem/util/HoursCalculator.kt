@@ -5,7 +5,10 @@ import com.morpheus45.gsystem.data.TempsEntry
 /**
  * Calcul automatique des heures travaillées d'une journée.
  *
- * Règle (confirmée par l'utilisateur — table à 9 cas) :
+ * Cas spéciaux :
+ *   - Si la journée contient une entrée VACANCES ou FORMATION → 7h (journée entière)
+ *
+ * Règle générale (confirmée par l'utilisateur — table à 9 cas) :
  *   - 0 slot actif (rien du tout)            → 0h
  *   - 1 slot actif (OK ou NR uniquement)     → 4h
  *   - 2 slots actifs, les DEUX avec un OK    → 8h
@@ -25,6 +28,13 @@ object HoursCalculator {
 
     fun computeForDay(entries: List<TempsEntry>): Double {
         if (entries.isEmpty()) return 0.0
+
+        // Cas special : si une entree VACANCES ou FORMATION existe, journee = 7h
+        val hasWholeDay = entries.any {
+            it.typeMission.equals("VACANCES", ignoreCase = true) ||
+            it.typeMission.equals("FORMATION", ignoreCase = true)
+        }
+        if (hasWholeDay) return 7.0
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
         val apremActive = entries.any { isInSlot(it, "APREM") }
@@ -51,6 +61,13 @@ object HoursCalculator {
     /** Détaille la règle appliquée pour affichage utilisateur. */
     fun explainForDay(entries: List<TempsEntry>): String {
         if (entries.isEmpty()) return "Aucune intervention → 0h"
+        // Vacances / Formation : journee entiere
+        val whole = entries.firstOrNull {
+            it.typeMission.equals("VACANCES", ignoreCase = true) ||
+            it.typeMission.equals("FORMATION", ignoreCase = true)
+        }
+        if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"
+
         val matinOk = entries.count { isInSlot(it, "MATIN") && it.observationType.isBlank() }
         val matinNr = entries.count { isInSlot(it, "MATIN") && it.observationType.isNotBlank() }
         val apremOk = entries.count { isInSlot(it, "APREM") && it.observationType.isBlank() }
