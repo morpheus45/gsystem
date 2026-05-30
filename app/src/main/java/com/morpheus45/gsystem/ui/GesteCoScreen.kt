@@ -125,11 +125,20 @@ private fun sendGesteCoEmail(
     val subject = "GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}"
     val offered = entry.offeredList()
     val totalGift = entry.totalClientGift(settings.clientGifts)
+    // Liste compacte des extensions installées : "GSM,SE,CO,3DMP"
+    // (qty=1 -> juste le type, qty>1 -> N suivi du type, sans espace)
+    val installedCompact = entry.installedList()
+        .joinToString(",") { (type, qty) -> if (qty <= 1) type else "$qty$type" }
+
     val body = buildString {
         append("Bonjour,\n\n")
-        append("Site n° ${entry.siteNumber}")
-        if (entry.epsDerogation) append(" (dérogation EPS)")
-        append("\n")
+        append("Site n° ${entry.siteNumber},\n")
+        if (installedCompact.isNotEmpty()) {
+            append("extensions : $installedCompact.\n")
+        }
+        if (entry.epsDerogation) {
+            append("Vu avec HOTLINE EPS.\n")
+        }
         when {
             offered.isEmpty() -> {
                 append("Pas de geste commercial cette fois.\n")
@@ -150,9 +159,8 @@ private fun sendGesteCoEmail(
         }
         if (entry.nomClient.isNotBlank()) append("Client : ${entry.nomClient}\n")
         if (entry.observations.isNotBlank()) append("Observations : ${entry.observations}\n")
-        append("Date : ${DateUtil.fr(DateUtil.parseIso(entry.date))}\n\n")
-        append("Cordialement,\n")
-        append(if (settings.nomUtilisateur.isNotBlank()) settings.nomUtilisateur else settings.siteCodeFixe)
+        append("\nCordialement,\n")
+        append(settings.siteCodeFixe.ifBlank { settings.nomUtilisateur })
     }
     EmailSender.send(
         context = context,

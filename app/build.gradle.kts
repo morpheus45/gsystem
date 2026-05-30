@@ -12,8 +12,8 @@ android {
         applicationId = "com.morpheus45.gsystem"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.7.0"
+        versionCode = 9
+        versionName = "0.7.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
