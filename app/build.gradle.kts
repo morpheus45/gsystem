@@ -10,10 +10,13 @@ android {
 
     defaultConfig {
         applicationId = "com.morpheus45.gsystem"
-        minSdk = 24
+        // Min 26 (Android 8.0) requis par Apache POI 5.2.5 (log4j-api utilise
+        // MethodHandle.invoke qui est Android O+ uniquement). Couvre >95 % des
+        // téléphones Android modernes.
+        minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.10.0"
+        versionCode = 13
+        versionName = "0.10.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -78,6 +81,13 @@ android {
             )
         }
     }
+}
+
+// Exclusion globale de log4j-api dans toutes les configurations.
+// Apache POI le tire en transitive mais on utilise slf4j-nop à la place,
+// et log4j-api ≥2.18 nécessite Android API 26 minimum.
+configurations.all {
+    exclude(group = "org.apache.logging.log4j")
 }
 
 dependencies {
