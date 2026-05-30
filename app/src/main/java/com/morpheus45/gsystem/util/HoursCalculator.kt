@@ -3,40 +3,43 @@ package com.morpheus45.gsystem.util
 import com.morpheus45.gsystem.data.TempsEntry
 
 /**
- * Calcul automatique des heures travaillées d'une journée à partir des
- * interventions saisies.
+ * Calcul automatique des heures travaillées d'une journée.
  *
- * Règle (variante B — formule additive par slot, confirmée par l'utilisateur) :
- *   Chaque slot (matin ou après-midi) contribue :
- *     - au moins 1 OK dans le slot  →  +4h
- *     - que des NR dans le slot     →  +2h
- *     - aucune intervention          →  +0h
- *   Heures du jour = somme des 2 slots (0 à 8h)
+ * Règle (confirmée par l'utilisateur — table à 9 cas) :
+ *   - 0 slot actif (rien du tout)            → 0h
+ *   - 1 slot actif (OK ou NR uniquement)     → 4h
+ *   - 2 slots actifs, les DEUX avec un OK    → 8h
+ *   - 2 slots actifs, sinon (mix ou 2 NR)    → 6h
+ *
+ * « slot actif » = au moins une intervention (OK ou NR) dans ce slot.
  *
  * Table de correspondance (matin × aprem) :
- *   OK+OK = 8  ·  OK+NR = 6  ·  OK+— = 4
- *   NR+OK = 6  ·  NR+NR = 4  ·  NR+— = 2
- *   —+OK = 4  ·  —+NR = 2   ·  —+— = 0
+ *    OK+OK = 8     OK+NR = 6     OK+— = 4
+ *    NR+OK = 6     NR+NR = 6     NR+— = 4
+ *    —+OK = 4      —+NR = 4      —+— = 0
  *
- * Une intervention est OK si son `observationType` est vide (= aucun NR).
  * Le slot est `slotMidi` ∈ {"MATIN", "APREM"}. Les entrées historiques sans
- * slot ("") sont rattachées au MATIN par défaut (fallback).
+ * slot ("") sont rattachées au MATIN par défaut.
  */
 object HoursCalculator {
 
     fun computeForDay(entries: List<TempsEntry>): Double {
         if (entries.isEmpty()) return 0.0
-        val matinScore = scoreForSlot(entries, slot = "MATIN")
-        val apremScore = scoreForSlot(entries, slot = "APREM")
-        return matinScore + apremScore
-    }
 
-    /** Renvoie 0 / 2 / 4 selon le contenu du slot. */
-    private fun scoreForSlot(entries: List<TempsEntry>, slot: String): Double {
-        val slotEntries = entries.filter { isInSlot(it, slot) }
-        if (slotEntries.isEmpty()) return 0.0
-        val hasOk = slotEntries.any { it.observationType.isBlank() }
-        return if (hasOk) 4.0 else 2.0
+        val matinActive = entries.any { isInSlot(it, "MATIN") }
+        val apremActive = entries.any { isInSlot(it, "APREM") }
+        val matinHasOk = entries.any { isInSlot(it, "MATIN") && it.observationType.isBlank() }
+        val apremHasOk = entries.any { isInSlot(it, "APREM") && it.observationType.isBlank() }
+
+        val nActive = (if (matinActive) 1 else 0) + (if (apremActive) 1 else 0)
+        val nOk = (if (matinHasOk) 1 else 0) + (if (apremHasOk) 1 else 0)
+
+        return when {
+            nActive == 0 -> 0.0
+            nActive == 1 -> 4.0
+            nOk == 2 -> 8.0
+            else -> 6.0
+        }
     }
 
     private fun isInSlot(e: TempsEntry, slot: String): Boolean = when (slot) {
@@ -52,9 +55,15 @@ object HoursCalculator {
         val matinNr = entries.count { isInSlot(it, "MATIN") && it.observationType.isNotBlank() }
         val apremOk = entries.count { isInSlot(it, "APREM") && it.observationType.isBlank() }
         val apremNr = entries.count { isInSlot(it, "APREM") && it.observationType.isNotBlank() }
-        val matinScore = scoreForSlot(entries, "MATIN").toInt()
-        val apremScore = scoreForSlot(entries, "APREM").toInt()
         val total = computeForDay(entries).toInt()
-        return "Matin ${matinScore}h ($matinOk OK / $matinNr NR)  +  Aprem ${apremScore}h ($apremOk OK / $apremNr NR)  =  ${total}h"
+        val matinTag = describeSlot(matinOk, matinNr)
+        val apremTag = describeSlot(apremOk, apremNr)
+        return "Matin: $matinTag  ·  Aprem: $apremTag  →  ${total}h"
+    }
+
+    private fun describeSlot(ok: Int, nr: Int): String = when {
+        ok == 0 && nr == 0 -> "vide"
+        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR" else ""
+        else -> "$nr NR"
     }
 }
