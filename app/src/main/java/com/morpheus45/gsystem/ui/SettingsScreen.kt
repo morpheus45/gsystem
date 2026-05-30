@@ -13,10 +13,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import com.morpheus45.gsystem.BuildConfig
+import com.morpheus45.gsystem.backup.BackupExporter
+import kotlinx.serialization.json.Json
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -192,6 +197,44 @@ fun SettingsScreen(
                 PriceField(label = "CO",  value = giftCo,  onChange = { giftCo = it },  modifier = Modifier.weight(1f))
                 PriceField(label = "DMP", value = giftDmp, onChange = { giftDmp = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "SE",  value = giftSe,  onChange = { giftSe = it },  modifier = Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("Sauvegarde de mes données")
+            Text("Crée un fichier ZIP contenant toutes tes saisies + photos. " +
+                 "Garde-le en backup (Drive, email à toi-même…). Tes données sont " +
+                 "automatiquement conservées d'une mise à jour à l'autre.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp))
+            val ctx = LocalContext.current
+            OutlinedButton(
+                onClick = {
+                    val settingsJson = Json { prettyPrint = true }.encodeToString(
+                        AppSettings.serializer(), settings
+                    )
+                    val zip = BackupExporter.createBackupZip(ctx, settingsJson)
+                    val uri = FileProvider.getUriForFile(
+                        ctx, "${ctx.packageName}.fileprovider", zip
+                    )
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "application/zip"
+                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                        putExtra(android.content.Intent.EXTRA_SUBJECT,
+                            "Sauvegarde G-Systems ${settings.nomUtilisateur}")
+                        putExtra(android.content.Intent.EXTRA_TEXT,
+                            "Sauvegarde des données G-Systems.")
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    ctx.startActivity(
+                        android.content.Intent.createChooser(intent, "Sauvegarder via…")
+                            .apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.Archive, contentDescription = null)
+                Text("  Créer une sauvegarde ZIP et l'envoyer")
             }
 
             Spacer(Modifier.height(20.dp))

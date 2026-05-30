@@ -29,7 +29,13 @@ class EntriesRepository private constructor(context: Context) {
         }.getOrElse { EntriesStore() }
     }
 
+    private val backupFile: File = File(file.parentFile, file.name + ".bak")
+
     private suspend fun persist(new: EntriesStore) = withContext(Dispatchers.IO) {
+        // Backup automatique de l'avant-dernier état avant d'écraser
+        if (file.exists()) {
+            runCatching { file.copyTo(backupFile, overwrite = true) }
+        }
         file.writeText(json.encodeToString(EntriesStore.serializer(), new))
         _store.value = new
     }
