@@ -30,6 +30,7 @@ import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 
@@ -76,7 +77,31 @@ fun TempsScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
             PeriodHeader(start, end, periodEntries.size)
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
+
+            // Carte explicative auto-calcul heures
+            val todayStr = DateUtil.today().toString()
+            val todayEntries = store.temps.filter { it.date == todayStr }
+            if (todayEntries.isNotEmpty()) {
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = ColorTemps.copy(alpha = 0.1f))) {
+                    Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text("Heures auto aujourd'hui",
+                                fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(HoursCalculator.explainForDay(todayEntries),
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        }
+                        Text("${HoursCalculator.computeForDay(todayEntries).toInt()} h",
+                            fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                            color = ColorTemps)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Button(
@@ -144,7 +169,7 @@ private fun TempsCard(
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}  ·  ${entry.heures}h",
+                Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 val title = listOf(
                     entry.typeMission, entry.nomClient, entry.ville, entry.numeroIntervention
@@ -179,7 +204,6 @@ private fun AddTempsDialog(
 ) {
     var date by remember { mutableStateOf(DateUtil.today().toString()) }
     var dept by remember { mutableStateOf(settings.departementDefaut) }
-    var heures by remember { mutableStateOf("8") }
     var type by remember { mutableStateOf(MISSION_TYPES.first()) }
     var nom by remember { mutableStateOf("") }
     var ville by remember { mutableStateOf("") }
@@ -194,7 +218,7 @@ private fun AddTempsDialog(
         id = "", date = date, departement = dept, typeMission = type,
         nomClient = nom, ville = ville, numeroIntervention = numero,
         observationType = obsType, observations = obs,
-        heures = heures.replace(",", ".").toDoubleOrNull() ?: 8.0
+        heures = 0.0 // heures auto-calculées plus tard à partir de la liste du jour
     )
     val preview = ViberSender.buildMessage(tempEntry)
 
@@ -207,17 +231,11 @@ private fun AddTempsDialog(
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(value = dept, onValueChange = { dept = it.filter(Char::isDigit).take(3) },
-                        label = { Text("Dept") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = heures,
-                        onValueChange = { heures = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(4) },
-                        label = { Text("Heures") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f))
-                }
+                OutlinedTextField(value = dept,
+                    onValueChange = { dept = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Département") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
                 ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
                     OutlinedTextField(
@@ -286,7 +304,6 @@ private fun AddTempsDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val h = heures.replace(",", ".").toDoubleOrNull() ?: 8.0
                     onSaveAndShare(TempsEntry(
                         id = EntriesRepository.newId(),
                         date = date.trim(),
@@ -297,7 +314,7 @@ private fun AddTempsDialog(
                         numeroIntervention = numero.trim(),
                         observationType = obsType,
                         observations = obs.trim(),
-                        heures = h
+                        heures = 0.0 // calculé automatiquement au moment du remplissage Excel
                     ))
                 },
                 enabled = nom.isNotBlank() && date.isNotBlank() && dept.isNotBlank(),

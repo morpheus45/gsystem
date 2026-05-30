@@ -3,6 +3,7 @@ package com.morpheus45.gsystem.excel
 import android.content.Context
 import android.net.Uri
 import com.morpheus45.gsystem.data.TempsEntry
+import com.morpheus45.gsystem.util.HoursCalculator
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.apache.poi.ss.util.CellRangeAddress
 import org.apache.poi.xssf.usermodel.XSSFSheet
@@ -112,6 +113,9 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             inserted = extra
         }
 
+        // Heures calculées automatiquement selon la règle SAV/2OK/6h
+        val dailyHours = HoursCalculator.computeForDay(items)
+
         for ((i, item) in items.withIndex()) {
             val r = startRow + i
             val row = sheet.getRow(r) ?: sheet.createRow(r)
@@ -119,8 +123,8 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             cellOf(row, 1).setCellValue(item.departement)
             // C (col 2) : mission (TYPE NOM VILLE NUMERO)
             cellOf(row, 2).setCellValue(buildMissionText(item))
-            // E (col 4) : heures, seulement sur la 1ère ligne du jour
-            if (i == 0) cellOf(row, 4).setCellValue(item.heures)
+            // E (col 4) : heures (auto-calculées), seulement sur la 1ère ligne du jour
+            if (i == 0) cellOf(row, 4).setCellValue(dailyHours)
             // H (col 7) : observations
             val obs = buildObservation(item)
             if (obs.isNotBlank()) cellOf(row, 7).setCellValue(obs)

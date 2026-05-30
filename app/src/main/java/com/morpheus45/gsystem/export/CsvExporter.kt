@@ -5,6 +5,7 @@ import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.data.GsmSeulEntry
 import com.morpheus45.gsystem.data.TempsEntry
+import com.morpheus45.gsystem.util.HoursCalculator
 import java.io.File
 import java.time.LocalDate
 
@@ -35,9 +36,13 @@ object CsvExporter {
     ): File {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
+        // Heures auto-calculées par jour, placées sur la 1ère ligne de chaque journée
+        val hoursPerDay = filtered.groupBy { it.date }
+            .mapValues { (_, dayEntries) -> HoursCalculator.computeForDay(dayEntries) }
+        val seenDates = mutableSetOf<String>()
         val sb = StringBuilder()
         sb.appendLine(row("Date", "Département", "Type", "Client", "Ville",
-            "N° intervention", "Heures", "Observation", "Note"))
+            "N° intervention", "Heures auto", "Observation", "Note"))
         for (e in filtered) {
             val obsLabel = when (e.observationType) {
                 "NR_CLIENT" -> "NR CLIENT"
@@ -45,8 +50,12 @@ object CsvExporter {
                 "NR_CLIENT_ABS" -> "NR CLIENT ABS"
                 else -> ""
             }
+            // Heures auto seulement sur la 1ère ligne du jour
+            val hoursCell = if (seenDates.add(e.date))
+                hoursPerDay[e.date]?.toInt()?.toString() ?: ""
+            else ""
             sb.appendLine(row(e.date, e.departement, e.typeMission, e.nomClient,
-                e.ville, e.numeroIntervention, e.heures, obsLabel, e.observations))
+                e.ville, e.numeroIntervention, hoursCell, obsLabel, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
         out.writeText(sb.toString())
