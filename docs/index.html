@@ -397,8 +397,100 @@
     </div>
   </div>
 
+  <!-- ============ ALGORITHME HEURES ============ -->
+  <h2><span class="num">6</span>Comment l'app calcule tes heures</h2>
+
+  <div class="card purple">
+    <p><b>Tu ne saisis plus les heures manuellement</b> dans le formulaire TEMPS.
+       L'app les calcule automatiquement à partir de tes interventions de la journée
+       en utilisant la règle suivante.</p>
+  </div>
+
+  <div class="card">
+    <p><b>Étape 1 — chaque intervention est rattachée à un slot :</b></p>
+    <ul>
+      <li><b>Matin</b> : pour les interventions de la matinée</li>
+      <li><b>Après-midi</b> : pour les interventions de l'après-midi</li>
+    </ul>
+    <p>Le slot est <b>pré-rempli automatiquement</b> selon l'heure du téléphone
+       (avant 13h = Matin, après = Après-midi). Tu peux le modifier d'un tap si
+       tu saisis en différé le soir.</p>
+
+    <p><b>Étape 2 — chaque slot est classé en 3 états :</b></p>
+    <ul>
+      <li>🟢 <b>OK</b> = au moins 1 mission <b>réalisée</b> dans le slot (INST, SAV, REPA…)</li>
+      <li>🟥 <b>NR</b> = uniquement des NR dans le slot (client absent, technique, etc.) <b>sans aucune mission réalisée</b></li>
+      <li>⬜ <b>VIDE</b> = aucune intervention dans le slot</li>
+    </ul>
+    <p>Si un slot contient un mix (par ex. 1 NR client absent + 1 SAV réalisé),
+       le slot compte comme <b>OK</b> car il y a au moins une mission réalisée.</p>
+
+    <p><b>Étape 3 — règle des heures (table à 9 cas) :</b></p>
+    <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:13px;">
+      <thead>
+        <tr style="background:var(--accent-light)">
+          <th style="padding:6px; border:1px solid var(--border)">Matin \ Aprem</th>
+          <th style="padding:6px; border:1px solid var(--border)">🟢 OK</th>
+          <th style="padding:6px; border:1px solid var(--border)">🟥 NR</th>
+          <th style="padding:6px; border:1px solid var(--border)">⬜ VIDE</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">🟢 OK</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center; background:#e8f5e9"><b>8h</b></td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
+        </tr>
+        <tr>
+          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">🟥 NR</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
+        </tr>
+        <tr>
+          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">⬜ VIDE</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
+          <td style="padding:6px; border:1px solid var(--border); text-align:center; background:#fdecea">0h</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top:10px"><b>Logique résumée :</b></p>
+    <ul>
+      <li><b>0 slot actif</b> (aucune intervention de la journée) → <b>0h</b></li>
+      <li><b>1 seul slot actif</b> (peu importe OK ou NR) → <b>4h</b></li>
+      <li><b>2 slots actifs, les deux avec au moins 1 OK</b> → <b>8h</b></li>
+      <li><b>2 slots actifs sinon</b> (mix OK + NR, ou 2 NR seuls) → <b>6h</b></li>
+    </ul>
+  </div>
+
+  <div class="card green">
+    <p><b>Exemples concrets :</b></p>
+    <ul>
+      <li>SAV matin + INST aprem → <b>8h</b> (OK + OK)</li>
+      <li>INST matin + NR client absent aprem → <b>6h</b> (OK + NR)</li>
+      <li>INST matin seul, rien aprem → <b>4h</b> (OK + VIDE)</li>
+      <li>NR client absent matin + rien aprem → <b>4h</b> (NR + VIDE)</li>
+      <li>1 NR + 1 SAV le matin + INST aprem → <b>8h</b> (le SAV rend le matin OK)</li>
+      <li>Aucune intervention de la journée → <b>0h</b></li>
+    </ul>
+  </div>
+
+  <div class="card purple">
+    <p>L'écran TEMPS te montre <b>en temps réel</b> les heures calculées
+       pour aujourd'hui, avec le détail des slots. Exemple à l'écran :</p>
+    <p style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; margin-top:6px">
+      <b>Heures auto aujourd'hui &nbsp;&nbsp;&nbsp; 8 h</b><br>
+      <span style="color:var(--muted); font-size:11px">Matin: OK (1) + 1 NR &nbsp;·&nbsp; Aprem: OK (1) &nbsp;→&nbsp; 8h</span>
+    </p>
+    <p>Au moment de l'<b>ENVOI MENSUEL</b>, l'app reporte automatiquement ces heures
+       dans la colonne E de ton fichier Excel pour chaque jour.</p>
+  </div>
+
   <!-- ============ MISES À JOUR ============ -->
-  <h2><span class="num">6</span>Mises à jour : tu n'as rien à faire</h2>
+  <h2><span class="num">7</span>Mises à jour : tu n'as rien à faire</h2>
 
   <div class="card green">
     <p>À chaque ouverture de l'app, elle vérifie automatiquement si une nouvelle version existe.</p>
@@ -412,7 +504,7 @@
   </div>
 
   <!-- ============ DÉPANNAGE ============ -->
-  <h2><span class="num">7</span>Si ça coince…</h2>
+  <h2><span class="num">8</span>Si ça coince…</h2>
 
   <div class="card red">
     <p><b>❌ « Package en conflit » à l'installation</b></p>
