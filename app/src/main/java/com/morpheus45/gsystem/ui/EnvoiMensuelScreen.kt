@@ -9,8 +9,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -46,7 +48,28 @@ fun EnvoiMensuelScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    val (defaultStart, defaultEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+
+    // Dates Du / Au manuelles, pré-remplies au cycle par défaut, modifiables
+    // par le tech (la direction demande souvent une période différente).
+    var startText by remember { mutableStateOf(defaultStart.toString()) }
+    var endText by remember { mutableStateOf(defaultEnd.toString()) }
+    var rangeError by remember { mutableStateOf<String?>(null) }
+
+    val parsedStart = runCatching { DateUtil.parseIso(startText) }.getOrNull()
+    val parsedEnd = runCatching { DateUtil.parseIso(endText) }.getOrNull()
+    val validRange = parsedStart != null && parsedEnd != null && parsedStart <= parsedEnd
+    LaunchedEffect(startText, endText) {
+        rangeError = when {
+            parsedStart == null -> "Date de début invalide (format AAAA-MM-JJ)"
+            parsedEnd == null -> "Date de fin invalide (format AAAA-MM-JJ)"
+            parsedStart > parsedEnd -> "La date de fin doit être après le début"
+            else -> null
+        }
+    }
+    val start = parsedStart ?: defaultStart
+    val end = parsedEnd ?: defaultEnd
+
     val tempsPeriod = store.temps.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }
@@ -101,15 +124,59 @@ fun EnvoiMensuelScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text("Période en cours", fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-            Text("${DateUtil.fr(start)}  →  ${DateUtil.fr(end)}",
-                fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                color = EnvoiColor)
+            SectionTitle("Période du mensuel", EnvoiColor)
+            Card(modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.DateRange, null, tint = EnvoiColor)
+                        Text("  Pré-rempli au cycle (${DateUtil.fr(defaultStart)} → ${DateUtil.fr(defaultEnd)}). Modifie si la direction demande une autre période.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = startText,
+                            onValueChange = { startText = it.trim() },
+                            label = { Text("Du (AAAA-MM-JJ)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            isError = parsedStart == null
+                        )
+                        OutlinedTextField(
+                            value = endText,
+                            onValueChange = { endText = it.trim() },
+                            label = { Text("Au (AAAA-MM-JJ)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            isError = parsedEnd == null || (parsedStart != null && parsedEnd != null && parsedEnd < parsedStart)
+                        )
+                    }
+                    if (rangeError != null) {
+                        Text(rangeError!!, fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp))
+                    } else if (validRange) {
+                        Text("Période : ${DateUtil.fr(start)} → ${DateUtil.fr(end)}",
+                            fontSize = 12.sp, color = EnvoiColor,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 4.dp))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = {
+                            startText = defaultStart.toString()
+                            endText = defaultEnd.toString()
+                        }) { Text("↺ Cycle par défaut", fontSize = 12.sp) }
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
 
             // Section : fichier Excel
-            SectionTitle("1. Mon fichier TEMPS .xlsm", EnvoiColor)
+            SectionTitle("Mon fichier TEMPS .xlsm", EnvoiColor)
             Card(modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -140,13 +207,13 @@ fun EnvoiMensuelScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("2. Récap du cycle", EnvoiColor)
+            SectionTitle("Récap de la période", EnvoiColor)
             StatRow("Interventions TEMPS", "${tempsPeriod.size}")
             StatRow("Tickets de frais", "${fraisPeriod.size}  (${"%.2f €".format(totalFraisMontant)})")
             StatRow("Photos compteur", "${compteurPeriod.size}")
 
             Spacer(Modifier.height(16.dp))
-            SectionTitle("3. Action", EnvoiColor)
+            SectionTitle("Envoyer", EnvoiColor)
             Button(
                 onClick = {
                     scope.launch {
@@ -219,7 +286,7 @@ fun EnvoiMensuelScreen(
                         working = false
                     }
                 },
-                enabled = !working &&
+                enabled = !working && validRange &&
                           (settings.emailFrais.isNotBlank() || settings.emailTemps.isNotBlank()),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = EnvoiColor)
