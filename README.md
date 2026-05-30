@@ -1,8 +1,12 @@
-# G-Systems Cedric — Android App
+# G-Systems — Android App
 
-App Android pour Cédric LAGO GOMEZ (G-Systems). Saisie rapide des
+Application Android pour techniciens G-Systems : saisie rapide des
 interventions TEMPS / GSM SEUL / GESTE CO, calcul des totaux en €, envoi
 par email avec pièce jointe CSV à la fin du cycle mensuel.
+
+## Page d'installation pour les techs
+
+**[➜ morpheus45.github.io/gsystem](https://morpheus45.github.io/gsystem/)** — tutoriel + lien APK toujours à jour.
 
 ## Téléchargement de l'APK
 

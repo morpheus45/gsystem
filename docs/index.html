@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>G-Systems · Installation pour techniciens</title>
+  <meta name="description" content="Tutoriel d'installation de l'app G-Systems sur téléphone Android." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%235B3EB1'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --accent: #5b3eb1;
+      --accent-light: #efeaff;
+      --bg: #f7f6fb;
+      --card: #ffffff;
+      --text: #1f1f23;
+      --muted: #66666b;
+      --border: #e6e3ee;
+      --success: #2e7d32;
+      --warning: #c87600;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 18px 64px;
+    }
+    header {
+      text-align: center;
+      padding-top: 16px;
+      margin-bottom: 28px;
+    }
+    .logo {
+      width: 72px; height: 72px;
+      border-radius: 18px;
+      background: var(--accent);
+      color: white;
+      font-size: 44px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 14px rgba(91,62,177,.25);
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: 28px;
+      letter-spacing: -.5px;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .download-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 20px;
+      margin-bottom: 24px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .download-btn {
+      display: inline-block;
+      width: 100%;
+      max-width: 360px;
+      padding: 16px 24px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(91,62,177,.3);
+      transition: transform .08s, box-shadow .08s;
+    }
+    .download-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(91,62,177,.3);
+    }
+    .meta {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .meta strong { color: var(--accent); font-weight: 600; }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 18px 16px;
+      margin-bottom: 14px;
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      font-weight: 700;
+      font-size: 13px;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .step h2 {
+      margin: 0 0 8px;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+    }
+    .step p, .step ul {
+      margin: 6px 0;
+      font-size: 14.5px;
+      color: #2a2a2e;
+    }
+    .step ul { padding-left: 20px; }
+    .step li { margin: 3px 0; }
+    .step code {
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 13px;
+      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
+    }
+    .callout {
+      padding: 10px 12px;
+      background: #fff8ee;
+      border-left: 3px solid var(--warning);
+      border-radius: 6px;
+      margin: 10px 0;
+      font-size: 13.5px;
+    }
+    .callout strong { color: var(--warning); }
+    .ok {
+      padding: 10px 12px;
+      background: #ecf8ed;
+      border-left: 3px solid var(--success);
+      border-radius: 6px;
+      margin: 10px 0;
+      font-size: 13.5px;
+    }
+    .ok strong { color: var(--success); }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .feature {
+      padding: 10px 12px;
+      background: var(--accent-light);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .feature b { color: var(--accent); display: block; margin-bottom: 2px; }
+    footer {
+      text-align: center;
+      margin-top: 36px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 480px) {
+      .features { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="logo">G</div>
+      <h1>G-Systems</h1>
+      <p class="subtitle">Application Android pour saisie TEMPS · GSM SEUL · GESTE CO</p>
+    </header>
+
+    <!-- Bouton de téléchargement avec URL toujours à jour -->
+    <div class="download-card">
+      <a class="download-btn"
+         href="https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk"
+         id="dl-btn">
+        📥 Télécharger l'application
+      </a>
+      <div class="meta">
+        Version : <strong id="version">chargement…</strong>
+        &nbsp;·&nbsp;
+        Android 7.0+ requis
+        &nbsp;·&nbsp;
+        APK ~17 MB
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>⚠ Ouvre cette page depuis ton téléphone</strong>, c'est là que tu installes l'app.
+      Le bouton ci-dessus déclenche le téléchargement.
+    </div>
+
+    <!-- Étapes -->
+    <div class="step">
+      <h2><span class="step-number">1</span>Télécharge l'APK</h2>
+      <p>Tape le bouton violet ci-dessus. Ton navigateur (Chrome / Edge / Samsung Internet)
+         télécharge le fichier <code>app-debug.apk</code>.</p>
+    </div>
+
+    <div class="step">
+      <h2><span class="step-number">2</span>Autorise l'installation depuis cette source</h2>
+      <p>Quand tu ouvres l'APK, Android demande l'autorisation. C'est normal — il s'agit
+         d'une app interne à G-Systems, pas distribuée via le Play Store.</p>
+      <ul>
+        <li>Tape <code>Paramètres</code> sur la pop-up qui apparaît</li>
+        <li>Active <code>Autoriser depuis cette source</code> pour Chrome (ou ton navigateur)</li>
+        <li>Reviens en arrière et tape <code>Installer</code></li>
+      </ul>
+      <div class="ok"><strong>✓ Une seule fois</strong> par téléphone. Ensuite, les mises à jour passent toutes seules.</div>
+    </div>
+
+    <div class="step">
+      <h2><span class="step-number">3</span>Lance l'app et configure-toi</h2>
+      <p>Au premier lancement, l'app te demande :</p>
+      <ul>
+        <li><strong>Ton nom complet</strong> (apparaît dans la signature des emails)</li>
+        <li>3 adresses email destinataires :
+          <ul>
+            <li><code>TEMPS</code> : où envoyer la feuille de temps</li>
+            <li><code>GSM SEUL</code> : destinataire principal + jusqu'à 2 en copie (Cc)</li>
+            <li><code>GESTE CO</code> : destinataire principal + jusqu'à 2 en copie (Cc)</li>
+          </ul>
+        </li>
+        <li><strong>Code site fixe</strong> : <code>ISTGS54</code> par défaut, modifiable</li>
+        <li><strong>Cycle mensuel</strong> : <code>21</code> par défaut (= du 21 au 20)</li>
+        <li>Tarifs primes et cadeaux clients (pré-remplis)</li>
+      </ul>
+      <p>Ces réglages sont sauvegardés et modifiables à tout moment via l'icône ⚙ engrenage.</p>
+    </div>
+
+    <div class="step">
+      <h2><span class="step-number">4</span>Utilise les 4 boutons</h2>
+      <div class="features">
+        <div class="feature">
+          <b>TEMPS</b>
+          Formulaire complet d'intervention. À l'enregistrement, Viber s'ouvre
+          avec le message déjà tapé (ex&nbsp;: <code>34 inst dupont sete 4300… ok</code>).
+        </div>
+        <div class="feature">
+          <b>GSM SEUL</b>
+          1 site = 1 email immédiat. Toggles « MEDIAS » et « Câbles ». Sujet
+          <code>GSM SEUL - ISTGS54 - n° site</code>.
+        </div>
+        <div class="feature">
+          <b>GESTE CO</b>
+          Tableau Installé / Cadeau par type (GSM, CO, DMP, SE).
+          Validation auto des règles (4,50 € max, moitié max),
+          dérogation EPS dispo.
+        </div>
+        <div class="feature">
+          <b>RÉCAP GESTE CO</b>
+          Cumul du cycle, totaux par type, total des primes. Envoi récap CSV
+          par email à la demande.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <h2><span class="step-number">5</span>Les mises à jour sont automatiques</h2>
+      <p>À chaque ouverture, l'app vérifie s'il y a une nouvelle version. Si oui,
+         une popup s'affiche :</p>
+      <ul>
+        <li>Tape <strong>Mettre à jour</strong></li>
+        <li>L'APK se télécharge en quelques secondes</li>
+        <li>Android te demande d'installer par-dessus → confirme</li>
+      </ul>
+      <p>Tu peux aussi forcer la vérification via <code>⚙ Réglages → Vérifier maintenant</code>.</p>
+    </div>
+
+    <div class="step">
+      <h2><span class="step-number">6</span>En cas de souci</h2>
+      <ul>
+        <li><strong>« Package en conflit »</strong> : tu avais une ancienne version d'avant v0.6.0 ?
+          Désinstalle l'app puis réinstalle. Toutes les versions à partir de 0.6.0
+          gardent la même signature → ce problème ne reviendra plus.</li>
+        <li><strong>Le popup de mise à jour ne s'affiche pas</strong> : vérifie que ton téléphone est connecté
+          à Internet, ouvre l'app, puis va dans <code>⚙ Réglages → Vérifier maintenant</code>.</li>
+        <li><strong>L'email ne s'ouvre pas avec destinataire</strong> : assure-toi d'avoir une app email
+          configurée sur le téléphone (Gmail, Outlook…).</li>
+      </ul>
+    </div>
+
+    <footer>
+      <p>
+        Repo : <a href="https://github.com/morpheus45/gsystem">github.com/morpheus45/gsystem</a><br/>
+        <a href="https://github.com/morpheus45/gsystem/releases">Toutes les versions</a>
+        &nbsp;·&nbsp;
+        <a href="https://github.com/morpheus45/gsystem/issues">Signaler un problème</a>
+      </p>
+    </footer>
+
+  </div>
+
+  <script>
+    // Récupère la dernière release via l'API GitHub pour afficher la version.
+    // Le bouton de téléchargement utilise déjà l'URL "latest" automatique.
+    fetch("https://api.github.com/repos/morpheus45/gsystem/releases/latest", {
+      headers: { "Accept": "application/vnd.github+json" }
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        document.getElementById("version").textContent = d.tag_name || "?";
+        const apk = (d.assets || []).find(a => /\.apk$/i.test(a.name));
+        if (apk) {
+          const mb = (apk.size / 1024 / 1024).toFixed(1);
+          document.getElementById("dl-btn").setAttribute(
+            "href", apk.browser_download_url
+          );
+        }
+      })
+      .catch(() => {
+        document.getElementById("version").textContent = "dernière";
+      });
+  </script>
+</body>
+</html>
