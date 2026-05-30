@@ -16,6 +16,14 @@ import java.time.LocalDate
 object CsvExporter {
     private const val SEP = ";"
 
+    /**
+     * En-tête CSV avec BOM UTF-8 + hint `sep=;` qui force Excel et la
+     * plupart des viewers à utiliser le point-virgule. Sans ça, les
+     * viewers Android auto-détectent et se trompent à cause des virgules
+     * françaises dans les nombres comme « 3,00 € ».
+     */
+    private const val CSV_PREFIX = "﻿sep=;\n"
+
     private fun escape(s: String): String =
         if (s.contains(';') || s.contains('"') || s.contains('\n'))
             "\"" + s.replace("\"", "\"\"") + "\""
@@ -58,7 +66,7 @@ object CsvExporter {
                 e.ville, e.numeroIntervention, hoursCell, obsLabel, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
-        out.writeText("﻿" + sb.toString(), Charsets.UTF_8)
+        out.writeText(CSV_PREFIX + sb.toString(), Charsets.UTF_8)
         return out
     }
 
@@ -81,7 +89,7 @@ object CsvExporter {
         sb.appendLine()
         sb.appendLine(row("TOTAL installations GSM SEUL", filtered.size))
         val out = File(ensureExportDir(context), "GSM_SEUL_${start}_${end}.csv")
-        out.writeText("﻿" + sb.toString(), Charsets.UTF_8)
+        out.writeText(CSV_PREFIX + sb.toString(), Charsets.UTF_8)
         return out
     }
 
@@ -109,35 +117,33 @@ object CsvExporter {
         }
 
         val sb = StringBuilder()
-        // BOM UTF-8 pour qu'Excel ouvre les accents correctement
-        sb.append("﻿")
 
         // ============ EN-TÊTE ============
         sb.appendLine(row("RÉCAP GESTE CO"))
-        sb.appendLine(row("Période :", "${start} au ${end}"))
-        sb.appendLine(row("Nombre de sites :", filtered.size))
+        sb.appendLine(row("Période", "${start} au ${end}"))
+        sb.appendLine(row("Nombre de sites", filtered.size))
         sb.appendLine()
 
         // ============ BLOC 1 — PRIMES (l'info la plus importante) ============
-        sb.appendLine(row("=== MES PRIMES (sur les extensions INSTALLÉES) ==="))
-        sb.appendLine(row("Type", "Quantité installée", "Prime unitaire", "Calcul", "Total prime"))
+        sb.appendLine(row("MES PRIMES (sur les extensions INSTALLÉES)"))
+        sb.appendLine(row("Type", "Quantité", "Prime unitaire", "Total prime"))
+        val totalQty = installedPerType.values.sum()
         for (type in GesteCoPrices.TYPES) {
             val q = installedPerType[type] ?: 0
             val p = prices.priceFor(type)
-            val total = q * p
             sb.appendLine(row(
                 type,
                 q,
                 "%.2f €".format(p),
-                "$q × %.2f €".format(p),
-                "%.2f €".format(total)
+                "%.2f €".format(q * p)
             ))
         }
-        sb.appendLine(row("", "", "", "TOTAL PRIME CYCLE :", "%.2f €".format(grandPrime)))
+        // Ligne TOTAL alignée : A=TOTAL, B=somme qty, C=vide, D=somme prime
+        sb.appendLine(row("TOTAL", totalQty, "", "%.2f €".format(grandPrime)))
         sb.appendLine()
 
         // ============ BLOC 2 — CADEAUX CLIENT (info séparée) ============
-        sb.appendLine(row("=== CADEAUX CLIENT OFFERTS ==="))
+        sb.appendLine(row("CADEAUX CLIENT OFFERTS"))
         sb.appendLine(row("Type", "Quantité offerte"))
         for (type in GesteCoPrices.TYPES) {
             val q = offeredPerType[type] ?: 0
@@ -146,7 +152,7 @@ object CsvExporter {
         sb.appendLine()
 
         // ============ BLOC 3 — DÉTAIL PAR SITE ============
-        sb.appendLine(row("=== DÉTAIL PAR SITE ==="))
+        sb.appendLine(row("DÉTAIL PAR SITE"))
         sb.appendLine(row(
             "Date", "Site",
             "Inst GSM", "Inst CO", "Inst DMP", "Inst SE",
@@ -165,7 +171,7 @@ object CsvExporter {
         }
 
         val out = File(ensureExportDir(context), "GESTE_CO_${start}_${end}.csv")
-        out.writeText(sb.toString(), Charsets.UTF_8)
+        out.writeText(CSV_PREFIX + sb.toString(), Charsets.UTF_8)
         return out
     }
 }
