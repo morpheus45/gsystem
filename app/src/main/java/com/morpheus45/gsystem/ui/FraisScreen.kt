@@ -9,11 +9,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -100,6 +106,42 @@ fun FraisScreen(
         }
     }
 
+    // Sélecteur de fichier (PDF, image de galerie, n'importe quoi)
+    val pickFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            // Trouver une extension : nom du fichier source -> mime type
+            val displayName = resolveDisplayName(context, uri) ?: ""
+            val extFromName = displayName.substringAfterLast('.', "")
+            val extFromMime = MimeTypeMap.getSingleton()
+                .getExtensionFromMimeType(context.contentResolver.getType(uri) ?: "") ?: ""
+            val ext = extFromName.ifBlank { extFromMime }.ifBlank { "bin" }
+            val dest = PhotoStorage.newFraisFile(context, settings.plaqueVoiture, ext)
+            val ok = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    dest.outputStream().use { input.copyTo(it) }
+                }
+            }.isSuccess
+            if (ok && dest.exists() && dest.length() > 0) {
+                val ticket = FraisTicket(
+                    id = EntriesRepository.newId(),
+                    date = DateUtil.today().toString(),
+                    timestamp = System.currentTimeMillis(),
+                    fileName = dest.name
+                )
+                repo.addFrais(ticket)
+                editingTicket = ticket
+            }
+        }
+    }
+
+    fun startFilePick() {
+        // Accepte PDF + images + tout autre fichier
+        pickFile.launch(arrayOf("*/*"))
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -114,12 +156,23 @@ fun FraisScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { startCapture() },
-                containerColor = FraisColor,
-                icon = { Icon(Icons.Filled.CameraAlt, "Prendre photo", tint = Color.White) },
-                text = { Text("Prendre photo", color = Color.White) }
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = { startFilePick() },
+                    containerColor = FraisColor.copy(alpha = 0.85f),
+                    icon = { Icon(Icons.Filled.AttachFile, "Importer fichier", tint = Color.White) },
+                    text = { Text("PDF / fichier", color = Color.White) }
+                )
+                ExtendedFloatingActionButton(
+                    onClick = { startCapture() },
+                    containerColor = FraisColor,
+                    icon = { Icon(Icons.Filled.CameraAlt, "Prendre photo", tint = Color.White) },
+                    text = { Text("Photo", color = Color.White) }
+                )
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
@@ -162,7 +215,8 @@ fun FraisScreen(
                                 append("Cordialement,\n${settings.nomUtilisateur}")
                             },
                             attachments = files,
-                            mimeType = "image/jpeg"
+                            // */* pour supporter le mix images + PDF + autres
+                            mimeType = "*/*"
                         )
                     },
                     enabled = periodTickets.isNotEmpty() && settings.effectiveGsTo.isNotBlank(),
@@ -212,6 +266,8 @@ fun FraisScreen(
     }
 }
 
+private val IMAGE_EXTS = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
+
 @Composable
 private fun TicketCard(
     context: android.content.Context,
@@ -220,6 +276,7 @@ private fun TicketCard(
     onDelete: () -> Unit
 ) {
     val file = PhotoStorage.fileFor(context, ticket.fileName)
+    val ext = ticket.fileName.substringAfterLast('.', "").lowercase()
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -227,12 +284,33 @@ private fun TicketCard(
     ) {
         Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = file,
-                contentDescription = "Ticket",
-                modifier = Modifier.size(64.dp),
-                contentScale = ContentScale.Crop
-            )
+            if (ext in IMAGE_EXTS) {
+                AsyncImage(
+                    model = file,
+                    contentDescription = "Ticket",
+                    modifier = Modifier.size(64.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Icône pour PDF / autre fichier
+                Box(
+                    modifier = Modifier.size(64.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = if (ext == "pdf") Icons.Filled.PictureAsPdf
+                                          else Icons.Filled.InsertDriveFile,
+                            contentDescription = ext.uppercase(),
+                            modifier = Modifier.size(36.dp),
+                            tint = FraisColor
+                        )
+                        Text(ext.uppercase(),
+                            fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                            color = FraisColor)
+                    }
+                }
+            }
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(DateUtil.fr(DateUtil.parseIso(ticket.date)),
@@ -314,4 +392,14 @@ private fun EditFraisDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
     )
+}
+
+/** Récupère le nom d'affichage (DISPLAY_NAME) d'un URI content://. */
+private fun resolveDisplayName(context: android.content.Context, uri: Uri): String? {
+    return try {
+        context.contentResolver.query(uri, null, null, null, null)?.use { c ->
+            val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
+        }
+    } catch (_: Exception) { null }
 }

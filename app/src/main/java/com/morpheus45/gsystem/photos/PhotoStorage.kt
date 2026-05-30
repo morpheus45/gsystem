@@ -27,10 +27,11 @@ object PhotoStorage {
         return dir
     }
 
-    fun newFraisFile(context: Context, plaque: String): File {
+    fun newFraisFile(context: Context, plaque: String, ext: String = "jpg"): File {
         val stamp = STAMP_FMT.format(Date())
         val safePlaque = sanitize(plaque).ifBlank { "VOITURE" }
-        return File(photosDir(context), "${safePlaque}_${stamp}.jpg")
+        val cleanExt = ext.lowercase().filter { it.isLetterOrDigit() }.ifBlank { "bin" }
+        return File(photosDir(context), "${safePlaque}_${stamp}.${cleanExt}")
     }
 
     fun newCompteurFile(context: Context, plaque: String): File {
