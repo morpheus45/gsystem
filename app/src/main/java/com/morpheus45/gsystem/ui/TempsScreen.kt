@@ -1,15 +1,6 @@
 package com.morpheus45.gsystem.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +10,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +30,7 @@ import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU")
@@ -55,14 +48,14 @@ fun TempsScreen(
     val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
     val periodEntries = store.temps.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
-    }.sortedBy { it.date }
+    }.sortedByDescending { it.date }
 
     var showAdd by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("TEMPS — Feuille de temps") },
+                title = { Text("TEMPS - Feuille de temps") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
@@ -73,9 +66,12 @@ fun TempsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAdd = true }, containerColor = ColorTemps) {
-                Icon(Icons.Filled.Add, "Ajouter", tint = Color.White)
-            }
+            ExtendedFloatingActionButton(
+                onClick = { showAdd = true },
+                containerColor = ColorTemps,
+                icon = { Icon(Icons.Filled.Add, "Ajouter", tint = Color.White) },
+                text = { Text("Nouvelle intervention", color = Color.White) }
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
@@ -89,8 +85,8 @@ fun TempsScreen(
                         EmailSender.send(
                             context = context,
                             to = settings.emailTemps,
-                            subject = "TEMPS ${DateUtil.fr(start)} → ${DateUtil.fr(end)}",
-                            body = "Bonjour,\n\nCi-joint la feuille de temps de la période ${DateUtil.fr(start)} → ${DateUtil.fr(end)} (${periodEntries.size} interventions).\n\n${settings.nomUtilisateur}",
+                            subject = "TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)}",
+                            body = "Bonjour,\n\nCi-joint la feuille de temps de la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} (${periodEntries.size} interventions).\n\n${settings.nomUtilisateur}",
                             attachment = csv
                         )
                     },
@@ -98,8 +94,7 @@ fun TempsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
                 ) {
                     Icon(Icons.Filled.Email, null, tint = Color.White)
-                    Spacer(Modifier.height(0.dp).padding(start = 6.dp))
-                    Text("Envoyer par email", color = Color.White)
+                    Text("  Envoyer recap CSV", color = Color.White)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -108,15 +103,17 @@ fun TempsScreen(
 
             if (periodEntries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucune intervention dans la période. Appuie sur + pour ajouter.",
+                    Text("Aucune intervention. Tape « Nouvelle intervention » en bas.",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(periodEntries, key = { it.id }) { e ->
-                        TempsCard(e) {
-                            scope.launch { repo.removeTemps(e.id) }
-                        }
+                        TempsCard(
+                            entry = e,
+                            onResend = { ViberSender.share(context, ViberSender.buildMessage(e)) },
+                            onDelete = { scope.launch { repo.removeTemps(e.id) } }
+                        )
                     }
                 }
             }
@@ -127,8 +124,9 @@ fun TempsScreen(
         AddTempsDialog(
             settings = settings,
             onDismiss = { showAdd = false },
-            onAdd = { entry ->
+            onSaveAndShare = { entry ->
                 scope.launch { repo.addTemps(entry) }
+                ViberSender.share(context, ViberSender.buildMessage(entry))
                 showAdd = false
             }
         )
@@ -136,19 +134,35 @@ fun TempsScreen(
 }
 
 @Composable
-private fun TempsCard(e: TempsEntry, onDelete: () -> Unit) {
+private fun TempsCard(
+    entry: TempsEntry,
+    onResend: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("${DateUtil.fr(DateUtil.parseIso(e.date))}  ·  Dept ${e.departement}  ·  ${e.heures}h",
+                Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}  ·  ${entry.heures}h",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                Text("${e.typeMission} ${e.nomClient} ${e.numeroClient}".trim(),
-                    fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                if (e.observations.isNotBlank()) {
-                    Text(e.observations, fontSize = 12.sp,
+                val title = listOf(
+                    entry.typeMission, entry.nomClient, entry.ville, entry.numeroIntervention
+                ).filter { it.isNotBlank() }.joinToString(" ")
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                val obsTxt = when (entry.observationType) {
+                    "NR_CLIENT" -> "NR CLIENT"
+                    "NR_TECHNIQUE" -> "NR TECHNIQUE"
+                    "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                    else -> ""
+                }
+                val fullObs = listOf(obsTxt, entry.observations).filter { it.isNotBlank() }.joinToString(" · ")
+                if (fullObs.isNotBlank()) {
+                    Text(fullObs, fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error)
                 }
+            }
+            IconButton(onClick = onResend) {
+                Icon(Icons.Filled.Send, "Renvoyer sur Viber", tint = ColorTemps)
             }
             IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Supprimer") }
         }
@@ -160,16 +174,28 @@ private fun TempsCard(e: TempsEntry, onDelete: () -> Unit) {
 private fun AddTempsDialog(
     settings: AppSettings,
     onDismiss: () -> Unit,
-    onAdd: (TempsEntry) -> Unit
+    onSaveAndShare: (TempsEntry) -> Unit
 ) {
     var date by remember { mutableStateOf(DateUtil.today().toString()) }
     var dept by remember { mutableStateOf(settings.departementDefaut) }
+    var heures by remember { mutableStateOf("8") }
     var type by remember { mutableStateOf(MISSION_TYPES.first()) }
     var nom by remember { mutableStateOf("") }
+    var ville by remember { mutableStateOf("") }
     var numero by remember { mutableStateOf("") }
+    var obsType by remember { mutableStateOf("") }
     var obs by remember { mutableStateOf("") }
-    var heures by remember { mutableStateOf("8") }
     var typeExpanded by remember { mutableStateOf(false) }
+    var obsExpanded by remember { mutableStateOf(false) }
+
+    // Prévisualisation du message Viber
+    val tempEntry = TempsEntry(
+        id = "", date = date, departement = dept, typeMission = type,
+        nomClient = nom, ville = ville, numeroIntervention = numero,
+        observationType = obsType, observations = obs,
+        heures = heures.replace(",", ".").toDoubleOrNull() ?: 8.0
+    )
+    val preview = ViberSender.buildMessage(tempEntry)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -179,17 +205,19 @@ private fun AddTempsDialog(
                 OutlinedTextField(value = date, onValueChange = { date = it },
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = dept, onValueChange = { dept = it },
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(value = dept, onValueChange = { dept = it.filter(Char::isDigit).take(3) },
                         label = { Text("Dept") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = heures, onValueChange = { heures = it.filter { c -> c.isDigit() || c == '.' || c == ',' } },
+                    OutlinedTextField(value = heures,
+                        onValueChange = { heures = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(4) },
                         label = { Text("Heures") }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f))
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
                     OutlinedTextField(
                         value = type, onValueChange = {}, readOnly = true,
@@ -204,38 +232,79 @@ private fun AddTempsDialog(
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(value = nom, onValueChange = { nom = it },
-                    label = { Text("Nom client / localité") }, singleLine = true,
+                    label = { Text("Nom client") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = numero, onValueChange = { numero = it.filter(Char::isDigit) },
-                    label = { Text("N° client (optionnel)") }, singleLine = true,
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(value = ville, onValueChange = { ville = it },
+                    label = { Text("Ville") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(6.dp))
+                OutlinedTextField(value = numero,
+                    onValueChange = { numero = it.filter(Char::isDigit).take(12) },
+                    label = { Text("N° intervention") }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
+
+                // Menu observation
+                val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
+                ExposedDropdownMenuBox(expanded = obsExpanded, onExpandedChange = { obsExpanded = it }) {
+                    OutlinedTextField(
+                        value = obsLabel, onValueChange = {}, readOnly = true,
+                        label = { Text("Observation (NR ...)") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = obsExpanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor()
+                    )
+                    ExposedDropdownMenu(expanded = obsExpanded, onDismissRequest = { obsExpanded = false }) {
+                        ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
+                            DropdownMenuItem(text = { Text(label) },
+                                onClick = { obsType = code; obsExpanded = false })
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Observations (NR, ANNULE…)") },
+                    label = { Text("Note libre (optionnel)") }, singleLine = false,
                     modifier = Modifier.fillMaxWidth())
+
+                Spacer(Modifier.height(10.dp))
+                Card(colors = CardDefaults.cardColors(
+                    containerColor = ColorTemps.copy(alpha = 0.1f))) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("Message Viber qui sera pré-rempli :",
+                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                            color = ColorTemps)
+                        Text(preview, fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val h = heures.replace(",", ".").toDoubleOrNull() ?: 8.0
-                    onAdd(TempsEntry(
+                    onSaveAndShare(TempsEntry(
                         id = EntriesRepository.newId(),
                         date = date.trim(),
                         departement = dept.trim(),
                         typeMission = type,
                         nomClient = nom.trim(),
-                        numeroClient = numero.trim(),
+                        ville = ville.trim(),
+                        numeroIntervention = numero.trim(),
+                        observationType = obsType,
                         observations = obs.trim(),
                         heures = h
                     ))
                 },
-                enabled = nom.isNotBlank() && date.isNotBlank()
-            ) { Text("Ajouter") }
+                enabled = nom.isNotBlank() && date.isNotBlank() && dept.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
+            ) {
+                Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
+                Text("  Enregistrer & ouvrir Viber", color = Color.White)
+            }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
     )

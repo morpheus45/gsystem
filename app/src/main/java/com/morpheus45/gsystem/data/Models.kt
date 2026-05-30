@@ -2,7 +2,13 @@ package com.morpheus45.gsystem.data
 
 import kotlinx.serialization.Serializable
 
-/** Une intervention TEMPS (feuille de temps). Inchangé en v0.2. */
+/**
+ * Une intervention TEMPS (feuille de temps).
+ *
+ * Le champ `observationType` est un code stable utilisé pour générer le
+ * message Viber (« NR CLIENT », « NR TECHNIQUE », ...). Le champ
+ * `observations` reste une note libre, éventuellement vide.
+ */
 @Serializable
 data class TempsEntry(
     val id: String,
@@ -10,7 +16,12 @@ data class TempsEntry(
     val departement: String,
     val typeMission: String,
     val nomClient: String,
-    val numeroClient: String = "",
+    val ville: String = "",
+    /** Numéro de l'intervention (ex : 43001714). Garde le nom JSON historique. */
+    @kotlinx.serialization.SerialName("numeroClient")
+    val numeroIntervention: String = "",
+    /** "" | "NR_CLIENT" | "NR_TECHNIQUE" | "NR_CLIENT_ABS". Vide = "ok" en Viber. */
+    val observationType: String = "",
     val observations: String = "",
     val heures: Double = 8.0
 )

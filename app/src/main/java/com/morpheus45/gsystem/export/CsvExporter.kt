@@ -36,10 +36,17 @@ object CsvExporter {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
         val sb = StringBuilder()
-        sb.appendLine(row("Date", "Département", "Type", "Client", "N°", "Heures", "Observations"))
+        sb.appendLine(row("Date", "Département", "Type", "Client", "Ville",
+            "N° intervention", "Heures", "Observation", "Note"))
         for (e in filtered) {
+            val obsLabel = when (e.observationType) {
+                "NR_CLIENT" -> "NR CLIENT"
+                "NR_TECHNIQUE" -> "NR TECHNIQUE"
+                "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                else -> ""
+            }
             sb.appendLine(row(e.date, e.departement, e.typeMission, e.nomClient,
-                e.numeroClient, e.heures, e.observations))
+                e.ville, e.numeroIntervention, e.heures, obsLabel, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
         out.writeText(sb.toString())
