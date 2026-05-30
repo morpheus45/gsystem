@@ -262,7 +262,7 @@ fun EnvoiMensuelScreen(
                                 context = context,
                                 to = settings.effectiveGsTo,
                                 cc = listOf(settings.effectiveGsCc1, settings.effectiveGsCc2),
-                                subject = "ENVOI MENSUEL ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
+                                subject = "FEUILLES DE TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
                                 body = buildString {
                                     append("Bonjour,\n\n")
                                     append("Envoi mensuel pour la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)}.\n\n")

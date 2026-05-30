@@ -147,29 +147,6 @@ fun CompteurScreen(
                         CompteurCard(
                             context = context, entry = e, settings = settings,
                             onEdit = { editing = e },
-                            onSend = {
-                                val f = PhotoStorage.fileFor(context, e.fileName)
-                                if (f.exists()) {
-                                    EmailSender.sendMulti(
-                                        context = context,
-                                        to = settings.effectiveGsTo,
-                                        cc = listOf(settings.effectiveGsCc1, settings.effectiveGsCc2),
-                                        subject = "COMPTEUR ${settings.plaqueVoiture} - ${DateUtil.fr(DateUtil.parseIso(e.date))}",
-                                        body = buildString {
-                                            append("Bonjour,\n\n")
-                                            append("Photo du compteur du véhicule ${settings.plaqueVoiture}.\n")
-                                            append("Date : ${DateUtil.fr(DateUtil.parseIso(e.date))}\n")
-                                            append("Le kilométrage est visible sur la photo jointe.\n")
-                                            if (e.observations.isNotBlank()) {
-                                                append("Note : ${e.observations}\n")
-                                            }
-                                            append("\nCordialement,\n${settings.nomUtilisateur}")
-                                        },
-                                        attachments = listOf(f),
-                                        mimeType = "image/jpeg"
-                                    )
-                                }
-                            },
                             onDelete = {
                                 scope.launch {
                                     PhotoStorage.fileFor(context, e.fileName).delete()
@@ -201,7 +178,6 @@ private fun CompteurCard(
     entry: CompteurEntry,
     settings: AppSettings,
     onEdit: () -> Unit,
-    onSend: () -> Unit,
     onDelete: () -> Unit
 ) {
     val file = PhotoStorage.fileFor(context, entry.fileName)
@@ -234,13 +210,8 @@ private fun CompteurCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
-            Column {
-                IconButton(onClick = onSend, enabled = settings.effectiveGsTo.isNotBlank()) {
-                    Icon(Icons.Filled.Email, "Envoyer par email", tint = CompteurColor)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, "Supprimer")
-                }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, "Supprimer")
             }
         }
     }

@@ -190,47 +190,9 @@ fun FraisScreen(
             }
 
             Spacer(Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(
-                    onClick = {
-                        val files = periodTickets.map {
-                            PhotoStorage.fileFor(context, it.fileName)
-                        }.filter { it.exists() }
-                        val detail = periodTickets.joinToString("\n") { ticket ->
-                            val cat = when {
-                                ticket.categorie.isBlank() -> ""
-                                ticket.categorie == "AUTRE" && ticket.observations.isNotBlank() ->
-                                    " (AUTRE : ${ticket.observations})"
-                                else -> " (${ticket.categorie})"
-                            }
-                            "  - %s%s : %.2f €".format(ticket.date, cat, ticket.montantEur)
-                        }
-                        EmailSender.sendMulti(
-                            context = context,
-                            to = settings.effectiveGsTo,
-                            cc = listOf(settings.effectiveGsCc1, settings.effectiveGsCc2),
-                            subject = "FRAIS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
-                            body = buildString {
-                                append("Bonjour,\n\n")
-                                append("Tickets de frais de la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} :\n")
-                                append("$detail\n\n")
-                                append("Total : %.2f €\n".format(totalMontant))
-                                append("Véhicule : ${settings.plaqueVoiture}\n")
-                                append("${periodTickets.size} photo(s) jointe(s).\n\n")
-                                append("Cordialement,\n${settings.nomUtilisateur}")
-                            },
-                            attachments = files,
-                            // */* pour supporter le mix images + PDF + autres
-                            mimeType = "*/*"
-                        )
-                    },
-                    enabled = periodTickets.isNotEmpty() && settings.effectiveGsTo.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = FraisColor)
-                ) {
-                    Icon(Icons.Filled.Email, null, tint = Color.White)
-                    Text("  Envoyer le lot par email", color = Color.White)
-                }
-            }
+            Text("Les tickets seront envoyés avec la feuille de temps via le bouton « ENVOI MENSUEL » de l'accueil.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(Modifier.height(8.dp))
             Divider()
             Spacer(Modifier.height(8.dp))
