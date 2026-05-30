@@ -23,6 +23,8 @@ data class TempsEntry(
     /** "" | "NR_CLIENT" | "NR_TECHNIQUE" | "NR_CLIENT_ABS". Vide = "ok" en Viber. */
     val observationType: String = "",
     val observations: String = "",
+    /** "MATIN" ou "APREM" — utilisé pour le calcul auto des heures. "" pour les entrées historiques. */
+    val slotMidi: String = "",
     val heures: Double = 8.0
 )
 

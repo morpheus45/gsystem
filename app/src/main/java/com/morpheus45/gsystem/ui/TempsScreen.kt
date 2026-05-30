@@ -212,6 +212,10 @@ private fun AddTempsDialog(
     var obs by remember { mutableStateOf("") }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
+    // Slot matin/aprem auto-rempli selon l'heure du téléphone, modifiable
+    val defaultSlot = if (java.time.LocalTime.now().hour < 13) "MATIN" else "APREM"
+    var slot by remember { mutableStateOf(defaultSlot) }
+    var slotExpanded by remember { mutableStateOf(false) }
 
     // Prévisualisation du message Viber
     val tempEntry = TempsEntry(
@@ -231,11 +235,33 @@ private fun AddTempsDialog(
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
-                OutlinedTextField(value = dept,
-                    onValueChange = { dept = it.filter(Char::isDigit).take(3) },
-                    label = { Text("Département") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(value = dept,
+                        onValueChange = { dept = it.filter(Char::isDigit).take(3) },
+                        label = { Text("Département") }, singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f))
+                    // Dropdown Slot Matin/Aprem
+                    ExposedDropdownMenuBox(
+                        expanded = slotExpanded,
+                        onExpandedChange = { slotExpanded = it },
+                        modifier = Modifier.weight(1.4f)
+                    ) {
+                        OutlinedTextField(
+                            value = if (slot == "MATIN") "Matin" else "Après-midi",
+                            onValueChange = {}, readOnly = true,
+                            label = { Text("Slot") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = slotExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = slotExpanded, onDismissRequest = { slotExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Matin") },
+                                onClick = { slot = "MATIN"; slotExpanded = false })
+                            DropdownMenuItem(text = { Text("Après-midi") },
+                                onClick = { slot = "APREM"; slotExpanded = false })
+                        }
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
                     OutlinedTextField(
@@ -314,6 +340,7 @@ private fun AddTempsDialog(
                         numeroIntervention = numero.trim(),
                         observationType = obsType,
                         observations = obs.trim(),
+                        slotMidi = slot,
                         heures = 0.0 // calculé automatiquement au moment du remplissage Excel
                     ))
                 },
