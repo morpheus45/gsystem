@@ -58,7 +58,7 @@ object CsvExporter {
                 e.ville, e.numeroIntervention, hoursCell, obsLabel, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
-        out.writeText(sb.toString())
+        out.writeText("﻿" + sb.toString(), Charsets.UTF_8)
         return out
     }
 
@@ -81,7 +81,7 @@ object CsvExporter {
         sb.appendLine()
         sb.appendLine(row("TOTAL installations GSM SEUL", filtered.size))
         val out = File(ensureExportDir(context), "GSM_SEUL_${start}_${end}.csv")
-        out.writeText(sb.toString())
+        out.writeText("﻿" + sb.toString(), Charsets.UTF_8)
         return out
     }
 
@@ -91,43 +91,81 @@ object CsvExporter {
     ): File {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
-        val sb = StringBuilder()
-        sb.appendLine(row(
-            "Date", "Site",
-            "Inst GSM", "Inst CO", "Inst DMP", "Inst SE",
-            "Off GSM", "Off CO", "Off DMP", "Off SE",
-            "EPS", "Prime €", "Client", "Observations"
-        ))
-        var grandPrime = 0.0
+
+        // Cumul par type pour la section primes
         val installedPerType = mutableMapOf("GSM" to 0, "CO" to 0, "DMP" to 0, "SE" to 0)
+        val offeredPerType = mutableMapOf("GSM" to 0, "CO" to 0, "DMP" to 0, "SE" to 0)
+        var grandPrime = 0.0
         for (e in filtered) {
-            val prime = e.totalPrime(prices)
-            grandPrime += prime
+            grandPrime += e.totalPrime(prices)
             installedPerType["GSM"] = (installedPerType["GSM"] ?: 0) + e.installedGsm
             installedPerType["CO"]  = (installedPerType["CO"]  ?: 0) + e.installedCo
             installedPerType["DMP"] = (installedPerType["DMP"] ?: 0) + e.installedDmp
             installedPerType["SE"]  = (installedPerType["SE"]  ?: 0) + e.installedSe
+            offeredPerType["GSM"] = (offeredPerType["GSM"] ?: 0) + e.offeredGsm
+            offeredPerType["CO"]  = (offeredPerType["CO"]  ?: 0) + e.offeredCo
+            offeredPerType["DMP"] = (offeredPerType["DMP"] ?: 0) + e.offeredDmp
+            offeredPerType["SE"]  = (offeredPerType["SE"]  ?: 0) + e.offeredSe
+        }
+
+        val sb = StringBuilder()
+        // BOM UTF-8 pour qu'Excel ouvre les accents correctement
+        sb.append("﻿")
+
+        // ============ EN-TÊTE ============
+        sb.appendLine(row("RÉCAP GESTE CO"))
+        sb.appendLine(row("Période :", "${start} au ${end}"))
+        sb.appendLine(row("Nombre de sites :", filtered.size))
+        sb.appendLine()
+
+        // ============ BLOC 1 — PRIMES (l'info la plus importante) ============
+        sb.appendLine(row("=== MES PRIMES (sur les extensions INSTALLÉES) ==="))
+        sb.appendLine(row("Type", "Quantité installée", "Prime unitaire", "Calcul", "Total prime"))
+        for (type in GesteCoPrices.TYPES) {
+            val q = installedPerType[type] ?: 0
+            val p = prices.priceFor(type)
+            val total = q * p
+            sb.appendLine(row(
+                type,
+                q,
+                "%.2f €".format(p),
+                "$q × %.2f €".format(p),
+                "%.2f €".format(total)
+            ))
+        }
+        sb.appendLine(row("", "", "", "TOTAL PRIME CYCLE :", "%.2f €".format(grandPrime)))
+        sb.appendLine()
+
+        // ============ BLOC 2 — CADEAUX CLIENT (info séparée) ============
+        sb.appendLine(row("=== CADEAUX CLIENT OFFERTS ==="))
+        sb.appendLine(row("Type", "Quantité offerte"))
+        for (type in GesteCoPrices.TYPES) {
+            val q = offeredPerType[type] ?: 0
+            if (q > 0) sb.appendLine(row(type, q))
+        }
+        sb.appendLine()
+
+        // ============ BLOC 3 — DÉTAIL PAR SITE ============
+        sb.appendLine(row("=== DÉTAIL PAR SITE ==="))
+        sb.appendLine(row(
+            "Date", "Site",
+            "Inst GSM", "Inst CO", "Inst DMP", "Inst SE",
+            "Off GSM", "Off CO", "Off DMP", "Off SE",
+            "EPS", "Prime", "Client", "Note"
+        ))
+        for (e in filtered) {
             sb.appendLine(row(
                 e.date, e.siteNumber,
                 e.installedGsm, e.installedCo, e.installedDmp, e.installedSe,
                 e.offeredGsm, e.offeredCo, e.offeredDmp, e.offeredSe,
                 if (e.epsDerogation) "OUI" else "",
-                "%.2f".format(prime),
+                "%.2f €".format(e.totalPrime(prices)),
                 e.nomClient, e.observations
             ))
         }
-        sb.appendLine()
-        sb.appendLine(row("--- PRIMES PAR TYPE (sur INSTALLÉES) ---"))
-        sb.appendLine(row("Type", "Qté installée", "Prime unitaire €", "Total prime €"))
-        for (type in GesteCoPrices.TYPES) {
-            val q = installedPerType[type] ?: 0
-            val p = prices.priceFor(type)
-            sb.appendLine(row(type, q, "%.2f".format(p), "%.2f".format(q * p)))
-        }
-        sb.appendLine()
-        sb.appendLine(row("TOTAL PRIME CYCLE €", "%.2f".format(grandPrime)))
+
         val out = File(ensureExportDir(context), "GESTE_CO_${start}_${end}.csv")
-        out.writeText(sb.toString())
+        out.writeText(sb.toString(), Charsets.UTF_8)
         return out
     }
 }

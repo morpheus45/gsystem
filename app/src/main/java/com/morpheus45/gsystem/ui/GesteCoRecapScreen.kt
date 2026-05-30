@@ -76,25 +76,51 @@ fun GesteCoRecapScreen(
 
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text("Totaux par type", fontWeight = FontWeight.Bold,
+                    Text("Mes primes (sur les extensions INSTALLÉES)",
+                        fontWeight = FontWeight.Bold,
                         color = ColorGesteCo, fontSize = 14.sp)
-                    Spacer(Modifier.height(8.dp))
+                    Text("Formule : quantité × prime unitaire",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(10.dp))
+
                     GesteCoPrices.TYPES.forEach { t ->
                         val (q, total) = totalsPerType[t] ?: (0 to 0.0)
                         val prix = settings.prices.priceFor(t)
-                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("$t  (×$q  à %.2f €)".format(prix), fontSize = 13.sp)
-                            Text("%.2f €".format(total), fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold)
+                        if (q > 0) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(t, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("$q × %.2f € unitaire".format(prix),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                }
+                                Text("= %.2f €".format(total), fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = ColorGesteCo)
+                            }
+                        } else {
+                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(t, fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                                Text("—", fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                            }
                         }
                     }
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Divider(modifier = Modifier.padding(vertical = 10.dp))
+
                     Row(modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("TOTAL CYCLE", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("TOTAL PRIME CYCLE",
+                            fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text("%.2f €".format(grandTotal),
-                            fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold, fontSize = 22.sp,
                             color = ColorGesteCo)
                     }
                 }
