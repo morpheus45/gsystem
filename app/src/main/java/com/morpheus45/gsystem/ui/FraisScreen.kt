@@ -44,7 +44,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 import java.io.File
 
-private val CATEGORIES = listOf("Carburant", "Péage", "Repas", "Parking", "Autre")
+private val CATEGORIES = listOf("REPAS", "PARKING", "AUTRE")
 private val FraisColor = Color(0xFFD84315) // orange foncé
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -196,9 +196,14 @@ fun FraisScreen(
                         val files = periodTickets.map {
                             PhotoStorage.fileFor(context, it.fileName)
                         }.filter { it.exists() }
-                        val detail = periodTickets.joinToString("\n") {
-                            val cat = if (it.categorie.isBlank()) "" else " (${it.categorie})"
-                            "  - %s%s : %.2f €".format(it.date, cat, it.montantEur)
+                        val detail = periodTickets.joinToString("\n") { ticket ->
+                            val cat = when {
+                                ticket.categorie.isBlank() -> ""
+                                ticket.categorie == "AUTRE" && ticket.observations.isNotBlank() ->
+                                    " (AUTRE : ${ticket.observations})"
+                                else -> " (${ticket.categorie})"
+                            }
+                            "  - %s%s : %.2f €".format(ticket.date, cat, ticket.montantEur)
                         }
                         EmailSender.sendMulti(
                             context = context,
@@ -315,10 +320,17 @@ private fun TicketCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(DateUtil.fr(DateUtil.parseIso(ticket.date)),
                     fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                val cat = if (ticket.categorie.isBlank()) "Sans catégorie" else ticket.categorie
-                Text(cat, fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                if (ticket.observations.isNotBlank()) {
+                // Catégorie + détail si AUTRE
+                val catLine = when {
+                    ticket.categorie.isBlank() -> "Sans catégorie"
+                    ticket.categorie == "AUTRE" && ticket.observations.isNotBlank() ->
+                        "AUTRE : ${ticket.observations}"
+                    else -> ticket.categorie
+                }
+                Text(catLine, fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    maxLines = 1)
+                if (ticket.categorie != "AUTRE" && ticket.observations.isNotBlank()) {
                     Text(ticket.observations, fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1)
@@ -342,31 +354,41 @@ private fun EditFraisDialog(
     onDismiss: () -> Unit,
     onSave: (FraisTicket) -> Unit
 ) {
-    var categorie by remember { mutableStateOf(ticket.categorie.ifBlank { CATEGORIES.first() }) }
-    var montant by remember { mutableStateOf(if (ticket.montantEur == 0.0) "" else "%.2f".format(ticket.montantEur).replace(',', '.')) }
+    // Si l'ancienne catégorie n'est pas dans la nouvelle liste, on tombe sur "AUTRE"
+    val initialCat = if (ticket.categorie in CATEGORIES) ticket.categorie
+                     else if (ticket.categorie.isBlank()) "REPAS"
+                     else "AUTRE"
+    var categorie by remember { mutableStateOf(initialCat) }
+    var montant by remember {
+        mutableStateOf(if (ticket.montantEur == 0.0) ""
+                       else "%.2f".format(ticket.montantEur).replace(',', '.'))
+    }
     var obs by remember { mutableStateOf(ticket.observations) }
-    var catExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Détails du ticket") },
         text = {
             Column {
-                ExposedDropdownMenuBox(expanded = catExpanded, onExpandedChange = { catExpanded = it }) {
-                    OutlinedTextField(
-                        value = categorie, onValueChange = {}, readOnly = true,
-                        label = { Text("Catégorie") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
-                    )
-                    ExposedDropdownMenu(expanded = catExpanded, onDismissRequest = { catExpanded = false }) {
-                        CATEGORIES.forEach { c ->
-                            DropdownMenuItem(text = { Text(c) },
-                                onClick = { categorie = c; catExpanded = false })
-                        }
+                Text("Catégorie", fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Spacer(Modifier.height(4.dp))
+                // Boutons chips au lieu de dropdown (plus fiable dans AlertDialog)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CATEGORIES.forEach { c ->
+                        FilterChip(
+                            selected = categorie == c,
+                            onClick = { categorie = c },
+                            label = { Text(c) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = FraisColor.copy(alpha = 0.85f),
+                                selectedLabelColor = Color.White
+                            )
+                        )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
+
                 OutlinedTextField(
                     value = montant,
                     onValueChange = { montant = it.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(7) },
@@ -376,17 +398,39 @@ private fun EditFraisDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Note (optionnel)") },
-                    modifier = Modifier.fillMaxWidth())
+
+                // Champ note adapté à la catégorie sélectionnée
+                val obsLabel = if (categorie == "AUTRE")
+                    "Précise le type de frais (obligatoire)"
+                else
+                    "Note (optionnel)"
+                OutlinedTextField(
+                    value = obs,
+                    onValueChange = { obs = it },
+                    label = { Text(obsLabel) },
+                    isError = categorie == "AUTRE" && obs.isBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (categorie == "AUTRE" && obs.isBlank()) {
+                    Text("Décris brièvement la nature du frais (ex : Hôtel, Péage, Carburant…)",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp))
+                }
             }
         },
         confirmButton = {
+            val canSave = categorie != "AUTRE" || obs.isNotBlank()
             Button(
                 onClick = {
                     val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
-                    onSave(ticket.copy(categorie = categorie, montantEur = m, observations = obs.trim()))
+                    onSave(ticket.copy(
+                        categorie = categorie,
+                        montantEur = m,
+                        observations = obs.trim()
+                    ))
                 },
+                enabled = canSave,
                 colors = ButtonDefaults.buttonColors(containerColor = FraisColor)
             ) { Text("Enregistrer", color = Color.White) }
         },
