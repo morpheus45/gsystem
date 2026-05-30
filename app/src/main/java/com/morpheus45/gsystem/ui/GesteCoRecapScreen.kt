@@ -40,14 +40,15 @@ fun GesteCoRecapScreen(
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }.sortedBy { it.date }
 
-    val grandTotal = periodEntries.sumOf { it.totalEur(settings.prices) }
+    val grandTotal = periodEntries.sumOf { it.totalPrime(settings.prices) }
     val totalsPerType: Map<String, Pair<Int, Double>> = GesteCoPrices.TYPES.associateWith { type ->
+        // La prime se calcule sur les extensions INSTALLÉES (pas les offertes)
         val qty = periodEntries.sumOf { entry ->
             when (type) {
-                "GSM" -> entry.countGsm
-                "CO"  -> entry.countCo
-                "DMP" -> entry.countDmp
-                "SE"  -> entry.countSe
+                "GSM" -> entry.installedGsm
+                "CO"  -> entry.installedCo
+                "DMP" -> entry.installedDmp
+                "SE"  -> entry.installedSe
                 else -> 0
             }
         }
@@ -155,13 +156,19 @@ fun GesteCoRecapScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Site ${e.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(e.date))}",
+                                    Text("Site ${e.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(e.date))}"
+                                        + if (e.epsDerogation) "  ·  EPS" else "",
                                         fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(e.extensionsList().joinToString(", ") { "${it.first}×${it.second}" },
+                                    Text("Installé : " + e.installedList().joinToString(", ") { "${it.first}×${it.second}" },
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                    val offTxt = e.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
+                                    if (offTxt.isNotEmpty()) {
+                                        Text("Cadeau : $offTxt", fontSize = 11.sp,
+                                            color = ColorGesteCo)
+                                    }
                                 }
-                                Text("%.2f €".format(e.totalEur(settings.prices)),
+                                Text("%.2f €".format(e.totalPrime(settings.prices)),
                                     fontWeight = FontWeight.Bold, color = ColorGesteCo, fontSize = 14.sp)
                             }
                         }

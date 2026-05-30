@@ -33,46 +33,70 @@ data class GsmSeulEntry(
 )
 
 /**
- * Une intervention GESTE CO = 1 site avec un panier d'extensions
- * (GSM/CO/DMP/SE) saisies en quantités, = 1 email envoyé.
+ * Une intervention GESTE CO = 1 site avec :
+ *   - extensions INSTALLÉES (toutes — comptent pour la prime)
+ *   - extensions OFFERTES en cadeau (sous-ensemble — apparaît dans le mail)
+ *
+ * Règles cadeau (sauf dérogation EPS) :
+ *   - Total cadeau ≤ 4,50 €
+ *   - Nombre d'offertes ≤ moitié du nombre d'installées (arrondi inf.)
+ *   - offered[type] ≤ installed[type]
  */
 @Serializable
 data class GesteCoEntry(
     val id: String,
     val date: String,
     val siteNumber: String,
-    val countGsm: Int = 0,
-    val countCo: Int = 0,
-    val countDmp: Int = 0,
-    val countSe: Int = 0,
+    // INSTALLÉES (total) — comptent pour la prime
+    val installedGsm: Int = 0,
+    val installedCo: Int = 0,
+    val installedDmp: Int = 0,
+    val installedSe: Int = 0,
+    // OFFERTES en cadeau (sous-ensemble) — apparaît dans le mail
+    val offeredGsm: Int = 0,
+    val offeredCo: Int = 0,
+    val offeredDmp: Int = 0,
+    val offeredSe: Int = 0,
+    val epsDerogation: Boolean = false,
     val nomClient: String = "",
     val observations: String = ""
 ) {
-    /** Total des PRIMES (commissions internes — n'apparait QUE dans RÉCAP). */
+    /** Total des PRIMES (sur les INSTALLÉES — n'apparait QUE dans RÉCAP). */
     fun totalPrime(prices: GesteCoPrices): Double =
-        countGsm * prices.gsm +
-        countCo * prices.co +
-        countDmp * prices.dmp +
-        countSe * prices.se
+        installedGsm * prices.gsm +
+        installedCo * prices.co +
+        installedDmp * prices.dmp +
+        installedSe * prices.se
 
-    /** Total des CADEAUX CLIENT (ce qu'on offre — apparaît dans l'email). */
+    /** Total des CADEAUX CLIENT (sur les OFFERTES — apparaît dans l'email). */
     fun totalClientGift(gifts: GesteCoClientGifts): Double =
-        countGsm * gifts.gsm +
-        countCo * gifts.co +
-        countDmp * gifts.dmp +
-        countSe * gifts.se
+        offeredGsm * gifts.gsm +
+        offeredCo * gifts.co +
+        offeredDmp * gifts.dmp +
+        offeredSe * gifts.se
 
-    /** Alias pour compat éventuelle avec l'ancien code (= prime). */
+    /** Alias pour compat (= prime). */
     fun totalEur(prices: GesteCoPrices): Double = totalPrime(prices)
 
-    fun isEmpty(): Boolean =
-        countGsm == 0 && countCo == 0 && countDmp == 0 && countSe == 0
+    fun totalInstalled(): Int = installedGsm + installedCo + installedDmp + installedSe
+    fun totalOffered(): Int = offeredGsm + offeredCo + offeredDmp + offeredSe
 
-    fun extensionsList(): List<Pair<String, Int>> = buildList {
-        if (countGsm > 0) add("GSM" to countGsm)
-        if (countCo > 0)  add("CO"  to countCo)
-        if (countDmp > 0) add("DMP" to countDmp)
-        if (countSe > 0)  add("SE"  to countSe)
+    fun isEmpty(): Boolean = totalInstalled() == 0
+
+    /** Liste des extensions INSTALLÉES (pour RÉCAP). */
+    fun installedList(): List<Pair<String, Int>> = buildList {
+        if (installedGsm > 0) add("GSM" to installedGsm)
+        if (installedCo > 0)  add("CO"  to installedCo)
+        if (installedDmp > 0) add("DMP" to installedDmp)
+        if (installedSe > 0)  add("SE"  to installedSe)
+    }
+
+    /** Liste des extensions OFFERTES (pour mail). */
+    fun offeredList(): List<Pair<String, Int>> = buildList {
+        if (offeredGsm > 0) add("GSM" to offeredGsm)
+        if (offeredCo > 0)  add("CO"  to offeredCo)
+        if (offeredDmp > 0) add("DMP" to offeredDmp)
+        if (offeredSe > 0)  add("SE"  to offeredSe)
     }
 }
 
