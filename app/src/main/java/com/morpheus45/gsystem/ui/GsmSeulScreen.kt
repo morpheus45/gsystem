@@ -118,6 +118,10 @@ private fun sendGsmEmail(
     val body = buildString {
         append("Bonjour,\n\n")
         append("GSM SEUL installé sur site n° ${entry.siteNumber}.\n")
+        if (entry.pasMediasExploitables) {
+            append("Pas de MEDIAS exploitables.\n")
+        }
+        append("Câbles laissés sur site : ${if (entry.cablesLaissesSurSite) "OUI" else "NON"}\n")
         if (entry.nomClient.isNotBlank()) append("Client : ${entry.nomClient}\n")
         if (entry.observations.isNotBlank()) append("Observations : ${entry.observations}\n")
         append("Date : ${DateUtil.fr(DateUtil.parseIso(entry.date))}\n\n")
@@ -154,6 +158,12 @@ private fun EntryCard(
                 Text("Sujet : GSM SEUL - $siteCodeFixe - ${entry.siteNumber}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                val tags = buildList {
+                    if (entry.pasMediasExploitables) add("Pas de MEDIAS")
+                    add("Câbles : ${if (entry.cablesLaissesSurSite) "OUI" else "NON"}")
+                }
+                Text(tags.joinToString("  ·  "), fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 if (entry.nomClient.isNotBlank()) {
                     Text("Client : ${entry.nomClient}", fontSize = 12.sp)
                 }
@@ -182,6 +192,8 @@ private fun AddGsmSeulDialog(
     var siteNumber by remember { mutableStateOf("") }
     var nom by remember { mutableStateOf("") }
     var obs by remember { mutableStateOf("") }
+    var pasMedias by remember { mutableStateOf(true) }
+    var cablesLaisses by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -205,7 +217,44 @@ private fun AddGsmSeulDialog(
                 OutlinedTextField(value = date, onValueChange = { date = it },
                     label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(12.dp))
+                // Toggle "Pas de MEDIAS exploitables"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Pas de MEDIAS exploitables", fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp)
+                        Text(if (pasMedias) "Sera mentionné dans le mail"
+                             else "Ne sera PAS mentionné",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Switch(checked = pasMedias, onCheckedChange = { pasMedias = it })
+                }
+
+                Spacer(Modifier.height(4.dp))
+                // Toggle "Câbles laissés sur site"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Câbles laissés sur site", fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp)
+                        Text(if (cablesLaisses) "OUI dans le mail"
+                             else "NON dans le mail",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Switch(checked = cablesLaisses, onCheckedChange = { cablesLaisses = it })
+                }
+
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(value = nom, onValueChange = { nom = it },
                     label = { Text("Client / localité (optionnel)") }, singleLine = true,
                     modifier = Modifier.fillMaxWidth())
@@ -223,7 +272,9 @@ private fun AddGsmSeulDialog(
                         date = date.trim(),
                         siteNumber = siteNumber.trim(),
                         nomClient = nom.trim(),
-                        observations = obs.trim()
+                        observations = obs.trim(),
+                        pasMediasExploitables = pasMedias,
+                        cablesLaissesSurSite = cablesLaisses
                     ))
                 },
                 enabled = siteNumber.isNotBlank() && date.isNotBlank(),

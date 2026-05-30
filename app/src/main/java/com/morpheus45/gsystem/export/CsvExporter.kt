@@ -53,9 +53,14 @@ object CsvExporter {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
         val sb = StringBuilder()
-        sb.appendLine(row("Date", "Site", "Client", "Observations"))
+        sb.appendLine(row("Date", "Site", "Pas de MEDIAS", "Câbles laissés", "Client", "Observations"))
         for (e in filtered) {
-            sb.appendLine(row(e.date, e.siteNumber, e.nomClient, e.observations))
+            sb.appendLine(row(
+                e.date, e.siteNumber,
+                if (e.pasMediasExploitables) "OUI" else "NON",
+                if (e.cablesLaissesSurSite) "OUI" else "NON",
+                e.nomClient, e.observations
+            ))
         }
         sb.appendLine()
         sb.appendLine(row("TOTAL installations GSM SEUL", filtered.size))

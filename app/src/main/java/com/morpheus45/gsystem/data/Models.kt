@@ -25,7 +25,11 @@ data class GsmSeulEntry(
     val date: String,
     val siteNumber: String,
     val nomClient: String = "",
-    val observations: String = ""
+    val observations: String = "",
+    /** Si vrai, ajoute "Pas de MEDIAS exploitables." dans le corps. */
+    val pasMediasExploitables: Boolean = true,
+    /** OUI/NON dans le corps : "Câbles laissés sur site : OUI/NON". */
+    val cablesLaissesSurSite: Boolean = false
 )
 
 /**
