@@ -232,16 +232,16 @@ private fun AddGesteCoDialog(
     var obs by remember { mutableStateOf("") }
     var eps by remember { mutableStateOf(false) }
 
-    // Installed
-    var iGsm by remember { mutableStateOf("0") }
-    var iCo by remember { mutableStateOf("0") }
-    var iDmp by remember { mutableStateOf("0") }
-    var iSe by remember { mutableStateOf("0") }
-    // Offered (gift subset)
-    var oGsm by remember { mutableStateOf("0") }
-    var oCo by remember { mutableStateOf("0") }
-    var oDmp by remember { mutableStateOf("0") }
-    var oSe by remember { mutableStateOf("0") }
+    // Installed (vide par défaut, placeholder 0)
+    var iGsm by remember { mutableStateOf("") }
+    var iCo by remember { mutableStateOf("") }
+    var iDmp by remember { mutableStateOf("") }
+    var iSe by remember { mutableStateOf("") }
+    // Offered / cadeau (vide par défaut, placeholder 0)
+    var oGsm by remember { mutableStateOf("") }
+    var oCo by remember { mutableStateOf("") }
+    var oDmp by remember { mutableStateOf("") }
+    var oSe by remember { mutableStateOf("") }
 
     fun n(s: String) = s.toIntOrNull() ?: 0
 
@@ -409,6 +409,11 @@ private fun ExtRow(
             value = installed,
             onValueChange = { onInstalledChange(it.filter(Char::isDigit).take(3)) },
             singleLine = true,
+            placeholder = {
+                Text("0", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                    fontSize = 14.sp,
+                    color = androidx.compose.ui.graphics.Color.Gray)
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
             textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Center, fontSize = 14.sp)
@@ -417,6 +422,11 @@ private fun ExtRow(
             value = offered,
             onValueChange = { onOfferedChange(it.filter(Char::isDigit).take(3)) },
             singleLine = true,
+            placeholder = {
+                Text("0", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                    fontSize = 14.sp,
+                    color = androidx.compose.ui.graphics.Color.Gray)
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
             textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Center, fontSize = 14.sp)
