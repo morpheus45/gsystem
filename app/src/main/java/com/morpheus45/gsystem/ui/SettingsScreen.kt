@@ -51,6 +51,7 @@ fun SettingsScreen(
     var emailEpsCc2 by remember { mutableStateOf(settings.effectiveEpsCc2) }
 
     var plaque by remember { mutableStateOf(settings.plaqueVoiture) }
+    var emailMoi by remember { mutableStateOf(settings.emailMoi) }
 
     var siteCode by remember { mutableStateOf(settings.siteCodeFixe) }
     var nom by remember { mutableStateOf(settings.nomUtilisateur) }
@@ -160,6 +161,13 @@ fun SettingsScreen(
             OutlinedTextField(value = dept, onValueChange = { dept = it },
                 label = { Text("Département par défaut (ex : 34)") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            EmailField(value = emailMoi, onChange = { emailMoi = it },
+                label = "Mon email perso (Cc auto envoi mensuel)")
+            Text("Tu recevras automatiquement une copie de l'envoi mensuel.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(20.dp))
             SectionTitle("Cycle mensuel")
@@ -299,6 +307,7 @@ fun SettingsScreen(
                             emailGesteCoCc1 = newOpsCc1,
                             emailGesteCoCc2 = newOpsCc2,
                             plaqueVoiture = plaque.trim(),
+                            emailMoi = emailMoi.trim(),
                             siteCodeFixe = siteCode.trim().ifBlank { "ISTGS54" },
                             cycleStartDay = cycleInt,
                             prices = newPrices,

@@ -258,10 +258,17 @@ fun EnvoiMensuelScreen(
                             }
 
                             // 3. Envoyer un seul mail avec tout
+                            // Ajout automatique de l'email perso du tech en Cc
+                            // (pour qu'il garde une trace de ce qu'il a envoye)
+                            val ccList = listOf(
+                                settings.effectiveGsCc1,
+                                settings.effectiveGsCc2,
+                                settings.emailMoi
+                            )
                             EmailSender.sendMulti(
                                 context = context,
                                 to = settings.effectiveGsTo,
-                                cc = listOf(settings.effectiveGsCc1, settings.effectiveGsCc2),
+                                cc = ccList,
                                 subject = "FEUILLES DE TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
                                 body = buildString {
                                     append("Bonjour,\n\n")

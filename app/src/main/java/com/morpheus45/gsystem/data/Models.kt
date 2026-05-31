@@ -187,6 +187,8 @@ data class AppSettings(
     val clientGifts: GesteCoClientGifts = GesteCoClientGifts(),
     /** Nom du technicien : utilisé dans la signature des emails et en sous-titre de l'app. */
     val nomUtilisateur: String = "",
+    /** Email perso du tech, automatiquement mis en copie de l'ENVOI MENSUEL. */
+    val emailMoi: String = "",
     val departementDefaut: String = "34",
     /** Plaque d'immatriculation de la voiture du tech (ex: "AB-123-CD"). */
     val plaqueVoiture: String = "",
