@@ -47,7 +47,15 @@ object BackupExporter {
                 }
             }
 
-            // 4. README explicatif dans le ZIP
+            // 4. archives Excel mensuelles (snapshots des envois)
+            val excelArchivesDir = File(context.filesDir, "excel_archives")
+            if (excelArchivesDir.exists() && excelArchivesDir.isDirectory) {
+                excelArchivesDir.listFiles()?.forEach { archive ->
+                    if (archive.isFile) addToZip(zip, "excel_archives/${archive.name}", archive)
+                }
+            }
+
+            // 5. README explicatif dans le ZIP
             zip.putNextEntry(ZipEntry("LISEZ_MOI.txt"))
             zip.write(readmeContent().toByteArray(Charsets.UTF_8))
             zip.closeEntry()
@@ -66,9 +74,10 @@ object BackupExporter {
         ====================
 
         Ce ZIP contient toutes les donnees de l'application :
-          - entries.json    : tes saisies TEMPS, GSM SEUL, GESTE CO, tickets et compteurs
-          - settings.json   : tes reglages (emails, plaque, tarifs, etc.)
-          - photos/         : toutes les photos de tickets et compteurs
+          - entries.json       : tes saisies TEMPS, GSM SEUL, GESTE CO, tickets et compteurs
+          - settings.json      : tes reglages (emails, plaque, tarifs, etc.)
+          - photos/            : toutes les photos de tickets et compteurs
+          - excel_archives/    : snapshots des fichiers Excel envoyes mois par mois
 
         Tu peux le garder en backup. En cas de besoin, tu peux le decompresser
         et copier manuellement les fichiers dans le dossier de l'app (ou

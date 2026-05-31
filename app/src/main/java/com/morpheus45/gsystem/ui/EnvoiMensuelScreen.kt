@@ -233,8 +233,8 @@ fun EnvoiMensuelScreen(
                             // 2. Préparer la liste des pièces jointes
                             val attachments = mutableListOf<java.io.File>()
 
-                            // Excel si disponible (on l'a déjà sauvegardé via URI ; pour l'attacher au mail,
-                            // on copie temporairement dans cacheDir/exports)
+                            // Excel rempli : on copie une version (a) en piece jointe email
+                            // ET (b) en archive permanente dans filesDir/excel_archives/
                             if (settings.excelFileUri.isNotBlank()) {
                                 val exportDir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
                                 val nameSafe = settings.excelFileName.ifBlank { "TEMPS.xlsm" }
@@ -245,6 +245,15 @@ fun EnvoiMensuelScreen(
                                     target.outputStream().use { input.copyTo(it) }
                                 }
                                 attachments.add(target)
+
+                                // Archive permanente (gardee de mois en mois pour traçabilite)
+                                val archiveDir = java.io.File(context.filesDir, "excel_archives").apply { mkdirs() }
+                                val plaqueSafe = settings.plaqueVoiture
+                                    .replace(Regex("[^A-Za-z0-9_-]"), "_")
+                                    .ifBlank { "VOITURE" }
+                                val archiveFile = java.io.File(archiveDir,
+                                    "TEMPS_${plaqueSafe}_${start}_au_${end}.xlsm")
+                                target.copyTo(archiveFile, overwrite = true)
                             }
                             // Tickets de frais
                             fraisPeriod.forEach {
