@@ -88,8 +88,8 @@ fun CategoryTile(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 124.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .heightIn(min = 64.dp)
+            .clip(RoundedCornerShape(14.dp))
             .background(
                 Brush.linearGradient(
                     colors = listOf(gradientStart, gradientEnd),
@@ -100,7 +100,7 @@ fun CategoryTile(
             .border(
                 width = 1.dp,
                 color = accent.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(14.dp)
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -108,17 +108,17 @@ fun CategoryTile(
                 onClick = onClick
             )
     ) {
-        // Halo lumineux subtil top-left
+        // Halo lumineux subtil top-left (proportionne)
         Box(
             modifier = Modifier
-                .size(220.dp)
+                .size(120.dp)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            accent.copy(alpha = 0.20f),
+                            accent.copy(alpha = 0.18f),
                             Color.Transparent
                         ),
-                        radius = 280f
+                        radius = 160f
                     )
                 )
         )
@@ -126,21 +126,21 @@ fun CategoryTile(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 22.dp, vertical = 18.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // ICONE XL avec halo
+            // ICONE compacte avec halo
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
                         Color.White.copy(alpha = if (isPressed) 0.20f else 0.14f)
                     )
                     .border(
                         1.dp,
                         Color.White.copy(alpha = 0.18f),
-                        RoundedCornerShape(14.dp)
+                        RoundedCornerShape(10.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -148,31 +148,34 @@ fun CategoryTile(
                     imageVector = icon,
                     contentDescription = label,
                     tint = TextHi,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            Spacer(Modifier.width(18.dp))
+            Spacer(Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = number,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         color = accent
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
                         color = TextHi,
                         maxLines = 1
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = sub,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.65f),
                     maxLines = 1
                 )
@@ -186,7 +189,7 @@ fun CategoryTile(
                     Text(
                         text = liveValue,
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontSize = 24.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         ),
                         color = TextHi
@@ -194,7 +197,9 @@ fun CategoryTile(
                     if (liveLabel != null) {
                         Text(
                             text = liveLabel.uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 9.sp
+                            ),
                             color = accent
                         )
                     }
