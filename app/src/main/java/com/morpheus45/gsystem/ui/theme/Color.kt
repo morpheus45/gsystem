@@ -3,34 +3,41 @@ package com.morpheus45.gsystem.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // =============================================================
-// Indicator Calm — palette calibrée
+// OBSIDIAN — palette dark premium 2026
 //
-// Regle d'or : un ecran ne contient qu'UNE seule zone Amber a la
-// fois. Tout le reste est Ink sur Paper.
+// Noir profond + signal rouge alarme. Le rouge n'apparait que sur
+// les etats actifs, accents, et indicateurs. Tout le reste est une
+// hierarchie de gris liftes pour creer la profondeur.
 // =============================================================
 
-// Substrat
-val Paper         = Color(0xFFF5EFE2) // creme laboratoire
-val PaperDarker   = Color(0xFFEAE2D1) // un cran sous le fond
+// Substrat — fond et cartes en profondeur
+val Obsidian       = Color(0xFF0A0B10) // fond ecran
+val ObsidianLift1  = Color(0xFF13141C) // carte standard
+val ObsidianLift2  = Color(0xFF1B1D27) // carte active / sur tap
+val ObsidianLift3  = Color(0xFF23252F) // carte top-level
+val Hairline       = Color(0xFF2A2D38) // contour des cartes
+val HairlineSoft   = Color(0xFF1F2230) // hairlines tres discrets
 
-// Encre anthracite
-val Ink           = Color(0xFF1A2438) // texte, contours, icones
-val InkSoft       = Color(0xFF1A2438).copy(alpha = 0.55f)
-val InkHairline   = Color(0xFF1A2438).copy(alpha = 0.25f)
-val InkGrid       = Color(0xFF1A2438).copy(alpha = 0.09f)
+// Texte
+val TextHi         = Color(0xFFF5F5F0) // blanc chaud, jamais pur
+val TextMid        = Color(0xFFB8BECC) // texte secondaire
+val TextLow        = Color(0xFF6B7185) // hints, captions
+val TextMuted      = Color(0xFF4A4F60) // disabled
 
-// Signal — sodium amber, l'unique accent
-val Amber         = Color(0xFFD89A3A)
-val AmberSoft     = Color(0xFFD89A3A).copy(alpha = 0.45f)
+// Signal — rouge alarme, l'accent unique
+val Signal         = Color(0xFFFF3D5A) // signal principal
+val SignalHi       = Color(0xFFFF5C75) // hover/glow brillant
+val SignalSoft     = Color(0x4DFF3D5A) // glow halo 30%
+val SignalGhost    = Color(0x1AFF3D5A) // background pression 10%
 
-// Etats (sourds, pas vifs)
-val MutedRed      = Color(0xFFB23A3A)
-val MutedGreen    = Color(0xFF5A7A4D)
+// Etats secondaires (rarement utilises)
+val Success        = Color(0xFF4ADE80) // vert net pour validation
+val Warning        = Color(0xFFFFB347) // ambre pour warning
+val Error          = Color(0xFFFF3D5A) // = Signal, on ne distingue pas
 
-// Compat heritage : ces noms sont encore reference ailleurs dans
-// le code. On les remappe vers la nouvelle palette pour eviter une
-// migration mot-a-mot lourde, mais ils deviendront unused au fur et
-// a mesure de la refonte.
-val ColorTemps    = Ink
-val ColorGsmSeul  = Ink
-val ColorGesteCo  = Ink
+// Compat heritage : les anciens noms pointent vers Signal pour
+// que les ecrans non refactorises adoptent l'accent au lieu de
+// disparaitre. Ils deviendront unused petit a petit.
+val ColorTemps     = Signal
+val ColorGsmSeul   = Signal
+val ColorGesteCo   = Signal

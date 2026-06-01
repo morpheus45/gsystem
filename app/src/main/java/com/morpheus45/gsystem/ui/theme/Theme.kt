@@ -2,7 +2,7 @@ package com.morpheus45.gsystem.ui.theme
 
 import android.app.Activity
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
@@ -10,37 +10,38 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 // =============================================================
-// Indicator Calm — un seul ColorScheme (clair, calibre)
-// Pas de dark mode pour cette version : l'instrument est toujours
-// lisible parce que sa palette EST l'optimum, pas une variation.
+// OBSIDIAN — dark premium par defaut (pas de variation light)
 // =============================================================
 
-private val IndicatorCalmScheme = lightColorScheme(
-    primary = Ink,
-    onPrimary = Paper,
-    primaryContainer = Paper,
-    onPrimaryContainer = Ink,
+private val ObsidianScheme = darkColorScheme(
+    primary = Signal,
+    onPrimary = TextHi,
+    primaryContainer = ObsidianLift2,
+    onPrimaryContainer = TextHi,
 
-    secondary = Amber,
-    onSecondary = Ink,
-    secondaryContainer = AmberSoft,
-    onSecondaryContainer = Ink,
+    secondary = Signal,
+    onSecondary = TextHi,
+    secondaryContainer = SignalGhost,
+    onSecondaryContainer = Signal,
 
-    tertiary = InkSoft,
-    onTertiary = Paper,
+    tertiary = TextMid,
+    onTertiary = Obsidian,
 
-    background = Paper,
-    onBackground = Ink,
-    surface = Paper,
-    onSurface = Ink,
-    surfaceVariant = PaperDarker,
-    onSurfaceVariant = InkSoft,
+    background = Obsidian,
+    onBackground = TextHi,
+    surface = ObsidianLift1,
+    onSurface = TextHi,
+    surfaceVariant = ObsidianLift2,
+    onSurfaceVariant = TextMid,
+    surfaceTint = Signal,
 
-    error = MutedRed,
-    onError = Paper,
+    error = Signal,
+    onError = TextHi,
+    errorContainer = SignalGhost,
+    onErrorContainer = Signal,
 
-    outline = InkHairline,
-    outlineVariant = InkGrid
+    outline = Hairline,
+    outlineVariant = HairlineSoft
 )
 
 @Composable
@@ -49,14 +50,16 @@ fun GSystemTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Status bar = encre, icones claires
-            window.statusBarColor = Ink.toArgb()
-            WindowCompat.getInsetsController(window, view)
-                .isAppearanceLightStatusBars = false
+            window.statusBarColor = Obsidian.toArgb()
+            window.navigationBarColor = Obsidian.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
         }
     }
     MaterialTheme(
-        colorScheme = IndicatorCalmScheme,
+        colorScheme = ObsidianScheme,
         typography = Typography,
         content = content
     )
