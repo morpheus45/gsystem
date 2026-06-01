@@ -1,55 +1,62 @@
 package com.morpheus45.gsystem.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+// =============================================================
+// Indicator Calm — un seul ColorScheme (clair, calibre)
+// Pas de dark mode pour cette version : l'instrument est toujours
+// lisible parce que sa palette EST l'optimum, pas une variation.
+// =============================================================
+
+private val IndicatorCalmScheme = lightColorScheme(
+    primary = Ink,
+    onPrimary = Paper,
+    primaryContainer = Paper,
+    onPrimaryContainer = Ink,
+
+    secondary = Amber,
+    onSecondary = Ink,
+    secondaryContainer = AmberSoft,
+    onSecondaryContainer = Ink,
+
+    tertiary = InkSoft,
+    onTertiary = Paper,
+
+    background = Paper,
+    onBackground = Ink,
+    surface = Paper,
+    onSurface = Ink,
+    surfaceVariant = PaperDarker,
+    onSurfaceVariant = InkSoft,
+
+    error = MutedRed,
+    onError = Paper,
+
+    outline = InkHairline,
+    outlineVariant = InkGrid
 )
 
 @Composable
-fun GSystemTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+fun GSystemTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            // Status bar = encre, icones claires
+            window.statusBarColor = Ink.toArgb()
+            WindowCompat.getInsetsController(window, view)
+                .isAppearanceLightStatusBars = false
         }
     }
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = IndicatorCalmScheme,
         typography = Typography,
         content = content
     )

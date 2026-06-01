@@ -2,6 +2,7 @@ package com.morpheus45.gsystem.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,27 +11,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
-import com.morpheus45.gsystem.ui.theme.ColorGesteCo
-import com.morpheus45.gsystem.ui.theme.ColorGsmSeul
-import com.morpheus45.gsystem.ui.theme.ColorTemps
+import com.morpheus45.gsystem.ui.components.FooterSpec
+import com.morpheus45.gsystem.ui.components.HairlineDivider
+import com.morpheus45.gsystem.ui.components.HairlineSettingsIcon
+import com.morpheus45.gsystem.ui.components.HomeBigButton
+import com.morpheus45.gsystem.ui.theme.Ink
+import com.morpheus45.gsystem.ui.theme.InkSoft
+import com.morpheus45.gsystem.ui.theme.Paper
+import java.time.LocalDate
 
 @Composable
 fun HomeScreen(
@@ -45,112 +42,134 @@ fun HomeScreen(
     onEnvoiMensuel: () -> Unit,
     onSettings: () -> Unit
 ) {
+    // Pip ambre sur ENVOI MENSUEL : a partir du 18 du mois (fin de cycle)
+    val today = LocalDate.now()
+    val endOfCycleApproaching = today.dayOfMonth >= 18
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Paper)
     ) {
+        // -------- Header technique : code session + reglages
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 Text(
-                    text = "G-Systems",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    text = "G-S · FR / 054",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Ink
                 )
-                if (settings.nomUtilisateur.isNotBlank()) {
-                    Text(
-                        text = settings.nomUtilisateur,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                    )
-                }
+                Text(
+                    text = "DOSSIER  TECHNIQUE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = InkSoft
+                )
             }
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Réglages")
+            HairlineSettingsIcon(onClick = onSettings)
+        }
+
+        HairlineDivider()
+
+        // -------- Wordmark + nom utilisateur
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 8.dp)
+        ) {
+            Text(
+                text = "G-SYSTEMS",
+                style = MaterialTheme.typography.displayLarge,
+                color = Ink
+            )
+            if (settings.nomUtilisateur.isNotBlank()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = settings.nomUtilisateur.uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = InkSoft
+                )
             }
         }
 
-        Spacer(Modifier.height(20.dp))
-        Text(
-            text = "Choisis ce que tu veux saisir",
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-        )
+        Spacer(Modifier.height(8.dp))
 
-        Spacer(Modifier.height(16.dp))
-        BigButton(
-            label = "TEMPS",
-            sub = "Feuille de temps (interventions)",
-            color = ColorTemps, onClick = onTemps
+        // -------- 8 boutons, defilants
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            HomeBigButton(
+                number = "01",
+                label = "TEMPS",
+                sub = "Feuille de temps",
+                onClick = onTemps
+            )
+            HomeBigButton(
+                number = "02",
+                label = "GSM SEUL",
+                sub = "1 site, 1 email immediat",
+                onClick = onGsmSeul
+            )
+            HomeBigButton(
+                number = "03",
+                label = "GESTE CO",
+                sub = "Site et extensions",
+                onClick = onGesteCo
+            )
+            HomeBigButton(
+                number = "04",
+                label = "RECAP GESTE CO",
+                sub = "Cumul du cycle, total euros",
+                onClick = onGesteCoRecap
+            )
+            HomeBigButton(
+                number = "05",
+                label = "TICKETS DE FRAIS",
+                sub = "Photos et envoi groupe",
+                onClick = onFrais
+            )
+            HomeBigButton(
+                number = "06",
+                label = "COMPTEUR VOITURE",
+                sub = "Photo kilometrique",
+                onClick = onCompteur
+            )
+            HomeBigButton(
+                number = "07",
+                label = "BON RETOUR STOCK",
+                sub = "Sorties et retours materiel",
+                onClick = onBonRetour
+            )
+            HomeBigButton(
+                number = "08",
+                label = "ENVOI MENSUEL",
+                sub = "Excel, tickets, compteur",
+                hasAmberPip = endOfCycleApproaching,
+                onClick = onEnvoiMensuel
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        HairlineDivider()
+        FooterSpec(
+            chassis = "CHASSIS · ${currentQuarter()}",
+            version = "v${BuildConfig.VERSION_NAME}",
+            serial = "SER. 054"
         )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "GSM SEUL",
-            sub = "1 site → 1 email immédiat",
-            color = ColorGsmSeul, onClick = onGsmSeul
-        )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "GESTE CO",
-            sub = "1 site + extensions → 1 email immédiat",
-            color = ColorGesteCo, onClick = onGesteCo
-        )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "RÉCAP GESTE CO",
-            sub = "Cumul du cycle + total €",
-            color = ColorGesteCo.copy(alpha = 0.75f), onClick = onGesteCoRecap
-        )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "TICKETS DE FRAIS",
-            sub = "Photos au fil de l'eau + envoi lot",
-            color = Color(0xFFD84315), onClick = onFrais
-        )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "COMPTEUR VOITURE",
-            sub = "Photo + km du véhicule",
-            color = Color(0xFF00838F), onClick = onCompteur
-        )
-        Spacer(Modifier.height(12.dp))
-        BigButton(
-            label = "BON RETOUR STOCK",
-            sub = "Sorties / retours matériel",
-            color = Color(0xFF1D4ED8), onClick = onBonRetour
-        )
-        Spacer(Modifier.height(20.dp))
-        BigButton(
-            label = "ENVOI MENSUEL",
-            sub = "Excel rempli + tickets + compteur en 1 mail",
-            color = Color(0xFF1976D2), onClick = onEnvoiMensuel
-        )
-        Spacer(Modifier.height(20.dp))
     }
 }
 
-@Composable
-private fun BigButton(label: String, sub: String, color: Color, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(86.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = color),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(label, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(sub, fontSize = 12.sp, color = Color.White.copy(alpha = 0.9f))
-        }
-    }
+private fun currentQuarter(): String {
+    val now = LocalDate.now()
+    val q = (now.monthValue - 1) / 3 + 1
+    return "${now.year} / Q$q"
 }
