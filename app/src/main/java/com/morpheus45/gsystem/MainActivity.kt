@@ -78,6 +78,7 @@ fun AppNav() {
         composable("home") {
             HomeScreen(
                 settings = settings,
+                store = store,
                 onTemps = { navController.navigate("temps") },
                 onGsmSeul = { navController.navigate("gsm") },
                 onGesteCo = { navController.navigate("gesteco") },

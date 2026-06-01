@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,147 +54,237 @@ import com.morpheus45.gsystem.ui.theme.ObsidianLift2
 import com.morpheus45.gsystem.ui.theme.ObsidianLift3
 import com.morpheus45.gsystem.ui.theme.Signal
 import com.morpheus45.gsystem.ui.theme.SignalGhost
-import com.morpheus45.gsystem.ui.theme.SignalHi
 import com.morpheus45.gsystem.ui.theme.SignalSoft
 import com.morpheus45.gsystem.ui.theme.TextHi
 import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.TextMid
 
 // =============================================================
-// HomeBigButton — bouton premium dark, glow rouge sur pression,
-// gradient subtil dans la carte, numerotation mono signal.
+// CategoryTile — tuile premium dark avec gradient color unique,
+// icone XL, donnees live optionnelles, animation au press.
 // =============================================================
 @Composable
-fun HomeBigButton(
+fun CategoryTile(
     number: String,
     label: String,
     sub: String,
-    hasSignal: Boolean = false,
+    icon: ImageVector,
+    gradientStart: Color,
+    gradientEnd: Color,
+    accent: Color,
+    liveValue: String? = null,
+    liveLabel: String? = null,
+    pulseAccent: Boolean = false,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(120),
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(100),
         label = "press"
     )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 92.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .heightIn(min = 124.dp)
+            .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.linearGradient(
-                    colors = if (isPressed)
-                        listOf(ObsidianLift3, ObsidianLift2)
-                    else
-                        listOf(ObsidianLift2, ObsidianLift1),
+                    colors = listOf(gradientStart, gradientEnd),
                     start = Offset(0f, 0f),
-                    end = Offset(1000f, 1000f)
+                    end = Offset(900f, 900f)
                 )
             )
             .border(
                 width = 1.dp,
-                color = if (hasSignal) Signal else Hairline,
-                shape = RoundedCornerShape(14.dp)
+                color = accent.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 20.dp, vertical = 18.dp)
     ) {
+        // Halo lumineux subtil top-left
+        Box(
+            modifier = Modifier
+                .size(220.dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            accent.copy(alpha = 0.20f),
+                            Color.Transparent
+                        ),
+                        radius = 280f
+                    )
+                )
+        )
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 22.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Numero en mono SIGNAL, lifte visuellement
+            // ICONE XL avec halo
             Box(
-                modifier = Modifier.width(60.dp),
-                contentAlignment = Alignment.CenterStart
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Color.White.copy(alpha = if (isPressed) 0.20f else 0.14f)
+                    )
+                    .border(
+                        1.dp,
+                        Color.White.copy(alpha = 0.18f),
+                        RoundedCornerShape(14.dp)
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = number,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Signal
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = TextHi,
+                    modifier = Modifier.size(28.dp)
                 )
             }
+
+            Spacer(Modifier.width(18.dp))
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextHi
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = number,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = accent
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TextHi,
+                        maxLines = 1
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = sub,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextLow
+                    color = Color.White.copy(alpha = 0.65f),
+                    maxLines = 1
                 )
             }
-            // Indicateur de signal a droite (pip pulsant) ou chevron discret
-            if (hasSignal) {
-                PulsingSignalDot()
-            } else {
-                Text(
-                    text = ">",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextLow.copy(alpha = 0.6f)
-                )
+
+            // BADGE DATA LIVE a droite (optionnel)
+            if (liveValue != null) {
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = liveValue,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = TextHi
+                    )
+                    if (liveLabel != null) {
+                        Text(
+                            text = liveLabel.uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accent
+                        )
+                    }
+                }
+            } else if (pulseAccent) {
+                PulsingSignalDotColored(accent)
             }
         }
     }
 }
 
 // =============================================================
-// PulsingSignalDot — point rouge avec halo pulsant
+// PulsingSignalDotColored — point pulsant avec couleur custom
 // =============================================================
 @Composable
-fun PulsingSignalDot() {
+fun PulsingSignalDotColored(color: Color) {
     val infinite = rememberInfiniteTransition(label = "pulse")
     val haloAlpha by infinite.animateFloat(
-        initialValue = 0.3f,
+        initialValue = 0.25f,
         targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1100)
-        ),
+        animationSpec = infiniteRepeatable(animation = tween(1100)),
         label = "alpha"
     )
     val haloScale by infinite.animateFloat(
         initialValue = 1f,
-        targetValue = 1.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1100)
-        ),
+        targetValue = 1.8f,
+        animationSpec = infiniteRepeatable(animation = tween(1100)),
         label = "scale"
     )
     Box(
-        modifier = Modifier.size(20.dp),
+        modifier = Modifier.size(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Halo exterieur pulsant
         Box(
             modifier = Modifier
-                .size((10f * haloScale).dp)
+                .size((12f * haloScale).dp)
                 .background(
-                    Signal.copy(alpha = haloAlpha * 0.4f),
+                    color.copy(alpha = haloAlpha * 0.5f),
                     RoundedCornerShape(50)
                 )
         )
-        // Point interieur fixe
         Box(
             modifier = Modifier
-                .size(8.dp)
-                .background(Signal, RoundedCornerShape(50))
+                .size(10.dp)
+                .background(color, RoundedCornerShape(50))
         )
     }
 }
 
 // =============================================================
-// HairlineDivider — separateur fin
+// LiveStatusBar — pip pulsant + statut OPERATIONNEL
+// =============================================================
+@Composable
+fun LiveStatusBar(reference: String, statusText: String, color: Color = Signal) {
+    val infinite = rememberInfiniteTransition(label = "live")
+    val alpha by infinite.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1400)),
+        label = "alpha"
+    )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier.size(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(
+                        color.copy(alpha = alpha * 0.35f),
+                        RoundedCornerShape(50)
+                    )
+            )
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(color, RoundedCornerShape(50))
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(reference, style = MaterialTheme.typography.labelMedium, color = TextMid)
+            Text(statusText, style = MaterialTheme.typography.labelSmall, color = color)
+        }
+    }
+}
+
+// =============================================================
+// HairlineDivider
 // =============================================================
 @Composable
 fun HairlineDivider(
@@ -207,7 +300,7 @@ fun HairlineDivider(
 }
 
 // =============================================================
-// SectionLabel — petit titre de section en mono majuscules
+// SectionLabel
 // =============================================================
 @Composable
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
@@ -220,7 +313,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 // =============================================================
-// ScreenHeader — en-tete d'ecran sombre
+// ScreenHeader (ecrans internes)
 // =============================================================
 @Composable
 fun ScreenHeader(
@@ -259,16 +352,16 @@ fun ScreenHeader(
 }
 
 // =============================================================
-// HairlineBackIcon — fleche fine dessinee
+// HairlineBackIcon
 // =============================================================
 @Composable
 fun HairlineBackIcon(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(ObsidianLift1)
-            .border(1.dp, Hairline, RoundedCornerShape(8.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -287,16 +380,16 @@ fun HairlineBackIcon(onClick: () -> Unit) {
 }
 
 // =============================================================
-// HairlineSettingsIcon — engrenage fin
+// HairlineSettingsIcon
 // =============================================================
 @Composable
 fun HairlineSettingsIcon(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .size(40.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(ObsidianLift1)
-            .border(1.dp, Hairline, RoundedCornerShape(8.dp))
+            .border(1.dp, Hairline, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -309,14 +402,8 @@ fun HairlineSettingsIcon(onClick: () -> Unit) {
             val rInner = w * 0.16f
             val sw = 1.6.dp.toPx()
 
-            drawCircle(
-                TextHi, rOuter, Offset(cx, cy),
-                style = Stroke(width = sw)
-            )
-            drawCircle(
-                TextHi, rInner, Offset(cx, cy),
-                style = Stroke(width = sw)
-            )
+            drawCircle(TextHi, rOuter, Offset(cx, cy), style = Stroke(width = sw))
+            drawCircle(TextHi, rInner, Offset(cx, cy), style = Stroke(width = sw))
             for (i in 0 until 6) {
                 val angle = Math.toRadians(i * 60.0)
                 val sx = cx + (rOuter * 1.05f) * kotlin.math.cos(angle).toFloat()
@@ -364,7 +451,7 @@ fun PrimaryAction(
 }
 
 // =============================================================
-// SecondaryAction — bouton contour
+// SecondaryAction
 // =============================================================
 @Composable
 fun SecondaryAction(
@@ -387,9 +474,7 @@ fun SecondaryAction(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = text.uppercase(),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    letterSpacing = 1.2.sp
-                ),
+                style = MaterialTheme.typography.titleMedium.copy(letterSpacing = 1.2.sp),
                 color = if (enabled) TextHi else TextLow
             )
         }
@@ -397,7 +482,7 @@ fun SecondaryAction(
 }
 
 // =============================================================
-// InstrumentReadout — bloc readout en mono signal
+// InstrumentReadout
 // =============================================================
 @Composable
 fun InstrumentReadout(
@@ -434,7 +519,7 @@ fun InstrumentReadout(
 }
 
 // =============================================================
-// FooterSpec — pied de page specs
+// FooterSpec
 // =============================================================
 @Composable
 fun FooterSpec(
