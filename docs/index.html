@@ -357,44 +357,63 @@
   <!-- ============ UTILISATION ============ -->
   <h2><span class="num">5</span>Utilisation quotidienne</h2>
 
-  <p>L'écran d'accueil te montre <b>7 boutons</b>. Voici à quoi sert chacun :</p>
+  <p>L'écran d'accueil te montre <b>8 tuiles</b> (depuis v0.17.0, chacune avec sa propre couleur et un compteur en direct du nombre d'entrées du mois). Voici à quoi sert chacune :</p>
 
   <div class="features">
     <div class="feature">
-      <span class="ic" style="background:#5b3eb1">T</span>
+      <span class="ic" style="background:#7c3aed">01</span>
       <b>TEMPS</b>
       Saisie d'une intervention (date, dept, type, client, ville, n°, NR…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé prêt à envoyer au groupe.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#1565c0">G</span>
+      <span class="ic" style="background:#06b6d4">02</span>
       <b>GSM SEUL</b>
       Une installation GSM uniquement = un email immédiat (sujet <code>GSM SEUL - ISTGS54 - n°site</code>, destinataire + 2 copies).
     </div>
     <div class="feature">
-      <span class="ic" style="background:#2e7d32">C</span>
+      <span class="ic" style="background:#10b981">03</span>
       <b>GESTE CO</b>
       Tableau "Installé / Cadeau" par type (GSM, CO, DMP, SE). L'app vérifie les règles automatiquement (4,50 € max, moitié max…). Dérogation EPS dispo.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#7ba87f">R</span>
+      <span class="ic" style="background:#f59e0b">04</span>
       <b>RÉCAP GESTE CO</b>
       Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#d84315">F</span>
+      <span class="ic" style="background:#ea580c">05</span>
       <b>TICKETS DE FRAIS</b>
       Tape "Prendre photo" pour chaque ticket (carburant, péage, repas…). Saisis le montant. À la fin, "Envoyer le lot" = tous les tickets dans un mail.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#00838f">K</span>
+      <span class="ic" style="background:#2563eb">06</span>
       <b>COMPTEUR VOITURE</b>
-      Photo du compteur + km saisi. Auto-nommé avec ta plaque + date. Envoi par email d'un clic.
+      Photo du compteur. Auto-nommé avec ta plaque + date. Envoi par email d'un clic — le kilométrage est lu directement sur la photo.
     </div>
-    <div class="feature" style="grid-column: 1 / -1; background:#e8eef7">
-      <span class="ic" style="background:#1976d2">E</span>
+    <div class="feature">
+      <span class="ic" style="background:#4f46e5">07</span>
+      <b>BON RETOUR STOCK</b>
+      Génère un bon de retour de matériel (sorties / retours) au format PDF, signé et chiffré, prêt à imprimer ou partager. Liste de magasins (ISTGS54, Jean Robert…), références mémorisées, articles NEUF/USITÉ, historique des bons et sauvegarde JSON locale (option Google Drive disponible).
+    </div>
+    <div class="feature" style="grid-column: 1 / -1; background:#fdf2f8">
+      <span class="ic" style="background:#db2777">08</span>
       <b>ENVOI MENSUEL — le gros bouton</b>
-      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente.
+      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile à partir du 18 du mois pour te rappeler que la clôture approche.
     </div>
+  </div>
+
+  <!-- ============ FOCUS BON RETOUR STOCK ============ -->
+  <div class="card" style="margin-top:18px; border-left:4px solid #4f46e5">
+    <p><b>🆕 BON RETOUR STOCK · comment ça marche</b></p>
+    <ol style="margin:8px 0 0 0; padding-left:20px">
+      <li><b>Choisis l'émetteur</b> (ton code, ex. ISTGS54) et le <b>magasin de destination</b> (Jean Robert ISTGS55, STOCK CENTRAL, etc.).</li>
+      <li><b>Ajoute des articles</b> un par un : référence (auto-complétée depuis ta base mémorisée), quantité, état <b>NEUF</b> ou <b>USITÉ</b>, commentaire optionnel.</li>
+      <li><b>Exporte en PDF</b> → un document propre prêt à signer/imprimer, avec ton n° de bon auto-incrémenté, la date, et toutes les lignes.</li>
+      <li><b>Onglet Historique</b> : retrouve tous tes bons passés, ré-imprime-les, exporte en CSV.</li>
+      <li><b>Onglet Magasins</b> : gère ta liste des codes destinataires.</li>
+      <li><b>Onglet Références</b> : alimente ta base de matériel (apparaît dans l'auto-complétion). Tu peux importer/exporter une sauvegarde JSON, ou activer une sync Google Drive optionnelle (Apps Script).</li>
+    </ol>
+    <p style="margin-top:10px"><b>Astuce :</b> les données du Bon Retour Stock sont stockées localement (localStorage de l'app, isolé du reste). Pour les transférer entre téléphones, utilise l'export/import JSON dans l'onglet Références.</p>
   </div>
 
   <!-- ============ ALGORITHME HEURES ============ -->
