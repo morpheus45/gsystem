@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
+import com.morpheus45.gsystem.ui.BonRetourScreen
 import com.morpheus45.gsystem.ui.CompteurScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
@@ -83,6 +84,7 @@ fun AppNav() {
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
                 onCompteur = { navController.navigate("compteur") },
+                onBonRetour = { navController.navigate("bon_retour") },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onSettings = { navController.navigate("settings") }
             )
@@ -148,6 +150,9 @@ fun AppNav() {
                 settings = settings, store = store, repo = repo,
                 onBack = { navController.popBackStack() }
             )
+        }
+        composable("bon_retour") {
+            BonRetourScreen(onBack = { navController.popBackStack() })
         }
         composable("envoi_mensuel") {
             EnvoiMensuelScreen(

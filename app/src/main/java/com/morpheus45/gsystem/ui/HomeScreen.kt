@@ -41,6 +41,7 @@ fun HomeScreen(
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCompteur: () -> Unit,
+    onBonRetour: () -> Unit,
     onEnvoiMensuel: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -120,6 +121,12 @@ fun HomeScreen(
             label = "COMPTEUR VOITURE",
             sub = "Photo + km du véhicule",
             color = Color(0xFF00838F), onClick = onCompteur
+        )
+        Spacer(Modifier.height(12.dp))
+        BigButton(
+            label = "BON RETOUR STOCK",
+            sub = "Sorties / retours matériel",
+            color = Color(0xFF1D4ED8), onClick = onBonRetour
         )
         Spacer(Modifier.height(20.dp))
         BigButton(

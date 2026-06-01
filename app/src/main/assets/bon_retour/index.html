@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1d4ed8" />
+  <title>Bon de sortie / retour de stock</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--text:#111827;--blue2:#2563eb;--green:#16a34a;--border:#e5e7eb;--shadow:0 10px 30px rgba(17,24,39,.08);--radius:18px}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:50;background:rgba(245,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .wrap{max-width:1100px;margin:0 auto;padding:14px}
+    h1{margin:0;font-size:26px;line-height:1.15}
+    .sub{color:var(--muted);margin-top:6px;font-size:14px}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .tab{display:inline-flex;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;cursor:pointer;user-select:none}
+    .tab.active{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.25)}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+    @media(min-width:920px){.grid{grid-template-columns:520px 1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .bd{padding:14px}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .btn.primary{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.25)}
+    .btn.blue{background:var(--blue2);border-color:var(--blue2);color:#fff}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
+    .btn.small{padding:8px 10px;border-radius:10px;font-size:13px}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select,textarea{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;outline:none}
+    textarea{min-height:86px;resize:vertical}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .right{margin-left:auto}
+    .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:#fff}
+    .badge.blue{border-color:rgba(37,99,235,.25);background:rgba(37,99,235,.08)}
+    .badge.gray{color:var(--muted)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+    .muted{color:var(--muted)}
+    .small{font-size:12px}
+    .divider{height:1px;background:var(--border);margin:12px 0}
+    .list{display:grid;gap:10px}
+    .itemCard{border:1px solid var(--border);border-radius:16px;padding:12px;background:#fff;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px;background:#fff;color:var(--muted)}
+    .chip strong{color:var(--text)}
+    .sumTitle{font-weight:900}
+    .sumSub{font-size:12px;color:var(--muted);margin-top:2px}
+    .sumGrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .sumBox{border:1px solid var(--border);border-radius:14px;padding:8px 10px;background:#fff;font-size:12px}
+
+    /* toggles */
+    .yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ynbox{border:1px solid var(--border);border-radius:16px;padding:12px;background:#fff}
+    .ynbox.neuf{background:#e8f1ff}
+    .ynbox.usite{background:#fff6dd}
+    .ynTitle{font-weight:800;margin-bottom:8px}
+    .ynRow{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+    .toggle{width:52px;height:30px;border-radius:999px;background:#e5e7eb;position:relative;cursor:pointer;flex:0 0 auto}
+    .toggle::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+    .toggle.on{background:rgba(37,99,235,.35)}
+    .toggle.on::after{left:26px}
+
+    /* print */
+    .printArea{display:none}
+    @media print{
+      header, main, .toast {display:none !important}
+      body{background:#fff}
+      .printArea{display:block}
+    }
+    .a4{width:210mm;min-height:297mm;margin:0 auto}
+    .copy{padding:10mm 10mm 8mm 10mm}
+    .cut{border-top:1px dashed #999;margin:6mm 0}
+    body.print-1 .cut, body.print-1 #printCopy2Wrap{display:none}
+    .bon{border:1px solid #111;padding:8mm;font-family:Arial,sans-serif;color:#000;background:#fff}
+    .bonTop{display:grid;grid-template-columns:38mm 1fr 52mm;gap:6mm;align-items:start}
+    .logoBox{width:38mm;height:22mm;border:1px solid #111;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;letter-spacing:.5px;background:#f2f2f2}
+    .titleBox{font-size:16px;font-weight:800;letter-spacing:.3px}
+    .subtitleBox{font-size:10px;margin-top:2mm}
+    .numBox{border:1px solid #111;padding:3mm 4mm;font-size:18px;font-weight:800;color:#c00;text-align:center}
+    .meta{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm 10mm;font-size:11px}
+    .meta div{display:flex;gap:2mm}
+    .meta .lbl{min-width:26mm;font-weight:700}
+    .meta .val{border-bottom:1px solid #111;flex:1}
+    .tableWrap{margin-top:5mm;border:1px solid #111}
+    table.bonTable{width:100%;border-collapse:collapse;font-size:11px}
+    table.bonTable th, table.bonTable td{border:1px solid #111;padding:2.2mm 2mm;vertical-align:middle}
+    table.bonTable th{background:#d9dde6;font-weight:800;text-transform:uppercase;font-size:10px}
+    table.bonTable .center{text-align:center}
+    .x{font-weight:900;font-size:14px;line-height:1}
+    .obs{margin-top:4mm;font-size:11px}
+    .obsLine{border-bottom:1px dotted #111;min-height:6mm;white-space:pre-wrap}
+    .foot{margin-top:4mm;font-size:10px;text-align:right}
+
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:300;display:none;background:#111827;color:#fff;border-radius:999px;padding:10px 12px;max-width:calc(100% - 24px)}
+    .toast.on{display:block}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <h1>Gestion d'Inventaire</h1>
+        <div class="sub">Bon de sortie / retour de stock — sans scanner</div>
+      </div>
+      <button class="btn" id="btnInstall" style="display:none">⬇️ Installer</button>
+      <span class="right badge gray">Sauvegarde locale</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <div class="tab active" data-tab="bon">📄 Nouveau Bon</div>
+      <div class="tab" data-tab="hist">🕘 Historique</div>
+      <div class="tab" data-tab="refs">📦 Références</div>
+      <div class="tab" data-tab="codes">🏬 Codes</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="page-bon" class="grid">
+    <div class="card">
+      <div class="hd">
+        <div class="row" style="gap:8px">
+          <span class="badge blue">BON DE SORTIE DE STOCK</span>
+          <span class="badge gray">N° <span class="mono" id="bonNumber">—</span></span>
+          <span class="badge gray" id="bonStatus">Brouillon</span>
+        </div>
+        <button class="btn" id="btnResetBon">↩️ Réinitialiser</button>
+      </div>
+      <div class="bd">
+        <label>Code Magasin/Technicien *</label>
+        <select id="bonCode"></select>
+
+        <label>Date</label>
+        <input id="bonDate" type="date" />
+
+        <label>Destinataire</label>
+        <input id="bonDest" placeholder="STOCK CENTRAL" />
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div style="font-weight:800">Articles (<span id="articleCount">0</span>)</div>
+          <button class="btn primary right" id="btnAddArticle">＋ Ajouter un article</button>
+        </div>
+        <div id="articles" class="list" style="margin-top:10px"></div>
+
+        <div class="divider"></div>
+
+        <label>Observations</label>
+        <textarea id="bonObs" placeholder="Notes ou observations..."></textarea>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <button class="btn green" id="btnSaveDraft">💾 Économiser (brouillon)</button>
+          <button class="btn blue" id="btnPdf1">⬇️ Exporter PDF (x1)</button>
+          <button class="btn blue right" id="btnPdf2">⬇️ Exporter PDF (x2 sur 1 A4)</button>
+        </div>
+
+        <div class="small muted" style="margin-top:10px;line-height:1.4">
+          Sauvegarde locale via <span class="mono">localStorage</span>. MDN :
+          https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage<br/>
+          <b>Important :</b> chaque impression crée un <b>nouveau numéro de bon</b> (unique).
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <div>
+          <div style="font-weight:800">Objectif</div>
+          <div class="small muted">Transcrire le bon comme ta feuille</div>
+        </div>
+        <div class="row right">
+          <button class="btn" id="btnExport">⬇️ Export</button>
+          <button class="btn" id="btnImport">⬆️ Import</button>
+          <input id="fileImport" type="file" accept="application/json" hidden />
+        </div>
+      </div>
+      <div class="bd">
+        <div class="muted" style="font-size:13px;line-height:1.5">
+          • Ajout d’article : tu remplis puis <b>Valider</b> → ça passe en mode compact (visible et modifiable).<br/>
+          • Impression : 1 exemplaire (x1) ou 2 exemplaires sur une seule feuille A4 (x2).<br/>
+          • Les références et magasins restent enregistrés pour les prochaines fois.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-hist" class="card" style="display:none">
+    <div class="hd">
+      <div>
+        <div style="font-weight:800">Historique des Bons</div>
+        <div class="small muted">Ouvre un brouillon pour modifier</div>
+      </div>
+      <input id="histSearch" placeholder="Rechercher (numéro, destinataire, code...)" style="width:280px" />
+    </div>
+    <div class="bd">
+      <div id="histList" class="list"></div>
+    </div>
+  </section>
+
+  <section id="page-refs" class="card" style="display:none">
+    <div class="hd">
+      <div style="font-weight:800">Références</div>
+      <button class="btn primary right" id="btnAddRef">＋ Ajouter</button>
+    </div>
+    <div class="bd"><div id="refList" class="list"></div></div>
+  </section>
+
+  <section id="page-codes" class="card" style="display:none">
+    <div class="hd">
+      <div style="font-weight:800">Codes Magasin / Technicien</div>
+      <button class="btn primary right" id="btnAddCode">＋ Ajouter</button>
+    </div>
+    <div class="bd"><div id="codeList" class="list"></div></div>
+  </section>
+</main>
+
+<div class="printArea">
+  <div class="a4">
+    <div class="copy"><div id="printCopy1"></div></div>
+    <div class="cut"></div>
+    <div class="copy" id="printCopy2Wrap"><div id="printCopy2"></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LS_KEY="bons_v3", LS_REFS="refs_v3", LS_CODES="codes_v3", LS_COUNTER="counter_v3";
+
+function loadJSON(k, fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb }catch(_){return fb} }
+function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function saveBons(){ saveJSON(LS_KEY, bons); }
+function pad7(n){ return String(n).padStart(7,"0"); }
+function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); return new Date(d.getTime()-off*60000).toISOString().slice(0,10); }
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove("on"),2100); }
+function id(){ return (crypto?.randomUUID)?crypto.randomUUID():("id_"+Math.random().toString(16).slice(2)+"_"+Date.now().toString(16)); }
+function esc(s){ return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
+function escAttr(s){ return esc(s).replaceAll("'","&#039;"); }
+
+let refs=loadJSON(LS_REFS,[]);
+// Normalise: ancien format sans "archived"
+refs.forEach(r=>{ if(typeof r.archived==="undefined") r.archived=false; });
+let codes=loadJSON(LS_CODES,[]);
+let bons=loadJSON(LS_KEY,[]);
+
+// Defaults + ajout demandé : ISTGS55 Jean Robert
+(function ensureDefaults(){
+  const needRef = !refs.length;
+  if(needRef) refs.push({id:id(), code:"IR-C08-03", name:"DÉTECTEUR DE MOUVEMENT", archived:false});
+
+  const hasLago = codes.some(c => (c.tech||"").toUpperCase()==="ISTGS54");
+  if(!hasLago) codes.push({id:id(), name:"Lago Gomez", tech:"ISTGS54", mag:"ISTGS54"});
+
+  const hasJean = codes.some(c => (c.tech||"").toUpperCase()==="ISTGS55");
+  if(!hasJean) codes.push({id:id(), name:"Jean Robert", tech:"ISTGS55", mag:"ISTGS55"});
+
+  saveJSON(LS_REFS, refs);
+  saveJSON(LS_CODES, codes);
+})();
+
+function nextNumber(){
+  const cur = Number(localStorage.getItem(LS_COUNTER) || "188854");
+  const next = cur + 1;
+  localStorage.setItem(LS_COUNTER, String(next));
+  return pad7(next);
+}
+
+const tabs=[...document.querySelectorAll(".tab")];
+tabs.forEach(t=>t.addEventListener("click",()=>setTab(t.dataset.tab)));
+function setTab(name){
+  tabs.forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
+  document.getElementById("page-bon").style.display = name==="bon" ? "" : "none";
+  document.getElementById("page-hist").style.display = name==="hist" ? "" : "none";
+  document.getElementById("page-refs").style.display = name==="refs" ? "" : "none";
+  document.getElementById("page-codes").style.display = name==="codes" ? "" : "none";
+  if(name==="hist") renderHist();
+  if(name==="refs") renderRefs();
+  if(name==="codes") renderCodes();
+}
+
+let currentBon=null;
+
+function newBon(){
+  return {
+    id:id(),
+    number: nextNumber(),            // numéro de brouillon (unique)
+    status:"BROUILLON",
+    codeId:codes[0]?.id||"",
+    date:todayISO(),
+    destinataire:"STOCK CENTRAL",
+    observations:"",
+    articles:[]
+  };
+}
+
+function upsertBon(b){
+  const i=bons.findIndex(x=>x.id===b.id);
+  if(i>=0) bons[i]=b; else bons.unshift(b);
+  saveJSON(LS_KEY,bons);
+}
+
+function renderCodeSelect(){
+  const sel=document.getElementById("bonCode");
+  sel.innerHTML="";
+  for(const c of codes){
+    const o=document.createElement("option");
+    o.value=c.id;
+    o.textContent=`${c.name} — ${c.tech} / ${c.mag}`;
+    sel.appendChild(o);
+  }
+}
+function refById(x){ return refs.find(r=>r.id===x)||null; }
+function codeById(x){ return codes.find(c=>c.id===x)||null; }
+
+function loadBon(b){
+  currentBon=JSON.parse(JSON.stringify(b));
+  document.getElementById("bonNumber").textContent=currentBon.number||"—";
+  document.getElementById("bonStatus").textContent=currentBon.status==="IMPRIME" ? "Imprimé" : "Brouillon";
+  renderCodeSelect();
+  document.getElementById("bonCode").value=currentBon.codeId||"";
+  document.getElementById("bonDate").value=currentBon.date||todayISO();
+  document.getElementById("bonDest").value=currentBon.destinataire||"";
+  document.getElementById("bonObs").value=currentBon.observations||"";
+  renderArticles();
+}
+function ensureBon(){ if(!currentBon) loadBon(newBon()); }
+
+function defaultComment(a){
+  const q=Math.max(1, Math.floor(Number(a.qty||1)));
+  return "x"+q;
+}
+function ynLabel(v){ return v==="OUI" ? "Oui" : (v==="NON" ? "Non" : "—"); }
+
+function renderArticles(){
+  const box=document.getElementById("articles");
+  box.innerHTML="";
+  const locked = currentBon.status==="IMPRIME";
+
+  currentBon.articles.forEach((a, idx)=>{
+    const r = refById(a.refId);
+    const title = r ? `${r.code} — ${r.name}` : "Référence non choisie";
+    const validated = !!a.validated;
+
+    const card=document.createElement("div");
+    card.className="card";
+    card.style.boxShadow="none";
+    card.style.borderRadius="16px";
+
+    if(validated){
+      card.innerHTML = `
+        <div class="hd">
+          <div>
+            <div class="sumTitle">Article n° ${idx+1}</div>
+            <div class="sumSub">${esc(title)}</div>
+          </div>
+          <div class="row right">
+            <button class="btn small primary" data-act="edit" data-idx="${idx}" ${locked?"disabled":""}>Modifier</button>
+            <button class="btn small" data-act="del" data-idx="${idx}" ${locked?"disabled":""}>Suppr.</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="sumGrid">
+            <div class="sumBox"><span class="muted">Qté:</span> <strong>${esc(String(a.qty||1))}</strong></div>
+            <div class="sumBox"><span class="muted">Neuf:</span> <strong>${esc(ynLabel(a.neuf))}</strong></div>
+            <div class="sumBox"><span class="muted">Usité:</span> <strong>${esc(ynLabel(a.usite))}</strong></div>
+            <div class="sumBox"><span class="muted">Comm.:</span> <strong>${esc((a.comment||defaultComment(a)).trim())}</strong></div>
+          </div>
+        </div>
+      `;
+    } else {
+      card.innerHTML=`
+        <div class="hd">
+          <div style="font-weight:900">Article n° ${idx+1} (édition)</div>
+          <div class="row right">
+            <button class="btn small" data-act="del" data-idx="${idx}" ${locked?"disabled":""}>Suppr.</button>
+          </div>
+        </div>
+        <div class="bd">
+          <label>Article de référence</label>
+          <select data-k="refId" data-idx="${idx}" ${locked?"disabled":""}>
+            <option value="">Choisir une référence…</option>
+            ${refs.filter(r=>!r.archived).map(r=>`<option value="${r.id}" ${r.id===a.refId?"selected":""}>${esc(r.code)} — ${esc(r.name)}</option>`).join("")}
+          </select>
+
+          <label>Quantité</label>
+          <input type="number" min="1" step="1" value="${Number(a.qty||1)}" data-k="qty" data-idx="${idx}" ${locked?"disabled":""} />
+
+          <div class="yn" style="margin-top:10px">
+            <div class="ynbox neuf">
+              <div class="ynTitle">NEUF</div>
+              <div class="ynRow"><span>Oui</span><div class="toggle ${a.neuf==="OUI"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="neuf" data-val="OUI" ${locked?"data-locked='1'":""}></div></div>
+              <div class="ynRow"><span>Non</span><div class="toggle ${a.neuf==="NON"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="neuf" data-val="NON" ${locked?"data-locked='1'":""}></div></div>
+            </div>
+            <div class="ynbox usite">
+              <div class="ynTitle">USITÉ</div>
+              <div class="ynRow"><span>Oui</span><div class="toggle ${a.usite==="OUI"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="usite" data-val="OUI" ${locked?"data-locked='1'":""}></div></div>
+              <div class="ynRow"><span>Non</span><div class="toggle ${a.usite==="NON"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="usite" data-val="NON" ${locked?"data-locked='1'":""}></div></div>
+            </div>
+          </div>
+
+          <label>Commentaires</label>
+          <input value="${escAttr(a.comment||defaultComment(a))}" placeholder="ex: x3" data-k="comment" data-idx="${idx}" ${locked?"disabled":""} />
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn green right" data-act="validate" data-idx="${idx}" ${locked?"disabled":""}>✅ Valider</button>
+          </div>
+        </div>
+      `;
+    }
+
+    box.appendChild(card);
+  });
+
+  document.getElementById("articleCount").textContent=String(currentBon.articles.length);
+}
+
+document.getElementById("btnAddArticle").addEventListener("click", ()=>{
+  if(currentBon.status==="IMPRIME"){ toast("Bon imprimé : non modifiable"); return; }
+  currentBon.articles.push({refId:"", qty:1, neuf:"NON", usite:"NON", comment:"", validated:false});
+  renderArticles();
+});
+
+document.getElementById("articles").addEventListener("input", (e)=>{
+  const t=e.target;
+  const idx=Number(t.dataset.idx);
+  const k=t.dataset.k;
+  if(!k || Number.isNaN(idx)) return;
+  if(currentBon.status==="IMPRIME") return;
+
+  if(k==="qty"){
+    currentBon.articles[idx].qty=Math.max(1, Math.floor(Number(t.value||1)));
+    const cur=(currentBon.articles[idx].comment||"").trim();
+    if(!cur || /^x\d+$/i.test(cur)) currentBon.articles[idx].comment=defaultComment(currentBon.articles[idx]);
+    return;
+  }
+  currentBon.articles[idx][k]=t.value;
+});
+
+document.getElementById("articles").addEventListener("click", (e)=>{
+  const el=e.target.closest("[data-act]");
+  if(!el) return;
+  const act=el.dataset.act;
+  const idx=Number(el.dataset.idx);
+
+  if(act==="del"){
+    if(currentBon.status==="IMPRIME") return;
+    currentBon.articles.splice(idx,1);
+    renderArticles();
+  }
+
+  if(act==="edit"){
+    if(currentBon.status==="IMPRIME") return;
+    currentBon.articles[idx].validated=false;
+    renderArticles();
+  }
+
+  if(act==="validate"){
+    if(currentBon.status==="IMPRIME") return;
+    const a=currentBon.articles[idx];
+    if(!a.refId){ toast("Choisis une référence"); return; }
+    if(!a.comment || !a.comment.trim()) a.comment = defaultComment(a);
+    a.validated=true;
+    renderArticles();
+  }
+
+  if(act==="toggle"){
+    if(el.dataset.locked==="1"){ toast("Bon imprimé : non modifiable"); return; }
+    const group=el.dataset.group;
+    const val=el.dataset.val;
+    const cur=currentBon.articles[idx][group];
+    currentBon.articles[idx][group]=(cur===val) ? "" : val;
+    // pas besoin de rerender tout de suite, mais pour refléter le toggle visuel c'est plus simple
+    renderArticles();
+  }
+});
+
+document.getElementById("bonCode").addEventListener("change", ()=> currentBon.codeId=document.getElementById("bonCode").value);
+document.getElementById("bonDate").addEventListener("change", ()=> currentBon.date=document.getElementById("bonDate").value);
+document.getElementById("bonDest").addEventListener("input", ()=> currentBon.destinataire=document.getElementById("bonDest").value);
+document.getElementById("bonObs").addEventListener("input", ()=> currentBon.observations=document.getElementById("bonObs").value);
+
+document.getElementById("btnResetBon").addEventListener("click", ()=>{
+  if(confirm("Réinitialiser le bon en cours ?")){
+    loadBon(newBon());
+    toast("Bon réinitialisé");
+  }
+});
+
+function validateBon(){
+  if(!currentBon.codeId){ toast("Choisis un code magasin/technicien"); return false; }
+  if(!currentBon.date){ toast("Date manquante"); return false; }
+  if(!currentBon.destinataire){ toast("Destinataire manquant"); return false; }
+  return true;
+}
+
+document.getElementById("btnSaveDraft").addEventListener("click", ()=>{
+  if(!validateBon()) return;
+  currentBon.status="BROUILLON";
+  upsertBon(currentBon);
+  document.getElementById("bonStatus").textContent="Brouillon";
+  toast("Brouillon sauvegardé");
+});
+
+function createPrintedCopyFrom(b){
+  const printed = JSON.parse(JSON.stringify(b));
+  printed.id = id();
+  printed.number = nextNumber();      // <-- numéro unique à chaque impression
+  printed.status = "IMPRIME";
+  printed.printedAt = Date.now();
+  // Les articles imprimés sont figés
+  (printed.articles||[]).forEach(a => { a.validated = true; });
+  upsertBon(printed);
+  return printed;
+}
+
+
+async function exportPDF(mode){
+  if(!window.html2canvas || !window.jspdf){
+    toast("Chargement PDF… réessaie dans 2 secondes.");
+    return;
+  }
+  if(!validateBon()) return;
+
+  const printed=createPrintedCopyFrom(currentBon);
+
+  // Prépare la vue A4 (x1 ou x2 sur la même page)
+  document.body.classList.remove("print-1","print-2");
+  document.body.classList.add(mode===2 ? "print-2" : "print-1");
+  renderPrint(printed, mode);
+
+  // Rendre la zone imprimable visible hors-écran pour capture
+  const area=document.querySelector(".printArea");
+  const a4=document.querySelector(".printArea .a4");
+  const prevStyle=area.getAttribute("style") || "";
+  area.setAttribute("style", prevStyle + ";display:block;position:fixed;left:-12000px;top:0;background:#fff;z-index:9999;");
+
+  // Laisse le navigateur appliquer le layout
+  await new Promise(r=>setTimeout(r, 80));
+
+  try{
+    const canvas=await html2canvas(a4, {scale:2, backgroundColor:"#ffffff", useCORS:true});
+    const img=canvas.toDataURL("image/jpeg", 1.0);
+
+    const { jsPDF } = window.jspdf;
+    const pdf=new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+    // A4 : 210 x 297 mm
+    pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+
+    const filename=`bon_sortie_stock_${printed.number}_x${mode}.pdf`;
+    const blob=pdf.output("blob");
+    const file=new File([blob], filename, {type:"application/pdf"});
+
+    // Partage (ouvre le choix d'app, ex: Epson iPrint) si dispo, sinon téléchargement
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      try{
+        await navigator.share({files:[file], title:"Bon de sortie de stock", text:"Bon de sortie / retour de stock"});
+      }catch(e){
+        pdf.save(filename);
+      }
+    }else{
+      pdf.save(filename);
+    }
+
+    toast("PDF prêt ✅");
+  }catch(err){
+    console.error(err);
+    toast("Erreur export PDF. Dis-moi ce que tu vois à l'écran.");
+  }finally{
+    // Restaure
+    if(prevStyle) area.setAttribute("style", prevStyle);
+    else area.removeAttribute("style");
+
+    // Après export : on archive + on repart sur un nouveau bon
+    const existing=bons.find(x=>x.id===currentBon.id);
+    if(existing){
+      existing.status="imprimé";
+      existing.number=printed.number;
+      saveBons();
+    }else{
+      bons.unshift(printed);
+      saveBons();
+    }
+    loadBon(newBon());
+    renderHist();
+  }
+}
+
+document.getElementById("btnPdf1").addEventListener("click", ()=>exportPDF(1));
+document.getElementById("btnPdf2").addEventListener("click", ()=>exportPDF(2));
+function formatFRDate(iso){
+  if(!iso) return "";
+  const [y,m,d]=iso.split("-");
+  if(!y||!m||!d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function buildRows(b){
+  const MAX=12;
+  const out=[];
+  for(const a of (b.articles||[])){
+    const r=refById(a.refId);
+    const refText=r ? `${r.name}\n${r.code}` : "";
+    const nOui=(a.neuf==="OUI") ? "<span class='x'>X</span>" : "";
+    const nNon=(a.neuf==="NON") ? "<span class='x'>X</span>" : "";
+    const uOui=(a.usite==="OUI") ? "<span class='x'>X</span>" : "";
+    const uNon=(a.usite==="NON") ? "<span class='x'>X</span>" : "";
+    const comm=(a.comment && a.comment.trim()) ? a.comment.trim() : ("x"+(a.qty||1));
+    out.push(`
+      <tr>
+        <td style="white-space:pre-line">${esc(refText)}</td>
+        <td class="center">${nOui}</td>
+        <td class="center">${nNon}</td>
+        <td class="center">${uOui}</td>
+        <td class="center">${uNon}</td>
+        <td>${esc(comm)}</td>
+      </tr>
+    `);
+  }
+  while(out.length<MAX){
+    out.push("<tr><td>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td>&nbsp;</td></tr>");
+  }
+  return out.join("");
+}
+
+function buildBonHTML(b){
+  const c=codeById(b.codeId)||{tech:"",mag:""};
+  return `
+    <div class="bon">
+      <div class="bonTop">
+        <div class="logoBox">eps</div>
+        <div>
+          <div class="titleBox">BON DE SORTIE DE STOCK N°</div>
+          <div class="subtitleBox">- A JOINDRE IMPÉRATIVEMENT A TOUT RETOUR DU STOCK CENTRAL</div>
+        </div>
+        <div class="numBox">${esc(b.number||"")}</div>
+      </div>
+
+      <div class="meta">
+        <div><span class="lbl">ÉMETTEUR :</span><span class="val">${esc(c.tech||"")}</span><span class="small muted">[Code technicien]</span></div>
+        <div><span class="lbl">DESTINATAIRE :</span><span class="val">${esc(b.destinataire||"")}</span></div>
+        <div><span class="lbl">MAGASIN :</span><span class="val">${esc(c.mag||"")}</span><span class="small muted">[Code magasin]</span></div>
+        <div><span class="lbl">DATE :</span><span class="val">${esc(formatFRDate(b.date))}</span></div>
+      </div>
+
+      <div class="tableWrap">
+        <table class="bonTable">
+          <thead>
+            <tr>
+              <th style="width:52%">RÉFÉRENCE ARTICLE</th>
+              <th colspan="2" class="center">NEUF</th>
+              <th colspan="2" class="center">USITÉ</th>
+              <th style="width:22%">COMMENTAIRES</th>
+            </tr>
+            <tr>
+              <th></th>
+              <th class="center" style="width:6%">Oui</th>
+              <th class="center" style="width:6%">Non</th>
+              <th class="center" style="width:6%">Oui</th>
+              <th class="center" style="width:6%">Non</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${buildRows(b)}</tbody>
+        </table>
+      </div>
+
+      <div class="obs">
+        <div style="font-weight:700;margin-bottom:2mm">Observations :</div>
+        <div class="obsLine">${esc(b.observations||"")}</div>
+      </div>
+
+      <div class="foot">Exemplaires : BLANC &gt; LOGISTIQUE / ROSE &gt; STOCK / BLEU &gt; SOUCHE</div>
+    </div>
+  `;
+}
+
+function renderPrint(b, mode){
+  const html=buildBonHTML(b);
+  document.getElementById("printCopy1").innerHTML=html;
+  document.getElementById("printCopy2").innerHTML=(mode===2)?html:"";
+}
+
+/* Historique */
+function renderHist(){
+  const q=(document.getElementById("histSearch").value||"").trim().toLowerCase();
+  const list=document.getElementById("histList");
+  list.innerHTML="";
+  const filtered=bons.filter(b=>{
+    const c=codeById(b.codeId);
+    const blob=[b.number,b.destinataire,b.date,b.status,c?.name,c?.tech,c?.mag].join(" ").toLowerCase();
+    return !q || blob.includes(q);
+  });
+  if(!filtered.length){ list.innerHTML="<div class='muted'>Aucun bon.</div>"; return; }
+
+  for(const b of filtered){
+    const c=codeById(b.codeId);
+    const el=document.createElement("div");
+    el.className="itemCard";
+    el.innerHTML=`
+      <div>
+        <div class="row">
+          <div class="mono" style="font-weight:900;font-size:16px">${esc(b.number)}</div>
+          <span class="badge ${b.status==="IMPRIME"?"blue":"gray"}">${b.status==="IMPRIME"?"Imprimé":"Brouillon"}</span>
+          <span class="badge gray">${esc(String((b.articles||[]).length))} article(s)</span>
+        </div>
+        <div class="muted small">${esc(c ? (c.tech+" - "+c.name) : "Code inconnu")}</div>
+        <div class="muted small">${esc(formatFRDate(b.date))}</div>
+      </div>
+      <div class="row">
+        <button class="btn primary" data-act="open" data-id="${b.id}">Ouvrir</button>
+        <button class="btn" data-act="pdf1" data-id="${b.id}">PDF x1</button>
+        <button class="btn" data-act="pdf2" data-id="${b.id}">PDF x2</button>
+      </div>
+    `;
+    list.appendChild(el);
+  }
+}
+document.getElementById("histSearch").addEventListener("input", renderHist);
+
+document.getElementById("histList").addEventListener("click",(e)=>{
+  const btn=e.target.closest("button"); if(!btn) return;
+  const original=bons.find(x=>x.id===btn.dataset.id); if(!original) return;
+
+  if(btn.dataset.act==="open"){
+    loadBon(original);
+    setTab("bon");
+    toast(original.status==="IMPRIME"?"Bon imprimé (lecture seule)":"Brouillon chargé");
+    return;
+  }
+
+  // Re-impression : nouveau numéro à chaque fois (on ne réutilise jamais le même numéro)
+if(btn.dataset.act==="pdf1" || btn.dataset.act==="pdf2"){
+    const original = bons.find(x=>x.id===btn.dataset.id);
+    if(!original){ toast("Bon introuvable"); return; }
+
+    const mode = btn.dataset.act==="pdf2" ? 2 : 1;
+    const printed = createPrintedCopyFrom(original);
+
+    // Prépare rendu
+    document.body.classList.remove("print-1","print-2");
+    document.body.classList.add(mode===2 ? "print-2" : "print-1");
+    renderPrint(printed, mode);
+
+    const area=document.querySelector(".printArea");
+    const a4=document.querySelector(".printArea .a4");
+    const prevStyle=area.getAttribute("style") || "";
+    area.setAttribute("style", prevStyle + ";display:block;position:fixed;left:-12000px;top:0;background:#fff;z-index:9999;");
+
+    (async ()=>{
+      try{
+        const canvas=await html2canvas(a4, {scale:2, backgroundColor:"#ffffff", useCORS:true});
+        const img=canvas.toDataURL("image/jpeg", 1.0);
+
+        const { jsPDF } = window.jspdf;
+        const pdf=new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+        pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+
+        const filename=`bon_sortie_stock_${printed.number}_x${mode}.pdf`;
+        const blob=pdf.output("blob");
+        const file=new File([blob], filename, {type:"application/pdf"});
+
+        if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+          try{ await navigator.share({files:[file], title:"Bon de sortie de stock", text:"Bon de sortie / retour de stock"}); }
+          catch(e){ pdf.save(filename); }
+        }else{
+          pdf.save(filename);
+        }
+
+        // Met à jour le bon original (nouveau numéro à chaque export)
+        original.status="imprimé";
+        original.number=printed.number;
+        saveBons();
+        renderHist();
+        toast("PDF prêt ✅");
+      }catch(err){
+        console.error(err);
+        toast("Erreur export PDF.");
+      }finally{
+        if(prevStyle) area.setAttribute("style", prevStyle);
+        else area.removeAttribute("style");
+      }
+    })();
+
+    return;
+  }
+}
+});
+
+/* Références */
+function isRefUsed(refId){
+  return bons.some(b => (b.articles||[]).some(a => a.refId === refId));
+}
+
+function normCode(s){ return String(s||"").trim(); }
+function sameCode(a,b){ return normCode(a).toUpperCase() === normCode(b).toUpperCase(); }
+
+function renderRefs(){
+  const list=document.getElementById("refList"); 
+  list.innerHTML="";
+  const sorted=[...refs].sort((a,b)=>String(a.code||"").localeCompare(String(b.code||""), "fr"));
+
+  if(!sorted.length){
+    list.innerHTML="<div class='muted'>Aucune référence.</div>";
+    return;
+  }
+
+  for(const r of sorted){
+    const used = isRefUsed(r.id);
+    const archived = !!r.archived;
+
+    const el=document.createElement("div");
+    el.className="itemCard";
+    el.innerHTML=`
+      <div>
+        <div class="mono" style="font-weight:900">${esc(r.code || "—")}</div>
+        <div style="font-weight:800">${esc(r.name || "")}</div>
+        <div class="small muted" style="margin-top:6px">
+          ${archived ? "<span class='badge gray'>Supprimée</span>" : ""}
+          ${used ? "<span class='badge blue'>Utilisée dans un bon</span>" : "<span class='badge gray'>Non utilisée</span>"}
+        </div>
+      </div>
+      <div class="row">
+        ${archived
+          ? `<button class="btn primary" data-act="restore" data-id="${r.id}">Restaurer</button>`
+          : `<button class="btn primary" data-act="edit" data-id="${r.id}">Modifier</button>
+             <button class="btn" data-act="del" data-id="${r.id}">Suppr.</button>`
+        }
+      </div>
+    `;
+    list.appendChild(el);
+  }
+}
+
+document.getElementById("btnAddRef").addEventListener("click", ()=>{
+  const code=prompt("Code référence (ex: IR-C08-03) :"); 
+  if(code===null) return;
+  const c=normCode(code);
+  if(!c){ toast("Code vide"); return; }
+
+  const name=prompt("Désignation :"); 
+  if(name===null) return;
+  const n=normCode(name);
+
+  // Si une ref archivée existe déjà avec le même code : on la restaure
+  const archivedRef = refs.find(r => !!r.archived && sameCode(r.code, c));
+  if(archivedRef){
+    archivedRef.archived=false;
+    archivedRef.name = n || archivedRef.name;
+    archivedRef.code = c;
+    saveJSON(LS_REFS,refs);
+    renderRefs(); renderArticles();
+    toast("Référence restaurée");
+    return;
+  }
+
+  // Empêche doublon actif
+  const dup = refs.some(r => !r.archived && sameCode(r.code, c));
+  if(dup){ toast("Cette référence existe déjà"); return; }
+
+  refs.unshift({id:id(), code:c, name:n, archived:false});
+  saveJSON(LS_REFS,refs);
+  renderRefs(); renderArticles();
+  toast("Référence ajoutée");
+});
+
+document.getElementById("refList").addEventListener("click",(e)=>{
+  const btn=e.target.closest("button"); if(!btn) return;
+  const r=refs.find(x=>x.id===btn.dataset.id); if(!r) return;
+
+  if(btn.dataset.act==="restore"){
+    r.archived=false;
+    saveJSON(LS_REFS,refs);
+    renderRefs(); renderArticles();
+    toast("Référence restaurée");
+    return;
+  }
+
+  if(btn.dataset.act==="edit"){
+    const code=prompt("Code référence :", r.code); 
+    if(code===null) return;
+    const c=normCode(code);
+    if(!c){ toast("Code vide"); return; }
+
+    const name=prompt("Désignation :", r.name); 
+    if(name===null) return;
+    const n=normCode(name);
+
+    // doublon (hors cette ref)
+    const dup = refs.some(x => x.id!==r.id && !x.archived && sameCode(x.code, c));
+    if(dup){ toast("Cette référence existe déjà"); return; }
+
+    r.code=c; r.name=n;
+    saveJSON(LS_REFS,refs);
+    renderRefs(); renderArticles();
+    toast("Référence modifiée");
+    return;
+  }
+
+  if(btn.dataset.act==="del"){
+    // On archive au lieu de supprimer physiquement pour ne pas casser l'historique des bons
+    const used=isRefUsed(r.id);
+    const msg = used
+      ? "Cette référence est utilisée dans un ou plusieurs bons.\nElle va être supprimée (archivée) mais restera visible dans les anciens bons.\nContinuer ?"
+      : "Supprimer cette référence ?";
+
+    if(!confirm(msg)) return;
+    r.archived=true;
+    saveJSON(LS_REFS,refs);
+    renderRefs(); renderArticles();
+    toast("Référence supprimée");
+    return;
+  }
+});
+
+
+/* Codes */
+function renderCodes(){
+  const list=document.getElementById("codeList"); list.innerHTML="";
+  for(const c of codes){
+    const el=document.createElement("div");
+    el.className="itemCard";
+    el.innerHTML=`
+      <div>
+        <div style="font-weight:800">${esc(c.name)}</div>
+        <div class="small muted">Technicien: <span class="mono">${esc(c.tech)}</span> • Magasin: <span class="mono">${esc(c.mag)}</span></div>
+      </div>
+      <div class="row">
+        <button class="btn primary" data-act="edit" data-id="${c.id}">Modifier</button>
+        <button class="btn" data-act="del" data-id="${c.id}">Suppr.</button>
+      </div>
+    `;
+    list.appendChild(el);
+  }
+}
+document.getElementById("btnAddCode").addEventListener("click", ()=>{
+  const name=prompt("Nom / Libellé (ex: Jean Robert) :"); if(!name) return;
+  const tech=prompt("Code technicien (ex: ISTGS55) :"); if(!tech) return;
+  const mag=prompt("Code magasin (ex: ISTGS55) :"); if(!mag) return;
+  codes.unshift({id:id(), name:name.trim(), tech:tech.trim(), mag:mag.trim()});
+  saveJSON(LS_CODES,codes);
+  renderCodes(); renderCodeSelect();
+  toast("Code ajouté");
+});
+document.getElementById("codeList").addEventListener("click",(e)=>{
+  const btn=e.target.closest("button"); if(!btn) return;
+  const c=codes.find(x=>x.id===btn.dataset.id); if(!c) return;
+  if(btn.dataset.act==="edit"){
+    const name=prompt("Nom / Libellé :", c.name); if(!name) return;
+    const tech=prompt("Code technicien :", c.tech); if(!tech) return;
+    const mag=prompt("Code magasin :", c.mag); if(!mag) return;
+    c.name=name.trim(); c.tech=tech.trim(); c.mag=mag.trim();
+    saveJSON(LS_CODES,codes);
+    renderCodes(); renderCodeSelect();
+    toast("Code modifié");
+  }
+  if(btn.dataset.act==="del"){
+    if(!confirm("Supprimer ce code ?")) return;
+    codes=codes.filter(x=>x.id!==c.id);
+    saveJSON(LS_CODES,codes);
+    renderCodes(); renderCodeSelect();
+    toast("Code supprimé");
+  }
+});
+
+/* Export/Import */
+document.getElementById("btnExport").addEventListener("click", ()=>{
+  const payload={version:3, exportedAt:Date.now(), refs, codes, bons, counter: localStorage.getItem(LS_COUNTER)||null};
+  const blob=new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="inventaire_export.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
+});
+document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("fileImport").click());
+document.getElementById("fileImport").addEventListener("change", async (e)=>{
+  const f=e.target.files?.[0]; if(!f) return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(Array.isArray(data.refs)) refs=data.refs;
+    if(Array.isArray(data.codes)) codes=data.codes;
+    if(Array.isArray(data.bons)) bons=data.bons;
+    saveJSON(LS_REFS,refs); saveJSON(LS_CODES,codes); saveJSON(LS_KEY,bons);
+    if(data.counter) localStorage.setItem(LS_COUNTER, String(data.counter));
+    toast("Import OK");
+    renderRefs(); renderCodes(); renderCodeSelect(); renderArticles(); renderHist();
+  }catch(_){ toast("Import impossible"); }
+  e.target.value="";
+});
+
+/* Boot */
+renderRefs(); renderCodes(); renderCodeSelect(); renderHist(); ensureBon();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+
+/* PWA: service worker + bouton installer */
+let deferredPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const b = document.getElementById("btnInstall");
+  if (b) b.style.display = "";
+});
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("#btnInstall");
+  if (!btn || !deferredPrompt) return;
+  deferredPrompt.prompt();
+  const choice = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  btn.style.display = "none";
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+
+</script>
+</body>
+</html>
