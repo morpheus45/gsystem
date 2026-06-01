@@ -130,8 +130,7 @@ private fun createWebView(context: android.content.Context): WebView {
  *   1. override window.print() vers le PrintManager Android natif
  *   2. overlay rouge visible si une erreur JS se produit
  *      → permet de diagnostiquer sans avoir à brancher un PC en USB
- *   3. filets de sécurité : ensureBon() avant les clics critiques pour
- *      gérer le cas où l'init aurait été interrompue
+ *   3. neutralise le service worker (file:// → pas de SW possible)
  */
 private val BOOT_PATCH = """
 (function(){
@@ -143,7 +142,7 @@ private val BOOT_PATCH = """
     };
   }
 
-  // ---- 2. Overlay d'erreur visible ----
+  // ---- 2. Overlay d'erreur visible (laissé en place, utile en cas de bug) ----
   function showErr(msg) {
     var el = document.getElementById('__gs_err_overlay');
     if (!el) {
@@ -154,7 +153,7 @@ private val BOOT_PATCH = """
         'font:13px/1.4 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);'+
         'max-height:40vh;overflow:auto;white-space:pre-wrap;';
       var close = document.createElement('button');
-      close.textContent = '✕';
+      close.textContent = 'X';
       close.style.cssText = 'float:right;background:transparent;border:0;color:#fff;'+
         'font-size:18px;cursor:pointer;margin-left:8px;';
       close.onclick = function(){ el.style.display = 'none'; };
@@ -176,34 +175,16 @@ private val BOOT_PATCH = """
     showErr('PROMISE ERREUR: ' + (e.reason && e.reason.message || e.reason));
   });
 
-  // ---- 3. Filets de sécurité ----
+  // ---- 3. Désactiver le ServiceWorker (file:// ne le supporte pas et le
+  //         registration provoque une erreur silencieuse mais polluante) ----
   try {
-    // Si ensureBon existe et currentBon est null → l'appeler maintenant
-    if (typeof ensureBon === 'function' && (typeof currentBon === 'undefined' || currentBon === null)) {
-      ensureBon();
+    if (navigator.serviceWorker) {
+      // override pour empêcher la registration
+      navigator.serviceWorker.register = function(){
+        return Promise.reject(new Error('SW disabled in Android WebView'));
+      };
     }
-  } catch(e) { showErr('init ensureBon: ' + e.message); }
-
-  // Avant chaque clic sur Ajouter article, on garantit que currentBon existe
-  var addBtn = document.getElementById('btnAddArticle');
-  if (addBtn) {
-    addBtn.addEventListener('click', function(){
-      try {
-        if (typeof ensureBon === 'function' &&
-            (typeof currentBon === 'undefined' || currentBon === null)) {
-          ensureBon();
-        }
-      } catch(e) { showErr('btnAddArticle: ' + e.message); }
-    }, true); // capture phase: avant le handler original
-  } else {
-    showErr('btnAddArticle introuvable dans le DOM');
-  }
-
-  // Affiche un message si la liste des codes est vide
-  var sel = document.getElementById('bonCode');
-  if (sel && sel.options.length === 0) {
-    showErr('Liste des codes vide. Va dans onglet Codes pour en ajouter.');
-  }
+  } catch(e) {}
 })();
 """.trimIndent()
 

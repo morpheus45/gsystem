@@ -2,1036 +2,3081 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1d4ed8" />
-  <title>Bon de sortie / retour de stock</title>
+  <title>Gestion d'Inventaire – Bon de sortie / retour</title>
 
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon-192.png">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
   <style>
-    :root{--bg:#f5f7fb;--card:#fff;--muted:#6b7280;--text:#111827;--blue2:#2563eb;--green:#16a34a;--border:#e5e7eb;--shadow:0 10px 30px rgba(17,24,39,.08);--radius:18px}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    header{position:sticky;top:0;z-index:50;background:rgba(245,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px}
-    h1{margin:0;font-size:26px;line-height:1.15}
-    .sub{color:var(--muted);margin-top:6px;font-size:14px}
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    .tab{display:inline-flex;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;cursor:pointer;user-select:none}
-    .tab.active{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.25)}
-    .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
-    @media(min-width:920px){.grid{grid-template-columns:520px 1fr}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-    .hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .bd{padding:14px}
-    .btn{appearance:none;border:1px solid var(--border);background:#fff;color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
-    .btn:active{transform:translateY(1px)}
-    .btn.primary{background:rgba(37,99,235,.10);border-color:rgba(37,99,235,.25)}
-    .btn.blue{background:var(--blue2);border-color:var(--blue2);color:#fff}
-    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
-    .btn.small{padding:8px 10px;border-radius:10px;font-size:13px}
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
-    input,select,textarea{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;outline:none}
-    textarea{min-height:86px;resize:vertical}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .right{margin-left:auto}
-    .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:#fff}
-    .badge.blue{border-color:rgba(37,99,235,.25);background:rgba(37,99,235,.08)}
-    .badge.gray{color:var(--muted)}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
-    .muted{color:var(--muted)}
-    .small{font-size:12px}
-    .divider{height:1px;background:var(--border);margin:12px 0}
-    .list{display:grid;gap:10px}
-    .itemCard{border:1px solid var(--border);border-radius:16px;padding:12px;background:#fff;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
-    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px;background:#fff;color:var(--muted)}
-    .chip strong{color:var(--text)}
-    .sumTitle{font-weight:900}
-    .sumSub{font-size:12px;color:var(--muted);margin-top:2px}
-    .sumGrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .sumBox{border:1px solid var(--border);border-radius:14px;padding:8px 10px;background:#fff;font-size:12px}
-
-    /* toggles */
-    .yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .ynbox{border:1px solid var(--border);border-radius:16px;padding:12px;background:#fff}
-    .ynbox.neuf{background:#e8f1ff}
-    .ynbox.usite{background:#fff6dd}
-    .ynTitle{font-weight:800;margin-bottom:8px}
-    .ynRow{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
-    .toggle{width:52px;height:30px;border-radius:999px;background:#e5e7eb;position:relative;cursor:pointer;flex:0 0 auto}
-    .toggle::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-    .toggle.on{background:rgba(37,99,235,.35)}
-    .toggle.on::after{left:26px}
-
-    /* print */
-    .printArea{display:none}
-    @media print{
-      header, main, .toast {display:none !important}
-      body{background:#fff}
-      .printArea{display:block}
+    /* ===== VARIABLES ===== */
+    :root{
+      --bg:#f0f4ff;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --blue:#2563eb;
+      --blue-lt:#eff6ff;
+      --green:#16a34a;
+      --red:#dc2626;
+      --border:#e2e8f0;
+      --shadow:0 4px 24px rgba(37,99,235,.07);
+      --shadow-lg:0 8px 36px rgba(37,99,235,.14);
+      --radius:18px;
     }
-    .a4{width:210mm;min-height:297mm;margin:0 auto}
-    .copy{padding:10mm 10mm 8mm 10mm}
-    .cut{border-top:1px dashed #999;margin:6mm 0}
-    body.print-1 .cut, body.print-1 #printCopy2Wrap{display:none}
-    .bon{border:1px solid #111;padding:8mm;font-family:Arial,sans-serif;color:#000;background:#fff}
-    .bonTop{display:grid;grid-template-columns:38mm 1fr 52mm;gap:6mm;align-items:start}
-    .logoBox{width:38mm;height:22mm;border:1px solid #111;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;letter-spacing:.5px;background:#f2f2f2}
-    .titleBox{font-size:16px;font-weight:800;letter-spacing:.3px}
-    .subtitleBox{font-size:10px;margin-top:2mm}
-    .numBox{border:1px solid #111;padding:3mm 4mm;font-size:18px;font-weight:800;color:#c00;text-align:center}
-    .meta{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm 10mm;font-size:11px}
-    .meta div{display:flex;gap:2mm}
-    .meta .lbl{min-width:26mm;font-weight:700}
-    .meta .val{border-bottom:1px solid #111;flex:1}
-    .tableWrap{margin-top:5mm;border:1px solid #111}
-    table.bonTable{width:100%;border-collapse:collapse;font-size:11px}
-    table.bonTable th, table.bonTable td{border:1px solid #111;padding:2.2mm 2mm;vertical-align:middle}
-    table.bonTable th{background:#d9dde6;font-weight:800;text-transform:uppercase;font-size:10px}
-    table.bonTable .center{text-align:center}
-    .x{font-weight:900;font-size:14px;line-height:1}
-    .obs{margin-top:4mm;font-size:11px}
-    .obsLine{border-bottom:1px dotted #111;min-height:6mm;white-space:pre-wrap}
-    .foot{margin-top:4mm;font-size:10px;text-align:right}
+    @media(prefers-color-scheme:dark){
+      :root{--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--muted:#94a3b8;--border:#334155;--shadow:0 4px 24px rgba(0,0,0,.3);--shadow-lg:0 8px 36px rgba(0,0,0,.5);--blue-lt:#1e3a5f;}
+    }
 
-    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:300;display:none;background:#111827;color:#fff;border-radius:999px;padding:10px 12px;max-width:calc(100% - 24px)}
-    .toast.on{display:block}
+    /* ===== RESET ===== */
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;min-height:100dvh}
+
+    /* ===== HEADER ===== */
+    header{position:sticky;top:0;z-index:100;background:#0f172a;padding:13px 18px;box-shadow:0 2px 16px rgba(0,0,0,.4)}
+    .bar{display:flex;gap:12px;align-items:center;max-width:980px;margin:0 auto}
+    .logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 12px rgba(59,130,246,.4)}
+    header h1{font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.2px}
+    header .sub{font-size:11px;color:rgba(241,245,249,.5);margin-top:1px}
+    #headerBadge{margin-left:auto;background:rgba(255,255,255,.1);color:#93c5fd;border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:4px 12px;font-size:11.5px;font-weight:700;white-space:nowrap}
+
+    /* ===== LAYOUT ===== */
+    .wrap{max-width:980px;margin:0 auto;padding:14px 14px 32px}
+    .grid{display:grid;gap:14px}
+    .card{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;transition:box-shadow .2s}
+    .card:hover{box-shadow:var(--shadow-lg)}
+    .inner-card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:14px;box-shadow:none}
+    .row{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:720px){.row{grid-template-columns:1fr 1fr}}
+
+    /* ===== TABS ===== */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .tab{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:10px 14px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--muted);transition:all .15s;position:relative;user-select:none}
+    .tab:hover{border-color:#93c5fd;color:var(--text)}
+    .tab.active{border-color:#3b82f6;color:#2563eb;background:var(--blue-lt);box-shadow:0 4px 18px rgba(37,99,235,.15)}
+    .tab-badge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;background:#ef4444;color:#fff;border-radius:999px;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px}
+    .tab-badge.show{display:flex}
+
+    /* ===== FORM ===== */
+    label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:0 0 5px;letter-spacing:.35px;text-transform:uppercase}
+    input,select,textarea{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:12px;background:var(--card);color:var(--text);font-size:15px;outline:none;transition:border-color .15s,box-shadow .15s}
+    input:focus,select:focus,textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+    textarea{min-height:80px;resize:vertical}
+    .search-wrap{position:relative}
+    .search-wrap input{padding-left:36px}
+    .search-wrap::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;z-index:1}
+
+    /* ===== BUTTONS ===== */
+    .btns{display:flex;flex-wrap:wrap;gap:10px}
+    button{border:0;border-radius:12px;padding:11px 15px;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .1s,box-shadow .15s,opacity .15s}
+    button:active{transform:scale(.97)}
+    button:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .primary{background:#2563eb;color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.35)}
+    .primary:hover:not(:disabled){box-shadow:0 6px 20px rgba(37,99,235,.5)}
+    .ghost{background:var(--blue-lt);color:#1d4ed8;border:1.5px solid #bfdbfe}
+    .ghost:hover{background:#dbeafe}
+    .success{background:#16a34a;color:#fff;box-shadow:0 4px 14px rgba(22,163,74,.3)}
+    .success:hover:not(:disabled){box-shadow:0 6px 20px rgba(22,163,74,.45)}
+    .danger{background:#fef2f2;color:#b91c1c;border:1.5px solid #fecaca}
+    .danger:hover{background:#fee2e2}
+    .small{font-size:12px;padding:7px 10px;border-radius:9px}
+    hr{border:none;border-top:1.5px solid var(--border);margin:14px 0}
+
+    /* ===== MISC ===== */
+    .hint{color:var(--muted);font-size:12px;line-height:1.45}
+    .hidden{display:none!important}
+    .right{display:flex;justify-content:flex-end;gap:6px}
+    .inline{display:flex;gap:10px;align-items:flex-end}
+    .inline>*{flex:1}
+    .section-label{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+    .qty-badge{display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:700;margin-left:8px}
+
+    /* ===== TABLE ===== */
+    .table-wrap{overflow-x:auto;border-radius:12px;border:1.5px solid var(--border)}
+    table{width:100%;border-collapse:collapse;min-width:480px}
+    th,td{border-bottom:1px solid var(--border);padding:9px 10px;text-align:left;font-size:13.5px;vertical-align:middle}
+    th{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;background:var(--bg)}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:rgba(59,130,246,.025)}
+    .pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:700}
+    .x{font-weight:900;color:#2563eb}
+    .chip{display:inline-flex;align-items:center;background:var(--blue-lt);color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700}
+
+    /* ===== NEUF / USITÉ ===== */
+    .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+    .status-card{border:1.5px solid var(--border);border-radius:12px;padding:12px;background:var(--card)}
+    .status-neuf{background:#eff6ff;border-color:#bfdbfe}
+    .status-usite{background:#fffbeb;border-color:#fcd34d}
+    .status-title{font-weight:800;letter-spacing:.4px;margin-bottom:8px;font-size:13px}
+    .status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px dashed rgba(0,0,0,.08)}
+    .status-row:first-of-type{border-top:none}
+    .switch{position:relative;display:inline-block;width:44px;height:24px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;transition:.2s;border-radius:999px}
+    .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:white;transition:.2s;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+    .switch input:checked+.slider{background:#2563eb}
+    .switch input:checked+.slider:before{transform:translateX(20px)}
+    @media(prefers-color-scheme:dark){.status-neuf{background:#1e3a5f;border-color:#1d4ed8}.status-usite{background:#422006;border-color:#92400e}.ghost{background:rgba(37,99,235,.15);color:#93c5fd;border-color:rgba(37,99,235,.3)}.danger{background:#450a0a;color:#fca5a5;border-color:#7f1d1d}th{background:rgba(15,23,42,.8)}}
+
+    /* ===== IA BUTTONS ===== */
+    .ia-actions-inline{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 0}
+    .btn-ia-inline{width:100%;padding:13px;border-radius:14px;border:0;font-weight:800;font-size:16px;background:linear-gradient(135deg,#1e293b,#0f172a);color:#fff;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.2);transition:transform .1s,box-shadow .15s}
+    .btn-ia-inline:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.3)}
+    .btn-ia-inline.secondary{background:linear-gradient(135deg,#374151,#1f2937)}
+    @media(max-width:420px){.btn-ia-inline{font-size:14px;padding:11px}}
+    .ref-thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1.5px solid var(--border);background:var(--bg)}
+
+    /* ===== TOAST ===== */
+    #toast-wrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999999;display:flex;flex-direction:column-reverse;align-items:center;gap:8px;pointer-events:none}
+    .toast{background:rgba(15,23,42,.95);color:#f1f5f9;padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(12px);animation:tin .22s cubic-bezier(.175,.885,.32,1.275);max-width:340px;text-align:center}
+    .toast.ok{background:rgba(20,83,45,.95);border-color:rgba(74,222,128,.3)}
+    .toast.err{background:rgba(127,29,29,.95);border-color:rgba(252,165,165,.3)}
+    .toast.warn{background:rgba(120,53,15,.95);border-color:rgba(253,211,77,.3)}
+    @keyframes tin{from{opacity:0;transform:translateY(10px) scale(.94)}to{opacity:1;transform:none}}
+
+    /* ===== UNDO BAR ===== */
+    #undo-bar{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:9999998;background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:10px 16px;display:none;align-items:center;gap:12px;box-shadow:var(--shadow-lg);font-size:13px;font-weight:600;animation:tin .22s ease;white-space:nowrap}
+
+    /* ===== HISTORY ===== */
+    .hist-entry{border-radius:12px;border:1.5px solid var(--border);overflow:hidden;margin-bottom:10px;transition:box-shadow .2s}
+    .hist-entry:hover{box-shadow:var(--shadow)}
+    .hist-hdr{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--card)}
+    .hist-hdr:hover{background:var(--bg)}
+    .hist-num{font-weight:800;color:#2563eb;font-size:14px;min-width:88px}
+    .hist-meta{flex:1;font-size:12.5px;color:var(--muted)}
+    .hist-arrow{color:var(--muted);transition:transform .2s;font-size:16px}
+    .hist-entry.open .hist-arrow{transform:rotate(90deg)}
+    .hist-body{display:none;padding:12px 14px;border-top:1.5px solid var(--border);background:var(--bg)}
+    .hist-entry.open .hist-body{display:block}
+    .hist-line{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
+    .hist-line:last-child{border-bottom:none}
+    .empty-state{text-align:center;padding:28px 14px;color:var(--muted)}
+    .empty-state .eico{font-size:36px;margin-bottom:8px}
   </style>
 </head>
 <body>
+<div id="toast-wrap"></div>
+<div id="undo-bar"></div>
+
 <header>
-  <div class="wrap">
-    <div class="row">
-      <div>
-        <h1>Gestion d'Inventaire</h1>
-        <div class="sub">Bon de sortie / retour de stock — sans scanner</div>
-      </div>
-      <button class="btn" id="btnInstall" style="display:none">⬇️ Installer</button>
-      <span class="right badge gray">Sauvegarde locale</span>
+  <div class="bar">
+    <div class="logo">📦</div>
+    <div>
+      <h1>Gestion d'Inventaire</h1>
+      <div class="sub">Bon de sortie / retour de stock — 2 exemplaires sur 1 A4</div>
     </div>
-    <div class="tabs" role="tablist">
-      <div class="tab active" data-tab="bon">📄 Nouveau Bon</div>
-      <div class="tab" data-tab="hist">🕘 Historique</div>
-      <div class="tab" data-tab="refs">📦 Références</div>
-      <div class="tab" data-tab="codes">🏬 Codes</div>
-    </div>
+    <div id="headerBadge" style="display:none"></div>
   </div>
 </header>
 
-<main class="wrap">
-  <section id="page-bon" class="grid">
-    <div class="card">
-      <div class="hd">
-        <div class="row" style="gap:8px">
-          <span class="badge blue">BON DE SORTIE DE STOCK</span>
-          <span class="badge gray">N° <span class="mono" id="bonNumber">—</span></span>
-          <span class="badge gray" id="bonStatus">Brouillon</span>
-        </div>
-        <button class="btn" id="btnResetBon">↩️ Réinitialiser</button>
-      </div>
-      <div class="bd">
-        <label>Code Magasin/Technicien *</label>
-        <select id="bonCode"></select>
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="bon">🧾 Nouveau Bon<span class="tab-badge" id="tabBonBadge"></span></div>
+    <div class="tab" data-tab="hist">🕘 Historique</div>
+    <div class="tab" data-tab="refs">📦 Références</div>
+    <div class="tab" data-tab="codes">🏬 Magasins</div>
+  </div>
 
-        <label>Date</label>
-        <input id="bonDate" type="date" />
-
-        <label>Destinataire</label>
-        <input id="bonDest" placeholder="STOCK CENTRAL" />
-
-        <div class="divider"></div>
-
-        <div class="row">
-          <div style="font-weight:800">Articles (<span id="articleCount">0</span>)</div>
-          <button class="btn primary right" id="btnAddArticle">＋ Ajouter un article</button>
-        </div>
-        <div id="articles" class="list" style="margin-top:10px"></div>
-
-        <div class="divider"></div>
-
-        <label>Observations</label>
-        <textarea id="bonObs" placeholder="Notes ou observations..."></textarea>
-
-        <div class="divider"></div>
-
-        <div class="row">
-          <button class="btn green" id="btnSaveDraft">💾 Économiser (brouillon)</button>
-          <button class="btn blue" id="btnPdf1">⬇️ Exporter PDF (x1)</button>
-          <button class="btn blue right" id="btnPdf2">⬇️ Exporter PDF (x2 sur 1 A4)</button>
-        </div>
-
-        <div class="small muted" style="margin-top:10px;line-height:1.4">
-          Sauvegarde locale via <span class="mono">localStorage</span>. MDN :
-          https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage<br/>
-          <b>Important :</b> chaque impression crée un <b>nouveau numéro de bon</b> (unique).
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="hd">
+  <div class="grid" style="margin-top:12px">
+    <!-- BON -->
+    <section class="card" id="tab-bon">
+      <div class="row">
         <div>
-          <div style="font-weight:800">Objectif</div>
-          <div class="small muted">Transcrire le bon comme ta feuille</div>
+          <label>Émetteur (code technicien)</label>
+          <select id="emetteur"></select>
         </div>
-        <div class="row right">
-          <button class="btn" id="btnExport">⬇️ Export</button>
-          <button class="btn" id="btnImport">⬆️ Import</button>
-          <input id="fileImport" type="file" accept="application/json" hidden />
-        </div>
-      </div>
-      <div class="bd">
-        <div class="muted" style="font-size:13px;line-height:1.5">
-          • Ajout d’article : tu remplis puis <b>Valider</b> → ça passe en mode compact (visible et modifiable).<br/>
-          • Impression : 1 exemplaire (x1) ou 2 exemplaires sur une seule feuille A4 (x2).<br/>
-          • Les références et magasins restent enregistrés pour les prochaines fois.
+        <div>
+          <label>Magasin (code magasin)</label>
+          <select id="magasin"></select>
         </div>
       </div>
-    </div>
-  </section>
 
-  <section id="page-hist" class="card" style="display:none">
-    <div class="hd">
-      <div>
-        <div style="font-weight:800">Historique des Bons</div>
-        <div class="small muted">Ouvre un brouillon pour modifier</div>
+      <div class="row">
+        <div>
+          <label>Destinataire</label>
+          <input id="destinataire" value="STOCK CENTRAL" />
+        </div>
+        <div>
+          <label>Date</label>
+          <input id="date" type="date" />
+        </div>
       </div>
-      <input id="histSearch" placeholder="Rechercher (numéro, destinataire, code...)" style="width:280px" />
-    </div>
-    <div class="bd">
-      <div id="histList" class="list"></div>
-    </div>
-  </section>
 
-  <section id="page-refs" class="card" style="display:none">
-    <div class="hd">
-      <div style="font-weight:800">Références</div>
-      <button class="btn primary right" id="btnAddRef">＋ Ajouter</button>
-    </div>
-    <div class="bd"><div id="refList" class="list"></div></div>
-  </section>
+      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0" />
 
-  <section id="page-codes" class="card" style="display:none">
-    <div class="hd">
-      <div style="font-weight:800">Codes Magasin / Technicien</div>
-      <button class="btn primary right" id="btnAddCode">＋ Ajouter</button>
-    </div>
-    <div class="bd"><div id="codeList" class="list"></div></div>
-  </section>
-</main>
+      <div class="card" style="box-shadow:none;padding:12px;border-radius:16px">
+        <div class="inline">
+          <div>
+            <label>Référence article</label>
+            <select id="refSelect"></select>
+          </div>
+          <div style="max-width:140px">
+            <label>Qté</label>
+            <input id="qtyInput" type="number" min="1" step="1" value="1" />
+          </div>
+        </div>
 
-<div class="printArea">
-  <div class="a4">
-    <div class="copy"><div id="printCopy1"></div></div>
-    <div class="cut"></div>
-    <div class="copy" id="printCopy2Wrap"><div id="printCopy2"></div></div>
+        
+<div class="status-grid" style="margin-top:10px">
+  <div class="status-card status-neuf">
+    <div class="status-title">NEUF</div>
+    <div class="status-row"><span>Oui</span>
+      <label class="switch"><input type="checkbox" id="neufOui"><span class="slider"></span></label>
+    </div>
+    <div class="status-row"><span>Non</span>
+      <label class="switch"><input type="checkbox" id="neufNon"><span class="slider"></span></label>
+    </div>
+  </div>
+
+  <div class="status-card status-usite">
+    <div class="status-title">USITÉ</div>
+    <div class="status-row"><span>Oui</span>
+      <label class="switch"><input type="checkbox" id="usiteOui"><span class="slider"></span></label>
+    </div>
+    <div class="status-row"><span>Non</span>
+      <label class="switch"><input type="checkbox" id="usiteNon"><span class="slider"></span></label>
+    </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<input type="hidden" id="neufSelect" value="non">
+<input type="hidden" id="usiteSelect" value="non">
+
+<label>Commentaire (optionnel)</label>
+          <input id="commentInput" placeholder="Ex: HS, retour, etc." />
+        </div>
+
+        <div id="aiButtonsSlot" class="ia-actions-inline">
+          <button type="button" id="btnAiPhotoInline" class="btn-ia-inline">🤖 IA photo</button>
+          <button type="button" id="btnAiBaseInline" class="btn-ia-inline secondary">📚 Base IA</button>
+        </div>
+
+        <div class="btns" style="margin-top:12px">
+          <button class="success" id="btnAdd">✅ Valider l’article</button>
+          <button class="ghost small" id="btnClearLine">Effacer la saisie</button>
+        </div>
+
+        <div class="hint" style="margin-top:10px">
+          Astuce : la référence reste modifiable (tu peux la corriger avant de valider).
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div style="display:flex;align-items:center;margin-bottom:8px">
+          <span class="section-label" style="margin-bottom:0">Articles du bon</span>
+          <span class="qty-badge" id="qtyTotalBadge" style="display:none"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Référence</th><th>Qté</th><th>Neuf</th><th>Usité</th><th>Commentaire</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="lines"></tbody>
+          </table>
+        </div>
+        <div id="emptyLines" class="empty-state" style="display:none">
+          <div class="eico">📋</div>
+          <div>Aucun article — sélectionne une référence ci-dessus et clique <b>Valider</b>.</div>
+        </div>
+        <div class="hint" id="limitHint" style="margin-top:8px"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Observations</label>
+        <textarea id="observations" placeholder="Notes ou observations…"></textarea>
+      </div>
+
+      <div class="btns" style="margin-top:14px">
+        <button class="primary" id="btnPdf">⬇️ Exporter PDF</button>
+        <button class="ghost" id="btnPreviewPdf">👁️ Aperçu</button>
+        <button class="ghost" id="btnShare">📲 Partager</button>
+        <button class="ghost" id="btnSaveDraft">💾 Brouillon</button>
+        <button class="danger" id="btnNew">🗑️ Nouveau bon</button>
+      </div>
+
+      <div class="hint" style="margin-top:10px">
+        💡 Chaque export crée un <b>numéro unique</b> et l'enregistre dans l'historique. Raccourci : <b>Ctrl+S</b> pour sauvegarder le brouillon.
+      </div>
+    </section>
+
+    <!-- HISTORIQUE -->
+    <section class="card hidden" id="tab-hist">
+      <div class="btns" style="margin-bottom:12px">
+        <button class="ghost" id="btnRefreshHist">🔄 Actualiser</button>
+        <button class="ghost" id="btnExportCsv">📄 Export CSV</button>
+        <button class="danger" id="btnClearHist">🗑️ Vider</button>
+      </div>
+      <div id="histWrap"></div>
+    </section>
+
+    <!-- REFERENCES -->
+    <section class="card hidden" id="tab-refs">
+      <div class="row">
+        <div>
+          <label>Ajouter une référence</label>
+          <input id="newRef" placeholder="Ex: IR CO8 54" />
+        </div>
+        <div class="right" style="align-items:end">
+          <button class="success" id="btnAddRef">➕ Ajouter</button>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:6px">Les références sont enregistrées localement (sur cet appareil).</div>
+
+      <!-- SAUVEGARDE LOCALE (JSON) — fonctionne sans configuration -->
+      <div class="inner-card" style="margin-top:14px">
+        <div style="font-weight:800;margin-bottom:6px">💾 Sauvegarde locale (JSON)</div>
+        <div class="hint" style="margin-bottom:10px">Exporte toutes tes données (magasins, références, historique) dans un fichier JSON. Importe-le pour restaurer sur n’importe quel appareil — aucune configuration requise.</div>
+        <div class="btns">
+          <button class="success" id="btnBackupExport">⬇️ Exporter la sauvegarde</button>
+          <button class="primary" id="btnBackupImport">⬆️ Importer une sauvegarde</button>
+        </div>
+        <input type="file" id="backupFileInput" accept=".json" style="display:none" />
+        <div class="hint" id="backupStatus" style="margin-top:8px"></div>
+      </div>
+
+      <!-- SAUVEGARDE GOOGLE DRIVE (Apps Script — avancé) -->
+      <div class="inner-card" style="margin-top:10px">
+        <div style="font-weight:800;margin-bottom:4px">☁️ Sauvegarde Google Drive <span style="font-size:11px;color:var(--muted);font-weight:500">(avancé)</span></div>
+        <div class="hint" style="margin-bottom:8px">⚠️ Nécessite un <b>Google Apps Script</b> déployé en Web App. L’URL doit commencer par <code style="background:var(--border);border-radius:4px;padding:1px 4px">https://script.google.com/macros/s/</code> — une URL Google Drive classique ne fonctionnera pas.</div>
+        <label>URL du Web App Apps Script</label>
+        <input id="driveScriptUrl" placeholder="https://script.google.com/macros/s/XXXXX/exec" />
+        <label style="margin-top:8px">Jeton secret (optionnel)</label>
+        <input id="driveToken" placeholder="ex: 8f3c-... (à mettre aussi dans Apps Script)" />
+        <div class="btns" style="margin-top:10px">
+          <button class="ghost small" id="btnDrivePing">🧪 Tester</button>
+          <button class="success small" id="btnDriveSave">💾 Sauvegarder</button>
+          <button class="primary small" id="btnDriveLoad">⬇️ Restaurer</button>
+        </div>
+        <div class="hint" id="driveStatus" style="margin-top:8px"></div>
+      </div>
+
+
+      <!-- IA : accès rapide -->
+      <div class="btns" id="iaRefsBtns" style="margin-top:10px;display:none">
+        <button class="ghost" id="btnIAOpenScan">🤖 IA photo</button>
+        <button class="ghost" id="btnIAOpenBase">📚 Base IA</button>
+      </div>
+
+      <!-- Recherche -->
+      <div class="search-wrap" style="margin-top:14px">
+        <input id="refSearch" placeholder="Filtrer les références…" />
+      </div>
+
+      <div class="table-wrap" style="margin-top:10px">
+        <table>
+          <thead><tr><th>Référence</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody id="refsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MAGASINS -->
+    <section class="card hidden" id="tab-codes">
+      <div class="row">
+        <div>
+          <label>Ajouter un magasin (code + libellé)</label>
+          <input id="newMagCode" placeholder="Ex: ISTGS55" />
+        </div>
+        <div>
+          <label>Libellé</label>
+          <input id="newMagLabel" placeholder="Ex: Jean Robert" />
+        </div>
+      </div>
+      <div class="btns" style="margin-top:10px">
+        <button class="success" id="btnAddMag">➕ Ajouter</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Les magasins sont enregistrés localement (sur cet appareil).</div>
+
+      <div style="margin-top:12px">
+        <table>
+          <thead><tr><th>Code</th><th>Libellé</th><th></th></tr></thead>
+          <tbody id="magTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- jsPDF (UMD) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
 
 <script>
-const LS_KEY="bons_v3", LS_REFS="refs_v3", LS_CODES="codes_v3", LS_COUNTER="counter_v3";
+/* --------------------- Storage keys --------------------- */
+const K = {
+  refs: "inv_refs_v1",
+  mags: "inv_mags_v1",
+  emit: "inv_emit_v1",
+  draft: "inv_draft_v1",
+  hist: "inv_hist_v1",
+  seq: "inv_bon_seq_v1",
+  driveUrl: "inv_drive_script_url_v1",
+  driveToken: "inv_drive_token_v1",
+  aiPrefs: "inv_ai_prefs_v1"
+};
 
-function loadJSON(k, fb){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):fb }catch(_){return fb} }
-function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
-function saveBons(){ saveJSON(LS_KEY, bons); }
-function pad7(n){ return String(n).padStart(7,"0"); }
-function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); return new Date(d.getTime()-off*60000).toISOString().slice(0,10); }
-function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on"); clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove("on"),2100); }
-function id(){ return (crypto?.randomUUID)?crypto.randomUUID():("id_"+Math.random().toString(16).slice(2)+"_"+Date.now().toString(16)); }
-function esc(s){ return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;"); }
-function escAttr(s){ return esc(s).replaceAll("'","&#039;"); }
+const DEFAULT_EMETTEURS = [
+  { code: "ISTGS54", label: "ISTGS54" }
+];
 
-let refs=loadJSON(LS_REFS,[]);
-// Normalise: ancien format sans "archived"
-refs.forEach(r=>{ if(typeof r.archived==="undefined") r.archived=false; });
-let codes=loadJSON(LS_CODES,[]);
-let bons=loadJSON(LS_KEY,[]);
+const DEFAULT_MAGS = [
+  { code: "ISTGS54", label: "Magasin principal" },
+  { code: "ISTGS55", label: "Jean Robert" }
+];
 
-// Defaults + ajout demandé : ISTGS55 Jean Robert
-(function ensureDefaults(){
-  const needRef = !refs.length;
-  if(needRef) refs.push({id:id(), code:"IR-C08-03", name:"DÉTECTEUR DE MOUVEMENT", archived:false});
+const DEFAULT_REFS = [
+  "IR CO8 52","IR CO8 54","IR CO8 71","IR CO8 72",
+  "IR CO9 03","IR CO8 03","IR CRP 02","CO CRP 02",
+  "SF CO8 11","SJ CO8 12","SJ ?? 12","CZ CO8 12"
+].filter(Boolean);
 
-  const hasLago = codes.some(c => (c.tech||"").toUpperCase()==="ISTGS54");
-  if(!hasLago) codes.push({id:id(), name:"Lago Gomez", tech:"ISTGS54", mag:"ISTGS54"});
+/* --------------------- State --------------------- */
+let lines = [];
+let _lastDeleted = null;
+let _undoTimer = null;
+let _autoSaveTimer = null;
 
-  const hasJean = codes.some(c => (c.tech||"").toUpperCase()==="ISTGS55");
-  if(!hasJean) codes.push({id:id(), name:"Jean Robert", tech:"ISTGS55", mag:"ISTGS55"});
+/* --------------------- Helpers --------------------- */
+const $ = (id) => document.getElementById(id);
 
-  saveJSON(LS_REFS, refs);
-  saveJSON(LS_CODES, codes);
-})();
-
-function nextNumber(){
-  const cur = Number(localStorage.getItem(LS_COUNTER) || "188854");
-  const next = cur + 1;
-  localStorage.setItem(LS_COUNTER, String(next));
-  return pad7(next);
+/* === TOAST === */
+function toast(msg, type="info", ms=3000){
+  const wrap = $("toast-wrap"); if(!wrap) return;
+  const el = document.createElement("div");
+  el.className = "toast" + (type==="ok"?" ok":type==="err"?" err":type==="warn"?" warn":"");
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.cssText="opacity:0;transition:opacity .3s"; setTimeout(()=>el.remove(),320); }, ms);
 }
 
-const tabs=[...document.querySelectorAll(".tab")];
-tabs.forEach(t=>t.addEventListener("click",()=>setTab(t.dataset.tab)));
-function setTab(name){
-  tabs.forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
-  document.getElementById("page-bon").style.display = name==="bon" ? "" : "none";
-  document.getElementById("page-hist").style.display = name==="hist" ? "" : "none";
-  document.getElementById("page-refs").style.display = name==="refs" ? "" : "none";
-  document.getElementById("page-codes").style.display = name==="codes" ? "" : "none";
-  if(name==="hist") renderHist();
-  if(name==="refs") renderRefs();
-  if(name==="codes") renderCodes();
+/* === MISSING HELPERS (stub + real) === */
+function ensureAI(){
+  if(window.AIRefAddon && typeof window.AIRefAddon.openScan==="function") return true;
+  toast("Module IA non disponible. Recharge la page si besoin.","warn"); return false;
+}
+function openBase(ref){ if(ensureAI()) window.AIRefAddon.openBase(ref||null); }
+
+/* === REFRESH REF SELECT (évite la duplication de code) === */
+function refreshRefSelect(){
+  const refs = loadJSON(K.refs, []);
+  const sel = $("refSelect"); if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = `<option value="" disabled selected>Choisir une référence…</option>` +
+    refs.map(r=>`<option value="${r.replaceAll('"','&quot;')}">${escapeHTML(r)}</option>`).join("");
+  if(prev) sel.value = prev;
 }
 
-let currentBon=null;
+/* === FILL BASICS (après restauration Drive) === */
+function fillBasics(){
+  refreshMagSelects(); // même liste pour émetteur et magasin
+  refreshRefSelect();
+}
 
-function newBon(){
+/* === AI PREFS — mémoire état NEUF/USITÉ par référence === */
+function loadCondForRef(ref){
+  try{
+    const p = JSON.parse(localStorage.getItem(K.aiPrefs)||"{}") || {};
+    return (p.perRef && p.perRef[canonRef(ref)]) || null;
+  }catch(_){ return null; }
+}
+function saveCondForRef(ref, neufOui, usiteOui){
+  try{
+    const p = JSON.parse(localStorage.getItem(K.aiPrefs)||"{}") || {};
+    p.perRef = p.perRef || {};
+    p.perRef[canonRef(ref)] = { neuf: neufOui?"oui":"non", usite: usiteOui?"oui":"non" };
+    localStorage.setItem(K.aiPrefs, JSON.stringify(p));
+  }catch(_){}
+}
+
+/* === AUTO-SAVE DRAFT === */
+function scheduleDraftSave(){
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(()=>{ saveJSON(K.draft, collectBon(false)); }, 1500);
+}
+
+/* === COUNTERS / BADGES === */
+function updateCounters(){
+  const n = lines.length;
+  const totalQty = lines.reduce((s,l)=>s+l.qty, 0);
+  const badge = $("tabBonBadge");
+  const hdr = $("headerBadge");
+  const qty = $("qtyTotalBadge");
+  if(badge){ badge.textContent=n; badge.className=n>0?"tab-badge show":"tab-badge"; }
+  if(hdr){ if(n>0){ hdr.style.display=""; hdr.textContent=`${n} article${n>1?"s":""} · ${totalQty} u.`; } else hdr.style.display="none"; }
+  if(qty){ if(n>0){ qty.style.display=""; qty.textContent=`${totalQty} unité${totalQty>1?"s":""}  au total`; } else qty.style.display="none"; }
+}
+
+function loadJSON(key, fallback){
+  try{
+    const v = localStorage.getItem(key);
+    if(!v) return fallback;
+    return JSON.parse(v);
+  }catch(e){ return fallback; }
+}
+function saveJSON(key, value){
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function todayISO(){
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function ensureSeq(){
+  let seq = Number(localStorage.getItem(K.seq) || "0");
+  if(!seq || seq < 1000000){
+    // base unique-ish
+    seq = Math.floor((Date.now()/1000) % 9000000) + 1000000;
+    localStorage.setItem(K.seq, String(seq));
+  }
+  return seq;
+}
+function nextBonNumber(){
+  const seq = ensureSeq() + 1;
+  localStorage.setItem(K.seq, String(seq));
+  return String(seq).padStart(7,"0");
+}
+
+function sanitizeRef(s){
+  return (s || "").trim().replace(/\s+/g," ");
+}
+
+/* --------------------- Tabs --------------------- */
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    const name = t.dataset.tab;
+    ["bon","hist","refs","codes"].forEach(k => $("tab-"+k).classList.add("hidden"));
+    $("tab-"+name).classList.remove("hidden");
+    if(name === "hist") renderHist();
+    if(name === "refs") renderRefs();
+    if(name === "codes") renderMags();
+  });
+});
+
+/* --------------------- Init selects --------------------- */
+function fillSelect(sel, arr){
+  sel.innerHTML = "";
+  arr.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o.code;
+    opt.textContent = o.label ? `${o.code} — ${o.label}` : o.code;
+    sel.appendChild(opt);
+  });
+}
+
+/* === NEUF / USITÉ — fonctions globales (définies UNE SEULE FOIS) === */
+function setNeuf(v){
+  const yes=(v==="oui");
+  $("neufOui").checked=yes; $("neufNon").checked=!yes; $("neufSelect").value=v;
+  if(yes){ $("usiteOui").checked=false; $("usiteNon").checked=true; $("usiteSelect").value="non"; }
+}
+function setUsite(v){
+  const yes=(v==="oui");
+  $("usiteOui").checked=yes; $("usiteNon").checked=!yes; $("usiteSelect").value=v;
+  if(yes){ $("neufOui").checked=false; $("neufNon").checked=true; $("neufSelect").value="non"; }
+}
+
+function canonRef(ref){ return String(ref||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
+
+/* === Rafraîchit les deux selects Émetteur ET Magasin avec la même liste === */
+function refreshMagSelects(){
+  const mags = loadJSON(K.mags, []);
+  const prev = $("magasin").value;
+  fillSelect($("emetteur"), mags);
+  fillSelect($("magasin"), mags);
+  // Restaure la sélection si possible
+  if(prev) { $("magasin").value = prev; $("emetteur").value = prev; }
+}
+
+function initData(){
+  const refs0 = loadJSON(K.refs, null);
+  const mags0 = loadJSON(K.mags, null);
+
+  const refs = (Array.isArray(refs0) && refs0.length) ? refs0 : DEFAULT_REFS;
+  const mags = (Array.isArray(mags0) && mags0.length) ? mags0 : DEFAULT_MAGS;
+
+  saveJSON(K.refs, refs);
+  saveJSON(K.mags, mags);
+
+  // Émetteur et Magasin partagent la MÊME liste
+  fillSelect($("emetteur"), mags);
+  fillSelect($("magasin"), mags);
+  refreshRefSelect();
+
+  // Sync émetteur ↔ magasin (une seule fois)
+  $("magasin").addEventListener("change", () => { $("emetteur").value = $("magasin").value; });
+  $("emetteur").value = $("magasin").value;
+
+  // Interrupteurs NEUF / USITÉ (liés une seule fois aux fonctions globales)
+  setNeuf("non"); setUsite("non");
+  $("neufOui").addEventListener("change", () => setNeuf($("neufOui").checked ? "oui" : "non"));
+  $("neufNon").addEventListener("change", () => setNeuf($("neufNon").checked ? "non" : "oui"));
+  $("usiteOui").addEventListener("change", () => setUsite($("usiteOui").checked ? "oui" : "non"));
+  $("usiteNon").addEventListener("change", () => setUsite($("usiteNon").checked ? "non" : "oui"));
+
+  // Mémoire NEUF/USITÉ par référence : pré-remplit à la sélection
+  $("refSelect").addEventListener("change", () => {
+    const ref = sanitizeRef($("refSelect").value);
+    if(!ref) return;
+    const cond = loadCondForRef(ref);
+    if(cond){
+      if(cond.neuf === "oui") setNeuf("oui");
+      else if(cond.usite === "oui") setUsite("oui");
+    }
+  });
+}
+
+/* --------------------- Lines rendering --------------------- */
+function renderLines(){
+  const tbody = $("lines");
+  const emptyEl = $("emptyLines");
+  tbody.innerHTML = "";
+
+  if(lines.length === 0){
+    if(emptyEl) emptyEl.style.display = "";
+  } else {
+    if(emptyEl) emptyEl.style.display = "none";
+    lines.forEach((l, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${escapeHTML(l.ref)}</b></td>
+        <td><span class="pill">×${l.qty}</span></td>
+        <td>${l.neufOui ? "<span class='x'>✓</span>" : "<span style='color:var(--muted)'>—</span>"}</td>
+        <td>${l.usiteOui ? "<span class='x' style='color:#d97706'>✓</span>" : "<span style='color:var(--muted)'>—</span>"}</td>
+        <td><span class="hint">${escapeHTML(l.comment || "")}</span></td>
+        <td class="right"><button class="danger small" data-del="${idx}" title="Supprimer">🗑</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll("button[data-del]").forEach(b => {
+      b.addEventListener("click", () => {
+        const i = Number(b.dataset.del);
+        _lastDeleted = { line: lines[i], index: i };
+        lines.splice(i, 1);
+        renderLines();
+        scheduleDraftSave();
+        showUndoBar();
+      });
+    });
+  }
+
+  const limit = 10;
+  $("limitHint").textContent = lines.length > limit
+    ? `⚠️ ${lines.length} lignes — le PDF n'affichera que les ${limit} premières.`
+    : lines.length > 0 ? `${lines.length}/10 ligne${lines.length>1?"s":""}` : "";
+  updateCounters();
+}
+
+function showUndoBar(){
+  clearTimeout(_undoTimer);
+  const bar = $("undo-bar");
+  if(!bar) return;
+  const ref = _lastDeleted?.line?.ref || "article";
+  bar.innerHTML = `<span>🗑️ <b>${escapeHTML(ref)}</b> supprimé</span><button class="ghost small" id="btnUndo">↩ Annuler</button>`;
+  bar.style.display = "flex";
+  $("btnUndo").addEventListener("click", () => {
+    if(_lastDeleted){
+      lines.splice(_lastDeleted.index, 0, _lastDeleted.line);
+      _lastDeleted = null;
+      renderLines();
+      scheduleDraftSave();
+      toast("Article restauré ✓", "ok");
+    }
+    bar.style.display = "none";
+  });
+  _undoTimer = setTimeout(() => { bar.style.display = "none"; }, 5000);
+}
+
+function escapeHTML(s){
+  return (s || "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+
+/* --------------------- Add line --------------------- */
+function resetLineForm(){
+  $("refSelect").selectedIndex = 0;
+  $("qtyInput").value = "1";
+  $("commentInput").value = "";
+  setNeuf("non");
+  setUsite("non");
+}
+
+function addArticle(){
+  const ref = sanitizeRef($("refSelect").value);
+  if(!ref){ toast("Sélectionne une référence.", "err"); return; }
+  const qty = Math.max(1, parseInt($("qtyInput").value || "1", 10));
+  const neufOui = $("neufSelect").value === "oui";
+  const usiteOui = $("usiteSelect").value === "oui";
+  const comment = sanitizeRef($("commentInput").value);
+
+  // Détection de doublon — propose de fusionner
+  const dupIdx = lines.findIndex(l => l.ref === ref);
+  if(dupIdx >= 0){
+    const dup = lines[dupIdx];
+    if(confirm(`"${ref}" est déjà dans le bon (×${dup.qty}).\nAjouter ${qty} à la quantité existante → ×${dup.qty + qty} ?`)){
+      lines[dupIdx].qty += qty;
+      renderLines();
+      scheduleDraftSave();
+      toast(`Quantité mise à jour : ${ref} ×${lines[dupIdx].qty}`, "ok");
+      resetLineForm();
+      return;
+    }
+    // Sinon on ajoute une 2e ligne quand même
+  }
+
+  lines.push({ ref, qty, neufOui, usiteOui, comment });
+
+  // Mémorise l’état NEUF/USITÉ pour cette référence
+  if(neufOui || usiteOui) saveCondForRef(ref, neufOui, usiteOui);
+
+  // Sauvegarde auto la ref si elle est nouvelle
+  const refs = loadJSON(K.refs, []);
+  if(!refs.includes(ref)){
+    refs.unshift(ref);
+    saveJSON(K.refs, refs.slice(0, 200));
+    refreshRefSelect(); // ← utilise le helper, pas de duplication
+  }
+
+  renderLines();
+  scheduleDraftSave();
+  toast(`✅ ${ref} ×${qty} ajouté`, "ok", 1800);
+  resetLineForm();
+}
+
+$("btnAdd").addEventListener("click", addArticle);
+
+// Raccourci clavier : Entrée dans Qté ou Commentaire → valide l’article
+$("qtyInput").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addArticle(); } });
+$("commentInput").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addArticle(); } });
+
+$("btnClearLine").addEventListener("click", () => {
+  resetLineForm();
+  toast("Saisie effacée");
+});
+
+/* --------------------- Draft / new --------------------- */
+$("btnSaveDraft").addEventListener("click", () => {
+  saveJSON(K.draft, collectBon(false));
+  toast("💾 Brouillon enregistré", "ok");
+});
+
+$("btnNew").addEventListener("click", () => {
+  if(confirm("Créer un nouveau bon ? (le brouillon actuel reste inchangé)")){
+    lines = [];
+    $("observations").value = "";
+    $("destinataire").value = "STOCK CENTRAL";
+    $("date").value = todayISO();
+    renderLines();
+    toast("Nouveau bon prêt");
+  }
+});
+
+// Ctrl+S = sauvegarde brouillon
+document.addEventListener("keydown", e => {
+  if((e.ctrlKey || e.metaKey) && e.key === "s"){
+    e.preventDefault();
+    saveJSON(K.draft, collectBon(false));
+    toast("💾 Brouillon enregistré (Ctrl+S)", "ok");
+  }
+});
+
+function collectBon(assignNumber){
   return {
-    id:id(),
-    number: nextNumber(),            // numéro de brouillon (unique)
-    status:"BROUILLON",
-    codeId:codes[0]?.id||"",
-    date:todayISO(),
-    destinataire:"STOCK CENTRAL",
-    observations:"",
-    articles:[]
+    bonNumber: assignNumber ? nextBonNumber() : null,
+    emetteur: $("emetteur").value,
+    magasin: $("magasin").value,
+    destinataire: sanitizeRef($("destinataire").value) || "STOCK CENTRAL",
+    date: $("date").value || todayISO(),
+    observations: $("observations").value || "",
+    lines: lines.slice(0, 10) // PDF limit
   };
 }
 
-function upsertBon(b){
-  const i=bons.findIndex(x=>x.id===b.id);
-  if(i>=0) bons[i]=b; else bons.unshift(b);
-  saveJSON(LS_KEY,bons);
+function pushHistory(entry){
+  const hist = loadJSON(K.hist, []);
+  hist.unshift(entry);
+  saveJSON(K.hist, hist.slice(0, 80));
 }
 
-function renderCodeSelect(){
-  const sel=document.getElementById("bonCode");
-  sel.innerHTML="";
-  for(const c of codes){
-    const o=document.createElement("option");
-    o.value=c.id;
-    o.textContent=`${c.name} — ${c.tech} / ${c.mag}`;
-    sel.appendChild(o);
+/* --------------------- PDF drawing (jsPDF) --------------------- */
+function drawBon(doc, y0, data){
+  // A4: 210 x 297 mm. Half: 148.5 mm
+  const X = 5;
+  const Y = y0 + 5;
+  const W = 200;
+  const H = 138.5; // leave room inside half A4
+
+  // Outer border
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.2);
+  doc.rect(X, Y, W, H);
+
+  // Header band
+  const headerH = 22;
+  doc.setFillColor(240,240,240);
+  doc.rect(X, Y, W, headerH, "F");
+  doc.rect(X, Y, W, headerH);
+
+  // Logo box (approx. "eps")
+  doc.setFillColor(180,180,180);
+  doc.rect(X+2, Y+3, 26, 14, "F");
+  doc.setTextColor(255,255,255);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(18);
+  doc.text("eps", X+15, Y+14, {align:"center"});
+  doc.setTextColor(0,0,0);
+
+  // Title & subtitle
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(12);
+  doc.text("BON DE SORTIE DE STOCK N°", X+32, Y+9);
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(7.5);
+  doc.text("A JOINDRE IMPÉRATIVEMENT À TOUT RETOUR DU STOCK CENTRAL", X+32, Y+15);
+
+  // Bon number box (red)
+  doc.setDrawColor(0);
+  doc.rect(X+W-44, Y+4, 42, 14);
+  doc.setTextColor(200,0,0);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(18);
+  doc.text(data.bonNumber, X+W-23, Y+15, {align:"center"});
+  doc.setTextColor(0,0,0);
+
+  // Info fields
+  const infoY = Y + headerH + 4;
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica","bold");
+  doc.text("ÉMETTEUR :", X+2, infoY);
+  doc.setFont("helvetica","normal");
+  doc.text(data.emetteur, X+22, infoY);
+  doc.setFontSize(7);
+  doc.text("(Code technicien)", X+22, infoY+4);
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica","bold");
+  doc.text("MAGASIN :", X+2, infoY+10);
+  doc.setFont("helvetica","normal");
+  doc.text(data.magasin, X+22, infoY+10);
+  doc.setFontSize(7);
+  doc.text("(Code magasin)", X+22, infoY+14);
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica","bold");
+  doc.text("DESTINATAIRE :", X+110, infoY);
+  doc.setFont("helvetica","normal");
+  doc.text(data.destinataire, X+138, infoY);
+
+  doc.setFont("helvetica","bold");
+  doc.text("DATE :", X+110, infoY+10);
+  doc.setFont("helvetica","normal");
+  doc.text(data.date.split("-").reverse().join("/"), X+122, infoY+10);
+
+  // Table
+  const tableY = infoY + 18;
+  const rowH = 8;
+  const header1H = 8;
+  const header2H = 7;
+
+  const cRef = 92;
+  const cYN = 9; // each Oui/Non column
+  const cComm = W - (cRef + 4*cYN);
+
+  // header rectangles
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(8.5);
+  // first header row (merged cells)
+  doc.rect(X, tableY, cRef, header1H);
+  doc.rect(X+cRef, tableY, 2*cYN, header1H);
+  doc.rect(X+cRef+2*cYN, tableY, 2*cYN, header1H);
+  doc.rect(X+cRef+4*cYN, tableY, cComm, header1H);
+
+  doc.text("RÉFÉRENCE ARTICLE", X + cRef/2, tableY+5.5, {align:"center"});
+  doc.text("NEUF", X + cRef + cYN, tableY+5.5, {align:"center"});
+  doc.text("USITÉ", X + cRef + 3*cYN, tableY+5.5, {align:"center"});
+  doc.text("COMMENTAIRES", X + cRef + 4*cYN + cComm/2, tableY+5.5, {align:"center"});
+
+  // second header row (Oui/Non)
+  const y2 = tableY + header1H;
+  // ref col blank
+  doc.rect(X, y2, cRef, header2H);
+  // NEUF Oui / Non
+  doc.rect(X+cRef, y2, cYN, header2H);
+  doc.rect(X+cRef+cYN, y2, cYN, header2H);
+  // USITÉ Oui / Non
+  doc.rect(X+cRef+2*cYN, y2, cYN, header2H);
+  doc.rect(X+cRef+3*cYN, y2, cYN, header2H);
+  // comm
+  doc.rect(X+cRef+4*cYN, y2, cComm, header2H);
+
+  doc.setFontSize(7.5);
+  doc.text("Oui", X+cRef + cYN/2, y2+5, {align:"center"});
+  doc.text("Non", X+cRef + cYN + cYN/2, y2+5, {align:"center"});
+  doc.text("Oui", X+cRef + 2*cYN + cYN/2, y2+5, {align:"center"});
+  doc.text("Non", X+cRef + 3*cYN + cYN/2, y2+5, {align:"center"});
+
+  // rows
+  const startRowsY = y2 + header2H;
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(8.5);
+  const maxRows = 10;
+  for(let i=0;i<maxRows;i++){
+    const ry = startRowsY + i*rowH;
+    doc.rect(X, ry, cRef, rowH);
+    doc.rect(X+cRef, ry, cYN, rowH);
+    doc.rect(X+cRef+cYN, ry, cYN, rowH);
+    doc.rect(X+cRef+2*cYN, ry, cYN, rowH);
+    doc.rect(X+cRef+3*cYN, ry, cYN, rowH);
+    doc.rect(X+cRef+4*cYN, ry, cComm, rowH);
+
+    const l = data.lines[i];
+    if(l){
+      doc.text(l.ref, X+2, ry+5.5);
+      const mark = "X";
+      // Neuf
+      if(l.neufOui) doc.text(mark, X+cRef + cYN/2, ry+5.5, {align:"center"});
+      else doc.text(mark, X+cRef + cYN + cYN/2, ry+5.5, {align:"center"});
+      // Usité
+      if(l.usiteOui) doc.text(mark, X+cRef + 2*cYN + cYN/2, ry+5.5, {align:"center"});
+      else doc.text(mark, X+cRef + 3*cYN + cYN/2, ry+5.5, {align:"center"});
+
+      const comm = `x${l.qty}` + (l.comment ? ` ${l.comment}` : "");
+      doc.text(comm, X+cRef+4*cYN + 2, ry+5.5);
+    }
+  }
+
+  // Observations
+  const obsY = startRowsY + maxRows*rowH + 6;
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(8.5);
+  doc.text("Observations :", X+2, obsY);
+
+  const obsBoxY = obsY + 2;
+  const obsBoxH = Y + H - obsBoxY - 4;
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(8.5);
+  doc.rect(X, obsBoxY, W, obsBoxH);
+  const obsText = (data.observations || "").trim();
+  if(obsText){
+    const wrapped = doc.splitTextToSize(obsText, W-4);
+    doc.text(wrapped.slice(0,5), X+2, obsBoxY+6); // limit lines to keep clean
   }
 }
-function refById(x){ return refs.find(r=>r.id===x)||null; }
-function codeById(x){ return codes.find(c=>c.id===x)||null; }
 
-function loadBon(b){
-  currentBon=JSON.parse(JSON.stringify(b));
-  document.getElementById("bonNumber").textContent=currentBon.number||"—";
-  document.getElementById("bonStatus").textContent=currentBon.status==="IMPRIME" ? "Imprimé" : "Brouillon";
-  renderCodeSelect();
-  document.getElementById("bonCode").value=currentBon.codeId||"";
-  document.getElementById("bonDate").value=currentBon.date||todayISO();
-  document.getElementById("bonDest").value=currentBon.destinataire||"";
-  document.getElementById("bonObs").value=currentBon.observations||"";
-  renderArticles();
-}
-function ensureBon(){ if(!currentBon) loadBon(newBon()); }
+async function buildPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    toast("Librairie PDF non chargée — vérifie ta connexion.", "err");
+    return null;
+  }
+  const data = collectBon(true);
+  if(data.lines.length === 0){
+    toast("Ajoute au moins un article avant d'exporter.", "err");
+    return null;
+  }
 
-function defaultComment(a){
-  const q=Math.max(1, Math.floor(Number(a.qty||1)));
-  return "x"+q;
-}
-function ynLabel(v){ return v==="OUI" ? "Oui" : (v==="NON" ? "Non" : "—"); }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
 
-function renderArticles(){
-  const box=document.getElementById("articles");
-  box.innerHTML="";
-  const locked = currentBon.status==="IMPRIME";
+  // Draw 2 copies on the same A4
+  drawBon(doc, 0, data);
+  drawBon(doc, 148.5, data);
 
-  currentBon.articles.forEach((a, idx)=>{
-    const r = refById(a.refId);
-    const title = r ? `${r.code} — ${r.name}` : "Référence non choisie";
-    const validated = !!a.validated;
-
-    const card=document.createElement("div");
-    card.className="card";
-    card.style.boxShadow="none";
-    card.style.borderRadius="16px";
-
-    if(validated){
-      card.innerHTML = `
-        <div class="hd">
-          <div>
-            <div class="sumTitle">Article n° ${idx+1}</div>
-            <div class="sumSub">${esc(title)}</div>
-          </div>
-          <div class="row right">
-            <button class="btn small primary" data-act="edit" data-idx="${idx}" ${locked?"disabled":""}>Modifier</button>
-            <button class="btn small" data-act="del" data-idx="${idx}" ${locked?"disabled":""}>Suppr.</button>
-          </div>
-        </div>
-        <div class="bd">
-          <div class="sumGrid">
-            <div class="sumBox"><span class="muted">Qté:</span> <strong>${esc(String(a.qty||1))}</strong></div>
-            <div class="sumBox"><span class="muted">Neuf:</span> <strong>${esc(ynLabel(a.neuf))}</strong></div>
-            <div class="sumBox"><span class="muted">Usité:</span> <strong>${esc(ynLabel(a.usite))}</strong></div>
-            <div class="sumBox"><span class="muted">Comm.:</span> <strong>${esc((a.comment||defaultComment(a)).trim())}</strong></div>
-          </div>
-        </div>
-      `;
-    } else {
-      card.innerHTML=`
-        <div class="hd">
-          <div style="font-weight:900">Article n° ${idx+1} (édition)</div>
-          <div class="row right">
-            <button class="btn small" data-act="del" data-idx="${idx}" ${locked?"disabled":""}>Suppr.</button>
-          </div>
-        </div>
-        <div class="bd">
-          <label>Article de référence</label>
-          <select data-k="refId" data-idx="${idx}" ${locked?"disabled":""}>
-            <option value="">Choisir une référence…</option>
-            ${refs.filter(r=>!r.archived).map(r=>`<option value="${r.id}" ${r.id===a.refId?"selected":""}>${esc(r.code)} — ${esc(r.name)}</option>`).join("")}
-          </select>
-
-          <label>Quantité</label>
-          <input type="number" min="1" step="1" value="${Number(a.qty||1)}" data-k="qty" data-idx="${idx}" ${locked?"disabled":""} />
-
-          <div class="yn" style="margin-top:10px">
-            <div class="ynbox neuf">
-              <div class="ynTitle">NEUF</div>
-              <div class="ynRow"><span>Oui</span><div class="toggle ${a.neuf==="OUI"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="neuf" data-val="OUI" ${locked?"data-locked='1'":""}></div></div>
-              <div class="ynRow"><span>Non</span><div class="toggle ${a.neuf==="NON"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="neuf" data-val="NON" ${locked?"data-locked='1'":""}></div></div>
-            </div>
-            <div class="ynbox usite">
-              <div class="ynTitle">USITÉ</div>
-              <div class="ynRow"><span>Oui</span><div class="toggle ${a.usite==="OUI"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="usite" data-val="OUI" ${locked?"data-locked='1'":""}></div></div>
-              <div class="ynRow"><span>Non</span><div class="toggle ${a.usite==="NON"?"on":""}" data-act="toggle" data-idx="${idx}" data-group="usite" data-val="NON" ${locked?"data-locked='1'":""}></div></div>
-            </div>
-          </div>
-
-          <label>Commentaires</label>
-          <input value="${escAttr(a.comment||defaultComment(a))}" placeholder="ex: x3" data-k="comment" data-idx="${idx}" ${locked?"disabled":""} />
-
-          <div class="row" style="margin-top:12px">
-            <button class="btn green right" data-act="validate" data-idx="${idx}" ${locked?"disabled":""}>✅ Valider</button>
-          </div>
-        </div>
-      `;
-    }
-
-    box.appendChild(card);
+  // History
+  pushHistory({
+    ...data,
+    createdAt: new Date().toISOString()
   });
 
-  document.getElementById("articleCount").textContent=String(currentBon.articles.length);
+  return { doc, bonNumber: data.bonNumber };
 }
 
-document.getElementById("btnAddArticle").addEventListener("click", ()=>{
-  if(currentBon.status==="IMPRIME"){ toast("Bon imprimé : non modifiable"); return; }
-  currentBon.articles.push({refId:"", qty:1, neuf:"NON", usite:"NON", comment:"", validated:false});
-  renderArticles();
-});
-
-document.getElementById("articles").addEventListener("input", (e)=>{
-  const t=e.target;
-  const idx=Number(t.dataset.idx);
-  const k=t.dataset.k;
-  if(!k || Number.isNaN(idx)) return;
-  if(currentBon.status==="IMPRIME") return;
-
-  if(k==="qty"){
-    currentBon.articles[idx].qty=Math.max(1, Math.floor(Number(t.value||1)));
-    const cur=(currentBon.articles[idx].comment||"").trim();
-    if(!cur || /^x\d+$/i.test(cur)) currentBon.articles[idx].comment=defaultComment(currentBon.articles[idx]);
-    return;
-  }
-  currentBon.articles[idx][k]=t.value;
-});
-
-document.getElementById("articles").addEventListener("click", (e)=>{
-  const el=e.target.closest("[data-act]");
-  if(!el) return;
-  const act=el.dataset.act;
-  const idx=Number(el.dataset.idx);
-
-  if(act==="del"){
-    if(currentBon.status==="IMPRIME") return;
-    currentBon.articles.splice(idx,1);
-    renderArticles();
-  }
-
-  if(act==="edit"){
-    if(currentBon.status==="IMPRIME") return;
-    currentBon.articles[idx].validated=false;
-    renderArticles();
-  }
-
-  if(act==="validate"){
-    if(currentBon.status==="IMPRIME") return;
-    const a=currentBon.articles[idx];
-    if(!a.refId){ toast("Choisis une référence"); return; }
-    if(!a.comment || !a.comment.trim()) a.comment = defaultComment(a);
-    a.validated=true;
-    renderArticles();
-  }
-
-  if(act==="toggle"){
-    if(el.dataset.locked==="1"){ toast("Bon imprimé : non modifiable"); return; }
-    const group=el.dataset.group;
-    const val=el.dataset.val;
-    const cur=currentBon.articles[idx][group];
-    currentBon.articles[idx][group]=(cur===val) ? "" : val;
-    // pas besoin de rerender tout de suite, mais pour refléter le toggle visuel c'est plus simple
-    renderArticles();
+$("btnPdf").addEventListener("click", async () => {
+  const btn = $("btnPdf");
+  btn.disabled = true; btn.textContent = "⏳ Génération…";
+  try {
+    const res = await buildPDF();
+    if(!res) return;
+    res.doc.save(`bon_sortie_${res.bonNumber}.pdf`);
+    toast(`✅ PDF N°${res.bonNumber} téléchargé`, "ok");
+  } finally {
+    btn.disabled = false; btn.innerHTML = "⬇️ Exporter PDF";
   }
 });
 
-document.getElementById("bonCode").addEventListener("change", ()=> currentBon.codeId=document.getElementById("bonCode").value);
-document.getElementById("bonDate").addEventListener("change", ()=> currentBon.date=document.getElementById("bonDate").value);
-document.getElementById("bonDest").addEventListener("input", ()=> currentBon.destinataire=document.getElementById("bonDest").value);
-document.getElementById("bonObs").addEventListener("input", ()=> currentBon.observations=document.getElementById("bonObs").value);
-
-document.getElementById("btnResetBon").addEventListener("click", ()=>{
-  if(confirm("Réinitialiser le bon en cours ?")){
-    loadBon(newBon());
-    toast("Bon réinitialisé");
+$("btnPreviewPdf").addEventListener("click", async () => {
+  const btn = $("btnPreviewPdf");
+  btn.disabled = true; btn.textContent = "⏳ Aperçu…";
+  try {
+    const res = await buildPDF();
+    if(!res) return;
+    const url = res.doc.output("bloburl");
+    window.open(url, "_blank");
+    toast("Aperçu ouvert dans un nouvel onglet ✓");
+  } finally {
+    btn.disabled = false; btn.innerHTML = "👁️ Aperçu";
   }
 });
 
-function validateBon(){
-  if(!currentBon.codeId){ toast("Choisis un code magasin/technicien"); return false; }
-  if(!currentBon.date){ toast("Date manquante"); return false; }
-  if(!currentBon.destinataire){ toast("Destinataire manquant"); return false; }
-  return true;
-}
-
-document.getElementById("btnSaveDraft").addEventListener("click", ()=>{
-  if(!validateBon()) return;
-  currentBon.status="BROUILLON";
-  upsertBon(currentBon);
-  document.getElementById("bonStatus").textContent="Brouillon";
-  toast("Brouillon sauvegardé");
+$("btnShare").addEventListener("click", async () => {
+  const res = await buildPDF();
+  if(!res) return;
+  const blob = res.doc.output("blob");
+  const file = new File([blob], `bon_sortie_${res.bonNumber}.pdf`, { type: "application/pdf" });
+  if(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+    try{ await navigator.share({ title: "Bon de sortie / retour", files: [file] }); }
+    catch(e){ /* annulé */ }
+  } else {
+    res.doc.save(`bon_sortie_${res.bonNumber}.pdf`);
+    toast("Partage non supporté ici : PDF téléchargé.", "warn");
+  }
 });
 
-function createPrintedCopyFrom(b){
-  const printed = JSON.parse(JSON.stringify(b));
-  printed.id = id();
-  printed.number = nextNumber();      // <-- numéro unique à chaque impression
-  printed.status = "IMPRIME";
-  printed.printedAt = Date.now();
-  // Les articles imprimés sont figés
-  (printed.articles||[]).forEach(a => { a.validated = true; });
-  upsertBon(printed);
-  return printed;
-}
-
-
-async function exportPDF(mode){
-  if(!window.html2canvas || !window.jspdf){
-    toast("Chargement PDF… réessaie dans 2 secondes.");
-    return;
-  }
-  if(!validateBon()) return;
-
-  const printed=createPrintedCopyFrom(currentBon);
-
-  // Prépare la vue A4 (x1 ou x2 sur la même page)
-  document.body.classList.remove("print-1","print-2");
-  document.body.classList.add(mode===2 ? "print-2" : "print-1");
-  renderPrint(printed, mode);
-
-  // Rendre la zone imprimable visible hors-écran pour capture
-  const area=document.querySelector(".printArea");
-  const a4=document.querySelector(".printArea .a4");
-  const prevStyle=area.getAttribute("style") || "";
-  area.setAttribute("style", prevStyle + ";display:block;position:fixed;left:-12000px;top:0;background:#fff;z-index:9999;");
-
-  // Laisse le navigateur appliquer le layout
-  await new Promise(r=>setTimeout(r, 80));
-
-  try{
-    const canvas=await html2canvas(a4, {scale:2, backgroundColor:"#ffffff", useCORS:true});
-    const img=canvas.toDataURL("image/jpeg", 1.0);
-
-    const { jsPDF } = window.jspdf;
-    const pdf=new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
-    // A4 : 210 x 297 mm
-    pdf.addImage(img, "JPEG", 0, 0, 210, 297);
-
-    const filename=`bon_sortie_stock_${printed.number}_x${mode}.pdf`;
-    const blob=pdf.output("blob");
-    const file=new File([blob], filename, {type:"application/pdf"});
-
-    // Partage (ouvre le choix d'app, ex: Epson iPrint) si dispo, sinon téléchargement
-    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-      try{
-        await navigator.share({files:[file], title:"Bon de sortie de stock", text:"Bon de sortie / retour de stock"});
-      }catch(e){
-        pdf.save(filename);
-      }
-    }else{
-      pdf.save(filename);
-    }
-
-    toast("PDF prêt ✅");
-  }catch(err){
-    console.error(err);
-    toast("Erreur export PDF. Dis-moi ce que tu vois à l'écran.");
-  }finally{
-    // Restaure
-    if(prevStyle) area.setAttribute("style", prevStyle);
-    else area.removeAttribute("style");
-
-    // Après export : on archive + on repart sur un nouveau bon
-    const existing=bons.find(x=>x.id===currentBon.id);
-    if(existing){
-      existing.status="imprimé";
-      existing.number=printed.number;
-      saveBons();
-    }else{
-      bons.unshift(printed);
-      saveBons();
-    }
-    loadBon(newBon());
-    renderHist();
-  }
-}
-
-document.getElementById("btnPdf1").addEventListener("click", ()=>exportPDF(1));
-document.getElementById("btnPdf2").addEventListener("click", ()=>exportPDF(2));
-function formatFRDate(iso){
-  if(!iso) return "";
-  const [y,m,d]=iso.split("-");
-  if(!y||!m||!d) return iso;
-  return `${d}/${m}/${y}`;
-}
-
-function buildRows(b){
-  const MAX=12;
-  const out=[];
-  for(const a of (b.articles||[])){
-    const r=refById(a.refId);
-    const refText=r ? `${r.name}\n${r.code}` : "";
-    const nOui=(a.neuf==="OUI") ? "<span class='x'>X</span>" : "";
-    const nNon=(a.neuf==="NON") ? "<span class='x'>X</span>" : "";
-    const uOui=(a.usite==="OUI") ? "<span class='x'>X</span>" : "";
-    const uNon=(a.usite==="NON") ? "<span class='x'>X</span>" : "";
-    const comm=(a.comment && a.comment.trim()) ? a.comment.trim() : ("x"+(a.qty||1));
-    out.push(`
-      <tr>
-        <td style="white-space:pre-line">${esc(refText)}</td>
-        <td class="center">${nOui}</td>
-        <td class="center">${nNon}</td>
-        <td class="center">${uOui}</td>
-        <td class="center">${uNon}</td>
-        <td>${esc(comm)}</td>
-      </tr>
-    `);
-  }
-  while(out.length<MAX){
-    out.push("<tr><td>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td class='center'>&nbsp;</td><td>&nbsp;</td></tr>");
-  }
-  return out.join("");
-}
-
-function buildBonHTML(b){
-  const c=codeById(b.codeId)||{tech:"",mag:""};
-  return `
-    <div class="bon">
-      <div class="bonTop">
-        <div class="logoBox">eps</div>
-        <div>
-          <div class="titleBox">BON DE SORTIE DE STOCK N°</div>
-          <div class="subtitleBox">- A JOINDRE IMPÉRATIVEMENT A TOUT RETOUR DU STOCK CENTRAL</div>
-        </div>
-        <div class="numBox">${esc(b.number||"")}</div>
-      </div>
-
-      <div class="meta">
-        <div><span class="lbl">ÉMETTEUR :</span><span class="val">${esc(c.tech||"")}</span><span class="small muted">[Code technicien]</span></div>
-        <div><span class="lbl">DESTINATAIRE :</span><span class="val">${esc(b.destinataire||"")}</span></div>
-        <div><span class="lbl">MAGASIN :</span><span class="val">${esc(c.mag||"")}</span><span class="small muted">[Code magasin]</span></div>
-        <div><span class="lbl">DATE :</span><span class="val">${esc(formatFRDate(b.date))}</span></div>
-      </div>
-
-      <div class="tableWrap">
-        <table class="bonTable">
-          <thead>
-            <tr>
-              <th style="width:52%">RÉFÉRENCE ARTICLE</th>
-              <th colspan="2" class="center">NEUF</th>
-              <th colspan="2" class="center">USITÉ</th>
-              <th style="width:22%">COMMENTAIRES</th>
-            </tr>
-            <tr>
-              <th></th>
-              <th class="center" style="width:6%">Oui</th>
-              <th class="center" style="width:6%">Non</th>
-              <th class="center" style="width:6%">Oui</th>
-              <th class="center" style="width:6%">Non</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>${buildRows(b)}</tbody>
-        </table>
-      </div>
-
-      <div class="obs">
-        <div style="font-weight:700;margin-bottom:2mm">Observations :</div>
-        <div class="obsLine">${esc(b.observations||"")}</div>
-      </div>
-
-      <div class="foot">Exemplaires : BLANC &gt; LOGISTIQUE / ROSE &gt; STOCK / BLEU &gt; SOUCHE</div>
-    </div>
-  `;
-}
-
-function renderPrint(b, mode){
-  const html=buildBonHTML(b);
-  document.getElementById("printCopy1").innerHTML=html;
-  document.getElementById("printCopy2").innerHTML=(mode===2)?html:"";
-}
-
-/* Historique */
+/* --------------------- Historique --------------------- */
 function renderHist(){
-  const q=(document.getElementById("histSearch").value||"").trim().toLowerCase();
-  const list=document.getElementById("histList");
-  list.innerHTML="";
-  const filtered=bons.filter(b=>{
-    const c=codeById(b.codeId);
-    const blob=[b.number,b.destinataire,b.date,b.status,c?.name,c?.tech,c?.mag].join(" ").toLowerCase();
-    return !q || blob.includes(q);
+  const hist = loadJSON(K.hist, []);
+  const wrap = $("histWrap");
+  if(!hist.length){
+    wrap.innerHTML = `<div class="empty-state"><div class="eico">🕘</div><div>Aucun bon exporté pour le moment.</div></div>`;
+    return;
+  }
+  wrap.innerHTML = hist.map((h, i) => {
+    const dt = (h.date || "").split("-").reverse().join("/");
+    const created = (h.createdAt || "").replace("T"," ").slice(0,16);
+    const lineRows = (h.lines || []).map(l => `
+      <div class="hist-line">
+        <span class="pill">×${l.qty}</span>
+        <b>${escapeHTML(l.ref)}</b>
+        ${l.neufOui ? `<span class="chip">NEUF</span>` : ""}
+        ${l.usiteOui ? `<span class="chip" style="background:#fffbeb;color:#92400e;border-color:#fcd34d">USITÉ</span>` : ""}
+        ${l.comment ? `<span class="hint">${escapeHTML(l.comment)}</span>` : ""}
+      </div>`).join("");
+    return `
+      <div class="hist-entry" id="hentry-${i}">
+        <div class="hist-hdr" data-idx="${i}">
+          <div class="hist-num">N° ${h.bonNumber || "—"}</div>
+          <div class="hist-meta">
+            <div>${escapeHTML(h.magasin||"")} → ${escapeHTML(h.destinataire||"")} · ${dt}</div>
+            <div>${(h.lines||[]).length} ligne(s) · ${created}</div>
+          </div>
+          <span class="hist-arrow">›</span>
+        </div>
+        <div class="hist-body">${lineRows || `<div class="hint">Aucune ligne.</div>`}</div>
+      </div>`;
+  }).join("");
+
+  wrap.querySelectorAll(".hist-hdr").forEach(hdr => {
+    hdr.addEventListener("click", () => {
+      document.getElementById("hentry-" + hdr.dataset.idx).classList.toggle("open");
+    });
   });
-  if(!filtered.length){ list.innerHTML="<div class='muted'>Aucun bon.</div>"; return; }
-
-  for(const b of filtered){
-    const c=codeById(b.codeId);
-    const el=document.createElement("div");
-    el.className="itemCard";
-    el.innerHTML=`
-      <div>
-        <div class="row">
-          <div class="mono" style="font-weight:900;font-size:16px">${esc(b.number)}</div>
-          <span class="badge ${b.status==="IMPRIME"?"blue":"gray"}">${b.status==="IMPRIME"?"Imprimé":"Brouillon"}</span>
-          <span class="badge gray">${esc(String((b.articles||[]).length))} article(s)</span>
-        </div>
-        <div class="muted small">${esc(c ? (c.tech+" - "+c.name) : "Code inconnu")}</div>
-        <div class="muted small">${esc(formatFRDate(b.date))}</div>
-      </div>
-      <div class="row">
-        <button class="btn primary" data-act="open" data-id="${b.id}">Ouvrir</button>
-        <button class="btn" data-act="pdf1" data-id="${b.id}">PDF x1</button>
-        <button class="btn" data-act="pdf2" data-id="${b.id}">PDF x2</button>
-      </div>
-    `;
-    list.appendChild(el);
-  }
 }
-document.getElementById("histSearch").addEventListener("input", renderHist);
 
-document.getElementById("histList").addEventListener("click",(e)=>{
-  const btn=e.target.closest("button"); if(!btn) return;
-  const original=bons.find(x=>x.id===btn.dataset.id); if(!original) return;
+$("btnRefreshHist").addEventListener("click", renderHist);
 
-  if(btn.dataset.act==="open"){
-    loadBon(original);
-    setTab("bon");
-    toast(original.status==="IMPRIME"?"Bon imprimé (lecture seule)":"Brouillon chargé");
-    return;
+$("btnClearHist").addEventListener("click", () => {
+  if(confirm("Supprimer tout l'historique local ?")){
+    localStorage.removeItem(K.hist);
+    renderHist();
+    toast("Historique effacé.", "warn");
   }
+});
 
-  // Re-impression : nouveau numéro à chaque fois (on ne réutilise jamais le même numéro)
-if(btn.dataset.act==="pdf1" || btn.dataset.act==="pdf2"){
-    const original = bons.find(x=>x.id===btn.dataset.id);
-    if(!original){ toast("Bon introuvable"); return; }
+$("btnExportCsv").addEventListener("click", () => {
+  const hist = loadJSON(K.hist, []);
+  if(!hist.length){ toast("Aucun historique à exporter.", "warn"); return; }
+  const rows = [["N°Bon","Date","Émetteur","Magasin","Destinataire","Référence","Qté","Neuf","Usité","Commentaire","Créé le"]];
+  hist.forEach(h => {
+    (h.lines||[]).forEach(l => {
+      rows.push([h.bonNumber||"", h.date||"", h.emetteur||"", h.magasin||"", h.destinataire||"",
+        l.ref||"", l.qty||1, l.neufOui?"Oui":"Non", l.usiteOui?"Oui":"Non", l.comment||"", (h.createdAt||"").slice(0,19)]);
+    });
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "historique_bons.csv"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  toast("📄 CSV exporté ✓", "ok");
+});
 
-    const mode = btn.dataset.act==="pdf2" ? 2 : 1;
-    const printed = createPrintedCopyFrom(original);
+/* --------------------- IA integration (window.addReferenceFromAI) --------------------- */
+/* Appelé par l’addon IA pour pré-remplir + valider automatiquement une ligne */
+(function(){
+  window.addReferenceFromAI = function(ref, meta){
+    try{
+      const r = sanitizeRef(ref);
+      if(!r) return;
+      const neufOui = !!(meta && meta.neufOui);
+      const usiteOui = !!(meta && meta.usiteOui);
 
-    // Prépare rendu
-    document.body.classList.remove("print-1","print-2");
-    document.body.classList.add(mode===2 ? "print-2" : "print-1");
-    renderPrint(printed, mode);
+      // Mémorise l’état dans aiPrefs
+      saveCondForRef(r, neufOui, usiteOui);
 
-    const area=document.querySelector(".printArea");
-    const a4=document.querySelector(".printArea .a4");
-    const prevStyle=area.getAttribute("style") || "";
-    area.setAttribute("style", prevStyle + ";display:block;position:fixed;left:-12000px;top:0;background:#fff;z-index:9999;");
-
-    (async ()=>{
-      try{
-        const canvas=await html2canvas(a4, {scale:2, backgroundColor:"#ffffff", useCORS:true});
-        const img=canvas.toDataURL("image/jpeg", 1.0);
-
-        const { jsPDF } = window.jspdf;
-        const pdf=new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
-        pdf.addImage(img, "JPEG", 0, 0, 210, 297);
-
-        const filename=`bon_sortie_stock_${printed.number}_x${mode}.pdf`;
-        const blob=pdf.output("blob");
-        const file=new File([blob], filename, {type:"application/pdf"});
-
-        if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-          try{ await navigator.share({files:[file], title:"Bon de sortie de stock", text:"Bon de sortie / retour de stock"}); }
-          catch(e){ pdf.save(filename); }
-        }else{
-          pdf.save(filename);
-        }
-
-        // Met à jour le bon original (nouveau numéro à chaque export)
-        original.status="imprimé";
-        original.number=printed.number;
-        saveBons();
-        renderHist();
-        toast("PDF prêt ✅");
-      }catch(err){
-        console.error(err);
-        toast("Erreur export PDF.");
-      }finally{
-        if(prevStyle) area.setAttribute("style", prevStyle);
-        else area.removeAttribute("style");
+      // S’assure que la ref existe dans le select
+      const refsArr = loadJSON(K.refs, []);
+      if(!refsArr.includes(r)){
+        refsArr.unshift(r);
+        saveJSON(K.refs, refsArr.slice(0, 200));
+        refreshRefSelect(); // ← helper centralisé
       }
-    })();
 
-    return;
-  }
-}
-});
+      const sel = $("refSelect");
+      if(sel) sel.value = r;
+      const qtyInput = $("qtyInput");
+      if(qtyInput) qtyInput.value = String(meta?.qty || 1);
 
-/* Références */
-function isRefUsed(refId){
-  return bons.some(b => (b.articles||[]).some(a => a.refId === refId));
-}
+      // Applique NEUF/USITÉ via les fonctions globales
+      if(neufOui) setNeuf("oui");
+      else if(usiteOui) setUsite("oui");
+      else { setNeuf("non"); setUsite("non"); }
 
-function normCode(s){ return String(s||"").trim(); }
-function sameCode(a,b){ return normCode(a).toUpperCase() === normCode(b).toUpperCase(); }
-
-function renderRefs(){
-  const list=document.getElementById("refList"); 
-  list.innerHTML="";
-  const sorted=[...refs].sort((a,b)=>String(a.code||"").localeCompare(String(b.code||""), "fr"));
-
-  if(!sorted.length){
-    list.innerHTML="<div class='muted'>Aucune référence.</div>";
-    return;
-  }
-
-  for(const r of sorted){
-    const used = isRefUsed(r.id);
-    const archived = !!r.archived;
-
-    const el=document.createElement("div");
-    el.className="itemCard";
-    el.innerHTML=`
-      <div>
-        <div class="mono" style="font-weight:900">${esc(r.code || "—")}</div>
-        <div style="font-weight:800">${esc(r.name || "")}</div>
-        <div class="small muted" style="margin-top:6px">
-          ${archived ? "<span class='badge gray'>Supprimée</span>" : ""}
-          ${used ? "<span class='badge blue'>Utilisée dans un bon</span>" : "<span class='badge gray'>Non utilisée</span>"}
-        </div>
-      </div>
-      <div class="row">
-        ${archived
-          ? `<button class="btn primary" data-act="restore" data-id="${r.id}">Restaurer</button>`
-          : `<button class="btn primary" data-act="edit" data-id="${r.id}">Modifier</button>
-             <button class="btn" data-act="del" data-id="${r.id}">Suppr.</button>`
+      // Auto-valide si demandé (défaut : true pour l’IA)
+      const autoAdd = meta && ("autoAdd" in meta) ? !!meta.autoAdd : true;
+      if(autoAdd){
+        const refVal = sanitizeRef($("refSelect")?.value);
+        if(refVal){
+          const qty = Math.max(1, parseInt($("qtyInput")?.value || "1", 10));
+          const n = ($("neufSelect")?.value === "oui");
+          const u = ($("usiteSelect")?.value === "oui");
+          const c = sanitizeRef($("commentInput")?.value);
+          lines.push({ ref: refVal, qty, neufOui: n, usiteOui: u, comment: c });
+          renderLines();
+          scheduleDraftSave();
+          const m = document.getElementById("ai-modal");
+          if(m) m.style.display = "none";
         }
-      </div>
-    `;
-    list.appendChild(el);
+      }
+    }catch(e){ console.error("addReferenceFromAI error", e); }
+  };
+})();
+
+/* --------------------- Références --------------------- */
+async function renderRefs(){
+  const allRefs = loadJSON(K.refs, []);
+  // Filtre via la barre de recherche
+  const query = ($("refSearch")?.value || "").toLowerCase().trim();
+  const refs = query ? allRefs.filter(r => r.toLowerCase().includes(query)) : allRefs;
+
+  const tbody = $("refsTable");
+  tbody.innerHTML = "";
+
+  // Boutons IA rapides
+  const iaOk = !!(window.AIRefAddon && typeof window.AIRefAddon.openScan === "function");
+  const iaBtns = $("iaRefsBtns");
+  if(iaBtns) iaBtns.style.display = iaOk ? "flex" : "none";
+  if(iaOk){
+    $("btnIAOpenScan").onclick = () => { if(!ensureAI()) return; window.AIRefAddon.openScan(); };
+    $("btnIAOpenBase").onclick = () => { if(!ensureAI()) return; window.AIRefAddon.openBase(); };
   }
+
+  // Miniatures IA
+  let summary = {};
+  if(window.AIRefAddon && typeof window.AIRefAddon.getRefSummary === "function"){
+    try{ summary = await window.AIRefAddon.getRefSummary(); }catch{ summary = {}; }
+  }
+
+  if(!refs.length){
+    tbody.innerHTML = `<tr><td colspan="2"><div class="empty-state" style="padding:20px"><div class="eico">📭</div><div>Aucune référence trouvée.</div></div></td></tr>`;
+    return;
+  }
+
+  refs.forEach(r => {
+    const realIdx = allRefs.indexOf(r); // index réel dans la liste complète
+    const sum = summary[r] || { count: 0, thumb: null };
+    const thumb = sum.thumb
+      ? `<img class="ref-thumb" src="${sum.thumb}" alt="IA" style="cursor:pointer" />`
+      : `<span class="hint" style="font-size:11px">Aucune photo</span>`;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="aiThumbs" data-idx="${realIdx}" style="min-width:52px;cursor:pointer">${thumb}</div>
+          <div>
+            <div style="font-weight:700">${escapeHTML(r)}</div>
+            <div class="hint">${sum.count || 0} photo(s) IA</div>
+          </div>
+        </div>
+      </td>
+      <td class="right">
+        <button class="ghost small" data-iaref="${realIdx}" title="Ajouter photo IA">📷</button>
+        <button class="ghost small" data-redit="${realIdx}" title="Renommer">✏️</button>
+        <button class="danger small" data-rdel="${realIdx}" title="Supprimer">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Miniatures → ouvre la base IA
+  tbody.querySelectorAll(".aiThumbs").forEach(d => {
+    d.addEventListener("click", () => openBase(allRefs[Number(d.dataset.idx)]));
+  });
+
+  // Bouton IA par ref
+  tbody.querySelectorAll("button[data-iaref]").forEach(b => {
+    b.addEventListener("click", async () => {
+      if(!ensureAI() || typeof window.AIRefAddon.addPhotoForRef !== "function") return;
+      await window.AIRefAddon.addPhotoForRef(allRefs[Number(b.dataset.iaref)]);
+      await renderRefs();
+    });
+  });
+
+  // Renommer
+  tbody.querySelectorAll("button[data-redit]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const refs2 = loadJSON(K.refs, []);
+      const i = Number(b.dataset.redit);
+      const oldRef = refs2[i];
+      if(!oldRef) return;
+      const newRef = sanitizeRef(prompt(`Modifier la référence :`, oldRef));
+      if(!newRef) return;
+      if(refs2.some((r, idx) => idx !== i && sanitizeRef(r) === newRef)){
+        toast("Cette référence existe déjà.", "err"); return;
+      }
+      refs2[i] = newRef;
+      saveJSON(K.refs, refs2);
+      // Sync AI prefs
+      try{
+        const p = JSON.parse(localStorage.getItem(K.aiPrefs)||"{}") || {};
+        p.perRef = p.perRef || {};
+        const kO = canonRef(oldRef), kN = canonRef(newRef);
+        if(p.perRef[kO] && !p.perRef[kN]) p.perRef[kN] = p.perRef[kO];
+        delete p.perRef[kO];
+        localStorage.setItem(K.aiPrefs, JSON.stringify(p));
+      }catch(_){}
+      // Sync AI base
+      try{ if(window.AIRefAddon?.renameRef) await window.AIRefAddon.renameRef(oldRef, newRef); }
+      catch(e){ console.warn("renameRef AI failed", e); }
+      refreshRefSelect(); // ← helper centralisé
+      await renderRefs();
+      toast("Référence renommée ✓", "ok");
+    });
+  });
+
+  // Supprimer
+  tbody.querySelectorAll("button[data-rdel]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const refs2 = loadJSON(K.refs, []);
+      const i = Number(b.dataset.rdel);
+      const ref = refs2[i];
+      if(!ref || !confirm(`Supprimer la référence "${ref}" ?`)) return;
+      refs2.splice(i, 1);
+      saveJSON(K.refs, refs2);
+      refreshRefSelect(); // ← helper centralisé
+      await renderRefs();
+      toast(`Supprimé : ${ref}`, "warn");
+    });
+  });
 }
 
-document.getElementById("btnAddRef").addEventListener("click", ()=>{
-  const code=prompt("Code référence (ex: IR-C08-03) :"); 
-  if(code===null) return;
-  const c=normCode(code);
-  if(!c){ toast("Code vide"); return; }
-
-  const name=prompt("Désignation :"); 
-  if(name===null) return;
-  const n=normCode(name);
-
-  // Si une ref archivée existe déjà avec le même code : on la restaure
-  const archivedRef = refs.find(r => !!r.archived && sameCode(r.code, c));
-  if(archivedRef){
-    archivedRef.archived=false;
-    archivedRef.name = n || archivedRef.name;
-    archivedRef.code = c;
-    saveJSON(LS_REFS,refs);
-    renderRefs(); renderArticles();
-    toast("Référence restaurée");
-    return;
-  }
-
-  // Empêche doublon actif
-  const dup = refs.some(r => !r.archived && sameCode(r.code, c));
-  if(dup){ toast("Cette référence existe déjà"); return; }
-
-  refs.unshift({id:id(), code:c, name:n, archived:false});
-  saveJSON(LS_REFS,refs);
-  renderRefs(); renderArticles();
-  toast("Référence ajoutée");
+/* Ajout ref + recherche live */
+$("btnAddRef").addEventListener("click", () => {
+  const r = sanitizeRef($("newRef").value);
+  if(!r){ toast("Saisis une référence.", "err"); return; }
+  const refs = loadJSON(K.refs, []);
+  if(refs.some(x => sanitizeRef(x) === r)){ toast("Cette référence existe déjà.", "warn"); return; }
+  refs.unshift(r);
+  saveJSON(K.refs, refs.slice(0, 200));
+  $("newRef").value = "";
+  refreshRefSelect(); // ← helper centralisé (AUCUNE duplication)
+  renderRefs();
+  toast(`✅ Référence ajoutée : ${r}`, "ok");
 });
 
-document.getElementById("refList").addEventListener("click",(e)=>{
-  const btn=e.target.closest("button"); if(!btn) return;
-  const r=refs.find(x=>x.id===btn.dataset.id); if(!r) return;
-
-  if(btn.dataset.act==="restore"){
-    r.archived=false;
-    saveJSON(LS_REFS,refs);
-    renderRefs(); renderArticles();
-    toast("Référence restaurée");
-    return;
-  }
-
-  if(btn.dataset.act==="edit"){
-    const code=prompt("Code référence :", r.code); 
-    if(code===null) return;
-    const c=normCode(code);
-    if(!c){ toast("Code vide"); return; }
-
-    const name=prompt("Désignation :", r.name); 
-    if(name===null) return;
-    const n=normCode(name);
-
-    // doublon (hors cette ref)
-    const dup = refs.some(x => x.id!==r.id && !x.archived && sameCode(x.code, c));
-    if(dup){ toast("Cette référence existe déjà"); return; }
-
-    r.code=c; r.name=n;
-    saveJSON(LS_REFS,refs);
-    renderRefs(); renderArticles();
-    toast("Référence modifiée");
-    return;
-  }
-
-  if(btn.dataset.act==="del"){
-    // On archive au lieu de supprimer physiquement pour ne pas casser l'historique des bons
-    const used=isRefUsed(r.id);
-    const msg = used
-      ? "Cette référence est utilisée dans un ou plusieurs bons.\nElle va être supprimée (archivée) mais restera visible dans les anciens bons.\nContinuer ?"
-      : "Supprimer cette référence ?";
-
-    if(!confirm(msg)) return;
-    r.archived=true;
-    saveJSON(LS_REFS,refs);
-    renderRefs(); renderArticles();
-    toast("Référence supprimée");
-    return;
-  }
+// Recherche live dans les refs
+document.addEventListener("DOMContentLoaded", () => {
+  const s = $("refSearch");
+  if(s) s.addEventListener("input", () => renderRefs());
 });
 
 
-/* Codes */
-function renderCodes(){
-  const list=document.getElementById("codeList"); list.innerHTML="";
-  for(const c of codes){
-    const el=document.createElement("div");
-    el.className="itemCard";
-    el.innerHTML=`
-      <div>
-        <div style="font-weight:800">${esc(c.name)}</div>
-        <div class="small muted">Technicien: <span class="mono">${esc(c.tech)}</span> • Magasin: <span class="mono">${esc(c.mag)}</span></div>
-      </div>
-      <div class="row">
-        <button class="btn primary" data-act="edit" data-id="${c.id}">Modifier</button>
-        <button class="btn" data-act="del" data-id="${c.id}">Suppr.</button>
-      </div>
-    `;
-    list.appendChild(el);
-  }
+
+/* --------------------- Google Drive Sync (Apps Script Web App) --------------------- */
+/*
+  Cette synchro nécessite un Google Apps Script déployé en "Web app".
+  L’URL ressemble à : https://script.google.com/macros/s/XXXXX/exec
+*/
+function setDriveStatus(msg){
+  const el = $("driveStatus");
+  if(el) el.textContent = msg || "";
 }
-document.getElementById("btnAddCode").addEventListener("click", ()=>{
-  const name=prompt("Nom / Libellé (ex: Jean Robert) :"); if(!name) return;
-  const tech=prompt("Code technicien (ex: ISTGS55) :"); if(!tech) return;
-  const mag=prompt("Code magasin (ex: ISTGS55) :"); if(!mag) return;
-  codes.unshift({id:id(), name:name.trim(), tech:tech.trim(), mag:mag.trim()});
-  saveJSON(LS_CODES,codes);
-  renderCodes(); renderCodeSelect();
-  toast("Code ajouté");
-});
-document.getElementById("codeList").addEventListener("click",(e)=>{
-  const btn=e.target.closest("button"); if(!btn) return;
-  const c=codes.find(x=>x.id===btn.dataset.id); if(!c) return;
-  if(btn.dataset.act==="edit"){
-    const name=prompt("Nom / Libellé :", c.name); if(!name) return;
-    const tech=prompt("Code technicien :", c.tech); if(!tech) return;
-    const mag=prompt("Code magasin :", c.mag); if(!mag) return;
-    c.name=name.trim(); c.tech=tech.trim(); c.mag=mag.trim();
-    saveJSON(LS_CODES,codes);
-    renderCodes(); renderCodeSelect();
-    toast("Code modifié");
-  }
-  if(btn.dataset.act==="del"){
-    if(!confirm("Supprimer ce code ?")) return;
-    codes=codes.filter(x=>x.id!==c.id);
-    saveJSON(LS_CODES,codes);
-    renderCodes(); renderCodeSelect();
-    toast("Code supprimé");
-  }
-});
-
-/* Export/Import */
-document.getElementById("btnExport").addEventListener("click", ()=>{
-  const payload={version:3, exportedAt:Date.now(), refs, codes, bons, counter: localStorage.getItem(LS_COUNTER)||null};
-  const blob=new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="inventaire_export.json";
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
-});
-document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("fileImport").click());
-document.getElementById("fileImport").addEventListener("change", async (e)=>{
-  const f=e.target.files?.[0]; if(!f) return;
+function getDriveUrl(){
+  const v = ( $("driveScriptUrl")?.value || localStorage.getItem(K.driveUrl) || "" ).trim();
+  return v;
+}
+function getDriveToken(){
+  const v = ( $("driveToken")?.value || localStorage.getItem(K.driveToken) || "" ).trim();
+  return v;
+}
+function saveDriveToken(v){
+  try{ localStorage.setItem(K.driveToken, String(v||"").trim()); }catch(_){ }
+}
+function saveDriveUrl(v){
+  try{ localStorage.setItem(K.driveUrl, String(v||"").trim()); }catch(_){}
+}
+async function drivePing(){
+  const url = getDriveUrl();
+  if(!url){ setDriveStatus("❌ Colle d’abord l’URL Apps Script."); return false; }
+  saveDriveUrl(url);
+  setDriveStatus("⏳ Test en cours…");
   try{
-    const data=JSON.parse(await f.text());
-    if(Array.isArray(data.refs)) refs=data.refs;
-    if(Array.isArray(data.codes)) codes=data.codes;
-    if(Array.isArray(data.bons)) bons=data.bons;
-    saveJSON(LS_REFS,refs); saveJSON(LS_CODES,codes); saveJSON(LS_KEY,bons);
-    if(data.counter) localStorage.setItem(LS_COUNTER, String(data.counter));
-    toast("Import OK");
-    renderRefs(); renderCodes(); renderCodeSelect(); renderArticles(); renderHist();
-  }catch(_){ toast("Import impossible"); }
-  e.target.value="";
+    const token = encodeURIComponent(getDriveToken()||"");
+    const r = await fetch(url + "?action=ping" + (token?("&token="+token):""), { method:"GET", cache:"no-store" });
+    const j = await r.json();
+    if(j && j.ok){ setDriveStatus("✅ OK : connexion Drive prête."); return true; }
+    setDriveStatus("⚠️ Réponse inattendue du script.");
+    return false;
+  }catch(e){
+    console.error(e);
+    setDriveStatus("❌ Impossible de joindre le script (réseau/CORS/URL).");
+    return false;
+  }
+}
+
+async function buildBackupPayload(){
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    refs: loadJSON(K.refs, []),
+    mags: loadJSON(K.mags, []),
+    emit: loadJSON(K.emit, []),
+    aiPrefs: (function(){ try{ return JSON.parse(localStorage.getItem(K.aiPrefs)||"{}")||{}; }catch(_){ return {}; } })(),
+    aiBase: null
+  };
+
+  if(window.AIRefAddon && typeof window.AIRefAddon.exportData === "function"){
+    try{ payload.aiBase = await window.AIRefAddon.exportData(); }
+    catch(e){ console.warn("AI exportData failed", e); payload.aiBase = null; }
+  }
+  return payload;
+}
+
+async function driveSave(){
+  const url = getDriveUrl();
+  if(!url){ setDriveStatus("❌ Colle d’abord l’URL Apps Script."); return; }
+  saveDriveUrl(url);
+
+  setDriveStatus("⏳ Préparation de la sauvegarde…");
+  let data;
+  try{ data = await buildBackupPayload(); }
+  catch(e){ console.error(e); setDriveStatus("❌ Erreur préparation sauvegarde."); return; }
+
+  setDriveStatus("⏳ Envoi vers Google Drive…");
+  try{
+    const r = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"save", token: (getDriveToken()||""), data })
+    });
+    const j = await r.json();
+    if(j && j.ok){ setDriveStatus("✅ Sauvegarde Drive effectuée."); return; }
+    setDriveStatus("⚠️ Sauvegarde : réponse inattendue.");
+  }catch(e){
+    console.error(e);
+    setDriveStatus("❌ Sauvegarde impossible (réseau/CORS/URL).");
+  }
+}
+
+async function driveLoad(){
+  const url = getDriveUrl();
+  if(!url){ setDriveStatus("❌ Colle d’abord l’URL Apps Script."); return; }
+  saveDriveUrl(url);
+
+  if(!confirm("Restaurer depuis Drive ? Cela remplacera tes références/magasins locaux (et la base IA si présente).")) return;
+
+  setDriveStatus("⏳ Téléchargement depuis Drive…");
+  let j;
+  try{
+    const token = encodeURIComponent(getDriveToken()||"");
+    const r = await fetch(url + "?action=load" + (token?("&token="+token):""), { method:"GET", cache:"no-store" });
+    j = await r.json();
+  }catch(e){
+    console.error(e);
+    setDriveStatus("❌ Impossible de lire la sauvegarde (réseau/CORS/URL).");
+    return;
+  }
+
+  if(!j || !j.ok || !j.data){ setDriveStatus("⚠️ Aucune sauvegarde valide trouvée."); return; }
+  const data = j.data;
+
+  try{
+    if(Array.isArray(data.refs)) saveJSON(K.refs, data.refs);
+    if(Array.isArray(data.mags)) saveJSON(K.mags, data.mags);
+    if(Array.isArray(data.emit)) saveJSON(K.emit, data.emit);
+    if(data.aiPrefs) localStorage.setItem("inv_ai_prefs_v1", JSON.stringify(data.aiPrefs));
+
+    if(data.aiBase && window.AIRefAddon && typeof window.AIRefAddon.importData === "function"){
+      setDriveStatus("⏳ Restauration base IA (peut prendre un moment)…");
+      await window.AIRefAddon.importData(data.aiBase, {
+        replace:true,
+        onProgress:(n,total)=>{ setDriveStatus(`⏳ Restauration base IA : ${n}/${total}`); }
+      });
+    }
+
+    await renderRefs();
+    renderMags();
+    fillBasics();
+    setDriveStatus("✅ Restauration terminée.");
+  }catch(e){
+    console.error(e);
+    setDriveStatus("❌ Erreur pendant la restauration.");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const inp = $("driveScriptUrl");
+  const tok = $("driveToken");
+  if(inp){
+    const saved = localStorage.getItem(K.driveUrl) || "";
+    if(saved) inp.value = saved;
+    inp.addEventListener("change", ()=> saveDriveUrl(inp.value));
+  }
+  if(tok){
+    const savedT = localStorage.getItem(K.driveToken) || "";
+    if(savedT) tok.value = savedT;
+    tok.addEventListener("change", ()=> saveDriveToken(tok.value));
+  }
+  $("btnDrivePing")?.addEventListener("click", drivePing);
+  $("btnDriveSave")?.addEventListener("click", driveSave);
+  $("btnDriveLoad")?.addEventListener("click", driveLoad);
 });
 
-/* Boot */
-renderRefs(); renderCodes(); renderCodeSelect(); renderHist(); ensureBon();
+/* --------------------- Sauvegarde locale JSON --------------------- */
+async function buildFullBackup(){
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    refs: loadJSON(K.refs, []),
+    mags: loadJSON(K.mags, []),
+    hist: loadJSON(K.hist, []),
+    aiPrefs: (function(){ try{ return JSON.parse(localStorage.getItem(K.aiPrefs)||"{}")||{}; }catch(_){ return {}; } })(),
+    aiBase: null
+  };
+  if(window.AIRefAddon && typeof window.AIRefAddon.exportData === "function"){
+    try{ payload.aiBase = await window.AIRefAddon.exportData(); }
+    catch(e){ console.warn("AI exportData failed (backup)", e); }
+  }
+  return payload;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  /* ─── Export JSON local ─── */
+  $("btnBackupExport")?.addEventListener("click", async () => {
+    const btn = $("btnBackupExport");
+    const status = $("backupStatus");
+    btn.disabled = true;
+    if(status) status.textContent = "⏳ Préparation…";
+    try{
+      const data = await buildFullBackup();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+      const a = document.createElement("a");
+      const day = new Date().toISOString().slice(0,10);
+      a.href = URL.createObjectURL(blob);
+      a.download = `inventaire_backup_${day}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      if(status) status.textContent = `✅ Fichier téléchargé — ${(data.refs||[]).length} réf., ${(data.mags||[]).length} magasin(s), ${(data.hist||[]).length} bon(s).`;
+      toast("✅ Sauvegarde téléchargée !", "ok");
+    }catch(e){
+      console.error(e);
+      if(status) status.textContent = "❌ Erreur lors de l'export.";
+      toast("❌ Erreur export", "err");
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  /* ─── Import JSON local ─── */
+  $("btnBackupImport")?.addEventListener("click", () => {
+    $("backupFileInput")?.click();
+  });
+
+  $("backupFileInput")?.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    const status = $("backupStatus");
+    e.target.value = ""; // reset pour pouvoir re-sélectionner le même fichier
+    if(!file) return;
+    if(!confirm(`Restaurer depuis "${file.name}" ?\nLes données actuelles (références, magasins, historique) seront remplacées.`)) return;
+    if(status) status.textContent = "⏳ Lecture du fichier…";
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(!data || typeof data !== "object") throw new Error("Format invalide");
+
+      if(Array.isArray(data.refs)) saveJSON(K.refs, data.refs);
+      if(Array.isArray(data.mags)) saveJSON(K.mags, data.mags);
+      if(Array.isArray(data.hist)) saveJSON(K.hist, data.hist);
+      if(data.aiPrefs) localStorage.setItem(K.aiPrefs, JSON.stringify(data.aiPrefs));
+
+      if(data.aiBase && window.AIRefAddon && typeof window.AIRefAddon.importData === "function"){
+        if(status) status.textContent = "⏳ Restauration base IA…";
+        try{
+          await window.AIRefAddon.importData(data.aiBase, {
+            replace: true,
+            onProgress: (n, total) => { if(status) status.textContent = `⏳ Base IA : ${n}/${total}`; }
+          });
+        }catch(aiErr){ console.warn("AI importData failed", aiErr); }
+      }
+
+      fillBasics();
+      await renderRefs();
+      renderMags();
+
+      const nb = (data.refs||[]).length, nm = (data.mags||[]).length, nh = (data.hist||[]).length;
+      if(status) status.textContent = `✅ Restauré — ${nb} réf., ${nm} magasin(s), ${nh} bon(s) dans l'historique.`;
+      toast("✅ Sauvegarde restaurée !", "ok");
+    }catch(err){
+      console.error(err);
+      if(status) status.textContent = "❌ Fichier invalide ou corrompu.";
+      toast("❌ Erreur import — fichier invalide ?", "err");
+    }
+  });
+});
+
+/* --------------------- Magasins --------------------- */
+function renderMags(){
+  const mags = loadJSON(K.mags, []);
+  const tbody = $("magTable");
+  tbody.innerHTML = "";
+  if(!mags.length){
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state" style="padding:16px"><div class="eico">🏬</div><div>Aucun magasin configuré.</div></div></td></tr>`;
+    return;
+  }
+  mags.forEach((m, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td><b>${escapeHTML(m.code)}</b></td>
+      <td>${escapeHTML(m.label || "")}</td>
+      <td class="right"><button class="danger small" data-mdel="${idx}" title="Supprimer">🗑</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll("button[data-mdel]").forEach(b => {
+    b.addEventListener("click", () => {
+      const mags2 = loadJSON(K.mags, []);
+      const m = mags2[Number(b.dataset.mdel)];
+      if(!confirm(`Supprimer le magasin "${m?.code}" ?`)) return;
+      mags2.splice(Number(b.dataset.mdel), 1);
+      saveJSON(K.mags, mags2);
+      refreshMagSelects(); // ← met à jour Émetteur ET Magasin
+      renderMags();
+      toast("Magasin supprimé.", "warn");
+    });
+  });
+}
+$("btnAddMag").addEventListener("click", () => {
+  const code = sanitizeRef($("newMagCode").value).toUpperCase();
+  const label = sanitizeRef($("newMagLabel").value);
+  if(!code){ toast("Saisis un code magasin.", "err"); return; }
+  const mags = loadJSON(K.mags, []);
+  if(mags.some(m => m.code === code)){ toast("Ce code magasin existe déjà.", "warn"); return; }
+  mags.unshift({ code, label });
+  saveJSON(K.mags, mags);
+  refreshMagSelects(); // ← met à jour Émetteur ET Magasin
+  $("newMagCode").value = "";
+  $("newMagLabel").value = "";
+  renderMags();
+  toast(`✅ Magasin ajouté : ${code}`, "ok");
+});
+
+/* --------------------- Service Worker --------------------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+
+/* --------------------- Boot --------------------- */
+initData();
+$("date").value = todayISO();
+
+// restore draft if exists
+const draft = loadJSON(K.draft, null);
+if(draft){
+  try{
+    $("emetteur").value = draft.emetteur || $("emetteur").value;
+    $("magasin").value = draft.magasin || $("magasin").value;
+    $("destinataire").value = draft.destinataire || "STOCK CENTRAL";
+    $("date").value = draft.date || todayISO();
+    $("observations").value = draft.observations || "";
+    lines = Array.isArray(draft.lines) ? draft.lines : [];
+    renderLines();
+  }catch(e){}
+}else{
+  renderLines();
+}
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<!-- IA Photo (optionnel) : module autonome, n'impacte pas le fonctionnement manuel -->
 <script>
+  window.AI_REF_ADDON_CONFIG = {
+    // Si vide, le module IA récupère la liste dans l'onglet Références
+    refs: [],
+    // Seuils de confiance : au-dessus -> auto ; sinon -> demande validation
+    threshold_auto: 0.78,
+    threshold_min: 0.55,
+    // Nombre max d'objets à traiter (photo de lot)
+    max_objects: 20,
+    // Stockage
+    db_name: "inventaire_ai_ref_db",
+    // Debug (console)
+    debug: false
+  };
+</script>
+<!-- AI addon (inlined to avoid GitHub Pages 404/cache issues) -->
+<script>
+/*!
+ * PWA AI Add-on (human-in-the-loop + multi-obj)
+ * - Keeps your manual app intact; adds floating buttons + modals.
+ * - Single photo (1 objet) OR Lot photo (multi objets) -> propose refs -> you validate when unsure -> counts + learns.
+ * - Uses TFJS + MobileNet embeddings (CDN) + nearest-neighbor matching (cosine).
+ * - Stores learning samples locally in IndexedDB (separate from your existing app data).
+ *
+ * Integration (zero-impact):
+ *   Define window.addReferenceFromAI = (ref, meta) => { call your existing add/increment logic }
+ * Or listen:
+ *   window.addEventListener("ai-ref-confirmed", (e) => ...)
+ */
+(function () {
+  "use strict";
 
-/* PWA: service worker + bouton installer */
-let deferredPrompt = null;
+  const CONFIG = {
+    tfjsSrc: "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js",
+    mobilenetSrc: "https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js",
+    ui: { fabRight: 16, fabBottom: 16 },
+    db: { name: "ai_ref_db_v2", store: "samples" },
+    match: {
+      topK: 3,
+      autoAcceptThreshold: 0.92,
+      margin: 0.06,
+      doubtThreshold: 0.80, // below => always ask
+    },
+    embedding: { endpoint: "conv_preds", size: 224 },
+    multi: {
+      maxSide: 1280,
+      // background segmentation parameters
+      bgDelta: 16,
+      minAreaRatio: 0.006, // min blob area ~0.6% of image
+      maxAreaRatio: 0.65,
+      padRatio: 0.08,
 
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const b = document.getElementById("btnInstall");
-  if (b) b.style.display = "";
-});
+      // Morphology:
+      // - closing fills holes but can merge nearby objects
+      // - opening helps split objects connected by thin bridges/shadows
+      morphRadius: 2,
+      openRadius: 1,
 
-document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("#btnInstall");
-  if (!btn || !deferredPrompt) return;
-  deferredPrompt.prompt();
-  const choice = await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  btn.style.display = "none";
-});
+      // If a detected box is "too big" (often a cluster), try to split it by re-running
+      // detection on the crop with stricter parameters.
+      splitLargeBoxes: true,
+      largeAreaRatio: 0.18,   // box area > 18% of image => attempt split
+      splitPasses: 1,
+      deltaBoost: 10
+    }
+  };
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
-}
+  const $ = (sel, root = document) => root.querySelector(sel);
 
+  // Persist AI choices (last ref + last état + état par ref)
+  const AI_PREF_KEY = "inv_ai_prefs_v1";
+  function loadAIPrefs(){
+    try{ return JSON.parse(localStorage.getItem(AI_PREF_KEY) || "{}") || {}; }catch(_){ return {}; }
+  }
+  function saveAIPrefs(p){
+    try{ localStorage.setItem(AI_PREF_KEY, JSON.stringify(p||{})); }catch(_){}
+  }
+  function canonRef(ref){ return String(ref||"").toUpperCase().replace(/[^A-Z0-9]/g,""); }
+  function getCondForRef(ref){
+    const p = loadAIPrefs();
+    const per = (p.perRef && p.perRef[canonRef(ref)]) ? p.perRef[canonRef(ref)] : null;
+    const lastNeuf = p.lastNeuf || "non";
+    const lastUsite = p.lastUsite || "non";
+    const neuf = per?.neuf || lastNeuf;
+    const usite = per?.usite || lastUsite;
+    return { neuf, usite };
+  }
+  function normalizeCond(neuf, usite){
+    // enforce exclusivity
+    if(neuf==="oui") usite="non";
+    if(usite==="oui") neuf="non";
+    return { neuf, usite };
+  }
+  function condUIHTML(ref){
+    const c0 = getCondForRef(ref);
+    const c = normalizeCond(c0.neuf, c0.usite);
+    return `
+      <div style="border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;background:#fff">
+        <div class="ai-muted" style="margin-bottom:8px"><b>État</b> (mémorisé)</div>
+        <div class="ai-row">
+          <label class="ai-muted" style="min-width:62px">Neuf</label>
+          <select class="ai-input" id="ai-cond-neuf" style="max-width:140px">
+            <option value="non" ${c.neuf==="non"?"selected":""}>Non</option>
+            <option value="oui" ${c.neuf==="oui"?"selected":""}>Oui</option>
+          </select>
+          <label class="ai-muted" style="min-width:62px">Usité</label>
+          <select class="ai-input" id="ai-cond-usite" style="max-width:140px">
+            <option value="non" ${c.usite==="non"?"selected":""}>Non</option>
+            <option value="oui" ${c.usite==="oui"?"selected":""}>Oui</option>
+          </select>
+        </div>
+        <div class="ai-muted" style="margin-top:6px">Astuce : si “Neuf = Oui”, “Usité” passe automatiquement à Non (et inversement).</div>
+      </div>
+    `;
+  }
+  let _condTouched = false;
+
+  function wireCondUI(){
+    _condTouched = false;
+
+    const n = $("#ai-cond-neuf");
+    const u = $("#ai-cond-usite");
+    if(!n || !u) return;
+
+    function set(group, val){
+      _condTouched = true;
+      if(group==="neuf"){
+        n.value = val;
+        if(val==="oui") u.value = "non";
+      } else {
+        u.value = val;
+        if(val==="oui") n.value = "non";
+      }
+
+      document.querySelectorAll("button[data-cond]").forEach(b=>{
+        const g=b.getAttribute("data-cond");
+        const v=b.getAttribute("data-val");
+        const cur = (g==="neuf") ? n.value : u.value;
+        b.classList.toggle("ghost", v!==cur);
+      });
+    }
+
+    document.querySelectorAll("button[data-cond]").forEach(b=>{
+      b.addEventListener("click", ()=> set(b.getAttribute("data-cond"), b.getAttribute("data-val")));
+    });
+
+    // first paint
+    document.querySelectorAll("button[data-cond]").forEach(b=>{
+      const g=b.getAttribute("data-cond");
+      const v=b.getAttribute("data-val");
+      const cur = (g==="neuf") ? n.value : u.value;
+      b.classList.toggle("ghost", v!==cur);
+    });
+  }
+  function readCondUI(){
+    const n = $("#ai-cond-neuf")?.value || "non";
+    const u = $("#ai-cond-usite")?.value || "non";
+    return normalizeCond(n,u);
+  }
+  function rememberChoice(ref, cond){
+    const p = loadAIPrefs();
+    p.lastRef = ref;
+    p.lastNeuf = cond.neuf;
+    p.lastUsite = cond.usite;
+    p.perRef = p.perRef || {};
+    p.perRef[canonRef(ref)] = { neuf: cond.neuf, usite: cond.usite };
+    saveAIPrefs(p);
+  }
+
+  function cosineSimilarity(a, b) {
+    let dot = 0, na = 0, nb = 0;
+    const n = Math.min(a.length, b.length);
+    for (let i = 0; i < n; i++) {
+      const x = a[i], y = b[i];
+      dot += x * y; na += x * x; nb += y * y;
+    }
+    if (na === 0 || nb === 0) return 0;
+    return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  }
+  function toFloat32Array(arr) { return (arr instanceof Float32Array) ? arr : new Float32Array(arr); }
+  function fmtScore(s) { return (Math.round(s * 1000) / 10).toFixed(1) + "%"; }
+  function safeText(s) { return String(s ?? "").replace(/[<>]/g, ""); }
+
+  // ----- IndexedDB -----
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(CONFIG.db.name, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(CONFIG.db.store)) {
+          const store = db.createObjectStore(CONFIG.db.store, { keyPath: "id", autoIncrement: true });
+          store.createIndex("ref", "ref", { unique: false });
+          store.createIndex("createdAt", "createdAt", { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function dbPut(sample) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CONFIG.db.store, "readwrite");
+      tx.objectStore(CONFIG.db.store).add(sample).onsuccess = (e) => resolve(e.target.result);
+      tx.onerror = () => reject(tx.error);
+      tx.oncomplete = () => db.close();
+    });
+  }
+  async function dbGetAll() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CONFIG.db.store, "readonly");
+      const req = tx.objectStore(CONFIG.db.store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => db.close();
+    });
+  }
+  async function dbDelete(id) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CONFIG.db.store, "readwrite");
+      tx.objectStore(CONFIG.db.store).delete(id).onsuccess = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+      tx.oncomplete = () => db.close();
+    });
+  }
+
+  // ----- TFJS/MobileNet -----
+  let _tfLoaded = false, _mnLoaded = false, _mn = null;
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[data-ai-src="${src}"]`)) return resolve();
+      const s = document.createElement("script");
+      s.src = src; s.async = true; s.defer = true; s.dataset.aiSrc = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Failed to load " + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureModel() {
+    if (!_tfLoaded) { await loadScript(CONFIG.tfjsSrc); _tfLoaded = true; }
+    if (!_mnLoaded) { await loadScript(CONFIG.mobilenetSrc); _mnLoaded = true; }
+    if (!_mn) { _mn = await window.mobilenet.load({ version: 2, alpha: 1.0 }); }
+    return _mn;
+  }
+
+  function makeCanvas(w, h) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+
+  async function imageToEmbedding(imgEl) {
+    const mn = await ensureModel();
+    const tf = window.tf;
+
+    const canvas = makeCanvas(CONFIG.embedding.size, CONFIG.embedding.size);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    const w = imgEl.naturalWidth || imgEl.width;
+    const h = imgEl.naturalHeight || imgEl.height;
+    const side = Math.min(w, h);
+    const sx = Math.floor((w - side) / 2);
+    const sy = Math.floor((h - side) / 2);
+
+    ctx.drawImage(imgEl, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
+
+    const input = tf.tidy(() => tf.browser.fromPixels(canvas).toFloat().div(255).expandDims(0));
+    let emb;
+    try {
+      const act = mn.infer(input, CONFIG.embedding.endpoint);
+      const arr = await act.data();
+      emb = toFloat32Array(arr);
+      act.dispose?.();
+    } finally {
+      input.dispose?.();
+    }
+    return emb;
+  }
+
+  async function blobToImage(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+      img.src = url;
+    });
+  }
+
+  async function fileToThumbDataURL(file, maxSide = 320) {
+    const img = await blobToImage(file);
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const cw = Math.round(w * scale), ch = Math.round(h * scale);
+    const c = makeCanvas(cw, ch);
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0, cw, ch);
+    return c.toDataURL("image/jpeg", 0.82);
+  }
+
+  async function matchEmbedding(queryEmb) {
+    const all = await dbGetAll();
+    if (!all.length) return { all, top: [] };
+
+    const scored = all.map(s => ({ sample: s, score: cosineSimilarity(queryEmb, toFloat32Array(s.embedding)) }));
+    const bestByRef = new Map();
+    for (const x of scored) {
+      const ref = x.sample.ref;
+      const prev = bestByRef.get(ref);
+      if (!prev || x.score > prev.score) bestByRef.set(ref, x);
+    }
+    const unique = Array.from(bestByRef.values()).sort((a, b) => b.score - a.score);
+    return { all, top: unique.slice(0, CONFIG.match.topK) };
+  }
+
+  // ----- UI -----
+  function injectStyles() {
+    if ($("#ai-addon-style")) return;
+    const s = document.createElement("style");
+    s.id = "ai-addon-style";
+    s.textContent = `
+      .ai-fab-wrap{position:fixed;right:${CONFIG.ui.fabRight}px;bottom:${CONFIG.ui.fabBottom}px;z-index:99999;display:flex;flex-direction:column;gap:10px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+      .ai-fab{border:none;border-radius:999px;padding:12px 14px;box-shadow:0 8px 20px rgba(0,0,0,.22);background:#111827;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;cursor:pointer}
+      .ai-fab.secondary{background:#374151}
+      /* Modal: sur mobile, le contenu était coupé en bas (impossible de scroller).
+         On rend le modal scrollable + la carte flexible en hauteur. */
+      .ai-modal{position:fixed;inset:0;z-index:999999;display:none;align-items:flex-start;justify-content:center;background:rgba(0,0,0,.5);padding:16px;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(16px + env(safe-area-inset-bottom));}
+      .ai-card{width:min(920px,100%);transform:none !important;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);overflow:hidden;max-height:calc(100dvh - 32px - env(safe-area-inset-bottom));display:flex;flex-direction:column;}
+      .ai-card header{padding:14px 16px;background:#f3f4f6;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto}
+      .ai-card header h3{margin:0;font-size:16px}
+      .ai-card header button{border:none;background:transparent;font-size:22px;cursor:pointer;line-height:1}
+      .ai-card .body{padding:16px;display:grid;grid-template-columns:1fr;gap:14px;overflow:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto}
+      @media(min-width:920px){.ai-card .body{grid-template-columns:320px 1fr}}
+      .ai-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;background:#e5e7eb}
+      .ai-actions{display:flex;flex-direction:column;gap:10px}
+      .ai-btn{border:1px solid #e5e7eb;background:#111827;color:#fff;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer;text-align:left}
+      .ai-btn.ghost{background:#fff;color:#111827}
+      .ai-btn.small{padding:8px 10px;border-radius:10px;font-weight:800}
+      .ai-row{display:flex;gap:10px;flex-wrap:wrap}
+      .ai-input{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:12px;font-size:14px}
+      .ai-muted{color:#6b7280;font-size:13px}
+      .ai-list{max-height:min(420px, 45dvh);overflow:auto;border:1px solid #e5e7eb;border-radius:12px;-webkit-overflow-scrolling:touch}
+      .ai-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #e5e7eb;gap:10px}
+      .ai-item:last-child{border-bottom:none}
+      .ai-badge{font-size:12px;background:#eef2ff;color:#3730a3;border-radius:999px;padding:2px 8px;font-weight:800}
+      .ai-danger{background:#fee2e2;color:#991b1b}
+      .ai-ok{background:#dcfce7;color:#166534}
+      .ai-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.2);border-top-color:rgba(0,0,0,.6);border-radius:50%;animation:ai-spin 0.8s linear infinite}
+      @keyframes ai-spin{to{transform:rotate(360deg)}}
+      .ai-kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;background:#f3f4f6;border-radius:8px;padding:2px 6px;font-size:12px}
+      .ai-grid{display:grid;overflow:visible !important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      @media(min-width:720px){.ai-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+      .ai-tile{border:1px solid #e5e7eb;border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:8px}
+      .ai-tile.off{opacity:.45;filter:grayscale(.35)}
+      .ai-keep{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#374151;user-select:none}
+      .ai-keep input{width:16px;height:16px}
+
+      .ai-tile img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#e5e7eb}
+      .ai-select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:10px}
+      .ai-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;background:#f3f4f6}
+    `;
+    document.head.appendChild(s);
+  }
+
+  function injectUI() {
+    injectStyles();
+    if ($("#ai-fab-wrap")) return;
+
+    const wrap = document.createElement("div");
+    wrap.id = "ai-fab-wrap";
+    wrap.className = "ai-fab-wrap";
+
+    const btnAI = document.createElement("button");
+    btnAI.className = "ai-fab";
+    btnAI.type = "button";
+    btnAI.textContent = "🤖 IA photo";
+    btnAI.addEventListener("click", () => openScanModal());
+
+    const btnBase = document.createElement("button");
+    btnBase.className = "ai-fab secondary";
+    btnBase.type = "button";
+    btnBase.textContent = "📚 Base IA";
+    btnBase.addEventListener("click", () => openBaseModal());
+
+    wrap.appendChild(btnAI);
+    wrap.appendChild(btnBase);
+    document.body.appendChild(wrap);
+
+    const modal = document.createElement("div");
+    modal.id = "ai-modal";
+    modal.className = "ai-modal";
+    modal.innerHTML = `
+      <div class="ai-card" role="dialog" aria-modal="true" aria-label="IA">
+        <header>
+          <h3 id="ai-modal-title">IA</h3>
+          <button type="button" id="ai-close" aria-label="Fermer">×</button>
+        </header>
+        <div class="body" id="ai-modal-body"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    $("#ai-close").addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+
+    // inputs
+    const inputSingle = document.createElement("input");
+    inputSingle.id = "ai-file-single";
+    inputSingle.type = "file";
+    inputSingle.accept = "image/*";
+    inputSingle.capture = "environment";
+    inputSingle.style.display = "none";
+    inputSingle.addEventListener("change", async () => {
+      const file = inputSingle.files?.[0];
+      inputSingle.value = "";
+      if (!file) return;
+      await handleSingle(file);
+    });
+    document.body.appendChild(inputSingle);
+
+    const inputLot = document.createElement("input");
+    inputLot.id = "ai-file-lot";
+    inputLot.type = "file";
+    inputLot.accept = "image/*";
+    inputLot.capture = "environment";
+    inputLot.style.display = "none";
+    inputLot.addEventListener("change", async () => {
+      const file = inputLot.files?.[0];
+      inputLot.value = "";
+      if (!file) return;
+      await handleLot(file);
+    });
+    document.body.appendChild(inputLot);
+  }
+
+  function openModal(title, bodyHTML) {
+    $("#ai-modal-title").textContent = title;
+    $("#ai-modal-body").innerHTML = bodyHTML;
+    $("#ai-modal").style.display = "flex";
+  }
+  function closeModal() { $("#ai-modal").style.display = "none"; }
+
+  function toast(msg) {
+    const t = document.createElement("div");
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: "fixed", left: "50%", bottom: "90px", transform: "translateX(-50%)",
+      background: "rgba(17,24,39,.92)", color: "#fff", padding: "10px 12px",
+      borderRadius: "999px", boxShadow: "0 8px 22px rgba(0,0,0,.28)", zIndex: "999999",
+      fontFamily: "system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif"
+    });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+  }
+
+  // ----- Scan modal -----
+  function openScanModal() {
+    openModal("IA photo", `
+      <div>
+        <img id="ai-preview" class="ai-thumb" alt="Aperçu"/>
+        <div class="ai-muted" style="margin-top:10px">
+          <b>1 objet</b> : rapide. <b>Lot</b> : détecte plusieurs objets puis compte par référence. <br>
+          Si doute, l’IA te demandera de choisir.
+        </div>
+        <div class="ai-row" style="margin-top:10px">
+          <button class="ai-btn" id="ai-take-single">📷 1 objet</button>
+          <button class="ai-btn ghost" id="ai-take-lot">📸 Lot (multi)</button>
+        </div>
+        <div class="ai-muted" style="margin-top:8px" id="ai-status"></div>
+      </div>
+      <div class="ai-actions" id="ai-right">
+        <div class="ai-muted">Aucune photo encore.</div>
+      </div>
+    `);
+
+    $("#ai-take-single").addEventListener("click", () => $("#ai-file-single").click());
+    $("#ai-take-lot").addEventListener("click", () => $("#ai-file-lot").click());
+  }
+
+  // ----- Single flow -----
+  async function handleSingle(file) {
+    $("#ai-status").innerHTML = `<span class="ai-spinner"></span> Analyse…`;
+    const preview = $("#ai-preview");
+    const url = URL.createObjectURL(file);
+    preview.src = url;
+
+    try {
+      await ensureModel();
+      const img = await blobToImage(file);
+      const emb = await imageToEmbedding(img);
+
+      const { top } = await matchEmbedding(emb);
+      const right = $("#ai-right");
+
+      if (!top.length) {
+        right.innerHTML = `
+          <div class="ai-muted">Base IA vide. Ajoute une référence :</div>
+              <input class="ai-input" id="ai-new-ref" placeholder="Référence (ex: IR-CO8-71)" />
+          <button class="ai-btn" id="ai-save-first">✅ Enregistrer + compter</button>
+        `;
+        wireCondUI();
+        $("#ai-save-first").addEventListener("click", async () => {
+          const ref = safeText($("#ai-new-ref").value).trim();
+          if (!ref) return toast("Entre une référence.");
+          await saveSample(ref, file, emb);
+          toast("Ajouté + compté.");
+          emitConfirmed(ref, { score: 1, method: "first_sample_single", cond: readCondUI() });
+        });
+      } else {
+        const best = top[0];
+        const second = top[1];
+        const autoOk = best.score >= CONFIG.match.autoAcceptThreshold && (!second || (best.score - second.score) >= CONFIG.match.margin);
+        const doubt = best.score < CONFIG.match.doubtThreshold;
+
+        right.innerHTML = `
+          <div class="ai-muted">Propositions :</div>
+          ${condUIHTML(safeText(top[0]?.sample?.ref || ""))}
+          ${top.map((x, idx) => `
+            <button class="ai-btn ${idx===0 ? "" : "ghost"}" data-ref="${safeText(x.sample.ref)}" data-score="${x.score}">
+              ${safeText(x.sample.ref)} <span class="ai-badge">${fmtScore(x.score)}</span>
+            </button>
+          `).join("")}
+          <button class="ai-btn ghost" id="ai-other">➕ Autre / Nouvelle ref</button>
+          <div class="ai-muted" style="margin-top:6px">Valider = compter + apprendre.</div>
+        `;
+
+        wireCondUI();
+
+        right.querySelectorAll("button[data-ref]").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const ref = btn.getAttribute("data-ref");
+            const score = parseFloat(btn.getAttribute("data-score"));
+            await saveSample(ref, file, emb);
+            toast(`Validé : ${ref}`);
+            const cond = _condTouched ? readCondUI() : normalizeCond(getCondForRef(ref).neuf, getCondForRef(ref).usite);
+            emitConfirmed(ref, { score, method: "validated_single", cond });
+          });
+        });
+
+        $("#ai-other").addEventListener("click", () => {
+          right.innerHTML = `
+            <div class="ai-muted">Nouvelle référence :</div>
+            ${condUIHTML("")}
+            <input class="ai-input" id="ai-new-ref2" placeholder="Référence (ex: IR-CO8-72)" />
+            <button class="ai-btn" id="ai-save-new">✅ Enregistrer + compter</button>
+          `;
+          wireCondUI();
+          $("#ai-save-new").addEventListener("click", async () => {
+            const ref = safeText($("#ai-new-ref2").value).trim();
+            if (!ref) return toast("Entre une référence.");
+            await saveSample(ref, file, emb);
+            toast(`Ajouté : ${ref}`);
+            emitConfirmed(ref, { score: 1, method: "new_ref_single", cond: readCondUI() });
+          });
+        });
+
+        // Auto-accept only if confident AND not doubtful
+        if (autoOk && !doubt) {
+          await saveSample(best.sample.ref, file, emb);
+          toast(`Auto : ${best.sample.ref} (${fmtScore(best.score)})`);
+          emitConfirmed(best.sample.ref, { score: best.score, method: "auto_single", cond: getCondForRef(best.sample.ref) });
+        } else {
+          // Explicitly tell user there is doubt
+          if (doubt) $("#ai-status").textContent = "Doute : choisis la bonne référence (ou ajoute une nouvelle).";
+          else $("#ai-status").textContent = "Choisis/valide une référence.";
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      $("#ai-status").textContent = "Erreur IA : " + (e?.message || e);
+      toast("Erreur IA.");
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // ----- Multi-object detection (heuristic) -----
+  function resizeToMaxSide(img, maxSide) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const cw = Math.round(w * scale), ch = Math.round(h * scale);
+    const c = makeCanvas(cw, ch);
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, cw, ch);
+    return { canvas: c, scale, w: cw, h: ch };
+  }
+
+  function estimateBackgroundGray(data, w, h) {
+    // sample border pixels
+    let sum = 0, cnt = 0;
+    const step = Math.max(1, Math.floor(Math.min(w,h) / 120));
+    function grayAt(i){ return (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114); }
+    for (let x=0; x<w; x+=step) {
+      let i1 = (0*w + x)*4;
+      let i2 = ((h-1)*w + x)*4;
+      sum += grayAt(i1) + grayAt(i2); cnt += 2;
+    }
+    for (let y=0; y<h; y+=step) {
+      let i1 = (y*w + 0)*4;
+      let i2 = (y*w + (w-1))*4;
+      sum += grayAt(i1) + grayAt(i2); cnt += 2;
+    }
+    return cnt ? (sum / cnt) : 255;
+  }
+
+  function morphDilate(mask, w, h, r) {
+    const out = new Uint8Array(mask.length);
+    for (let y=0; y<h; y++) {
+      for (let x=0; x<w; x++) {
+        let on = 0;
+        for (let dy=-r; dy<=r && !on; dy++) {
+          const yy = y+dy; if (yy<0||yy>=h) continue;
+          for (let dx=-r; dx<=r; dx++) {
+            const xx = x+dx; if (xx<0||xx>=w) continue;
+            if (mask[yy*w+xx]) { on = 1; break; }
+          }
+        }
+        out[y*w+x] = on;
+      }
+    }
+    return out;
+  }
+
+  function morphErode(mask, w, h, r) {
+    const out = new Uint8Array(mask.length);
+    for (let y=0; y<h; y++) {
+      for (let x=0; x<w; x++) {
+        let on = 1;
+        for (let dy=-r; dy<=r && on; dy++) {
+          const yy = y+dy; if (yy<0||yy>=h) { on=0; break; }
+          for (let dx=-r; dx<=r; dx++) {
+            const xx = x+dx; if (xx<0||xx>=w) { on=0; break; }
+            if (!mask[yy*w+xx]) { on = 0; break; }
+          }
+        }
+        out[y*w+x] = on;
+      }
+    }
+    return out;
+  }
+
+  function connectedComponents(mask, w, h) {
+    const visited = new Uint8Array(mask.length);
+    const boxes = [];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    for (let i=0;i<mask.length;i++){
+      if (!mask[i] || visited[i]) continue;
+      visited[i]=1;
+      const q=[i];
+      let minx=w, miny=h, maxx=0, maxy=0, area=0;
+      while(q.length){
+        const p=q.pop();
+        const y=Math.floor(p/w), x=p%w;
+        area++;
+        if (x<minx) minx=x; if (y<miny) miny=y;
+        if (x>maxx) maxx=x; if (y>maxy) maxy=y;
+        for (const [dx,dy] of dirs){
+          const xx=x+dx, yy=y+dy;
+          if (xx<0||xx>=w||yy<0||yy>=h) continue;
+          const j=yy*w+xx;
+          if (mask[j] && !visited[j]){ visited[j]=1; q.push(j); }
+        }
+      }
+      boxes.push({x:minx,y:miny,w:(maxx-minx+1),h:(maxy-miny+1),area});
+    }
+    return boxes;
+  }
+
+  function detectBoxesFromImage(img, opts = {}) {
+    const cfg = Object.assign({}, CONFIG.multi, opts || {});
+    const { canvas, w, h } = resizeToMaxSide(img, cfg.maxSide);
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const imgData = ctx.getImageData(0,0,w,h);
+    const data = imgData.data;
+
+    const bg = estimateBackgroundGray(data, w, h);
+    const delta = (function(){
+      // adaptive threshold based on image content (helps on tiled floors / variable light)
+      const diffs = [];
+      const step2 = Math.max(1, Math.floor(Math.min(w,h) / 180));
+      for (let yy=0; yy<h; yy+=step2){
+        for (let xx=0; xx<w; xx+=step2){
+          const ii = (yy*w + xx)*4;
+          const gg = data[ii]*0.299 + data[ii+1]*0.587 + data[ii+2]*0.114;
+          diffs.push(Math.abs(gg - bg));
+        }
+      }
+      diffs.sort((a,b)=>a-b);
+      const p75 = diffs.length ? diffs[Math.floor(diffs.length * 0.75)] : cfg.bgDelta;
+      // keep a safe minimum to avoid noise
+      const d = Math.max(cfg.bgDelta, Math.min(70, Math.max(10, p75)));
+      return d;
+    })();
+
+    // foreground mask: pixels far from estimated background
+    const mask = new Uint8Array(w*h);
+    for (let y=0; y<h; y++) {
+      for (let x=0; x<w; x++) {
+        const i = (y*w + x)*4;
+        const g = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114;
+        mask[y*w+x] = (Math.abs(g - bg) > delta) ? 1 : 0;
+      }
+    }
+
+    // Morphology:
+    // 1) opening (erode->dilate) helps split objects connected by thin bridges (shadows, grout lines)
+    // 2) closing (dilate->erode) fills holes inside objects
+    const openR = Math.max(0, cfg.openRadius|0);
+    let m = mask;
+    if (openR > 0){
+      const er = morphErode(m, w, h, openR);
+      m = morphDilate(er, w, h, openR);
+    }
+
+    const closeR = Math.max(0, cfg.morphRadius|0);
+    if (closeR > 0){
+      const dil = morphDilate(m, w, h, closeR);
+      m = morphErode(dil, w, h, closeR);
+    }
+
+    const comps = connectedComponents(m, w, h);
+
+    const minA = w*h*cfg.minAreaRatio;
+    const maxA = w*h*cfg.maxAreaRatio;
+
+    let boxes = comps
+      .filter(b => b.area >= minA && b.area <= maxA)
+      .filter(b => b.w > 24 && b.h > 24)
+      .map(b => {
+        // padding
+        const pad = Math.round(Math.max(b.w, b.h) * cfg.padRatio);
+        const x = Math.max(0, b.x - pad);
+        const y = Math.max(0, b.y - pad);
+        const x2 = Math.min(w, b.x + b.w + pad);
+        const y2 = Math.min(h, b.y + b.h + pad);
+        return { x, y, w: x2-x, h: y2-y, area: b.area };
+      });
+
+    // merge overlapping boxes (avoid duplicates)
+    function iou(a,b){
+      const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+      const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+      const iw=Math.max(0,x2-x1), ih=Math.max(0,y2-y1);
+      const inter=iw*ih;
+      const ua=a.w*a.h + b.w*b.h - inter;
+      return ua? inter/ua : 0;
+    }
+    boxes.sort((a,b)=> (b.w*b.h) - (a.w*a.h));
+    const merged=[];
+    for (const b of boxes){
+      let keep=true;
+      for (let k=0;k<merged.length;k++){
+        if (iou(b, merged[k]) > 0.35){
+          const m=merged[k];
+          const nx=Math.min(m.x,b.x), ny=Math.min(m.y,b.y);
+          const nx2=Math.max(m.x+m.w,b.x+b.w), ny2=Math.max(m.y+m.h,b.y+b.h);
+          merged[k]={x:nx,y:ny,w:nx2-nx,h:ny2-ny};
+          keep=false;
+          break;
+        }
+      }
+      if (keep) merged.push({x:b.x,y:b.y,w:b.w,h:b.h});
+    }
+
+    // attempt to split large cluster boxes (common when multiple items are close)
+    if (cfg.splitLargeBoxes){
+      const maxPass = Math.max(0, cfg.splitPasses|0);
+      let current = merged.slice();
+      for (let pass=0; pass<maxPass; pass++){
+        let changed = false;
+        const next = [];
+        for (const b of current){
+          const area = b.w*b.h;
+          const isLarge = area > (w*h*cfg.largeAreaRatio);
+          if (!isLarge){
+            next.push(b);
+            continue;
+          }
+
+          // crop and re-run with stricter params
+          const crop = makeCanvas(b.w, b.h);
+          crop.getContext("2d", { willReadFrequently: true }).drawImage(canvas, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+
+          const sub = detectBoxesFromImage(crop, {
+            // stricter to separate close items
+            bgDelta: cfg.bgDelta + (cfg.deltaBoost|0),
+            minAreaRatio: Math.max(0.0015, cfg.minAreaRatio * 0.45),
+            maxAreaRatio: 0.9,
+            padRatio: Math.max(0.05, cfg.padRatio * 0.8),
+            morphRadius: Math.max(0, (cfg.morphRadius|0) - 1),
+            openRadius: Math.min(2, Math.max(1, (cfg.openRadius|0) + 1)),
+            splitLargeBoxes: false
+          });
+
+          if (sub.boxes && sub.boxes.length >= 2){
+            // map back to global coords
+            for (const s of sub.boxes){
+              next.push({ x: b.x + s.x, y: b.y + s.y, w: s.w, h: s.h });
+            }
+            changed = true;
+          }else{
+            next.push(b);
+          }
+        }
+        current = next;
+        if (!changed) break;
+      }
+      merged.length = 0;
+      merged.push(...current);
+    }
+
+    // Sort left-to-right, top-to-bottom
+    merged.sort((a,b)=> (a.y - b.y) || (a.x - b.x));
+    return { boxes: merged, canvas, w, h };
+  }
+
+  function cropToDataURL(srcCanvas, box) {
+    const c = makeCanvas(box.w, box.h);
+    const ctx = c.getContext("2d");
+    ctx.drawImage(srcCanvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    return c.toDataURL("image/jpeg", 0.9);
+  }
+
+  async function dataURLToImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
+  // ----- Lot flow -----
+  async function handleLot(file) {
+    $("#ai-status").innerHTML = `<span class="ai-spinner"></span> Détection multi-objets…`;
+    const preview = $("#ai-preview");
+    const url = URL.createObjectURL(file);
+    preview.src = url;
+
+    try {
+      await ensureModel();
+      const img = await blobToImage(file);
+      const det = detectBoxesFromImage(img);
+
+      if (!det.boxes.length) {
+        $("#ai-status").textContent = "Aucun objet détecté. Prends la photo sur un fond uni, objets espacés.";
+        $("#ai-right").innerHTML = `<div class="ai-muted">Essaie : fond clair + objets séparés + bonne lumière.</div>`;
+        return;
+      }
+
+      $("#ai-status").textContent = `Objets détectés : ${det.boxes.length}. Analyse des références…`;
+
+      // For each box: compute emb + topK
+      const items = [];
+      for (let i=0;i<det.boxes.length;i++){
+        const b = det.boxes[i];
+        const cropUrl = cropToDataURL(det.canvas, b);
+        const cropImg = await dataURLToImage(cropUrl);
+        const emb = await imageToEmbedding(cropImg);
+        const { top } = await matchEmbedding(emb);
+        items.push({ idx:i+1, box:b, cropUrl, emb, top, chosen: null, confidence: top[0]?.score ?? 0 });
+      }
+
+      renderLotUI(items, file);
+
+    } catch (e) {
+      console.error(e);
+      $("#ai-status").textContent = "Erreur IA : " + (e?.message || e);
+      toast("Erreur IA.");
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function renderLotUI(items, file) {
+    const right = $("#ai-right");
+    // default: keep all detections
+    items.forEach(it => { if (typeof it.keep === "undefined") it.keep = true; });
+    if (!right) return;
+
+    // If base empty, must ask for each to be labeled (no top)
+    const needsLabels = items.some(it => !it.top?.length);
+
+    const tiles = items.map(it => {
+      const best = it.top?.[0];
+      const second = it.top?.[1];
+      const autoOk = best && best.score >= CONFIG.match.autoAcceptThreshold && (!second || (best.score-second.score) >= CONFIG.match.margin) && best.score >= CONFIG.match.doubtThreshold;
+      const doubt = !best || best.score < CONFIG.match.doubtThreshold;
+      const initial = autoOk ? best.sample.ref : (it.top?.[0]?.sample.ref ?? "");
+      const options = (it.top?.length ? it.top : []).map(x => {
+        const ref = safeText(x.sample.ref);
+        const sel = (ref === initial) ? " selected" : "";
+        return `<option value="${ref}"${sel}>${ref} (${fmtScore(x.score)})</option>`;
+      }).join("");
+// we will "ask" when doubt; auto only when very confident.
+      const badge = autoOk ? `<span class="ai-pill"><span class="ai-badge ai-ok">AUTO</span>${fmtScore(best.score)}</span>` :
+                    doubt ? `<span class="ai-pill"><span class="ai-badge ai-danger">DOUTE</span>${best ? fmtScore(best.score) : "—"}</span>` :
+                            `<span class="ai-pill"><span class="ai-badge">OK</span>${fmtScore(best.score)}</span>`;
+
+      return `
+        <div class="ai-tile ${it.keep===false?"off":""}" data-idx="${it.idx}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <b>Objet ${it.idx}</b>
+              <label class="ai-keep"><input type="checkbox" data-keep="${it.idx}" ${it.keep===false?"":"checked"}> garder</label>
+            </div>
+            ${badge}
+          </div>
+          <img src="${it.cropUrl}" alt="crop ${it.idx}"/>
+          <div class="ai-muted">Choisis la référence si doute :</div>
+          <select class="ai-select" data-pick="${it.idx}">
+            <option value="">— choisir —</option>
+            ${options}
+          </select>
+          <input class="ai-input" data-new="${it.idx}" placeholder="Ou saisir une nouvelle ref (optionnel)"/>
+          
+          <div class="ai-row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px">
+              <div class="ai-muted">Neuf</div>
+              <select class="ai-select" data-cond-neuf="${it.idx}">
+                <option value="non" ${normalizeCond(getCondForRef(initial).neuf, getCondForRef(initial).usite).neuf==="non"?"selected":""}>Non</option>
+                <option value="oui" ${normalizeCond(getCondForRef(initial).neuf, getCondForRef(initial).usite).neuf==="oui"?"selected":""}>Oui</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px">
+              <div class="ai-muted">Usité</div>
+              <select class="ai-select" data-cond-usite="${it.idx}">
+                <option value="non" ${normalizeCond(getCondForRef(initial).neuf, getCondForRef(initial).usite).usite==="non"?"selected":""}>Non</option>
+                <option value="oui" ${normalizeCond(getCondForRef(initial).neuf, getCondForRef(initial).usite).usite==="oui"?"selected":""}>Oui</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="ai-btn small ghost" data-apply="${it.idx}">Appliquer</button>
+        </div>
+      `;
+    }).join("");
+
+    right.innerHTML = `
+      <div class="ai-muted">Validation lot : si une case est en <span class="ai-kbd">DOUTE</span>, clique “Appliquer” après avoir choisi/saisi la bonne ref.</div>
+      ${condUIHTML("")}
+
+      <div class="ai-row" style="margin-top:10px">
+        <button class="ai-btn small ghost" id="ai-keep-all">Tout garder</button>
+        <button class="ai-btn small ghost" id="ai-keep-auto">Garder AUTO</button>
+        <button class="ai-btn small ghost" id="ai-keep-none">Tout écarter</button>
+      </div>
+      <div class="ai-muted" id="ai-keep-stats" style="margin-top:6px"></div>
+      <div class="ai-grid" style="margin-top:10px">${tiles}</div>
+      <div class="ai-row" style="margin-top:12px">
+        <button class="ai-btn" id="ai-lot-confirm">✅ Valider & compter tout le lot</button>
+        <button class="ai-btn ghost" id="ai-lot-cancel">↩︎ Reprendre photo</button>
+      </div>
+      <div class="ai-muted" id="ai-lot-hint" style="margin-top:8px"></div>
+    `;
+
+    // Etat par objet (Neuf/Usité) : exclusif
+    right.querySelectorAll("select[data-cond-neuf]").forEach(sel=>{
+      sel.addEventListener("change", ()=>{
+        const idx = sel.getAttribute("data-cond-neuf");
+        const u = right.querySelector(`select[data-cond-usite="${idx}"]`);
+        if(sel.value==="oui" && u) u.value="non";
+      });
+    });
+    right.querySelectorAll("select[data-cond-usite]").forEach(sel=>{
+      sel.addEventListener("change", ()=>{
+        const idx = sel.getAttribute("data-cond-usite");
+        const n = right.querySelector(`select[data-cond-neuf="${idx}"]`);
+        if(sel.value==="oui" && n) n.value="non";
+      });
+    });
+
+    wireCondUI();
+
+    // Keep / discard toggles
+    const updateKeepStats = () => {
+      const kept = items.filter(x => x.keep !== false).length;
+      const total = items.length;
+      const el = $("#ai-keep-stats");
+      if (el) el.textContent = `${kept}/${total} objet(s) gardé(s). Décoche “garder” pour ignorer une détection.`;
+    };
+    updateKeepStats();
+
+    right.querySelectorAll('input[type="checkbox"][data-keep]').forEach(chk => {
+      chk.addEventListener("change", () => {
+        const idx = parseInt(chk.getAttribute("data-keep"), 10);
+        const it = items.find(x => x.idx === idx);
+        if (it) it.keep = chk.checked;
+        const tile = right.querySelector(`.ai-tile[data-idx="${idx}"]`);
+        if (tile) tile.classList.toggle("off", !chk.checked);
+        updateKeepStats();
+      });
+    });
+
+    const setAllKeep = (mode) => {
+      for (const it of items){
+        if (it.keep === false) continue;
+        const best = it.top?.[0];
+        const second = it.top?.[1];
+        const autoOk = best && best.score >= CONFIG.match.autoAccept && (!second || (best.score - second.score) >= CONFIG.match.margin) && best.score >= CONFIG.match.doubtThreshold;
+        if (mode === "all") it.keep = true;
+        if (mode === "none") it.keep = false;
+        if (mode === "auto") it.keep = !!autoOk;
+      }
+      // refresh UI
+      right.querySelectorAll('input[type="checkbox"][data-keep]').forEach(chk => {
+        const idx = parseInt(chk.getAttribute("data-keep"), 10);
+        const it = items.find(x => x.idx === idx);
+        chk.checked = (it?.keep !== false);
+        const tile = right.querySelector(`.ai-tile[data-idx="${idx}"]`);
+        if (tile) tile.classList.toggle("off", !chk.checked);
+      });
+      updateKeepStats();
+    };
+
+    $("#ai-keep-all")?.addEventListener("click", () => setAllKeep("all"));
+    $("#ai-keep-none")?.addEventListener("click", () => setAllKeep("none"));
+    $("#ai-keep-auto")?.addEventListener("click", () => setAllKeep("auto"));
+
+    // Auto-save selection without requiring "Appliquer"
+    right.querySelectorAll('select[data-pick]').forEach(sel => {
+      sel.addEventListener("change", () => {
+        const idx = parseInt(sel.getAttribute("data-pick"), 10);
+        const it = items.find(x => x.idx === idx);
+        if (it) it.chosen = safeText(sel.value).trim();
+      });
+    });
+    right.querySelectorAll('input[data-new]').forEach(inp => {
+      inp.addEventListener("input", () => {
+        const idx = parseInt(inp.getAttribute("data-new"), 10);
+        const it = items.find(x => x.idx === idx);
+        if (it) it.chosen = safeText(inp.value).trim();
+      });
+    });
+
+
+
+    // Per-tile apply
+    right.querySelectorAll("button[data-apply]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.getAttribute("data-apply"), 10);
+        const sel = right.querySelector(`select[data-pick="${idx}"]`);
+        const inp = right.querySelector(`input[data-new="${idx}"]`);
+        const valNew = safeText(inp?.value).trim();
+        const valSel = safeText(sel?.value).trim();
+        const ref = valNew || valSel;
+        if (!ref) return toast("Choisis ou saisis une référence.");
+        const it = items.find(x => x.idx === idx);
+        if (it) it.chosen = ref;
+        toast(`Objet ${idx} → ${ref}`);
+      });
+    });
+
+    $("#ai-lot-cancel").addEventListener("click", () => openScanModal());
+
+    $("#ai-lot-confirm").addEventListener("click", async () => {
+      // For each item: decide ref
+      // rule: if very confident autoOk -> take best; else require chosen
+      const missing = [];
+      const decisions = [];
+      const keptCount = items.filter(x => x.keep !== false).length;
+      if (!keptCount) {
+        $("#ai-lot-hint").textContent = "Aucun objet gardé. Coche au moins une détection.";
+        toast("Rien à valider.");
+        return;
+      }
+      for (const it of items){
+        const best = it.top?.[0];
+        const second = it.top?.[1];
+        const autoOk = best && best.score >= CONFIG.match.autoAcceptThreshold && (!second || (best.score-second.score) >= CONFIG.match.margin) && best.score >= CONFIG.match.doubtThreshold;
+        const ref = autoOk ? best.sample.ref : it.chosen;
+        if (!ref) missing.push(it.idx);
+        else decisions.push({ it, ref, score: autoOk ? best.score : (best?.score ?? 0), auto: autoOk });
+      }
+
+      if (missing.length) {
+        $("#ai-lot-hint").textContent = "Doute sur objet(s) : " + missing.join(", ") + ". Choisis une référence puis “Appliquer”.";
+        toast("Il manque des validations.");
+        return;
+      }
+
+      // save samples + emit counts
+      
+      // Résumé avant validation (permet de corriger avant d'appliquer)
+      const counts = {};
+      for (const d of decisions) counts[d.ref] = (counts[d.ref]||0) + 1;
+      const summaryLines = Object.keys(counts).sort((a,b)=>a.localeCompare(b,"fr"))
+        .map(k => `- ${k} x${counts[k]}`).join("\n");
+      const ok = confirm(`Résumé du lot (avant validation) :
+
+${summaryLines}
+
+OK = appliquer au bon / Annuler = revenir corriger`);
+      if(!ok){
+        $("#ai-lot-hint").textContent = "Annulé : corrige les objets puis valide à nouveau.";
+        return;
+      }
+
+$("#ai-lot-hint").innerHTML = `<span class="ai-spinner"></span> Enregistrement + comptage…`;
+      try {
+        for (const d of decisions){
+          // save sample from crop as thumbnail + embedding
+          const blob = await (await fetch(d.it.cropUrl)).blob();
+          const file2 = new File([blob], `crop_${d.it.idx}.jpg`, { type: blob.type || "image/jpeg" });
+          await saveSample(d.ref, file2, d.it.emb);
+          emitConfirmed(d.ref, { score: d.score, method: d.auto ? "auto_lot" : "validated_lot", idx: d.it.idx, cond: normalizeCond((right.querySelector(`select[data-cond-neuf="${d.it.idx}"]`)?.value) || getCondForRef(d.ref).neuf, (right.querySelector(`select[data-cond-usite="${d.it.idx}"]`)?.value) || getCondForRef(d.ref).usite) });
+        }
+        toast("Lot compté.");
+        $("#ai-lot-hint").textContent = "Terminé.";
+      } catch (e) {
+        console.error(e);
+        $("#ai-lot-hint").textContent = "Erreur : " + (e?.message || e);
+        toast("Erreur.");
+      }
+    });
+  }
+
+  // ----- Save sample + emit -----
+  async function saveSample(ref, file, embedding) {
+    const thumb = await fileToThumbDataURL(file);
+    const sample = { ref, embedding: Array.from(embedding), thumb, createdAt: Date.now() };
+    await dbPut(sample);
+  }
+
+  function emitConfirmed(ref, meta) {
+    const r = safeText(ref).trim();
+    const m = meta || {};
+    // condition: from meta.cond or UI or stored per-ref
+    let cond = m.cond;
+    if (!cond) {
+      // if UI present, read it; otherwise use stored value for this ref
+      try{
+        const nSel = right.querySelector(`select[data-cond-neuf="${it.idx}"]`);
+        const uSel = right.querySelector(`select[data-cond-usite="${it.idx}"]`);
+        cond = normalizeCond(nSel?.value || getCondForRef(r).neuf, uSel?.value || getCondForRef(r).usite);
+      }catch(_){
+        const c = getCondForRef(r);
+        cond = normalizeCond(c.neuf, c.usite);
+      }
+    } else {
+      cond = normalizeCond(cond.neuf || "non", cond.usite || "non");
+    }
+    // remember choice
+    try{ rememberChoice(r, cond); }catch(_){}
+
+    const payload = {
+      ref: r,
+      ...m,
+      cond,
+      neufOui: cond.neuf === "oui",
+      usiteOui: cond.usite === "oui",
+      autoAdd: ("autoAdd" in m) ? !!m.autoAdd : true,
+    };
+
+    window.dispatchEvent(new CustomEvent("ai-ref-confirmed", { detail: payload }));
+    try { if (typeof window.addReferenceFromAI === "function") window.addReferenceFromAI(r, payload); } catch {}
+  }
+
+  // ----- Base manager -----
+  async function openBaseModal(preselectRef = null) {
+    const all = await dbGetAll();
+    const byRef = new Map();
+    for (const s of all) { const arr = byRef.get(s.ref) || []; arr.push(s); byRef.set(s.ref, arr); }
+    const refs = Array.from(byRef.keys()).sort((a,b)=>a.localeCompare(b,"fr"));
+
+    openModal("Base IA", `
+      <div>
+        <div class="ai-muted">Ajouter un exemple (photo + ref) :</div>
+        <input class="ai-input" id="ai-ref-add" placeholder="Référence (ex: IR-CO8-71)" />
+        <div class="ai-row" style="margin-top:10px">
+          <button class="ai-btn" id="ai-add-photo">📷 Ajouter une photo</button>
+          <button class="ai-btn ghost" id="ai-export-json">⬇️ Export JSON</button>
+        </div>
+        <div class="ai-muted" style="margin-top:8px" id="ai-base-status"></div>
+        <div class="ai-muted" style="margin-top:14px">Références enregistrées :</div>
+        <div class="ai-list" id="ai-ref-list">
+          ${refs.length ? refs.map(r => `
+            <div class="ai-item">
+              <div><div><b>${safeText(r)}</b></div><div class="ai-muted">${byRef.get(r).length} exemple(s)</div></div>
+              <div class="ai-row"><button class="ai-btn small ghost" data-open="${safeText(r)}">Voir</button></div>
+            </div>
+          `).join("") : `<div class="ai-item"><span class="ai-muted">Aucune référence.</span></div>`}
+        </div>
+      </div>
+      <div class="ai-actions" id="ai-ref-detail">
+        <div class="ai-muted">Sélectionne une référence pour voir/supprimer ses exemples.</div>
+      </div>
+    `);
+
+    // Pré-remplir avec le dernier choix mémorisé (si dispo)
+    try{
+      const p = loadAIPrefs();
+      if (!preselectRef && p && p.lastRef) $("#ai-ref-add").value = safeText(p.lastRef);
+    }catch(_){}
+
+    // Pre-fill and optionally open a specific reference (requested by the host app)
+    if (preselectRef) {
+      const pref = safeText(preselectRef).trim();
+      $("#ai-ref-add").value = pref;
+      if (byRef.has(pref)) renderRefDetail(pref, byRef.get(pref) || []);
+    }
+
+    $("#ai-add-photo").addEventListener("click", () => {
+      const ref = safeText($("#ai-ref-add").value).trim();
+      if (!ref) return toast("Entre une référence.");
+      const fileInput = document.createElement("input");
+      fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.capture = "environment";
+      fileInput.addEventListener("change", async () => {
+        const f = fileInput.files?.[0];
+        if (!f) return;
+        $("#ai-base-status").innerHTML = `<span class="ai-spinner"></span> Ajout…`;
+        try {
+          await ensureModel();
+          const img = await blobToImage(f);
+          const emb = await imageToEmbedding(img);
+          await saveSample(ref, f, emb);
+          $("#ai-base-status").textContent = "Exemple ajouté.";
+          toast("Ajouté.");
+          await openBaseModal(ref);
+        } catch (e) {
+          console.error(e);
+          $("#ai-base-status").textContent = "Erreur : " + (e?.message || e);
+          toast("Erreur IA.");
+        }
+      });
+      fileInput.click();
+    });
+
+    $("#ai-export-json").addEventListener("click", async () => {
+      const all2 = await dbGetAll();
+      const exportData = {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        samples: all2.map(s => ({ id: s.id, ref: s.ref, createdAt: s.createdAt, thumb: s.thumb }))
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "base_ia_export.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+
+    document.querySelectorAll("button[data-open]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ref = btn.getAttribute("data-open");
+        renderRefDetail(ref, byRef.get(ref) || []);
+      });
+    });
+
+    // (no-op)
+  }
+
+  // Quick-add: capture/select a photo and attach it as a training sample for a specific reference.
+  // Designed to work on mobile/PWA: the <input type="file"> is attached to DOM and triggered from a user gesture.
+  let _addRefInput = null;
+  function _ensureAddRefInput(){
+    if (_addRefInput) return _addRefInput;
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    // Hint mobile browsers to open camera when possible
+    inp.setAttribute('capture', 'environment');
+    inp.style.position = 'fixed';
+    inp.style.left = '-9999px';
+    inp.style.top = '-9999px';
+    inp.id = 'ai-addref-input';
+    document.body.appendChild(inp);
+    _addRefInput = inp;
+    return _addRefInput;
+  }
+
+  async function addPhotoForRef(ref){
+    const cleanRef = String(ref || '').trim();
+    if (!cleanRef) { toast('Référence invalide'); return; }
+    const input = _ensureAddRefInput();
+    input.value = '';
+
+    return new Promise((resolve) => {
+      input.onchange = async () => {
+        try{
+          const f = input.files && input.files[0];
+          if (!f) { resolve(false); return; }
+          await ensureModel();
+          const img = await blobToImage(f);
+          const emb = await imageToEmbedding(img);
+          await saveSample(cleanRef, f, emb);
+          toast(`Photo IA ajoutée pour ${cleanRef}`);
+          window.dispatchEvent(new CustomEvent('ai-base-updated', { detail: { ref: cleanRef } }));
+          resolve(true);
+        }catch(e){
+          console.error(e);
+          toast('Erreur ajout photo IA');
+          resolve(false);
+        }finally{
+          input.value = '';
+        }
+      };
+      // Must be called directly from a click/tap handler
+      input.click();
+    });
+  }
+
+  function renderRefDetail(ref, samples) {
+    const detail = $("#ai-ref-detail");
+    detail.innerHTML = `
+      <div><b>${safeText(ref)}</b> <span class="ai-badge">${samples.length} ex.</span></div>
+      <div class="ai-muted">Supprime un exemple si mauvaise validation.</div>
+      <div class="ai-list" style="margin-top:8px">
+        ${samples.slice().sort((a,b)=>b.createdAt-a.createdAt).map(s => `
+          <div class="ai-item">
+            <div style="display:flex;align-items:center;gap:10px">
+              <img src="${s.thumb}" alt="thumb" style="width:44px;height:44px;border-radius:10px;object-fit:cover;background:#e5e7eb"/>
+              <div><div class="ai-muted">${new Date(s.createdAt).toLocaleString("fr-FR")}</div><div class="ai-muted">id: ${s.id}</div></div>
+            </div>
+            <button class="ai-btn small ai-danger" data-del="${s.id}">Suppr.</button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+    detail.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = parseInt(btn.getAttribute("data-del"), 10);
+        if (!Number.isFinite(id)) return;
+        if(!confirm("Supprimer cet exemple IA ?")) return;
+        await dbDelete(id);
+        toast("Supprimé.");
+        await openBaseModal(ref);
+      });
+    });
+  }
+
+  // Provide minimal read access for the host UI (thumbnails / count per reference)
+  async function getRefSummary() {
+    const all = await dbGetAll();
+    const out = {};
+    for (const s of all) {
+      const ref = safeText(s.ref);
+      if (!out[ref]) out[ref] = { count: 0, thumb: null, _latest: 0 };
+      out[ref].count += 1;
+      if ((s.createdAt || 0) >= out[ref]._latest) {
+        out[ref]._latest = s.createdAt || 0;
+        out[ref].thumb = s.thumb || null;
+      }
+    }
+    // remove internal field
+    for (const k of Object.keys(out)) delete out[k]._latest;
+    return out;
+  }
+
+  function bindInlineButtons(){
+    // Prefer inline buttons in the bon form (non flottants)
+    const bPhoto = document.getElementById("btnAiPhotoInline");
+    const bBase  = document.getElementById("btnAiBaseInline");
+    if (bPhoto && !bPhoto._aiBound){
+      bPhoto._aiBound = true;
+      bPhoto.addEventListener("click", () => openScanModal());
+    }
+    if (bBase && !bBase._aiBound){
+      bBase._aiBound = true;
+      bBase.addEventListener("click", () => openBaseModal());
+    }
+
+    // If older floating UI exists from previous versions, hide it
+    const oldFab = document.getElementById("ai-fab-wrap");
+    if (oldFab) oldFab.style.display = "none";
+  }
+
+  function init(){
+    // Ensure IA core UI (modal + file inputs) is injected.
+    // Even if we no longer use the floating FAB buttons, we still need the modal.
+    try { injectUI(); } catch(e) { console.error('IA injectUI failed', e); }
+    bindInlineButtons();
+    window.addEventListener("keydown", (e) => { if (e.altKey && (e.key === "i" || e.key === "I")) openScanModal(); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+
+  
+  async function dbPutExisting(sample) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CONFIG.db.store, "readwrite");
+      tx.objectStore(CONFIG.db.store).put(sample).onsuccess = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function renameRef(oldRef, newRef){
+    const o = canonRef(oldRef);
+    const n = canonRef(newRef);
+    if(!o || !n) return false;
+    const db = await openDB();
+    // get all via index "ref" requires exact ref string, but we rename by canonical match
+    const all = await dbGetAll();
+    const toUpd = all.filter(s => canonRef(s.ref) === o);
+    if(!toUpd.length) return true;
+    for (const s of toUpd){
+      s.ref = newRef;
+      await dbPutExisting(s);
+    }
+    return true;
+  }
+
+
+  async function exportData(){
+    const all = await dbGetAll();
+    return {
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      samples: (all||[]).map(s => ({ ref: s.ref, createdAt: s.createdAt, thumb: s.thumb }))
+    };
+  }
+
+  async function clearDB(){
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CONFIG.db.store, "readwrite");
+      const req = tx.objectStore(CONFIG.db.store).clear();
+      req.onsuccess = ()=> resolve(true);
+      req.onerror = ()=> reject(req.error);
+      tx.oncomplete = ()=> db.close();
+    });
+  }
+
+  function dataURLToImage(dataUrl){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = ()=> resolve(img);
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  }
+
+  async function importData(exportData, opts){
+    const o = opts || {};
+    const replace = ("replace" in o) ? !!o.replace : true;
+    const onProgress = (typeof o.onProgress === "function") ? o.onProgress : null;
+
+    if(!exportData || !Array.isArray(exportData.samples)) throw new Error("Invalid aiBase format");
+    if(replace) await clearDB();
+
+    await ensureModel();
+
+    const samples = exportData.samples;
+    let n = 0;
+    for(const s of samples){
+      if(!s || !s.thumb || !s.ref) continue;
+      const img = await dataURLToImage(s.thumb);
+      const emb = await imageToEmbedding(img);
+      const sample = { ref: s.ref, embedding: Array.from(emb), thumb: s.thumb, createdAt: s.createdAt || Date.now() };
+      await dbPut(sample);
+      n++;
+      if(onProgress) onProgress(n, samples.length);
+    }
+    return { imported: n, total: samples.length };
+  }
+
+window.AIRefAddon = { openScan: openScanModal, openBase: openBaseModal, addPhotoForRef, getRefSummary, renameRef , exportData, importData };
+})();
 </script>
 </body>
 </html>
