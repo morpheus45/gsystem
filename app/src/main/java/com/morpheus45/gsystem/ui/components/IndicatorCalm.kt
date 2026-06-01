@@ -1,5 +1,6 @@
 package com.morpheus45.gsystem.ui.components
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -174,7 +175,7 @@ fun PulsingSignalDot() {
         // Halo exterieur pulsant
         Box(
             modifier = Modifier
-                .size((10 * haloScale).dp)
+                .size((10f * haloScale).dp)
                 .background(
                     Signal.copy(alpha = haloAlpha * 0.4f),
                     RoundedCornerShape(50)
