@@ -3,6 +3,8 @@ package com.morpheus45.gsystem.ui
 import android.annotation.SuppressLint
 import android.print.PrintAttributes
 import android.print.PrintManager
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
@@ -80,8 +82,14 @@ private fun createWebView(context: android.content.Context): WebView {
             domStorageEnabled = true           // localStorage
             databaseEnabled = true
             cacheMode = WebSettings.LOAD_DEFAULT
-            allowFileAccess = false
-            allowContentAccess = false
+            // Pour les assets file:///android_asset, on autorise l'accès local
+            // afin que localStorage et autres APIs fonctionnent dans tous les cas.
+            allowFileAccess = true
+            allowContentAccess = true
+            @Suppress("DEPRECATION")
+            allowFileAccessFromFileURLs = true
+            @Suppress("DEPRECATION")
+            allowUniversalAccessFromFileURLs = true
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
@@ -91,23 +99,23 @@ private fun createWebView(context: android.content.Context): WebView {
         webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // Détourner window.print() vers le PrintManager Android natif
-                view?.evaluateJavascript(
-                    """
-                    (function(){
-                      if (window.AndroidPrint) {
-                        window.print = function() {
-                          try { window.AndroidPrint.print(document.title || 'BonRetour'); }
-                          catch(e) { console.warn('AndroidPrint failed:', e); }
-                        };
-                      }
-                    })();
-                    """.trimIndent(),
-                    null
-                )
+                // Injection au chargement : override print + overlay erreurs + filets
+                view?.evaluateJavascript(BOOT_PATCH, null)
             }
         }
-        webChromeClient = WebChromeClient()
+        // WebChromeClient avec console logs + JS alerts/confirms natifs
+        webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                val tag = "BonRetourWV"
+                val text = "[${msg.sourceId()}:${msg.lineNumber()}] ${msg.message()}"
+                when (msg.messageLevel()) {
+                    ConsoleMessage.MessageLevel.ERROR -> Log.e(tag, text)
+                    ConsoleMessage.MessageLevel.WARNING -> Log.w(tag, text)
+                    else -> Log.i(tag, text)
+                }
+                return true
+            }
+        }
 
         // Bridge JS pour intercepter "imprimer" → utiliser PrintManager Android
         addJavascriptInterface(PrintBridge(this), "AndroidPrint")
@@ -116,6 +124,88 @@ private fun createWebView(context: android.content.Context): WebView {
         loadUrl("file:///android_asset/bon_retour/index.html")
     }
 }
+
+/**
+ * Script injecté APRÈS le chargement de la page :
+ *   1. override window.print() vers le PrintManager Android natif
+ *   2. overlay rouge visible si une erreur JS se produit
+ *      → permet de diagnostiquer sans avoir à brancher un PC en USB
+ *   3. filets de sécurité : ensureBon() avant les clics critiques pour
+ *      gérer le cas où l'init aurait été interrompue
+ */
+private val BOOT_PATCH = """
+(function(){
+  // ---- 1. window.print() → bridge Android ----
+  if (window.AndroidPrint) {
+    window.print = function() {
+      try { window.AndroidPrint.print(document.title || 'BonRetour'); }
+      catch(e) { console.warn('AndroidPrint failed:', e); }
+    };
+  }
+
+  // ---- 2. Overlay d'erreur visible ----
+  function showErr(msg) {
+    var el = document.getElementById('__gs_err_overlay');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '__gs_err_overlay';
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;'+
+        'background:#c62828;color:#fff;padding:10px 14px;'+
+        'font:13px/1.4 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);'+
+        'max-height:40vh;overflow:auto;white-space:pre-wrap;';
+      var close = document.createElement('button');
+      close.textContent = '✕';
+      close.style.cssText = 'float:right;background:transparent;border:0;color:#fff;'+
+        'font-size:18px;cursor:pointer;margin-left:8px;';
+      close.onclick = function(){ el.style.display = 'none'; };
+      el.appendChild(close);
+      var content = document.createElement('div');
+      content.id = '__gs_err_content';
+      el.appendChild(content);
+      document.body.appendChild(el);
+    }
+    document.getElementById('__gs_err_content').textContent =
+      (document.getElementById('__gs_err_content').textContent || '') + msg + '\n';
+    el.style.display = 'block';
+  }
+  window.addEventListener('error', function(e){
+    showErr('JS ERREUR: ' + (e.message||e) + '\n' +
+            (e.filename||'') + ':' + (e.lineno||'') + ':' + (e.colno||''));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    showErr('PROMISE ERREUR: ' + (e.reason && e.reason.message || e.reason));
+  });
+
+  // ---- 3. Filets de sécurité ----
+  try {
+    // Si ensureBon existe et currentBon est null → l'appeler maintenant
+    if (typeof ensureBon === 'function' && (typeof currentBon === 'undefined' || currentBon === null)) {
+      ensureBon();
+    }
+  } catch(e) { showErr('init ensureBon: ' + e.message); }
+
+  // Avant chaque clic sur Ajouter article, on garantit que currentBon existe
+  var addBtn = document.getElementById('btnAddArticle');
+  if (addBtn) {
+    addBtn.addEventListener('click', function(){
+      try {
+        if (typeof ensureBon === 'function' &&
+            (typeof currentBon === 'undefined' || currentBon === null)) {
+          ensureBon();
+        }
+      } catch(e) { showErr('btnAddArticle: ' + e.message); }
+    }, true); // capture phase: avant le handler original
+  } else {
+    showErr('btnAddArticle introuvable dans le DOM');
+  }
+
+  // Affiche un message si la liste des codes est vide
+  var sel = document.getElementById('bonCode');
+  if (sel && sel.options.length === 0) {
+    showErr('Liste des codes vide. Va dans onglet Codes pour en ajouter.');
+  }
+})();
+""".trimIndent()
 
 /** Pont JS ↔ Android pour déclencher l'impression / export PDF natif. */
 private class PrintBridge(private val webView: WebView) {
