@@ -3,8 +3,10 @@ package com.morpheus45.gsystem.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -181,6 +183,18 @@ private fun TempsCard(
     }
 }
 
+/** Petit composable : un label de champ avec asterisque rouge pour les obligatoires. */
+@Composable
+private fun reqLabel(text: String, required: Boolean): @Composable () -> Unit = {
+    Row {
+        Text(text)
+        if (required) {
+            Text("  *", color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddTempsDialog(
@@ -198,178 +212,303 @@ private fun AddTempsDialog(
     var obs by remember { mutableStateOf("") }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
-    // Slot matin/aprem auto-rempli selon l'heure du téléphone, modifiable
     val defaultSlot = if (java.time.LocalTime.now().hour < 13) "MATIN" else "APREM"
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
     val isWholeDay = type in WHOLE_DAY_TYPES
 
-    // Prévisualisation du message Viber
+    // Validation des champs obligatoires
+    val dateOk = date.isNotBlank()
+    val deptOk = dept.isNotBlank()
+    val nomOk = isWholeDay || nom.isNotBlank()
+    val villeOk = isWholeDay || ville.isNotBlank()
+    val numeroOk = isWholeDay || numero.isNotBlank()
+    val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk
+
+    // Pour eviter l'affichage des erreurs avant que l'utilisateur ne tente
+    // d'enregistrer, on suit un "touched" par champ.
+    var tried by remember { mutableStateOf(false) }
+
+    // Apercu du message Viber
     val tempEntry = TempsEntry(
         id = "", date = date, departement = dept, typeMission = type,
         nomClient = nom, ville = ville, numeroIntervention = numero,
         observationType = obsType, observations = obs,
-        heures = 0.0 // heures auto-calculées plus tard à partir de la liste du jour
+        heures = 0.0
     )
     val preview = ViberSender.buildMessage(tempEntry)
 
-    AlertDialog(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nouvelle intervention") },
-        text = {
-            Column {
-                OutlinedTextField(value = date, onValueChange = { date = it },
-                    label = { Text("Date (AAAA-MM-JJ)") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(6.dp))
-                // Type de mission EN PREMIER (détermine les champs suivants)
-                ExposedDropdownMenuBox(expanded = typeExpanded, onExpandedChange = { typeExpanded = it }) {
-                    OutlinedTextField(
-                        value = type, onValueChange = {}, readOnly = true,
-                        label = { Text("Type") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor()
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+                .fillMaxHeight(0.92f),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // ---- En-tete ----
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Nouvelle intervention",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f)
                     )
-                    ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                        MISSION_TYPES.forEach { t ->
-                            DropdownMenuItem(
-                                text = {
-                                    val suffix = if (t in WHOLE_DAY_TYPES) "  (journée 7h)" else ""
-                                    Text("$t$suffix")
-                                },
-                                onClick = { type = t; typeExpanded = false }
-                            )
-                        }
-                    }
+                    Text(
+                        "* obligatoire",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(value = dept,
-                        onValueChange = { dept = it.filter(Char::isDigit).take(3) },
-                        label = { Text("Département") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f))
-                    // Slot Matin/Aprem seulement pour les vraies missions
-                    if (!isWholeDay) {
-                        ExposedDropdownMenuBox(
-                            expanded = slotExpanded,
-                            onExpandedChange = { slotExpanded = it },
-                            modifier = Modifier.weight(1.4f)
-                        ) {
-                            OutlinedTextField(
-                                value = if (slot == "MATIN") "Matin" else "Après-midi",
-                                onValueChange = {}, readOnly = true,
-                                label = { Text("Slot") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = slotExpanded) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
-                            )
-                            ExposedDropdownMenu(expanded = slotExpanded, onDismissRequest = { slotExpanded = false }) {
-                                DropdownMenuItem(text = { Text("Matin") },
-                                    onClick = { slot = "MATIN"; slotExpanded = false })
-                                DropdownMenuItem(text = { Text("Après-midi") },
-                                    onClick = { slot = "APREM"; slotExpanded = false })
-                            }
-                        }
-                    } else {
-                        // Pour VACANCES / FORMATION : juste un texte "Journée entière"
-                        Box(modifier = Modifier.weight(1.4f).fillMaxWidth(),
-                            contentAlignment = Alignment.Center) {
-                            Text("Journée entière (7h)", fontSize = 12.sp,
-                                color = ColorTemps, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
+                Divider()
 
-                if (!isWholeDay) {
-                    // Champs intervention classiques
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(value = nom, onValueChange = { nom = it },
-                        label = { Text("Nom client") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(value = ville, onValueChange = { ville = it },
-                        label = { Text("Ville") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(value = numero,
-                        onValueChange = { numero = it.filter(Char::isDigit).take(12) },
-                        label = { Text("N° intervention") }, singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(6.dp))
-                    val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
-                    ExposedDropdownMenuBox(expanded = obsExpanded, onExpandedChange = { obsExpanded = it }) {
+                // ---- Contenu scrollable ----
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = date, onValueChange = { date = it },
+                        label = reqLabel("Date (AAAA-MM-JJ)", true),
+                        singleLine = true,
+                        isError = tried && !dateOk,
+                        supportingText = if (tried && !dateOk) {
+                            { Text("Champ obligatoire") }
+                        } else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    // Type de mission
+                    ExposedDropdownMenuBox(
+                        expanded = typeExpanded,
+                        onExpandedChange = { typeExpanded = it }
+                    ) {
                         OutlinedTextField(
-                            value = obsLabel, onValueChange = {}, readOnly = true,
-                            label = { Text("Observation (NR ...)") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = obsExpanded) },
+                            value = type, onValueChange = {}, readOnly = true,
+                            label = reqLabel("Type", true),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
-                        ExposedDropdownMenu(expanded = obsExpanded, onDismissRequest = { obsExpanded = false }) {
-                            ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
-                                DropdownMenuItem(text = { Text(label) },
-                                    onClick = { obsType = code; obsExpanded = false })
+                        ExposedDropdownMenu(
+                            expanded = typeExpanded,
+                            onDismissRequest = { typeExpanded = false }
+                        ) {
+                            MISSION_TYPES.forEach { t ->
+                                DropdownMenuItem(
+                                    text = {
+                                        val suffix = if (t in WHOLE_DAY_TYPES) "  (journée 7h)" else ""
+                                        Text("$t$suffix")
+                                    },
+                                    onClick = { type = t; typeExpanded = false }
+                                )
                             }
                         }
                     }
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(value = obs, onValueChange = { obs = it },
-                        label = { Text("Note libre (optionnel)") }, singleLine = false,
-                        modifier = Modifier.fillMaxWidth())
-                } else {
-                    // Pour VACANCES / FORMATION : juste un champ note optionnel
-                    Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(value = obs, onValueChange = { obs = it },
-                        label = {
-                            Text(if (type == "VACANCES") "Note (optionnel — ex: congés payés)"
-                                 else "Précisions (lieu, intitulé formation…)")
-                        },
-                        modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = dept,
+                            onValueChange = { dept = it.filter(Char::isDigit).take(3) },
+                            label = reqLabel("Département", true),
+                            singleLine = true,
+                            isError = tried && !deptOk,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (!isWholeDay) {
+                            ExposedDropdownMenuBox(
+                                expanded = slotExpanded,
+                                onExpandedChange = { slotExpanded = it },
+                                modifier = Modifier.weight(1.4f)
+                            ) {
+                                OutlinedTextField(
+                                    value = if (slot == "MATIN") "Matin" else "Après-midi",
+                                    onValueChange = {}, readOnly = true,
+                                    label = reqLabel("Créneau", true),
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = slotExpanded) },
+                                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = slotExpanded,
+                                    onDismissRequest = { slotExpanded = false }
+                                ) {
+                                    DropdownMenuItem(text = { Text("Matin") },
+                                        onClick = { slot = "MATIN"; slotExpanded = false })
+                                    DropdownMenuItem(text = { Text("Après-midi") },
+                                        onClick = { slot = "APREM"; slotExpanded = false })
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.weight(1.4f).fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Journée entière (7h)", fontSize = 12.sp,
+                                    color = ColorTemps, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+
+                    if (!isWholeDay) {
+                        OutlinedTextField(
+                            value = nom, onValueChange = { nom = it },
+                            label = reqLabel("Nom client", true),
+                            singleLine = true,
+                            isError = tried && !nomOk,
+                            supportingText = if (tried && !nomOk) {
+                                { Text("Champ obligatoire") }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = ville, onValueChange = { ville = it },
+                            label = reqLabel("Ville", true),
+                            singleLine = true,
+                            isError = tried && !villeOk,
+                            supportingText = if (tried && !villeOk) {
+                                { Text("Champ obligatoire") }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = numero,
+                            onValueChange = { numero = it.filter(Char::isDigit).take(12) },
+                            label = reqLabel("N° intervention", true),
+                            singleLine = true,
+                            isError = tried && !numeroOk,
+                            supportingText = if (tried && !numeroOk) {
+                                { Text("Champ obligatoire") }
+                            } else null,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+
+                        // Observation (OK / NR ...) — bien visible
+                        val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
+                        ExposedDropdownMenuBox(
+                            expanded = obsExpanded,
+                            onExpandedChange = { obsExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = obsLabel, onValueChange = {}, readOnly = true,
+                                label = { Text("Observation (OK / NR ...)") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = obsExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = obsExpanded,
+                                onDismissRequest = { obsExpanded = false }
+                            ) {
+                                ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
+                                    DropdownMenuItem(text = { Text(label) },
+                                        onClick = { obsType = code; obsExpanded = false })
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = obs, onValueChange = { obs = it },
+                            label = { Text("Note libre (optionnel)") },
+                            singleLine = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = obs, onValueChange = { obs = it },
+                            label = {
+                                Text(
+                                    if (type == "VACANCES") "Note (optionnel — ex: congés payés)"
+                                    else "Précisions (lieu, intitulé formation…)"
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = ColorTemps.copy(alpha = 0.12f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                "Message Viber qui sera pré-rempli :",
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                color = ColorTemps
+                            )
+                            Text(preview, fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                 }
 
-                Spacer(Modifier.height(10.dp))
-                Card(colors = CardDefaults.cardColors(
-                    containerColor = ColorTemps.copy(alpha = 0.1f))) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text("Message Viber qui sera pré-rempli :",
-                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                            color = ColorTemps)
-                        Text(preview, fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface)
+                // ---- Bottom bar (actions, fixe) ----
+                Divider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Annuler") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            tried = true
+                            if (!allOk) return@Button
+                            onSaveAndShare(TempsEntry(
+                                id = EntriesRepository.newId(),
+                                date = date.trim(),
+                                departement = dept.trim(),
+                                typeMission = type,
+                                nomClient = nom.trim(),
+                                ville = ville.trim(),
+                                numeroIntervention = numero.trim(),
+                                observationType = obsType,
+                                observations = obs.trim(),
+                                slotMidi = slot,
+                                heures = 0.0
+                            ))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
+                    ) {
+                        Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
+                        Text(
+                            if (isWholeDay) "  Enregistrer"
+                            else "  Enregistrer & Viber",
+                            color = Color.White
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSaveAndShare(TempsEntry(
-                        id = EntriesRepository.newId(),
-                        date = date.trim(),
-                        departement = dept.trim(),
-                        typeMission = type,
-                        nomClient = nom.trim(),
-                        ville = ville.trim(),
-                        numeroIntervention = numero.trim(),
-                        observationType = obsType,
-                        observations = obs.trim(),
-                        slotMidi = slot,
-                        heures = 0.0 // calculé automatiquement au moment du remplissage Excel
-                    ))
-                },
-                enabled = date.isNotBlank() && dept.isNotBlank() &&
-                          (isWholeDay || nom.isNotBlank()),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
-            ) {
-                Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
-                Text(
-                    if (isWholeDay) "  Enregistrer (sans Viber)"
-                    else "  Enregistrer & ouvrir Viber",
-                    color = Color.White
-                )
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
-    )
+        }
+    }
 }
