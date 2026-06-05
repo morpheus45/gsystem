@@ -57,6 +57,9 @@ fun GesteCoScreen(
 
     var editingEntry by remember { mutableStateOf<GesteCoEntry?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    // Mutuellement exclusifs : si on ouvre l'edition pendant un ajout, on ferme l'ajout
+    LaunchedEffect(editingEntry) { if (editingEntry != null) showAdd = false }
+    LaunchedEffect(showAdd) { if (showAdd) editingEntry = null }
 
     Scaffold(
         topBar = {
@@ -204,15 +207,23 @@ private fun SiteCard(
     val installedTxt = entry.installedList().joinToString(", ") { "${it.first}×${it.second}" }
     val offeredTxt = entry.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
 
+    // Pas de clickable sur le Card entier : on s'appuie sur l'icone Edit
+    // explicite pour ouvrir l'edition. Evite les conflits avec les autres
+    // icones (Send / Delete) sur certains devices Android.
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onEdit),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp)
     ) {
+        // La zone INFO (a gauche) reste cliquable pour ouvrir l'edition.
+        // Les icones a droite (Edit/Send/Delete) gardent chacune leur action propre.
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onEdit)
+                    .padding(end = 8.dp)
+            ) {
                 Text("Site ${entry.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(entry.date))}"
                         + if (entry.epsDerogation) "  ·  EPS" else "",
                     fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
@@ -228,10 +239,12 @@ private fun SiteCard(
                     Text("Client : ${entry.nomClient}", fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
+                Text("Tape ici pour modifier · Prime %.2f €".format(totalPrime),
+                    fontSize = 10.sp,
+                    color = ColorGesteCo,
+                    fontWeight = FontWeight.SemiBold)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("Prime %.2f €".format(totalPrime),
-                    fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 if (totalGift > 0) {
                     Text("Cadeau %.2f €".format(totalGift),
                         fontSize = 11.sp, color = ColorGesteCo)
@@ -344,22 +357,35 @@ private fun AddGesteCoDialog(
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
+                // Header (badge plus visible en mode edition)
                 Row(
                     modifier = Modifier.fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        if (isEditing) "Modifier GESTE CO" else "Nouveau GESTE CO",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (isEditing) {
+                            Box(
+                                modifier = Modifier
+                                    .background(ColorGesteCo, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("EN MODIFICATION", color = Color.White,
+                                    fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        Text(
+                            if (isEditing) "Modifier GESTE CO" else "Nouveau GESTE CO",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
                     Text(
                         "Sujet : GESTE CO - ${settings.siteCodeFixe} - ${siteNumber.ifBlank { "<n° site>" }}",
                         fontSize = 10.sp,
                         color = ColorGesteCo,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth(0.4f)
                     )
                 }
                 Divider()
@@ -477,46 +503,59 @@ private fun AddGesteCoDialog(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // Bottom bar fixe
+                // Bottom bar fixe — 2 lignes en mode edition pour eviter
+                // le debordement sur petits ecrans
                 Divider()
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Annuler") }
-                    Spacer(Modifier.width(6.dp))
                     if (isEditing) {
+                        // Ligne 1 : enregistrer SANS renvoyer (plein largeur)
                         OutlinedButton(
                             onClick = {
                                 if (!canSave) return@OutlinedButton
+                                val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
                                 onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
                                     iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa,
                                     oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa,
-                                    ::n), false)
+                                    n), false)
                             },
-                            enabled = canSave
+                            enabled = canSave,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Enregistrer")
+                            Icon(Icons.Filled.Edit, contentDescription = null,
+                                modifier = Modifier.size(18.dp))
+                            Text("  Enregistrer (sans renvoyer le mail)")
                         }
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.height(6.dp))
                     }
-                    Button(
-                        onClick = {
-                            if (!canSave) return@Button
-                            onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
-                                iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa,
-                                oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa,
-                                ::n), true)
-                        },
-                        enabled = canSave,
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
+                    // Ligne 2 : Annuler (gauche) + Enregistrer & envoyer (droite)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
-                        Text(
-                            if (isEditing) "  Enregistrer & renvoyer" else "  Enregistrer & envoyer",
-                            color = Color.White
-                        )
+                        TextButton(onClick = onDismiss) { Text("Annuler") }
+                        Button(
+                            onClick = {
+                                if (!canSave) return@Button
+                                val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
+                                onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
+                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa,
+                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa,
+                                    n), true)
+                            },
+                            enabled = canSave,
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
+                        ) {
+                            Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White,
+                                modifier = Modifier.size(18.dp))
+                            Text(
+                                if (isEditing) "  Enregistrer & renvoyer" else "  Enregistrer & envoyer",
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
