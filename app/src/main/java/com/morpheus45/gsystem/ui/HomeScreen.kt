@@ -84,28 +84,30 @@ fun HomeScreen(
     onSettings: () -> Unit
 ) {
     val today = LocalDate.now()
-    val endOfCycleApproaching = today.dayOfMonth >= 18
 
-    // -------- Donnees live : compteurs du mois en cours ----------
-    val month = today.monthValue
-    val year = today.year
-    fun isThisMonth(dateIso: String): Boolean = runCatching {
+    // -------- Donnees live : compteurs du CYCLE en cours (pas mois civil) ----------
+    // Cycle = du `cycleStartDay` du mois precedent au (cycleStartDay-1) du mois courant
+    // Exemple cycleStartDay=21 et today=05/06 -> cycle 21/05 -> 20/06
+    // Ainsi les chiffres affiches ici correspondent EXACTEMENT a ceux des ecrans
+    // internes (TempsScreen, GesteCoScreen, FraisScreen, etc.).
+    val (cycleStart, cycleEnd) = com.morpheus45.gsystem.util.DateUtil
+        .cyclePeriod(today, settings.cycleStartDay)
+    fun isThisCycle(dateIso: String): Boolean = runCatching {
         val d = LocalDate.parse(dateIso)
-        d.monthValue == month && d.year == year
+        d in cycleStart..cycleEnd
     }.getOrDefault(false)
 
-    val countTemps = store.temps.count { isThisMonth(it.date) }
-    val countGsm   = store.gsmSeul.count { isThisMonth(it.date) }
-    val countGeste = store.gesteCo.count { isThisMonth(it.date) }
-    val countFrais = store.frais.count { isThisMonth(it.date) }
-    val sumFrais   = store.frais.filter { isThisMonth(it.date) }.sumOf { it.montantEur }
-    val countCompt = store.compteur.count { isThisMonth(it.date) }
+    val countTemps = store.temps.count { isThisCycle(it.date) }
+    val countGsm   = store.gsmSeul.count { isThisCycle(it.date) }
+    val countGeste = store.gesteCo.count { isThisCycle(it.date) }
+    val countFrais = store.frais.count { isThisCycle(it.date) }
+    val sumFrais   = store.frais.filter { isThisCycle(it.date) }.sumOf { it.montantEur }
+    val countCompt = store.compteur.count { isThisCycle(it.date) }
 
-    val recapEuros = store.gesteCo.filter { isThisMonth(it.date) }.sumOf { entry ->
-        // Approximation : si pas accessible, on met 0 ; sinon on calcule.
-        // Le RecapScreen fait le vrai calcul ; ici c'est juste un teaser.
-        0.0
-    }
+    // Pip ambre ENVOI MENSUEL : on s'allume dans les 3 derniers jours du cycle
+    // (au lieu du seuil fixe day >= 18 — plus precis et coherent avec cycleEnd)
+    val daysUntilCycleEnd = java.time.temporal.ChronoUnit.DAYS.between(today, cycleEnd)
+    val endOfCycleApproaching = daysUntilCycleEnd in 0..3
 
     Column(
         modifier = Modifier
@@ -150,7 +152,9 @@ fun HomeScreen(
                 Spacer(Modifier.size(8.dp))
                 Text(
                     text = (if (settings.nomUtilisateur.isNotBlank())
-                        settings.nomUtilisateur else "TECH").uppercase() + "  ·  " + currentMonthLabel(),
+                        settings.nomUtilisateur else "TECH").uppercase() + "  ·  CYCLE " +
+                        com.morpheus45.gsystem.util.DateUtil.fr(cycleStart) +
+                        " → " + com.morpheus45.gsystem.util.DateUtil.fr(cycleEnd),
                     style = MaterialTheme.typography.labelMedium,
                     color = TextMid
                 )
@@ -175,7 +179,7 @@ fun HomeScreen(
                     gradientEnd = TempsEnd,
                     accent = TempsAccent,
                     liveValue = if (countTemps > 0) countTemps.toString() else null,
-                    liveLabel = if (countTemps > 0) "ce mois" else null,
+                    liveLabel = if (countTemps > 0) "ce cycle" else null,
                     onClick = onTemps
                 )
             }
@@ -189,7 +193,7 @@ fun HomeScreen(
                     gradientEnd = GsmEnd,
                     accent = GsmAccent,
                     liveValue = if (countGsm > 0) countGsm.toString() else null,
-                    liveLabel = if (countGsm > 0) "ce mois" else null,
+                    liveLabel = if (countGsm > 0) "ce cycle" else null,
                     onClick = onGsmSeul
                 )
             }
@@ -203,7 +207,7 @@ fun HomeScreen(
                     gradientEnd = GesteEnd,
                     accent = GesteAccent,
                     liveValue = if (countGeste > 0) countGeste.toString() else null,
-                    liveLabel = if (countGeste > 0) "ce mois" else null,
+                    liveLabel = if (countGeste > 0) "ce cycle" else null,
                     onClick = onGesteCo
                 )
             }
@@ -290,13 +294,4 @@ private fun currentQuarter(): String {
     val now = LocalDate.now()
     val q = (now.monthValue - 1) / 3 + 1
     return "${now.year} / Q$q"
-}
-
-private fun currentMonthLabel(): String {
-    val now = LocalDate.now()
-    val months = listOf(
-        "JAN", "FEV", "MAR", "AVR", "MAI", "JUN",
-        "JUL", "AOU", "SEP", "OCT", "NOV", "DEC"
-    )
-    return "${months[now.monthValue - 1]} ${now.year}"
 }
