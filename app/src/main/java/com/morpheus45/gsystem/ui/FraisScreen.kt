@@ -190,7 +190,7 @@ fun FraisScreen(
             }
 
             Spacer(Modifier.height(10.dp))
-            Text("Les tickets seront envoyés avec la feuille de temps via le bouton « ENVOI MENSUEL » de l'accueil.",
+            Text("Les tickets seront envoyés avec les clôtures via le bouton « ENVOI MENSUEL » de l'accueil.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
             Spacer(Modifier.height(8.dp))

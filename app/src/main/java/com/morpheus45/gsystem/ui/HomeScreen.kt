@@ -168,8 +168,8 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "01",
-                    label = "TEMPS",
-                    sub = "Feuille de temps · interventions",
+                    label = "CLÔTURE",
+                    sub = "Clôture d'intervention",
                     icon = Icons.Outlined.AccessTime,
                     gradientStart = TempsStart,
                     gradientEnd = TempsEnd,
