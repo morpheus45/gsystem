@@ -68,7 +68,7 @@ fun TempsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("CLÔTURE - Intervention") },
+                title = { Text("TEMPS - Feuille de temps") },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
@@ -83,7 +83,7 @@ fun TempsScreen(
                 onClick = { showAdd = true },
                 containerColor = ColorTemps,
                 icon = { Icon(Icons.Filled.Add, "Ajouter", tint = Color.White) },
-                text = { Text("Nouvelle clôture", color = Color.White) }
+                text = { Text("Nouvelle intervention", color = Color.White) }
             )
         }
     ) { padding ->
@@ -121,7 +121,7 @@ fun TempsScreen(
 
             if (periodEntries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucune clôture ce cycle. Tape « Nouvelle clôture » en bas.",
+                    Text("Aucune intervention. Tape « Nouvelle intervention » en bas.",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
@@ -317,7 +317,7 @@ private fun AddTempsDialog(
                             Spacer(Modifier.height(4.dp))
                         }
                         Text(
-                            if (isEditing) "Modifier clôture" else "Nouvelle clôture",
+                            if (isEditing) "Modifier intervention" else "Nouvelle intervention",
                             style = MaterialTheme.typography.titleLarge
                         )
                     }

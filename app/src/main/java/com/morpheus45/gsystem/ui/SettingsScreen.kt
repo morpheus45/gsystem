@@ -96,8 +96,8 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            SectionTitle("Groupe GS — CLÔTURES + Frais + Compteur voiture")
-            Text("Destinataires G-Systems pour les clôtures d'intervention, les tickets de frais et la photo compteur. À remplir une fois ici.",
+            SectionTitle("Groupe GS — TEMPS + Frais + Compteur voiture")
+            Text("Destinataires G-Systems pour la feuille de temps, les tickets de frais et la photo compteur. À remplir une fois ici.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))

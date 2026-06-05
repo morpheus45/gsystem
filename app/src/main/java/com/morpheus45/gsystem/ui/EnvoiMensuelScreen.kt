@@ -176,7 +176,7 @@ fun EnvoiMensuelScreen(
             Spacer(Modifier.height(16.dp))
 
             // Section : fichier Excel
-            SectionTitle("Mon fichier de clôtures .xlsm", EnvoiColor)
+            SectionTitle("Mon fichier TEMPS .xlsm", EnvoiColor)
             Card(modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp)) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -199,7 +199,7 @@ fun EnvoiMensuelScreen(
                         Text(if (settings.excelFileUri.isBlank()) "  Choisir mon fichier .xlsm"
                              else "  Changer de fichier")
                     }
-                    Text("Choisis ton fichier personnel (par ex. TEMPS 2026.xlsm) ouvert depuis OneDrive Android, Drive, ou stockage local.",
+                    Text("Choisis ton fichier personnel TEMPS 2026.xlsm (ouvert depuis OneDrive Android, Drive, ou stockage local).",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 4.dp))
@@ -208,7 +208,7 @@ fun EnvoiMensuelScreen(
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Récap de la période", EnvoiColor)
-            StatRow("Clôtures interventions", "${tempsPeriod.size}")
+            StatRow("Interventions TEMPS", "${tempsPeriod.size}")
             StatRow("Tickets de frais", "${fraisPeriod.size}  (${"%.2f €".format(totalFraisMontant)})")
             StatRow("Photos compteur", "${compteurPeriod.size}")
 
@@ -283,12 +283,12 @@ fun EnvoiMensuelScreen(
                                     append("Bonjour,\n\n")
                                     append("Envoi mensuel pour la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)}.\n\n")
                                     append("Récap :\n")
-                                    append("  - Clôtures interventions : ${tempsPeriod.size}\n")
+                                    append("  - Feuille TEMPS : ${tempsPeriod.size} interventions\n")
                                     append("  - Tickets de frais : ${fraisPeriod.size} (%.2f €)\n".format(totalFraisMontant))
                                     append("  - Photos compteur : ${compteurPeriod.size}\n")
                                     if (settings.plaqueVoiture.isNotBlank())
                                         append("  - Véhicule : ${settings.plaqueVoiture}\n")
-                                    append("\nPièces jointes : Excel + photos.\n\n")
+                                    append("\nPièces jointes : Excel TEMPS + photos.\n\n")
                                     append("Cordialement,\n${settings.nomUtilisateur}")
                                 },
                                 attachments = attachments,
