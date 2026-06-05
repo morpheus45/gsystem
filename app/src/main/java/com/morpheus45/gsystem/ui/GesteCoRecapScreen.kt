@@ -45,11 +45,16 @@ fun GesteCoRecapScreen(
         // La prime se calcule sur les extensions INSTALLÉES (pas les offertes)
         val qty = periodEntries.sumOf { entry ->
             when (type) {
-                "GSM" -> entry.installedGsm
-                "CO"  -> entry.installedCo
-                "DMP" -> entry.installedDmp
-                "SE"  -> entry.installedSe
-                else -> 0
+                "GSM"   -> entry.installedGsm
+                "CO"    -> entry.installedCo
+                "DMP"   -> entry.installedDmp
+                "SE"    -> entry.installedSe
+                "TC"    -> entry.installedTc
+                "SI"    -> entry.installedSi
+                "CAM"   -> entry.installedCam
+                "DACCO" -> entry.installedDacco
+                "BA"    -> entry.installedBa
+                else    -> 0
             }
         }
         val total = qty * settings.prices.priceFor(type)

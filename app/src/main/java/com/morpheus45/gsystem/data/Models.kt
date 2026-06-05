@@ -65,11 +65,22 @@ data class GesteCoEntry(
     val installedCo: Int = 0,
     val installedDmp: Int = 0,
     val installedSe: Int = 0,
+    // Nouveaux types — primes internes (v0.18.0)
+    val installedTc: Int = 0,
+    val installedSi: Int = 0,
+    val installedCam: Int = 0,
+    val installedDacco: Int = 0,
+    val installedBa: Int = 0,
     // OFFERTES en cadeau (sous-ensemble) — apparaît dans le mail
     val offeredGsm: Int = 0,
     val offeredCo: Int = 0,
     val offeredDmp: Int = 0,
     val offeredSe: Int = 0,
+    val offeredTc: Int = 0,
+    val offeredSi: Int = 0,
+    val offeredCam: Int = 0,
+    val offeredDacco: Int = 0,
+    val offeredBa: Int = 0,
     val epsDerogation: Boolean = false,
     val nomClient: String = "",
     val observations: String = ""
@@ -79,20 +90,35 @@ data class GesteCoEntry(
         installedGsm * prices.gsm +
         installedCo * prices.co +
         installedDmp * prices.dmp +
-        installedSe * prices.se
+        installedSe * prices.se +
+        installedTc * prices.tc +
+        installedSi * prices.si +
+        installedCam * prices.cam +
+        installedDacco * prices.dacco +
+        installedBa * prices.ba
 
     /** Total des CADEAUX CLIENT (sur les OFFERTES — apparaît dans l'email). */
     fun totalClientGift(gifts: GesteCoClientGifts): Double =
         offeredGsm * gifts.gsm +
         offeredCo * gifts.co +
         offeredDmp * gifts.dmp +
-        offeredSe * gifts.se
+        offeredSe * gifts.se +
+        offeredTc * gifts.tc +
+        offeredSi * gifts.si +
+        offeredCam * gifts.cam +
+        offeredDacco * gifts.dacco +
+        offeredBa * gifts.ba
 
     /** Alias pour compat (= prime). */
     fun totalEur(prices: GesteCoPrices): Double = totalPrime(prices)
 
-    fun totalInstalled(): Int = installedGsm + installedCo + installedDmp + installedSe
-    fun totalOffered(): Int = offeredGsm + offeredCo + offeredDmp + offeredSe
+    fun totalInstalled(): Int =
+        installedGsm + installedCo + installedDmp + installedSe +
+        installedTc + installedSi + installedCam + installedDacco + installedBa
+
+    fun totalOffered(): Int =
+        offeredGsm + offeredCo + offeredDmp + offeredSe +
+        offeredTc + offeredSi + offeredCam + offeredDacco + offeredBa
 
     fun isEmpty(): Boolean = totalInstalled() == 0
 
@@ -102,6 +128,11 @@ data class GesteCoEntry(
         if (installedCo > 0)  add("CO"  to installedCo)
         if (installedDmp > 0) add("DMP" to installedDmp)
         if (installedSe > 0)  add("SE"  to installedSe)
+        if (installedTc > 0)    add("TC"    to installedTc)
+        if (installedSi > 0)    add("SI"    to installedSi)
+        if (installedCam > 0)   add("CAM"   to installedCam)
+        if (installedDacco > 0) add("DACCO" to installedDacco)
+        if (installedBa > 0)    add("BA"    to installedBa)
     }
 
     /** Liste des extensions OFFERTES (pour mail). */
@@ -110,6 +141,11 @@ data class GesteCoEntry(
         if (offeredCo > 0)  add("CO"  to offeredCo)
         if (offeredDmp > 0) add("DMP" to offeredDmp)
         if (offeredSe > 0)  add("SE"  to offeredSe)
+        if (offeredTc > 0)    add("TC"    to offeredTc)
+        if (offeredSi > 0)    add("SI"    to offeredSi)
+        if (offeredCam > 0)   add("CAM"   to offeredCam)
+        if (offeredDacco > 0) add("DACCO" to offeredDacco)
+        if (offeredBa > 0)    add("BA"    to offeredBa)
     }
 }
 
@@ -123,16 +159,27 @@ data class GesteCoPrices(
     val co: Double = 2.0,
     val dmp: Double = 2.0,
     val se: Double = 4.0,
+    // Nouveaux types — primes internes (v0.18.0)
+    val tc: Double = 1.50,
+    val si: Double = 3.00,
+    val cam: Double = 4.00,
+    val dacco: Double = 3.00,
+    val ba: Double = 1.00,
 ) {
     fun priceFor(type: String): Double = when (type.uppercase()) {
         "GSM" -> gsm
         "CO" -> co
         "DMP" -> dmp
         "SE" -> se
+        "TC" -> tc
+        "SI" -> si
+        "CAM" -> cam
+        "DACCO" -> dacco
+        "BA" -> ba
         else -> 0.0
     }
     companion object {
-        val TYPES = listOf("GSM", "CO", "DMP", "SE")
+        val TYPES = listOf("GSM", "CO", "DMP", "SE", "TC", "SI", "CAM", "DACCO", "BA")
     }
 }
 
@@ -146,12 +193,23 @@ data class GesteCoClientGifts(
     val co: Double = 1.5,
     val dmp: Double = 3.0,
     val se: Double = 4.5,
+    // Nouveaux types — par defaut pas de cadeau client (prime interne uniquement)
+    val tc: Double = 0.0,
+    val si: Double = 0.0,
+    val cam: Double = 0.0,
+    val dacco: Double = 0.0,
+    val ba: Double = 0.0,
 ) {
     fun priceFor(type: String): Double = when (type.uppercase()) {
         "GSM" -> gsm
         "CO" -> co
         "DMP" -> dmp
         "SE" -> se
+        "TC" -> tc
+        "SI" -> si
+        "CAM" -> cam
+        "DACCO" -> dacco
+        "BA" -> ba
         else -> 0.0
     }
 }

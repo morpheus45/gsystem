@@ -100,20 +100,30 @@ object CsvExporter {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
 
-        // Cumul par type pour la section primes
-        val installedPerType = mutableMapOf("GSM" to 0, "CO" to 0, "DMP" to 0, "SE" to 0)
-        val offeredPerType = mutableMapOf("GSM" to 0, "CO" to 0, "DMP" to 0, "SE" to 0)
+        // Cumul par type pour la section primes (9 types depuis v0.18.0)
+        val installedPerType = GesteCoPrices.TYPES.associateWith { 0 }.toMutableMap()
+        val offeredPerType = GesteCoPrices.TYPES.associateWith { 0 }.toMutableMap()
         var grandPrime = 0.0
         for (e in filtered) {
             grandPrime += e.totalPrime(prices)
-            installedPerType["GSM"] = (installedPerType["GSM"] ?: 0) + e.installedGsm
-            installedPerType["CO"]  = (installedPerType["CO"]  ?: 0) + e.installedCo
-            installedPerType["DMP"] = (installedPerType["DMP"] ?: 0) + e.installedDmp
-            installedPerType["SE"]  = (installedPerType["SE"]  ?: 0) + e.installedSe
-            offeredPerType["GSM"] = (offeredPerType["GSM"] ?: 0) + e.offeredGsm
-            offeredPerType["CO"]  = (offeredPerType["CO"]  ?: 0) + e.offeredCo
-            offeredPerType["DMP"] = (offeredPerType["DMP"] ?: 0) + e.offeredDmp
-            offeredPerType["SE"]  = (offeredPerType["SE"]  ?: 0) + e.offeredSe
+            installedPerType["GSM"]   = (installedPerType["GSM"]   ?: 0) + e.installedGsm
+            installedPerType["CO"]    = (installedPerType["CO"]    ?: 0) + e.installedCo
+            installedPerType["DMP"]   = (installedPerType["DMP"]   ?: 0) + e.installedDmp
+            installedPerType["SE"]    = (installedPerType["SE"]    ?: 0) + e.installedSe
+            installedPerType["TC"]    = (installedPerType["TC"]    ?: 0) + e.installedTc
+            installedPerType["SI"]    = (installedPerType["SI"]    ?: 0) + e.installedSi
+            installedPerType["CAM"]   = (installedPerType["CAM"]   ?: 0) + e.installedCam
+            installedPerType["DACCO"] = (installedPerType["DACCO"] ?: 0) + e.installedDacco
+            installedPerType["BA"]    = (installedPerType["BA"]    ?: 0) + e.installedBa
+            offeredPerType["GSM"]   = (offeredPerType["GSM"]   ?: 0) + e.offeredGsm
+            offeredPerType["CO"]    = (offeredPerType["CO"]    ?: 0) + e.offeredCo
+            offeredPerType["DMP"]   = (offeredPerType["DMP"]   ?: 0) + e.offeredDmp
+            offeredPerType["SE"]    = (offeredPerType["SE"]    ?: 0) + e.offeredSe
+            offeredPerType["TC"]    = (offeredPerType["TC"]    ?: 0) + e.offeredTc
+            offeredPerType["SI"]    = (offeredPerType["SI"]    ?: 0) + e.offeredSi
+            offeredPerType["CAM"]   = (offeredPerType["CAM"]   ?: 0) + e.offeredCam
+            offeredPerType["DACCO"] = (offeredPerType["DACCO"] ?: 0) + e.offeredDacco
+            offeredPerType["BA"]    = (offeredPerType["BA"]    ?: 0) + e.offeredBa
         }
 
         val sb = StringBuilder()
@@ -156,14 +166,18 @@ object CsvExporter {
         sb.appendLine(row(
             "Date", "Site",
             "Inst GSM", "Inst CO", "Inst DMP", "Inst SE",
+            "Inst TC", "Inst SI", "Inst CAM", "Inst DACCO", "Inst BA",
             "Off GSM", "Off CO", "Off DMP", "Off SE",
+            "Off TC", "Off SI", "Off CAM", "Off DACCO", "Off BA",
             "EPS", "Prime", "Client", "Note"
         ))
         for (e in filtered) {
             sb.appendLine(row(
                 e.date, e.siteNumber,
                 e.installedGsm, e.installedCo, e.installedDmp, e.installedSe,
+                e.installedTc, e.installedSi, e.installedCam, e.installedDacco, e.installedBa,
                 e.offeredGsm, e.offeredCo, e.offeredDmp, e.offeredSe,
+                e.offeredTc, e.offeredSi, e.offeredCam, e.offeredDacco, e.offeredBa,
                 if (e.epsDerogation) "OUI" else "",
                 "%.2f €".format(e.totalPrime(prices)),
                 e.nomClient, e.observations
