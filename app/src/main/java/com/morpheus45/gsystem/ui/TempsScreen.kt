@@ -7,10 +7,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -57,6 +60,10 @@ fun TempsScreen(
     }.sortedByDescending { it.date }
 
     var showAdd by remember { mutableStateOf(false) }
+    var editingEntry by remember { mutableStateOf<TempsEntry?>(null) }
+    // Mutuelle exclusion
+    LaunchedEffect(editingEntry) { if (editingEntry != null) showAdd = false }
+    LaunchedEffect(showAdd) { if (showAdd) editingEntry = null }
 
     Scaffold(
         topBar = {
@@ -122,6 +129,7 @@ fun TempsScreen(
                     items(periodEntries, key = { it.id }) { e ->
                         TempsCard(
                             entry = e,
+                            onEdit = { editingEntry = e },
                             onResend = { ViberSender.share(context, ViberSender.buildMessage(e)) },
                             onDelete = { scope.launch { repo.removeTemps(e.id) } }
                         )
@@ -134,14 +142,29 @@ fun TempsScreen(
     if (showAdd) {
         AddTempsDialog(
             settings = settings,
+            existing = null,
             onDismiss = { showAdd = false },
-            onSaveAndShare = { entry ->
+            onSave = { entry, alsoShareViber ->
                 scope.launch { repo.addTemps(entry) }
-                // Pas de Viber pour VACANCES / FORMATION (journée entière)
-                if (entry.typeMission !in WHOLE_DAY_TYPES) {
+                if (alsoShareViber && entry.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(entry))
                 }
                 showAdd = false
+            }
+        )
+    }
+
+    editingEntry?.let { e ->
+        AddTempsDialog(
+            settings = settings,
+            existing = e,
+            onDismiss = { editingEntry = null },
+            onSave = { updated, alsoShareViber ->
+                scope.launch { repo.updateTemps(updated) }
+                if (alsoShareViber && updated.typeMission !in WHOLE_DAY_TYPES) {
+                    ViberSender.share(context, ViberSender.buildMessage(updated))
+                }
+                editingEntry = null
             }
         )
     }
@@ -150,13 +173,20 @@ fun TempsScreen(
 @Composable
 private fun TempsCard(
     entry: TempsEntry,
+    onEdit: () -> Unit,
     onResend: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
+            // Zone INFO cliquable pour declencher l'edition
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onEdit)
+                    .padding(end = 8.dp)
+            ) {
                 Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 val title = listOf(
@@ -167,6 +197,7 @@ private fun TempsCard(
                     "NR_CLIENT" -> "NR CLIENT"
                     "NR_TECHNIQUE" -> "NR TECHNIQUE"
                     "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                    "ANNULE" -> "ANNULÉ"
                     else -> ""
                 }
                 val fullObs = listOf(obsTxt, entry.observations).filter { it.isNotBlank() }.joinToString(" · ")
@@ -174,6 +205,13 @@ private fun TempsCard(
                     Text(fullObs, fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error)
                 }
+                Text("Tape ici pour modifier",
+                    fontSize = 10.sp,
+                    color = ColorTemps,
+                    fontWeight = FontWeight.SemiBold)
+            }
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, "Modifier", tint = ColorTemps)
             }
             IconButton(onClick = onResend) {
                 Icon(Icons.Filled.Send, "Renvoyer sur Viber", tint = ColorTemps)
@@ -199,20 +237,23 @@ private fun reqLabel(text: String, required: Boolean): @Composable () -> Unit = 
 @Composable
 private fun AddTempsDialog(
     settings: AppSettings,
+    existing: TempsEntry?,
     onDismiss: () -> Unit,
-    onSaveAndShare: (TempsEntry) -> Unit
+    onSave: (entry: TempsEntry, alsoShareViber: Boolean) -> Unit
 ) {
-    var date by remember { mutableStateOf(DateUtil.today().toString()) }
-    var dept by remember { mutableStateOf(settings.departementDefaut) }
-    var type by remember { mutableStateOf(MISSION_TYPES.first()) }
-    var nom by remember { mutableStateOf("") }
-    var ville by remember { mutableStateOf("") }
-    var numero by remember { mutableStateOf("") }
-    var obsType by remember { mutableStateOf("") }
-    var obs by remember { mutableStateOf("") }
+    val isEditing = existing != null
+    var date by remember { mutableStateOf(existing?.date ?: DateUtil.today().toString()) }
+    var dept by remember { mutableStateOf(existing?.departement ?: settings.departementDefaut) }
+    var type by remember { mutableStateOf(existing?.typeMission ?: MISSION_TYPES.first()) }
+    var nom by remember { mutableStateOf(existing?.nomClient ?: "") }
+    var ville by remember { mutableStateOf(existing?.ville ?: "") }
+    var numero by remember { mutableStateOf(existing?.numeroIntervention ?: "") }
+    var obsType by remember { mutableStateOf(existing?.observationType ?: "") }
+    var obs by remember { mutableStateOf(existing?.observations ?: "") }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
-    val defaultSlot = if (java.time.LocalTime.now().hour < 13) "MATIN" else "APREM"
+    val defaultSlot = existing?.slotMidi?.takeIf { it.isNotBlank() }
+        ?: if (java.time.LocalTime.now().hour < 13) "MATIN" else "APREM"
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
@@ -263,11 +304,23 @@ private fun AddTempsDialog(
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Nouvelle intervention",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (isEditing) {
+                            Box(
+                                modifier = Modifier
+                                    .background(ColorTemps, RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("EN MODIFICATION", color = Color.White,
+                                    fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                        }
+                        Text(
+                            if (isEditing) "Modifier intervention" else "Nouvelle intervention",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
                     Text(
                         "* obligatoire",
                         fontSize = 11.sp,
@@ -471,41 +524,65 @@ private fun AddTempsDialog(
 
                 // ---- Bottom bar (actions, fixe) ----
                 Divider()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                // Construit l'entree (id preserve si edition)
+                fun buildEntry() = TempsEntry(
+                    id = existing?.id ?: EntriesRepository.newId(),
+                    date = date.trim(),
+                    departement = dept.trim(),
+                    typeMission = type,
+                    nomClient = nom.trim(),
+                    ville = ville.trim(),
+                    numeroIntervention = numero.trim(),
+                    observationType = obsType,
+                    observations = obs.trim(),
+                    slotMidi = slot,
+                    heures = 0.0
+                )
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Annuler") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            tried = true
-                            if (!allOk) return@Button
-                            onSaveAndShare(TempsEntry(
-                                id = EntriesRepository.newId(),
-                                date = date.trim(),
-                                departement = dept.trim(),
-                                typeMission = type,
-                                nomClient = nom.trim(),
-                                ville = ville.trim(),
-                                numeroIntervention = numero.trim(),
-                                observationType = obsType,
-                                observations = obs.trim(),
-                                slotMidi = slot,
-                                heures = 0.0
-                            ))
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
+                    if (isEditing) {
+                        OutlinedButton(
+                            onClick = {
+                                tried = true
+                                if (!allOk) return@OutlinedButton
+                                onSave(buildEntry(), false)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Filled.Edit, contentDescription = null,
+                                modifier = Modifier.size(18.dp))
+                            Text("  Enregistrer (sans renvoyer Viber)")
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
-                        Text(
-                            if (isWholeDay) "  Enregistrer"
-                            else "  Enregistrer & Viber",
-                            color = Color.White
-                        )
+                        TextButton(onClick = onDismiss) { Text("Annuler") }
+                        Button(
+                            onClick = {
+                                tried = true
+                                if (!allOk) return@Button
+                                onSave(buildEntry(), true)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
+                        ) {
+                            Icon(Icons.Filled.Send, contentDescription = null,
+                                tint = Color.White, modifier = Modifier.size(18.dp))
+                            Text(
+                                when {
+                                    isEditing && isWholeDay -> "  Enregistrer"
+                                    isEditing -> "  Enregistrer & Viber"
+                                    isWholeDay -> "  Enregistrer"
+                                    else -> "  Enregistrer & Viber"
+                                },
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

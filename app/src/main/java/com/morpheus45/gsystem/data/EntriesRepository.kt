@@ -55,6 +55,9 @@ class EntriesRepository private constructor(context: Context) {
     suspend fun updateGesteCo(updated: GesteCoEntry) {
         persist(_store.value.copy(gesteCo = _store.value.gesteCo.map { if (it.id == updated.id) updated else it }))
     }
+    suspend fun updateTemps(updated: TempsEntry) {
+        persist(_store.value.copy(temps = _store.value.temps.map { if (it.id == updated.id) updated else it }))
+    }
 
     suspend fun removeTemps(id: String) = persist(_store.value.copy(temps = _store.value.temps.filterNot { it.id == id }))
     suspend fun removeGsmSeul(id: String) = persist(_store.value.copy(gsmSeul = _store.value.gsmSeul.filterNot { it.id == id }))

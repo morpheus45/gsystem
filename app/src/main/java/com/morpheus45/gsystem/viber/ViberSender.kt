@@ -20,6 +20,7 @@ object ViberSender {
         "NR_CLIENT" to "NR client",
         "NR_TECHNIQUE" to "NR technique",
         "NR_CLIENT_ABS" to "NR client absent",
+        "ANNULE" to "Annulé",
     )
 
     /** Construit la phrase Viber selon le code observationType de l'entrée. */
@@ -36,6 +37,7 @@ object ViberSender {
             "NR_CLIENT" -> "NR CLIENT"
             "NR_TECHNIQUE" -> "NR TECHNIQUE"
             "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+            "ANNULE" -> "ANNULE"
             else -> "ok"
         }
         return "$base $suffix"
