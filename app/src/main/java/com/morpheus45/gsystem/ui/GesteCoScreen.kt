@@ -391,27 +391,35 @@ private fun AddGesteCoDialog(
                 }
                 Divider()
 
-                // Contenu scrollable
+                // ZONE FIXE (non scrollable) : N° site + Date — ils doivent
+                // toujours rester visibles, peu importe la position de scroll.
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = siteNumber, onValueChange = { siteNumber = it.trim() },
+                        label = { Text("N° de site *") }, singleLine = true,
+                        isError = siteNumber.isBlank(),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = date, onValueChange = { date = it },
+                        label = { Text("Date *") }, singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Divider()
+
+                // Contenu scrollable (sous N° site / Date)
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
-                    OutlinedTextField(
-                        value = siteNumber, onValueChange = { siteNumber = it.trim() },
-                        label = { Text("N° de site *") }, singleLine = true,
-                        isError = siteNumber.isBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = date, onValueChange = { date = it },
-                        label = { Text("Date (AAAA-MM-JJ) *") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(4.dp))
                     // En-tetes du tableau
                     Row(
                         modifier = Modifier.fillMaxWidth(),

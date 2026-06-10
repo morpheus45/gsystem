@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -44,7 +45,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 import java.io.File
 
-private val CATEGORIES = listOf("REPAS", "PARKING", "AUTRE")
+private val CATEGORIES = listOf("REPAS", "PARKING", "DIVERS", "AUTRE")
 private val FraisColor = Color(0xFFD84315) // orange foncé
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -301,8 +302,13 @@ private fun TicketCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text("%.2f €".format(ticket.montantEur),
                     fontWeight = FontWeight.Bold, fontSize = 15.sp, color = FraisColor)
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.Delete, "Supprimer")
+                Row {
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Filled.Edit, "Modifier", tint = FraisColor)
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Filled.Delete, "Supprimer")
+                    }
                 }
             }
         }

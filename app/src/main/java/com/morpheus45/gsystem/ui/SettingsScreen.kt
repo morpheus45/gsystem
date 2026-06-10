@@ -61,11 +61,21 @@ fun SettingsScreen(
     var priceCo by remember { mutableStateOf(settings.prices.co.toString()) }
     var priceDmp by remember { mutableStateOf(settings.prices.dmp.toString()) }
     var priceSe by remember { mutableStateOf(settings.prices.se.toString()) }
+    var priceTc by remember { mutableStateOf(settings.prices.tc.toString()) }
+    var priceSi by remember { mutableStateOf(settings.prices.si.toString()) }
+    var priceCam by remember { mutableStateOf(settings.prices.cam.toString()) }
+    var priceDacco by remember { mutableStateOf(settings.prices.dacco.toString()) }
+    var priceBa by remember { mutableStateOf(settings.prices.ba.toString()) }
 
     var giftGsm by remember { mutableStateOf(settings.clientGifts.gsm.toString()) }
     var giftCo by remember { mutableStateOf(settings.clientGifts.co.toString()) }
     var giftDmp by remember { mutableStateOf(settings.clientGifts.dmp.toString()) }
     var giftSe by remember { mutableStateOf(settings.clientGifts.se.toString()) }
+    var giftTc by remember { mutableStateOf(settings.clientGifts.tc.toString()) }
+    var giftSi by remember { mutableStateOf(settings.clientGifts.si.toString()) }
+    var giftCam by remember { mutableStateOf(settings.clientGifts.cam.toString()) }
+    var giftDacco by remember { mutableStateOf(settings.clientGifts.dacco.toString()) }
+    var giftBa by remember { mutableStateOf(settings.clientGifts.ba.toString()) }
 
     val firstRun = !settings.firstRunDone
 
@@ -193,10 +203,22 @@ fun SettingsScreen(
                 PriceField(label = "DMP", value = priceDmp, onChange = { priceDmp = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "SE",  value = priceSe,  onChange = { priceSe = it },  modifier = Modifier.weight(1f))
             }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriceField(label = "TC",    value = priceTc,    onChange = { priceTc = it },    modifier = Modifier.weight(1f))
+                PriceField(label = "SI",    value = priceSi,    onChange = { priceSi = it },    modifier = Modifier.weight(1f))
+                PriceField(label = "CAM",   value = priceCam,   onChange = { priceCam = it },   modifier = Modifier.weight(1f))
+                PriceField(label = "DACCO", value = priceDacco, onChange = { priceDacco = it }, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriceField(label = "BA", value = priceBa, onChange = { priceBa = it }, modifier = Modifier.weight(0.25f))
+                Spacer(Modifier.weight(0.75f))
+            }
 
             Spacer(Modifier.height(20.dp))
             SectionTitle("Cadeau client (€/unité — apparaît dans l'email)")
-            Text("Le montant offert au client par extension installée. Ces montants apparaissent dans le corps du mail GESTE CO.",
+            Text("Le montant offert au client par extension installée. Ces montants apparaissent dans le corps du mail GESTE CO. Mettre 0 pour ne pas envoyer le type au client.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))
@@ -205,6 +227,18 @@ fun SettingsScreen(
                 PriceField(label = "CO",  value = giftCo,  onChange = { giftCo = it },  modifier = Modifier.weight(1f))
                 PriceField(label = "DMP", value = giftDmp, onChange = { giftDmp = it }, modifier = Modifier.weight(1f))
                 PriceField(label = "SE",  value = giftSe,  onChange = { giftSe = it },  modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriceField(label = "TC",    value = giftTc,    onChange = { giftTc = it },    modifier = Modifier.weight(1f))
+                PriceField(label = "SI",    value = giftSi,    onChange = { giftSi = it },    modifier = Modifier.weight(1f))
+                PriceField(label = "CAM",   value = giftCam,   onChange = { giftCam = it },   modifier = Modifier.weight(1f))
+                PriceField(label = "DACCO", value = giftDacco, onChange = { giftDacco = it }, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PriceField(label = "BA", value = giftBa, onChange = { giftBa = it }, modifier = Modifier.weight(0.25f))
+                Spacer(Modifier.weight(0.75f))
             }
 
             Spacer(Modifier.height(20.dp))
@@ -274,12 +308,22 @@ fun SettingsScreen(
                         co = priceCo.replace(",", ".").toDoubleOrNull() ?: 2.0,
                         dmp = priceDmp.replace(",", ".").toDoubleOrNull() ?: 2.0,
                         se = priceSe.replace(",", ".").toDoubleOrNull() ?: 4.0,
+                        tc = priceTc.replace(",", ".").toDoubleOrNull() ?: 1.5,
+                        si = priceSi.replace(",", ".").toDoubleOrNull() ?: 3.0,
+                        cam = priceCam.replace(",", ".").toDoubleOrNull() ?: 4.0,
+                        dacco = priceDacco.replace(",", ".").toDoubleOrNull() ?: 3.0,
+                        ba = priceBa.replace(",", ".").toDoubleOrNull() ?: 1.0,
                     )
                     val newGifts = GesteCoClientGifts(
                         gsm = giftGsm.replace(",", ".").toDoubleOrNull() ?: 3.0,
                         co = giftCo.replace(",", ".").toDoubleOrNull() ?: 1.5,
                         dmp = giftDmp.replace(",", ".").toDoubleOrNull() ?: 3.0,
                         se = giftSe.replace(",", ".").toDoubleOrNull() ?: 4.5,
+                        tc = giftTc.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                        si = giftSi.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                        cam = giftCam.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                        dacco = giftDacco.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                        ba = giftBa.replace(",", ".").toDoubleOrNull() ?: 0.0,
                     )
                     val newAdminTo = emailGsTo.trim()
                     val newAdminCc1 = emailGsCc1.trim()
