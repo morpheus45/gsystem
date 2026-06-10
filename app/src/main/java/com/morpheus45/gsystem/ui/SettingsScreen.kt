@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.morpheus45.gsystem.BuildConfig
@@ -300,6 +301,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
             Divider()
             Spacer(Modifier.height(16.dp))
+            val ctxToast = LocalContext.current
             Button(
                 onClick = {
                     val cycleInt = cycle.toIntOrNull()?.coerceIn(1, 28) ?: 21
@@ -360,14 +362,20 @@ fun SettingsScreen(
                             departementDefaut = dept.trim(),
                         )
                     )
+                    Toast.makeText(ctxToast, "Réglages enregistrés", Toast.LENGTH_SHORT).show()
                 },
-                enabled = emailGsTo.isNotBlank() &&
-                          emailEpsTo.isNotBlank() &&
-                          nom.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Icon(Icons.Filled.Save, contentDescription = null)
                 Text("  Enregistrer", fontSize = 16.sp)
+            }
+            if (emailGsTo.isBlank() || emailEpsTo.isBlank() || nom.isBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Les envois email auront besoin du nom + emails GS/EPS, mais tu peux quand même enregistrer maintenant.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
             }
             Spacer(Modifier.height(40.dp))
         }

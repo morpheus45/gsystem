@@ -45,7 +45,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 import java.io.File
 
-private val CATEGORIES = listOf("REPAS", "PARKING", "DIVERS", "AUTRE")
+private val CATEGORIES = listOf("PARKING", "DIVERS", "AUTRE")
 private val FraisColor = Color(0xFFD84315) // orange foncé
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -322,10 +322,9 @@ private fun EditFraisDialog(
     onDismiss: () -> Unit,
     onSave: (FraisTicket) -> Unit
 ) {
-    // Si l'ancienne catégorie n'est pas dans la nouvelle liste, on tombe sur "AUTRE"
-    val initialCat = if (ticket.categorie in CATEGORIES) ticket.categorie
-                     else if (ticket.categorie.isBlank()) "REPAS"
-                     else "AUTRE"
+    // Si l'ancienne catégorie n'est pas dans la nouvelle liste (ex: anciens
+    // tickets REPAS), on retombe sur AUTRE (avec le libellé d'origine en note).
+    val initialCat = if (ticket.categorie in CATEGORIES) ticket.categorie else "AUTRE"
     var categorie by remember { mutableStateOf(initialCat) }
     var montant by remember {
         mutableStateOf(if (ticket.montantEur == 0.0) ""
