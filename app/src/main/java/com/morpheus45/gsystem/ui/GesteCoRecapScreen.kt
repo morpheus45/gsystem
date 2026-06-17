@@ -1,5 +1,7 @@
 package com.morpheus45.gsystem.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -60,6 +62,18 @@ fun GesteCoRecapScreen(
         val total = qty * settings.prices.priceFor(type)
         qty to total
     }
+
+    // Répartition des interventions TEMPS du cycle, par type (pour le camembert).
+    val tempsPeriod = store.temps.filter {
+        runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
+    }
+    val tempsByType: List<Pair<String, Int>> = tempsPeriod
+        .groupingBy { it.typeMission.ifBlank { "—" } }
+        .eachCount()
+        .entries
+        .sortedByDescending { it.value }
+        .map { it.key to it.value }
+    val tempsTotal = tempsByType.sumOf { it.second }
 
     Scaffold(
         topBar = {
@@ -127,6 +141,26 @@ fun GesteCoRecapScreen(
                         Text("%.2f €".format(grandTotal),
                             fontWeight = FontWeight.Bold, fontSize = 22.sp,
                             color = ColorGesteCo)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Répartition des interventions TEMPS",
+                        fontWeight = FontWeight.Bold,
+                        color = ColorGesteCo, fontSize = 14.sp)
+                    Text("Par type sur le cycle ($tempsTotal interv.)",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.height(10.dp))
+                    if (tempsTotal == 0) {
+                        Text("Aucune intervention TEMPS ce cycle.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    } else {
+                        TempsPieChart(tempsByType, tempsTotal)
                     }
                 }
             }
@@ -204,6 +238,47 @@ fun GesteCoRecapScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+private val PIE_COLORS = listOf(
+    Color(0xFF1976D2), Color(0xFF26A69A), Color(0xFFEF5350), Color(0xFFFFA726),
+    Color(0xFFAB47BC), Color(0xFF66BB6A), Color(0xFF5C6BC0), Color(0xFFEC407A),
+    Color(0xFF8D6E63), Color(0xFF42A5F5), Color(0xFFFFCA28), Color(0xFF78909C)
+)
+
+@Composable
+private fun TempsPieChart(data: List<Pair<String, Int>>, total: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Canvas(modifier = Modifier.size(140.dp)) {
+            var startAngle = -90f
+            data.forEachIndexed { i, (_, count) ->
+                val sweep = 360f * count / total
+                drawArc(
+                    color = PIE_COLORS[i % PIE_COLORS.size],
+                    startAngle = startAngle,
+                    sweepAngle = sweep,
+                    useCenter = true
+                )
+                startAngle += sweep
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            data.forEachIndexed { i, (type, count) ->
+                val pct = 100.0 * count / total
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 2.dp)) {
+                    Box(modifier = Modifier
+                        .size(12.dp)
+                        .background(PIE_COLORS[i % PIE_COLORS.size], RoundedCornerShape(2.dp)))
+                    Spacer(Modifier.width(8.dp))
+                    Text(type, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f))
+                    Text("%d (%.0f%%)".format(count, pct), fontSize = 12.sp)
                 }
             }
         }
