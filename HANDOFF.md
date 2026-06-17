@@ -220,8 +220,10 @@ Le workflow `.github/workflows/android-build.yml` build l'APK debug et, sur tag
 | **0.17.x+** | **« MISSION CONTROL »** dark + 8 gradients + data live | **EN PRODUCTION** |
 
 Logo : le **wordmark officiel gsystems** (G rouge `#ee2322` arrondi + « systems »
-anthracite `#2b2d33`) est la référence de marque. Reproduit en SVG dans
-`docs/index.html` (header) et animé dans `logodraft/splash-preview.html`.
+anthracite `#2b2d33`) est la référence de marque. Reproduit en SVG **animé**
+dans `docs/index.html` (header : le G se dessine, s'embrase, puis « systems »
+jaillit de la gueule du G — séquence « Réveil de marque ») et dans
+`logodraft/splash-preview.html`.
 
 Ne reviens **pas** à du blanc/monochrome. L'utilisateur veut : dark base,
 identité chromatique par catégorie, typo XL (Tektur), animations subtiles, data live.

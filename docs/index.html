@@ -41,11 +41,52 @@
       padding-top: 12px;
       margin-bottom: 24px;
     }
+    /* Logo animé « Réveil de marque » : le G se dessine, s'embrase,
+       puis « systems » jaillit de la gueule du G. Boucle de respiration. */
     .brand-logo {
-      width: 240px;
-      max-width: 70%;
+      width: 260px;
+      max-width: 72%;
       height: auto;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      overflow: visible;
+    }
+    .bl-g {
+      fill: none; stroke: #ee2322; stroke-width: 30;
+      stroke-linecap: round; stroke-linejoin: round;
+      stroke-dasharray: 560; stroke-dashoffset: 560;
+      animation:
+        bl-draw .7s cubic-bezier(.65,0,.35,1) forwards,
+        bl-ignite .5s ease forwards .9s,
+        bl-breathe 2.8s ease-in-out infinite 1.8s;
+    }
+    .bl-word {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-weight: 600; font-size: 62px; letter-spacing: -1px;
+      fill: #2b2d33; opacity: 0;
+      animation:
+        bl-wordin .4s ease forwards .35s,
+        bl-shoot 1.05s cubic-bezier(.5,0,.15,1) forwards 1.3s;
+    }
+    @keyframes bl-draw { to { stroke-dashoffset: 0; } }
+    @keyframes bl-ignite {
+      0%   { stroke: #ee2322; filter: drop-shadow(0 0 0 rgba(238,35,34,0)); }
+      100% { stroke: #ff4338; filter: drop-shadow(0 0 10px rgba(238,35,34,.55)); }
+    }
+    @keyframes bl-breathe {
+      0%,100% { filter: drop-shadow(0 0 6px rgba(238,35,34,.4)); }
+      50%     { filter: drop-shadow(0 0 16px rgba(238,35,34,.75)); }
+    }
+    @keyframes bl-wordin { to { opacity: 1; } }
+    @keyframes bl-shoot {
+      0%   { transform: translateX(0); }
+      28%  { transform: translateX(-95px); }
+      50%  { transform: translateX(-95px); }
+      82%  { transform: translateX(9px); }
+      100% { transform: translateX(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bl-g { animation: none; stroke-dashoffset: 0; stroke: #ee2322; }
+      .bl-word { animation: none; opacity: 1; }
     }
     h1 {
       margin: 0 0 4px;
@@ -230,9 +271,9 @@
 
   <header>
     <svg class="brand-logo" viewBox="0 0 470 200" role="img" aria-label="gsystems" xmlns="http://www.w3.org/2000/svg">
-      <path d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"
-            fill="none" stroke="#ee2322" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="178" y="128" font-family="'Segoe UI', system-ui, sans-serif" font-weight="600" font-size="62" letter-spacing="-1" fill="#2b2d33">systems</text>
+      <defs><clipPath id="mouthH"><rect x="168" y="0" width="302" height="200"/></clipPath></defs>
+      <path class="bl-g" d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"/>
+      <g clip-path="url(#mouthH)"><text class="bl-word" x="178" y="128">systems</text></g>
     </svg>
     <h1>G-Systems</h1>
     <p class="subtitle">Application pour techniciens · Android</p>

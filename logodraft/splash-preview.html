@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gsystem — splash animé « Réveil de marque »</title>
+<style>
+  :root{
+    --red:#ee2322;
+    --red-hi:#ff4338;
+    --charcoal:#2b2d33;
+    --obsidian:#07080d;
+    --lift:#12141b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:#0a0b10;color:#e8e9ee;padding:30px 20px 60px;
+  }
+  h1{font-size:22px;font-weight:700;text-align:center;margin-bottom:6px}
+  .sub{text-align:center;color:#8a8f9e;font-size:13px;margin-bottom:30px}
+
+  /* ---------- HERO : concept final ---------- */
+  .hero-card{
+    max-width:600px;margin:0 auto 16px;background:var(--lift);
+    border:1px solid #20232c;border-radius:22px;overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.55);
+  }
+  .hero-stage{
+    height:380px;position:relative;cursor:pointer;overflow:hidden;
+  }
+  .bgw{position:absolute;inset:0;background:#ffffff;}
+  .bgd{position:absolute;inset:0;opacity:0;
+    background:radial-gradient(120% 120% at 50% 42%,#16181f 0%,#07080d 72%);}
+  .scan{position:absolute;left:0;right:0;height:160px;opacity:0;
+    background:linear-gradient(180deg,transparent,rgba(255,67,56,.10),transparent);
+    transform:translateY(-180px);}
+  .hero-stage svg{position:absolute;inset:0;margin:auto;width:300px;height:auto;overflow:visible}
+  .label{padding:18px 22px;border-top:1px solid #20232c}
+  .label b{font-size:16px;display:block;margin-bottom:5px}
+  .label span{font-size:13px;color:#9aa0b0;line-height:1.55}
+  .replay{display:inline-block;margin-top:12px;font-size:11.5px;color:var(--red-hi);
+    border:1px solid #3a2326;border-radius:20px;padding:5px 14px}
+  .seq{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .seq div{font-size:11px;color:#aeb3c2;background:#1a1d26;border:1px solid #262a35;
+    border-radius:8px;padding:6px 10px}
+  .seq b{color:var(--red-hi);font-size:11px;display:inline;margin:0}
+
+  /* shared geometry */
+  .gpath{fill:none;stroke:var(--red);stroke-width:30;
+    stroke-linecap:round;stroke-linejoin:round;}
+  .word{font-family:'Segoe UI',system-ui,sans-serif;font-weight:600;
+    font-size:62px;letter-spacing:-1px;}
+  .ring{fill:none;stroke:var(--red-hi);stroke-width:4;opacity:0;
+    transform-box:fill-box;transform-origin:center;}
+
+  /* ================= SÉQUENCE « RÉVEIL DE MARQUE » ================= */
+  /* Phase 1 (0-0.8s)  : le logo OFFICIEL se forme (fond blanc, G rouge, systems anthracite)
+     Phase 2 (0.9-1.5s): power-on — fond blanc -> noir, systems anthracite -> blanc
+     Phase 3 (1.4-2.3s): le G s'embrase + systems se rétracte DANS le G puis en jaillit
+     Phase 4 (2.1s+)   : ondes de sécurité + halo qui respire (boucle) */
+
+  .bgw{animation:h-bgw .6s ease forwards .9s}
+  .bgd{animation:h-bgd .6s ease forwards .9s}
+  .scan{animation:h-scan 1s ease-in .95s}
+
+  .hero .gpath{
+    stroke-dasharray:560;stroke-dashoffset:560;
+    animation:
+      h-draw .65s cubic-bezier(.65,0,.35,1) forwards,
+      h-ignite .5s ease forwards 1.0s,
+      h-breathe 2.8s ease-in-out infinite 1.9s;
+  }
+  .hero .word{
+    opacity:0;fill:var(--charcoal);
+    animation:
+      h-wordin .4s ease forwards .35s,
+      h-tocolor .5s ease forwards 1.0s,
+      h-shoot 1.05s cubic-bezier(.5,0,.15,1) forwards 1.35s;
+  }
+  .hero .ring.r1{animation:h-pulse 2.6s ease-out infinite 2.2s}
+  .hero .ring.r2{animation:h-pulse 2.6s ease-out infinite 3.0s}
+
+  @keyframes h-draw{to{stroke-dashoffset:0}}
+  @keyframes h-bgw{to{opacity:0}}
+  @keyframes h-bgd{to{opacity:1}}
+  @keyframes h-scan{
+    0%{opacity:0;transform:translateY(-180px)}
+    25%{opacity:1}
+    100%{opacity:0;transform:translateY(380px)}
+  }
+  @keyframes h-ignite{
+    0%{stroke:var(--red);filter:drop-shadow(0 0 0 rgba(255,67,56,0))}
+    100%{stroke:var(--red-hi);filter:drop-shadow(0 0 16px rgba(255,67,56,.7))}
+  }
+  @keyframes h-breathe{
+    0%,100%{filter:drop-shadow(0 0 10px rgba(255,67,56,.5))}
+    50%{filter:drop-shadow(0 0 24px rgba(255,67,56,.92))}
+  }
+  @keyframes h-wordin{to{opacity:1}}
+  @keyframes h-tocolor{0%{fill:var(--charcoal)}100%{fill:#ffffff}}
+  /* rétracte dans le G (-95) puis jaillit avec léger dépassement */
+  @keyframes h-shoot{
+    0%{transform:translateX(0)}
+    28%{transform:translateX(-95px)}
+    50%{transform:translateX(-95px)}
+    82%{transform:translateX(9px)}
+    100%{transform:translateX(0)}
+  }
+  @keyframes h-pulse{
+    0%{opacity:.5;transform:scale(.4)}
+    80%{opacity:0;transform:scale(1.9)}
+    100%{opacity:0;transform:scale(1.9)}
+  }
+</style>
+</head>
+<body>
+  <h1>gsystem — splash animé « Réveil de marque »</h1>
+  <div class="sub">On part du vrai logo gsystems, puis il s'allume et devient l'identité premium de l'appli. Clique pour rejouer.</div>
+
+  <div class="hero-card">
+    <div class="hero-stage hero" onclick="replay(this)">
+      <div class="bgw"></div>
+      <div class="bgd"></div>
+      <div class="scan"></div>
+      <svg viewBox="0 0 470 200">
+        <defs>
+          <clipPath id="mouthH"><rect x="168" y="0" width="302" height="200"/></clipPath>
+        </defs>
+        <circle class="ring r1" cx="100" cy="100" r="62"/>
+        <circle class="ring r2" cx="100" cy="100" r="62"/>
+        <path class="gpath" d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"/>
+        <g clip-path="url(#mouthH)">
+          <text class="word" x="178" y="128">systems</text>
+        </g>
+      </svg>
+    </div>
+    <div class="label">
+      <b>Splash « Réveil de marque »</b>
+      <span>Le splash démarre sur le logo officiel gsystems, puis l'allume : le fond bascule en noir, le « G » s'embrase, « systems » se rétracte dans le G et en jaillit en blanc, suivi d'ondes de télésurveillance.</span>
+      <div class="seq">
+        <div><b>1.</b> logo officiel se forme</div>
+        <div><b>2.</b> power-on : fond → noir</div>
+        <div><b>3.</b> G embrasé + systems jaillit</div>
+        <div><b>4.</b> ondes sécurité + halo</div>
+      </div>
+      <div class="replay">↻ rejouer</div>
+    </div>
+  </div>
+
+<script>
+  function replay(stage){
+    const html = stage.innerHTML;
+    stage.innerHTML = '';
+    void stage.offsetWidth;   /* force reflow -> reset des animations CSS */
+    stage.innerHTML = html;
+  }
+</script>
+</body>
+</html>
