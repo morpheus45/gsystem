@@ -1,5 +1,6 @@
 package com.morpheus45.gsystem.email
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -29,9 +30,24 @@ object EmailSender {
         val uris = ArrayList(attachments.map {
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
         })
-        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+        // Une seule pièce jointe -> ACTION_SEND (mieux supporté par Gmail/Outlook
+        // que SEND_MULTIPLE qui peut ignorer un fichier unique).
+        val action = if (uris.size <= 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE
+        val intent = Intent(action).apply {
             type = mimeType
-            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            if (uris.size <= 1) {
+                if (uris.isNotEmpty()) putExtra(Intent.EXTRA_STREAM, uris[0])
+            } else {
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }
+            // ClipData : indispensable pour que FLAG_GRANT_READ_URI_PERMISSION
+            // s'applique à TOUTES les pièces jointes même à travers le chooser.
+            // Sans ça, l'app mail s'ouvre sans les fichiers (cas .xlsm manquant).
+            if (uris.isNotEmpty()) {
+                val clip = ClipData.newUri(context.contentResolver, "pièces jointes", uris[0])
+                for (i in 1 until uris.size) clip.addItem(ClipData.Item(uris[i]))
+                clipData = clip
+            }
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
             if (ccClean.isNotEmpty()) putExtra(Intent.EXTRA_CC, ccClean)
@@ -40,6 +56,7 @@ object EmailSender {
         }
         val chooser = Intent.createChooser(intent, chooserTitle).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(chooser)
     }
