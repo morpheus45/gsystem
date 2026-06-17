@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>G-Systems · Installation pour techniciens</title>
   <meta name="description" content="Tutoriel d'installation pas-à-pas de l'app G-Systems sur téléphone Android." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%235B3EB1'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%23ee2322'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
       --accent: #5b3eb1;
@@ -41,18 +41,11 @@
       padding-top: 12px;
       margin-bottom: 24px;
     }
-    .logo {
-      width: 72px; height: 72px;
-      border-radius: 18px;
-      background: var(--accent);
-      color: white;
-      font-size: 44px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .brand-logo {
+      width: 240px;
+      max-width: 70%;
+      height: auto;
       margin-bottom: 12px;
-      box-shadow: 0 4px 14px rgba(91,62,177,.25);
     }
     h1 {
       margin: 0 0 4px;
@@ -236,7 +229,11 @@
 <div class="container">
 
   <header>
-    <div class="logo">G</div>
+    <svg class="brand-logo" viewBox="0 0 470 200" role="img" aria-label="gsystems" xmlns="http://www.w3.org/2000/svg">
+      <path d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"
+            fill="none" stroke="#ee2322" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="178" y="128" font-family="'Segoe UI', system-ui, sans-serif" font-weight="600" font-size="62" letter-spacing="-1" fill="#2b2d33">systems</text>
+    </svg>
     <h1>G-Systems</h1>
     <p class="subtitle">Application pour techniciens · Android</p>
   </header>
@@ -366,54 +363,46 @@
       Saisie d'une intervention (date, dept, type, client, ville, n°, OK/NR/Annulé…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé prêt à envoyer au groupe.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#06b6d4">02</span>
+      <span class="ic" style="background:#4f46e5">02</span>
+      <b>COURRIER</b>
+      Un appui = Viber s'ouvre avec le message « courrier ok » déjà tapé, prêt à envoyer au groupe. Pour signaler le passage du courrier sans rien saisir.
+    </div>
+    <div class="feature">
+      <span class="ic" style="background:#06b6d4">03</span>
       <b>GSM SEUL</b>
       Une installation GSM uniquement = un email immédiat (sujet <code>GSM SEUL - ISTGSXXX - n°site</code>, destinataire + 2 copies).
     </div>
     <div class="feature">
-      <span class="ic" style="background:#10b981">03</span>
+      <span class="ic" style="background:#10b981">04</span>
       <b>GESTE CO</b>
       Tableau "Installé / Cadeau" par type (GSM, CO, DMP, SE). L'app vérifie les règles automatiquement (4,50 € max, moitié max…). Dérogation EPS dispo.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#f59e0b">04</span>
+      <span class="ic" style="background:#f59e0b">05</span>
       <b>RÉCAP GESTE CO</b>
       Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#ea580c">05</span>
+      <span class="ic" style="background:#ea580c">06</span>
       <b>TICKETS DE FRAIS</b>
-      Tape "Prendre photo" pour chaque ticket (carburant, péage, repas…). Saisis le montant. À la fin, "Envoyer le lot" = tous les tickets dans un mail.
+      Tape "Prendre photo" pour chaque ticket (parking, divers…). Saisis le montant TTC. L'app calcule la TVA et le HT automatiquement. À la fin, "Envoyer le lot" = tous les tickets + le récap TVA dans un mail.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#2563eb">06</span>
+      <span class="ic" style="background:#2563eb">07</span>
       <b>COMPTEUR VOITURE</b>
-      Photo du compteur. Auto-nommé avec ta plaque + date. Envoi par email d'un clic — le kilométrage est lu directement sur la photo.
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#4f46e5">07</span>
-      <b>BON RETOUR STOCK</b>
-      Génère un bon de retour de matériel (sorties / retours) au format PDF, signé et chiffré, prêt à imprimer ou partager. Liste de magasins (ISTGSXXX, Jean Robert…), références mémorisées, articles NEUF/USITÉ, historique des bons et sauvegarde JSON locale (option Google Drive disponible).
+      Photo du compteur. Auto-nommé avec ta plaque + le mois (<code>AB-123-CD-05-2026.jpg</code>). Envoi par email d'un clic — le kilométrage est lu directement sur la photo.
     </div>
     <div class="feature" style="grid-column: 1 / -1; background:#fdf2f8">
       <span class="ic" style="background:#db2777">08</span>
       <b>ENVOI MENSUEL — le gros bouton</b>
-      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile à partir du 18 du mois pour te rappeler que la clôture approche.
+      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile dans les 3 derniers jours du cycle pour te rappeler que la clôture approche.
     </div>
   </div>
 
-  <!-- ============ FOCUS BON RETOUR STOCK ============ -->
+  <!-- ============ FOCUS COURRIER ============ -->
   <div class="card" style="margin-top:18px; border-left:4px solid #4f46e5">
-    <p><b>🆕 BON RETOUR STOCK · comment ça marche</b></p>
-    <ol style="margin:8px 0 0 0; padding-left:20px">
-      <li><b>Choisis l'émetteur</b> (ton code, ex. ISTGSXXX) et le <b>magasin de destination</b> (Jean Robert ISTGS55, STOCK CENTRAL, etc.).</li>
-      <li><b>Ajoute des articles</b> un par un : référence (auto-complétée depuis ta base mémorisée), quantité, état <b>NEUF</b> ou <b>USITÉ</b>, commentaire optionnel.</li>
-      <li><b>Exporte en PDF</b> → un document propre prêt à signer/imprimer, avec ton n° de bon auto-incrémenté, la date, et toutes les lignes.</li>
-      <li><b>Onglet Historique</b> : retrouve tous tes bons passés, ré-imprime-les, exporte en CSV.</li>
-      <li><b>Onglet Magasins</b> : gère ta liste des codes destinataires.</li>
-      <li><b>Onglet Références</b> : alimente ta base de matériel (apparaît dans l'auto-complétion). Tu peux importer/exporter une sauvegarde JSON, ou activer une sync Google Drive optionnelle (Apps Script).</li>
-    </ol>
-    <p style="margin-top:10px"><b>Astuce :</b> les données du Bon Retour Stock sont stockées localement (localStorage de l'app, isolé du reste). Pour les transférer entre téléphones, utilise l'export/import JSON dans l'onglet Références.</p>
+    <p><b>📬 COURRIER · comment ça marche</b></p>
+    <p style="margin:8px 0 0 0">Un seul appui sur la tuile <b>COURRIER</b> ouvre le sélecteur de partage Android avec le message <b>« courrier ok »</b> déjà prêt. Choisis <b>Viber</b> dans la liste, sélectionne le chat du groupe, et tape <b>Envoyer</b>. Aucune saisie à faire.</p>
   </div>
 
   <!-- ============ ALGORITHME HEURES ============ -->
