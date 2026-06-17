@@ -40,7 +40,8 @@ import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
-    "VACANCES", "FORMATION")
+    "FINS ET INTE", "VISI", "MIGR",
+    "VACANCES", "FORMATION", "AUTRE")
 /** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
 private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION")
 
@@ -244,7 +245,18 @@ private fun AddTempsDialog(
     val isEditing = existing != null
     var date by remember { mutableStateOf(existing?.date ?: DateUtil.today().toString()) }
     var dept by remember { mutableStateOf(existing?.departement ?: settings.departementDefaut) }
-    var type by remember { mutableStateOf(existing?.typeMission ?: MISSION_TYPES.first()) }
+    var type by remember {
+        mutableStateOf(
+            existing?.typeMission?.let { if (it in MISSION_TYPES) it else "AUTRE" }
+                ?: MISSION_TYPES.first()
+        )
+    }
+    // Texte libre quand le type choisi est "AUTRE".
+    var autreText by remember {
+        mutableStateOf(existing?.typeMission?.takeIf { it !in MISSION_TYPES } ?: "")
+    }
+    // Type effectivement enregistré : le texte libre si "AUTRE", sinon le type tel quel.
+    val effectiveType = if (type == "AUTRE") autreText.trim().ifBlank { "AUTRE" } else type
     var nom by remember { mutableStateOf(existing?.nomClient ?: "") }
     var ville by remember { mutableStateOf(existing?.ville ?: "") }
     var numero by remember { mutableStateOf(existing?.numeroIntervention ?: "") }
@@ -273,7 +285,7 @@ private fun AddTempsDialog(
 
     // Apercu du message Viber
     val tempEntry = TempsEntry(
-        id = "", date = date, departement = dept, typeMission = type,
+        id = "", date = date, departement = dept, typeMission = effectiveType,
         nomClient = nom, ville = ville, numeroIntervention = numero,
         observationType = obsType, observations = obs,
         heures = 0.0
@@ -375,6 +387,17 @@ private fun AddTempsDialog(
                         }
                     }
                     Spacer(Modifier.height(8.dp))
+
+                    // Champ libre quand le type est "AUTRE".
+                    if (type == "AUTRE") {
+                        OutlinedTextField(
+                            value = autreText, onValueChange = { autreText = it },
+                            label = { Text("Préciser le type") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
@@ -529,7 +552,7 @@ private fun AddTempsDialog(
                     id = existing?.id ?: EntriesRepository.newId(),
                     date = date.trim(),
                     departement = dept.trim(),
-                    typeMission = type,
+                    typeMission = effectiveType,
                     nomClient = nom.trim(),
                     ville = ville.trim(),
                     numeroIntervention = numero.trim(),
