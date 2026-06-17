@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 2 juin 2026 · Version actuelle : **v0.17.2**
+> Date : 17 juin 2026 · Version actuelle : **v0.22.4** (versionCode 54)
 
 ---
 
@@ -24,16 +24,21 @@ manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
 
 | N° | Tuile | Couleur | Rôle |
 |---|---|---|---|
-| 01 | **TEMPS** | violet `#7C3AED` | Feuille de temps, interventions, Viber auto |
-| 02 | **GSM SEUL** | cyan `#06B6D4` | 1 site → 1 email immédiat |
-| 03 | **GESTE CO** | émeraude `#10B981` | Site + extensions, primes + cadeau client |
-| 04 | **RÉCAP** | ambre `#F59E0B` | Cumul cycle + total € |
-| 05 | **FRAIS** | orange `#EA580C` | Photos tickets + envoi lot |
-| 06 | **COMPTEUR** | bleu `#2563EB` | Photo kilométrique véhicule |
-| 07 | **BON RETOUR** | indigo `#4F46E5` | PWA HTML embarquée (WebView) |
+| 01 | **CLÔTURE** | violet `#7C3AED` | Clôture d'intervention, feuille de temps, Viber auto (route `temps`) |
+| 02 | **COURRIER** | indigo `#4F46E5` | 1 appui → partage Viber « courrier ok » (aucune saisie) |
+| 03 | **GSM SEUL** | cyan `#06B6D4` | 1 site → 1 email immédiat |
+| 04 | **GESTE CO** | émeraude `#10B981` | Site + extensions, primes + cadeau client |
+| 05 | **RÉCAP** | ambre `#F59E0B` | Cumul cycle + total € |
+| 06 | **FRAIS** | orange `#EA580C` | Photos tickets + montant TTC + TVA auto + envoi lot |
+| 07 | **COMPTEUR** | bleu `#2563EB` | Photo kilométrique véhicule |
 | 08 | **ENVOI MENSUEL** | magenta `#DB2777` | Excel .xlsm + tickets + compteur en 1 mail |
 
-Le pip rose pulsant apparaît sur **08 ENVOI MENSUEL** à partir du 18 du mois.
+Le pip rose pulsant apparaît sur **08 ENVOI MENSUEL** dans les **3 derniers
+jours du cycle** (`endOfCycleApproaching`, basé sur `cycleEnd` et non plus un
+seuil fixe au 18).
+
+> **COURRIER (02)** n'ouvre pas d'écran : son `onClick` appelle directement
+> `ViberSender.share(context, "courrier ok")` depuis `MainActivity`.
 
 ---
 
@@ -43,12 +48,14 @@ Le pip rose pulsant apparaît sur **08 ENVOI MENSUEL** à partir du 18 du mois.
 Kotlin 1.9.x + Jetpack Compose Material 3 (BOM 2024.06.00)
 ├── kotlinx.serialization (JSON)
 ├── DataStore (préférences)
-├── Apache POI 5.2.5 + slf4j-nop (remplissage .xlsm sur device)
+├── Apache POI 5.2.5 (remplissage .xlsm sur device)
+│     ⚠ GARDER log4j-api 2.21.1, exclure SEULEMENT log4j-core (voir §10)
 ├── Coil 2.5 (miniatures)
 ├── Coroutines 1.8
-└── WebView (assets/bon_retour/index.html — PWA)
+└── (plus de WebView — l'écran BON RETOUR a été supprimé en v0.22.4)
 
-CI : GitHub Actions (.github/workflows/) → APK debug signée
+CI : GitHub Actions (.github/workflows/android-build.yml) → APK debug signée,
+     publication auto d'une Release avec asset .apk sur tag `v*`
 Signing : keystore/debug.keystore (committé exprès, stable pour les MAJ
           seamless ; tous les builds CI partagent la même clé)
 ```
@@ -61,66 +68,60 @@ Signing : keystore/debug.keystore (committé exprès, stable pour les MAJ
 app/src/main/
 ├── AndroidManifest.xml
 ├── java/com/morpheus45/gsystem/
-│   ├── MainActivity.kt              ← NavHost, route /home + 9 destinations
+│   ├── MainActivity.kt              ← NavHost, routes home/settings/temps/gsm/
+│   │                                  gesteco/gesteco_recap/frais/compteur/
+│   │                                  envoi_mensuel (+ période partagée, splash,
+│   │                                  check MAJ). onCourrier = ViberSender.share
 │   ├── data/
 │   │   ├── Models.kt                ← TempsEntry, GsmSeulEntry, GesteCoEntry,
-│   │   │                              FraisTicket, CompteurEntry, EntriesStore,
-│   │   │                              AppSettings
+│   │   │                              FraisTicket (categorie + montantEur),
+│   │   │                              CompteurEntry, EntriesStore, AppSettings
 │   │   ├── EntriesRepository.kt     ← Storage JSON
 │   │   └── SettingsStore.kt         ← DataStore
-│   ├── excel/
-│   │   └── ExcelFiller.kt           ← Remplissage .xlsm via POI
-│   ├── export/
-│   │   └── CsvExporter.kt           ← CSV (BOM UTF-8 + sep=;)
-│   ├── email/
-│   │   └── EmailSender.kt           ← Intent ACTION_SEND_MULTIPLE
-│   ├── viber/
-│   │   └── ViberSender.kt           ← buildMessage() + OBSERVATION_LABELS
+│   ├── excel/ExcelFiller.kt         ← Remplissage .xlsm via POI (réécrit sur
+│   │                                  l'URI existant → conserve les macros VBA)
+│   ├── export/CsvExporter.kt        ← CSV (BOM UTF-8 + sep=;)
+│   ├── email/EmailSender.kt         ← sendMulti() : ACTION_SEND (1 PJ) /
+│   │                                  ACTION_SEND_MULTIPLE (n PJ) + ClipData
+│   │                                  pour propager les permissions URI
+│   ├── viber/ViberSender.kt         ← buildMessage() + OBSERVATION_LABELS +
+│   │                                  share(context, message)
 │   ├── ui/
 │   │   ├── HomeScreen.kt            ← 8 tuiles, data live, footer
-│   │   ├── TempsScreen.kt           ← Formulaire intervention + validation
+│   │   ├── TempsScreen.kt           ← Formulaire intervention + période éditable
 │   │   ├── GsmSeulScreen.kt
 │   │   ├── GesteCoScreen.kt
 │   │   ├── GesteCoRecapScreen.kt
-│   │   ├── FraisScreen.kt
+│   │   ├── FraisScreen.kt            ← Scroll (weight 1f), période éditable,
+│   │   │                              totaux TTC/TVA/HT
 │   │   ├── CompteurScreen.kt
-│   │   ├── BonRetourScreen.kt       ← WebView + BOOT_PATCH JS
-│   │   ├── EnvoiMensuelScreen.kt
+│   │   ├── EnvoiMensuelScreen.kt     ← Remplit Excel + PJ renommées + récap
+│   │   │                              frais/TVA dans le corps du mail
 │   │   ├── SettingsScreen.kt
-│   │   ├── components/IndicatorCalm.kt  ← CategoryTile, HomeBigButton,
-│   │   │                                  HairlineDivider, PulsingSignalDot,
-│   │   │                                  LiveStatusBar, HairlineBack/SettingsIcon,
-│   │   │                                  PrimaryAction, FooterSpec
-│   │   ├── theme/
-│   │   │   ├── Color.kt             ← Palette MISSION CONTROL (8 gradients +
-│   │   │   │                          Obsidian + Signal)
-│   │   │   ├── Type.kt              ← Tektur + GeistMono + system
-│   │   │   └── Theme.kt             ← darkColorScheme(IndicatorCalmScheme)
-│   │   └── common/PeriodHeader.kt   ← Header de période cycle (réutilisable)
-│   ├── update/
-│   │   ├── UpdateChecker.kt         ← GET /releases/latest
-│   │   └── UpdateDialog.kt
+│   │   ├── components/IndicatorCalm.kt  ← CategoryTile, HomeBigButton, etc.
+│   │   ├── theme/ (Color.kt, Type.kt, Theme.kt)
+│   │   └── common/Common.kt          ← PeriodHeader + EditablePeriodHeader (Du/Au)
+│   ├── update/ (UpdateChecker.kt, UpdateDialog.kt)
 │   ├── util/
-│   │   ├── DateUtil.kt              ← cyclePeriod(date, startDay)
-│   │   └── HoursCalculator.kt       ← Règle finale 0/4/6/7/8h
+│   │   ├── Dates.kt                 ← objet DateUtil : cyclePeriod(date, startDay),
+│   │   │                              parseIso, fr(), today()
+│   │   ├── FraisTva.kt              ← TVA par catégorie (RATES, défaut 20 %)
+│   │   └── HoursCalculator.kt        ← Règle 0/4/6/8h (+ 7h vacances/formation)
 │   └── backup/                      ← ZIP export + restore
-└── res/
-    ├── font/                        ← tektur_*.ttf, geist_mono_*.ttf
-    ├── drawable/, mipmap-*/         ← Icônes app
-    └── values/                      ← strings, themes
+└── res/ (font/, drawable/, mipmap-*/, values/)
 
-app/src/main/assets/bon_retour/
-├── index.html                       ← La PWA d'inventaire (124 KB)
-├── manifest.webmanifest, sw.js
-└── icon-192.png, icon-512.png
+app/src/main/assets/bon_retour/      ← ⚠ ORPHELIN : assets de l'ancienne PWA
+                                        BON RETOUR, plus référencés (écran et
+                                        route supprimés en v0.22.4). À nettoyer.
 
 docs/
-├── index.html                       ← Tutoriel GitHub Pages (utilise pour
-│                                      le déploiement à tous les techs)
+├── index.html                       ← Tutoriel GitHub Pages (logo gsystems SVG,
+│                                      8 tuiles à jour, focus COURRIER)
 └── ROLLBACK_v0.13.14.md
 
-design/                              ← Artefacts /canvas-design (philosophie + PNG)
-.github/workflows/                   ← CI Android build
+design/                              ← Artefacts design
+logodraft/                           ← Réfs logo gsystems (gs_ref*.png) + splash-preview.html
+.github/workflows/                   ← CI Android build + release auto
 keystore/debug.keystore              ← Clé stable signée
 ```
 
@@ -130,83 +131,82 @@ keystore/debug.keystore              ← Clé stable signée
 
 ### Calcul des heures (HoursCalculator.kt)
 - **VACANCES / FORMATION** : journée entière fixe = **7h**
-- Autres : par jour, on regarde les créneaux Matin + Après-midi
-  - 0 actif → 0h
-  - 1 actif → 4h
-  - 2 actifs OK + OK → **8h**
-  - 2 actifs avec au moins une NR → 6h
+- Autres : par jour, créneaux Matin + Après-midi
+  - 0 actif → 0h · 1 actif → 4h · 2 actifs OK+OK → **8h** · 2 actifs avec ≥1 NR → 6h
 
-### Cycle de paie
-- Par défaut : du **21** du mois → 20 du mois suivant
-- Modifiable dans Réglages (`settings.cycleStartDay`)
+### Cycle de paie & période partagée
+- Par défaut : du **21** du mois → 20 du mois suivant (`settings.cycleStartDay`)
 - `DateUtil.cyclePeriod(today, startDay)` retourne `(start, end)`
-- ENVOI MENSUEL permet override manuel (Du / Au)
+- **Période éditable partagée** (depuis v0.22.3) : l'état `periodStart/periodEnd`
+  vit dans `MainActivity.AppNav` et est passé à **Temps, Frais et Envoi Mensuel**.
+  Toute saisie Du/Au dans un écran se propage aux autres (via `onPeriodChange`).
+  `EditablePeriodHeader` (Common.kt) gère la saisie ; bouton « ↺ Cycle par défaut ».
 
-### GESTE CO — règles cadeau
-- Total cadeau client ≤ **4,50 €** (configurable, défaut)
-- Nombre d'offertes ≤ moitié des installées (arrondi inf.)
-- Dérogation EPS possible (flag dans l'entrée)
-- Primes internes (€) ≠ cadeau client (€) : 2 lignes distinctes dans le CSV récap
+### Frais & TVA (FraisTva.kt)
+- Le tech saisit un montant **TTC** ; l'app déduit HT et TVA par catégorie.
+- `RATES` : table catégorie→taux (défaut 20 %). Modifier la table pour ajuster.
+- Le récap frais (TTC/HT/TVA par ticket + totaux) est écrit dans le **corps du
+  mail** d'Envoi Mensuel (pas de CSV séparé — choix utilisateur explicite).
+
+### Nommage des pièces jointes (PhotoStorage.kt, à l'envoi)
+- Tickets frais → `FRAIS-<CATÉGORIE>.<ext>` (suffixe `-2`, `-3`… si doublon de catégorie)
+- Compteur → `<PLAQUE>-<MM>-<AAAA>.jpg`
+- Les fichiers sont copiés/renommés dans `cacheDir/exports` juste avant l'envoi.
 
 ### Emails
-- **2 groupes** dans Réglages :
-  - **GS** (G-Systems interne) : reçoit TEMPS, FRAIS, COMPTEUR
-  - **EPS** (clients) : reçoit GSM SEUL, GESTE CO
-- Email perso utilisateur ajouté en Cc automatique sur ENVOI MENSUEL
+- 2 groupes (Réglages) : **GS** (interne : TEMPS, FRAIS, COMPTEUR) et
+  **EPS** (clients : GSM SEUL, GESTE CO). Email perso ajouté en Cc sur Envoi Mensuel.
+- `EmailSender.sendMulti` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE.
+  ClipData + FLAG_GRANT_READ_URI_PERMISSION sur l'intent ET le chooser (sinon
+  les PJ n'apparaissent pas après le chooser).
 
-### CSV
-- Préfixe `﻿sep=;\n` (BOM UTF-8 + hint séparateur pour Excel FR)
-- GESTE CO récap structuré en 3 blocs avec ligne TOTAL alignée
+### GESTE CO — règles cadeau
+- Total cadeau client ≤ **4,50 €** ; offertes ≤ moitié des installées (arrondi inf.) ;
+  dérogation EPS possible. Primes (€) ≠ cadeau client (€) : 2 lignes dans le CSV récap.
 
 ### Sauvegarde
-- ZIP exportable manuellement (Réglages → "Exporter sauvegarde")
-- Inclut JSON entrées + snapshots .xlsm mensuels + photos tickets/compteur
-- **JAMAIS** d'effacement automatique au upgrade : tout doit persister entre versions
+- ZIP exportable manuellement. **JAMAIS** d'effacement auto à l'upgrade.
 
 ---
 
-## 6. Auto-update (point sensible)
+## 6. Auto-update
 
-`UpdateChecker.kt` appelle `GET /repos/morpheus45/gsystem/releases/latest`.
-- **Prereleases** sont automatiquement exclues par GitHub → pratique pour tester
-- Pour pousser à tous les techs : créer la release **sans `--prerelease`**
-- Pour tester soi-même sans impact : `gh release create vX.Y.Z ... --prerelease`
-- **Promotion d'une prerelease en stable** :
-  `gh release edit vX.Y.Z --prerelease=false --latest`
+`UpdateChecker.kt` appelle `GET /repos/morpheus45/gsystem/releases/latest`,
+compare le semver, exige un asset `.apk`. `checkForUpdateSilently()` tourne
+**une fois par session** au lancement (MainActivity). Le tutoriel/Release se
+propage donc avec un petit délai (build CI + check à l'ouverture suivante).
 
-La clé de signature `keystore/debug.keystore` est partagée par tous les builds
-(local + CI) → les MAJ ne demandent jamais une réinstallation complète.
-**Ne JAMAIS regénérer cette clé sinon tous les utilisateurs perdent leurs données.**
+- Prereleases exclues automatiquement par `releases/latest` → pratique pour tester.
+- Promotion prerelease → stable : `gh release edit vX.Y.Z --prerelease=false --latest`.
+
+La clé `keystore/debug.keystore` est partagée (local + CI) → MAJ sans réinstall.
+**Ne JAMAIS la regénérer** sinon les utilisateurs perdent leurs données.
 
 ---
 
-## 7. Workflow de release
+## 7. Workflow de release (CI auto sur tag)
 
 ```bash
 # 1. Bump version
-vim app/build.gradle.kts        # versionCode + versionName
+#    app/build.gradle.kts → versionCode + versionName
 
-# 2. Commit + push (déclenche CI automatique)
-git add . && git commit -m "vX.Y.Z: ..." && git push
+# 2. Commit + tag + push  (le push du tag v* déclenche build + release auto)
+git add <fichiers> && git commit -m "vX.Y.Z: ..."
+git tag vX.Y.Z && git push origin HEAD --tags
 
-# 3. Attendre la fin du build
-gh run watch <run-id> --exit-status
+# 3. Surveiller le build (API GitHub ; `gh` n'est PAS installé sur ce poste)
+curl -s "https://api.github.com/repos/morpheus45/gsystem/actions/runs?event=push&branch=vX.Y.Z&per_page=1" | grep '"status"'
 
-# 4. Récupérer l'APK
-gh run download <run-id> -D /tmp/vXYZ
-cp /tmp/vXYZ/gsystem-debug-apk/app-debug.apk /tmp/gsystem-vX.Y.Z.apk
-
-# 5. Publier la release
-gh release create vX.Y.Z /tmp/gsystem-vX.Y.Z.apk \
-  --title "vX.Y.Z - Description" \
-  --notes "Notes Markdown"
-
-# 6. Optionnel : marquer en prerelease pour tester d'abord
-#    Ajouter --prerelease à la commande ci-dessus
+# 4. Vérifier la Release + asset .apk
+curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep -E '"tag_name"|\.apk'
 ```
 
-Les utilisateurs voient le popup MAJ à l'ouverture suivante de l'app
-(ou via Réglages → "Vérifier maintenant").
+Le workflow `.github/workflows/android-build.yml` build l'APK debug et, sur tag
+`v*`, crée la Release avec l'APK en asset. Les utilisateurs voient le popup MAJ
+à l'ouverture suivante.
+
+> ⚠ **`gh` (GitHub CLI) n'est pas disponible** sur la machine du dev — passer par
+> l'API REST via `curl` (attention au rate-limit 60/h non authentifié).
 
 ---
 
@@ -214,64 +214,63 @@ Les utilisateurs voient le popup MAJ à l'ouverture suivante de l'app
 
 | Version | Direction | Statut |
 |---|---|---|
-| 0.1 – 0.14.x | Material 3 standard, 1 couleur vive par bouton | Abandonné (jugé "criard") |
-| **0.15.0** | "INDICATOR CALM" — crème + encre anthracite + ambre | Rejeté par l'utilisateur : "blanc fade, sans intérêt" |
-| **0.16.0** | "OBSIDIAN" — pur noir + signal rouge mono | Rejeté : "limit mieux au départ" — trop monochrome |
-| **0.17.x** | **"MISSION CONTROL"** — dark + 8 gradients colorés + icônes + data live | **EN PRODUCTION** |
+| 0.1 – 0.14.x | Material 3 standard, 1 couleur vive/bouton | Abandonné (« criard ») |
+| 0.15.0 | « INDICATOR CALM » crème/ambre | Rejeté (« blanc fade ») |
+| 0.16.0 | « OBSIDIAN » noir + signal rouge mono | Rejeté (« trop monochrome ») |
+| **0.17.x+** | **« MISSION CONTROL »** dark + 8 gradients + data live | **EN PRODUCTION** |
 
-Si tu refais le design un jour, **ne reviens PAS à du blanc ou du
-monochrome**. L'utilisateur veut :
-- Dark base (premium 2026, batterie OLED)
-- Identité chromatique par catégorie (preserve la mémoire visuelle)
-- Typographie XL (Tektur Bold pour le wordmark)
-- Animations subtiles (press scale, halo, pulse)
-- Données live (counters, indicators)
+Logo : le **wordmark officiel gsystems** (G rouge `#ee2322` arrondi + « systems »
+anthracite `#2b2d33`) est la référence de marque. Reproduit en SVG dans
+`docs/index.html` (header) et animé dans `logodraft/splash-preview.html`.
 
-Référence : `design/v0.16_DIRECTIONS.md` et `design/v0.15_REDESIGN_SPEC.md`.
+Ne reviens **pas** à du blanc/monochrome. L'utilisateur veut : dark base,
+identité chromatique par catégorie, typo XL (Tektur), animations subtiles, data live.
 
 ---
 
-## 9. État actuel — v0.17.2
+## 9. État actuel — v0.22.4
 
-### Dernières évolutions
-- v0.17.0 (1 juin) : refonte MISSION CONTROL — 8 tuiles colorées
-- v0.17.1 (1 juin) : tuiles divisées par 2 en hauteur (64dp au lieu de 124)
-- v0.17.2 (2 juin) : TEMPS dialog plein hauteur scrollable + champs obligatoires avec asterisques rouges
+### Évolutions récentes (juin 2026)
+- **v0.22.1** : fix POI `IOUtils` (garder log4j-api) ; ExcelFiller réécrit sur
+  l'URI existant → conserve les macros VBA.
+- **v0.22.2** : fix pièces jointes mail manquantes (ACTION_SEND + ClipData).
+- **v0.22.3** : période éditable partagée (Temps/Frais/Envoi) ; TVA par catégorie
+  (FraisTva) ; récap frais+TVA dans le corps du mail ; scroll Frais corrigé ;
+  PJ renommées FRAIS-CATÉGORIE / PLAQUE-MM-AAAA.jpg.
+- **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») entre Clôture et GSM ;
+  **suppression complète de BON RETOUR** (tuile, route, écran, couleurs renommées
+  Courrier*) ; renumérotation des tuiles ; tutoriel + nouveau logo gsystems.
 
-### Anonymisation tutoriel
-ISTGS54 a été remplacé par ISTGSXXX dans `docs/index.html` pour ne pas
-exposer le code personnel du dev. ISTGS55 (Jean Robert) est conservé
-car il est référencé en dur dans la PWA BON RETOUR.
-
-### Pas encore fait (idées de v0.18+)
-- [ ] Appliquer le même travail "champs obligatoires" aux autres écrans
-  (GSM SEUL, GESTE CO, FRAIS, COMPTEUR)
-- [ ] Dialog plein hauteur scrollable pour tous les formulaires
-- [ ] Affichage live des heures cumulées du cycle dans la tuile 01 TEMPS
-- [ ] Total € live dans la tuile 04 RÉCAP (actuellement les données live
-      sont 0 pour RECAP)
-- [ ] Dark/light mode toggle (actuellement dark forcé)
-- [ ] Tests UI Compose
-- [ ] Optimiser le BON RETOUR : storage natif au lieu du localStorage isolé
-      (problème : pas de synchronisation avec le reste de l'app)
+### Pas encore fait (idées v0.23+)
+- [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
+- [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
+- [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
+- [ ] Total € live dans la tuile 05 RÉCAP (données live = 0 actuellement).
+- [ ] Heures cumulées du cycle dans la tuile 01 CLÔTURE.
+- [ ] Tests UI Compose.
 
 ---
 
 ## 10. Pièges à éviter
 
-1. **Ne pas regénérer `keystore/debug.keystore`** → casse les MAJ
-2. **Ne pas modifier les `OBSERVATION_LABELS` dans ViberSender.kt** sans tester
-   le format Viber côté reçu (Cedric a un format précis attendu par l'équipe)
-3. **Apache POI sur Android** = pénible. `log4j-api` doit rester exclu globalement
-   (`configurations.all { exclude(group = "org.apache.logging.log4j") }`)
-4. **BON RETOUR (PWA WebView)** :
-   - Le HTML utilise `localStorage` du WebView, isolé du reste
-   - Les curly quotes `"` ASCII ont été remplacés en automate pour le code,
-     mais si tu rééditemes `index.html` dans Word/Notes, ça peut revenir
-   - Le ServiceWorker est désactivé par injection JS (file:// incompatible)
-5. **`MainActivity.kt`** : `HomeScreen` reçoit maintenant le `store` en plus
-   du `settings` (depuis v0.17.0) pour afficher les counters live
-6. **CI** : minSdk = **26** obligatoirement (POI dépend de MethodHandle Android O+)
+1. **Ne pas regénérer `keystore/debug.keystore`** → casse les MAJ et les données.
+2. **Apache POI / log4j (corrigé en v0.22.1)** : POI charge `log4j-api` au
+   chargement de `IOUtils` (`LogManager.getLogger`). Il faut **CONSERVER
+   `log4j-api` 2.21.1** et exclure **uniquement** `log4j-core`
+   (`configurations.all { exclude(module = "log4j-core") }`). Exclure tout
+   le groupe log4j → `NoClassDefFoundError` au remplissage Excel.
+3. **Pièces jointes mail** : sans `ClipData` + `FLAG_GRANT_READ_URI_PERMISSION`
+   sur l'intent ET le chooser, les PJ disparaissent après le sélecteur.
+   1 fichier = ACTION_SEND ; plusieurs = ACTION_SEND_MULTIPLE.
+4. **Ne pas modifier `OBSERVATION_LABELS` (ViberSender.kt)** sans valider le
+   format reçu côté groupe Viber (Cedric a un format précis attendu).
+5. **Période partagée** : `Temps`, `Frais` et `EnvoiMensuel` lisent le même
+   `periodStart/periodEnd` remonté dans `MainActivity`. Si tu touches l'un,
+   garde la propagation `onPeriodChange` cohérente.
+6. **`gh` indisponible** sur le poste → utiliser l'API REST via `curl`.
+7. **CI** : minSdk = **26** obligatoire (POI dépend de MethodHandle Android O+).
+8. **BON RETOUR supprimé** : ne pas réintroduire de références ; les assets
+   `assets/bon_retour/` restent à nettoyer.
 
 ---
 
@@ -279,52 +278,22 @@ car il est référencé en dur dans la PWA BON RETOUR.
 
 - **Dev/utilisateur principal** : Cedric (morpheus45 GitHub)
 - **Société** : G-Systems FR (sécurité électronique / alarme)
-- **Code site Cedric** : ISTGS54 (mais utiliser ISTGSXXX comme exemple en doc)
-- **Collègue par défaut dans BON RETOUR** : Jean Robert (ISTGS55)
-
-L'app est utilisée quotidiennement par Cedric et sera étendue à l'équipe
-(actuellement en phase de validation par lui-même avant déploiement large).
+- **Code site Cedric** : ISTGS54 (utiliser ISTGSXXX comme exemple en doc)
+- L'app est utilisée quotidiennement par Cedric, en cours d'extension à l'équipe.
 
 ---
 
-## 12. Commandes utiles
+## 12. Préférences de collaboration
 
-```bash
-# Voir le dernier build
-gh run list --limit 1
-
-# Logs d'un build qui a échoué
-gh run view <id> --log-failed | grep "e: file"
-
-# Voir la dernière release
-gh api repos/morpheus45/gsystem/releases/latest --jq '.tag_name'
-
-# Forcer une release en latest (si bloquée en prerelease)
-gh release edit vX.Y.Z --prerelease=false --latest
-
-# Compiler localement (Android Studio recommandé, mais possible CLI)
-./gradlew :app:assembleDebug
-
-# Voir l'arborescence du code Kotlin
-find app/src/main/java -name "*.kt" | head -40
-```
+- L'utilisateur veut du résultat **rapide et visuel** ; il ne touche pas au code,
+  teste sur son téléphone et donne des retours en français parlé (souvent courts /
+  en majuscules). « c'est moche » / « limit mieux avant » = **pivot complet**.
+- **Toujours montrer le `git diff` et attendre validation (« go »)** avant tout
+  commit/push sur les repos morpheus45.
+- Respecter le keystore stable et la rétention des données : le passage d'une
+  version à l'autre doit être **invisible pour les données**.
 
 ---
 
-## 13. Notes pour le prochain
-
-- L'utilisateur veut du résultat **rapide et visuel**. Les specs MD longs
-  l'agacent — préfère pousser une version, le laisser tester, itérer.
-- Pour les changements de design : si tu hésites, **publie en prerelease**
-  et propose le test manuel. Ne pas pousser un design non validé en latest.
-- L'utilisateur ne touche pas au code, il teste sur son téléphone et te
-  donne des retours en français parlé (souvent en majuscules quand
-  ferme). Les retours courts comme "c'est moche" / "limit mieux avant"
-  veulent dire **pivot complet**, pas un petit ajustement.
-- Toujours respecter le keystore stable et la rétention des données :
-  le passage d'une version à l'autre doit être **invisible pour les données**.
-
----
-
-*Document généré à l'issue de la session "MISSION CONTROL" — bon courage
-pour la suite.*
+*Document mis à jour à l'issue de la session v0.22.x (Courrier + retrait Bon
+Retour + logo gsystems). Bon courage pour la suite.*
