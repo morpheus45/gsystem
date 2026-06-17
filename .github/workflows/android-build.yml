@@ -1,15 +1,17 @@
 name: Build Android APK
 
-# Déclenché à chaque push sur main et sur demande manuelle.
+# Déclenché à chaque push sur main, sur tag de version (vX.Y.Z) et sur demande manuelle.
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
 
+# contents: write requis pour publier une Release quand un tag est poussé.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -53,3 +55,15 @@ jobs:
           path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 30
+
+      # --- Publication automatique d'une Release quand un tag vX.Y.Z est poussé ---
+      # L'app (UpdateChecker) lit /releases/latest et propose la MAJ aux techs.
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp "${{ steps.apk.outputs.apk_path }}" "gsystem-${{ github.ref_name }}.apk"
+          gh release create "${{ github.ref_name }}" "gsystem-${{ github.ref_name }}.apk" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
