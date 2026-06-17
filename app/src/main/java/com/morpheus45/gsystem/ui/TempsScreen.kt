@@ -40,7 +40,7 @@ import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
-    "FINS ET INTE", "VISI", "MIGR",
+    "FINS", "INTE", "VISI", "MIGR",
     "VACANCES", "FORMATION", "AUTRE")
 /** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
 private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION")

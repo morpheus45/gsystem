@@ -89,10 +89,16 @@ fun GesteCoRecapScreen(
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item {
             PeriodHeader(start, end, periodEntries.size, "sites ce cycle")
-            Spacer(Modifier.height(10.dp))
+            }
 
+            item {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Mes primes (sur les extensions INSTALLÉES)",
@@ -144,8 +150,9 @@ fun GesteCoRecapScreen(
                     }
                 }
             }
+            }
 
-            Spacer(Modifier.height(10.dp))
+            item {
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Répartition des interventions TEMPS",
@@ -164,8 +171,9 @@ fun GesteCoRecapScreen(
                     }
                 }
             }
+            }
 
-            Spacer(Modifier.height(10.dp))
+            item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Button(
                     onClick = {
@@ -200,42 +208,43 @@ fun GesteCoRecapScreen(
                     Text("  Envoyer le récap CSV", color = Color.White)
                 }
             }
+            }
 
-            Spacer(Modifier.height(10.dp))
-            Divider()
-            Spacer(Modifier.height(8.dp))
-            Text("Détail des sites du cycle", fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(6.dp))
+            item {
+                Column {
+                    Divider()
+                    Spacer(Modifier.height(8.dp))
+                    Text("Détail des sites du cycle", fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary)
+                }
+            }
 
             if (periodEntries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                item {
                     Text("Aucun site enregistré ce cycle.",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(periodEntries, key = { it.id }) { e ->
-                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                            Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("Site ${e.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(e.date))}"
-                                        + if (e.epsDerogation) "  ·  EPS" else "",
-                                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("Installé : " + e.installedList().joinToString(", ") { "${it.first}×${it.second}" },
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                                    val offTxt = e.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
-                                    if (offTxt.isNotEmpty()) {
-                                        Text("Cadeau : $offTxt", fontSize = 11.sp,
-                                            color = ColorGesteCo)
-                                    }
+                items(periodEntries, key = { it.id }) { e ->
+                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
+                        Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Site ${e.siteNumber}  ·  ${DateUtil.fr(DateUtil.parseIso(e.date))}"
+                                    + if (e.epsDerogation) "  ·  EPS" else "",
+                                    fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Installé : " + e.installedList().joinToString(", ") { "${it.first}×${it.second}" },
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                val offTxt = e.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
+                                if (offTxt.isNotEmpty()) {
+                                    Text("Cadeau : $offTxt", fontSize = 11.sp,
+                                        color = ColorGesteCo)
                                 }
-                                Text("%.2f €".format(e.totalPrime(settings.prices)),
-                                    fontWeight = FontWeight.Bold, color = ColorGesteCo, fontSize = 14.sp)
                             }
+                            Text("%.2f €".format(e.totalPrime(settings.prices)),
+                                fontWeight = FontWeight.Bold, color = ColorGesteCo, fontSize = 14.sp)
                         }
                     }
                 }
