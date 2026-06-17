@@ -32,12 +32,13 @@ import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.TempsEntry
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CsvExporter
-import com.morpheus45.gsystem.ui.common.PeriodHeader
+import com.morpheus45.gsystem.ui.common.EditablePeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
     "FINS", "INTE", "VISI", "MIGR",
@@ -51,13 +52,16 @@ fun TempsScreen(
     settings: AppSettings,
     store: EntriesStore,
     repo: EntriesRepository,
+    periodStart: LocalDate,
+    periodEnd: LocalDate,
+    onPeriodChange: (LocalDate, LocalDate) -> Unit,
+    onResetPeriod: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
     val periodEntries = store.temps.filter {
-        runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
+        runCatching { DateUtil.parseIso(it.date) in periodStart..periodEnd }.getOrDefault(false)
     }.sortedByDescending { it.date }
 
     var showAdd by remember { mutableStateOf(false) }
@@ -89,7 +93,11 @@ fun TempsScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            PeriodHeader(start, end, periodEntries.size)
+            EditablePeriodHeader(
+                start = periodStart, end = periodEnd,
+                count = periodEntries.size, totalLabel = "interventions",
+                onChange = onPeriodChange, onResetCycle = onResetPeriod
+            )
             Spacer(Modifier.height(8.dp))
 
             // Carte explicative auto-calcul heures

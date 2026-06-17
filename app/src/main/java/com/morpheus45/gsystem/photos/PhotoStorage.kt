@@ -46,6 +46,31 @@ object PhotoStorage {
     fun fileFor(context: Context, fileName: String): File =
         File(photosDir(context), fileName)
 
+    /**
+     * Nom « propre » d'une pièce jointe de frais : FRAIS-<CATÉGORIE>.<ext>
+     * (ex: FRAIS-PARKING.jpg). Si plusieurs tickets de même catégorie, on
+     * suffixe d'un index : FRAIS-PARKING-2.jpg.
+     */
+    fun fraisAttachmentName(categorie: String, ext: String, index: Int = 1): String {
+        val cat = sanitize(categorie).uppercase().ifBlank { "DIVERS" }
+        val cleanExt = ext.lowercase().filter { it.isLetterOrDigit() }.ifBlank { "jpg" }
+        val suffix = if (index > 1) "-$index" else ""
+        return "FRAIS-$cat$suffix.$cleanExt"
+    }
+
+    /**
+     * Nom « propre » de la photo compteur : <PLAQUE>-<MM>-<AAAA>.jpg
+     * (ex: AB-123-CD-05-2026.jpg). `isoDate` au format yyyy-MM-dd.
+     */
+    fun compteurAttachmentName(plaque: String, isoDate: String, index: Int = 1): String {
+        val safePlaque = sanitize(plaque).ifBlank { "VOITURE" }
+        val parts = isoDate.split("-")
+        val year = parts.getOrElse(0) { "" }
+        val month = parts.getOrElse(1) { "" }
+        val suffix = if (index > 1) "-$index" else ""
+        return "$safePlaque-$month-$year$suffix.jpg"
+    }
+
     private fun sanitize(s: String): String =
         s.trim().replace(Regex("[^A-Za-z0-9\\-]"), "_")
 }

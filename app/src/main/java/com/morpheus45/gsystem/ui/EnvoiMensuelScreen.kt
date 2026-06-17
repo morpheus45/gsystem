@@ -32,9 +32,11 @@ import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.excel.ExcelFiller
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.util.FraisTva
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 private val EnvoiColor = Color(0xFF1976D2) // bleu
 
@@ -44,17 +46,26 @@ fun EnvoiMensuelScreen(
     settings: AppSettings,
     store: EntriesStore,
     settingsStore: SettingsStore,
+    periodStart: LocalDate,
+    periodEnd: LocalDate,
+    onPeriodChange: (LocalDate, LocalDate) -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (defaultStart, defaultEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
 
-    // Dates Du / Au manuelles, pré-remplies au cycle par défaut, modifiables
-    // par le tech (la direction demande souvent une période différente).
-    var startText by remember { mutableStateOf(defaultStart.toString()) }
-    var endText by remember { mutableStateOf(defaultEnd.toString()) }
+    // Dates Du / Au : initialisées sur la période partagée (Temps/Frais), modifiables
+    // ici aussi. Toute saisie valide est propagée aux autres écrans via onPeriodChange.
+    var startText by remember(periodStart) { mutableStateOf(periodStart.toString()) }
+    var endText by remember(periodEnd) { mutableStateOf(periodEnd.toString()) }
     var rangeError by remember { mutableStateOf<String?>(null) }
+
+    fun propagatePeriod(s: String, e: String) {
+        val ps = runCatching { DateUtil.parseIso(s.trim()) }.getOrNull()
+        val pe = runCatching { DateUtil.parseIso(e.trim()) }.getOrNull()
+        if (ps != null && pe != null && ps <= pe) onPeriodChange(ps, pe)
+    }
 
     val parsedStart = runCatching { DateUtil.parseIso(startText) }.getOrNull()
     val parsedEnd = runCatching { DateUtil.parseIso(endText) }.getOrNull()
@@ -138,7 +149,7 @@ fun EnvoiMensuelScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = startText,
-                            onValueChange = { startText = it.trim() },
+                            onValueChange = { startText = it.trim(); propagatePeriod(it, endText) },
                             label = { Text("Du (AAAA-MM-JJ)") },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
@@ -146,7 +157,7 @@ fun EnvoiMensuelScreen(
                         )
                         OutlinedTextField(
                             value = endText,
-                            onValueChange = { endText = it.trim() },
+                            onValueChange = { endText = it.trim(); propagatePeriod(startText, it) },
                             label = { Text("Au (AAAA-MM-JJ)") },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
@@ -169,6 +180,7 @@ fun EnvoiMensuelScreen(
                         TextButton(onClick = {
                             startText = defaultStart.toString()
                             endText = defaultEnd.toString()
+                            onPeriodChange(defaultStart, defaultEnd)
                         }) { Text("↺ Cycle par défaut", fontSize = 12.sp) }
                     }
                 }
@@ -232,11 +244,11 @@ fun EnvoiMensuelScreen(
                             }
                             // 2. Préparer la liste des pièces jointes
                             val attachments = mutableListOf<java.io.File>()
+                            val exportDir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
 
                             // Excel rempli : on copie une version (a) en piece jointe email
                             // ET (b) en archive permanente dans filesDir/excel_archives/
                             if (settings.excelFileUri.isNotBlank()) {
-                                val exportDir = java.io.File(context.cacheDir, "exports").apply { mkdirs() }
                                 val nameSafe = settings.excelFileName.ifBlank { "TEMPS.xlsm" }
                                     .replace(Regex("[^A-Za-z0-9_.\\-]"), "_")
                                 val target = java.io.File(exportDir,
@@ -255,15 +267,33 @@ fun EnvoiMensuelScreen(
                                     "TEMPS_${plaqueSafe}_${start}_au_${end}.xlsm")
                                 target.copyTo(archiveFile, overwrite = true)
                             }
-                            // Tickets de frais
-                            fraisPeriod.forEach {
-                                val f = PhotoStorage.fileFor(context, it.fileName)
-                                if (f.exists()) attachments.add(f)
+                            // Tickets de frais : renommés FRAIS-<CATÉGORIE>(.ext),
+                            // suffixés d'un index si plusieurs de la même catégorie.
+                            val fraisCatCount = mutableMapOf<String, Int>()
+                            fraisPeriod.forEach { ticket ->
+                                val src = PhotoStorage.fileFor(context, ticket.fileName)
+                                if (src.exists()) {
+                                    val cat = ticket.categorie.ifBlank { "DIVERS" }
+                                    val key = cat.trim().uppercase()
+                                    val idx = (fraisCatCount[key] ?: 0) + 1
+                                    fraisCatCount[key] = idx
+                                    val ext = ticket.fileName.substringAfterLast('.', "jpg")
+                                    val renamed = java.io.File(exportDir,
+                                        PhotoStorage.fraisAttachmentName(cat, ext, idx))
+                                    src.copyTo(renamed, overwrite = true)
+                                    attachments.add(renamed)
+                                }
                             }
-                            // Photos compteur
-                            compteurPeriod.forEach {
-                                val f = PhotoStorage.fileFor(context, it.fileName)
-                                if (f.exists()) attachments.add(f)
+                            // Photos compteur : renommées <PLAQUE>-<MM>-<AAAA>.jpg
+                            compteurPeriod.forEachIndexed { i, entry ->
+                                val src = PhotoStorage.fileFor(context, entry.fileName)
+                                if (src.exists()) {
+                                    val renamed = java.io.File(exportDir,
+                                        PhotoStorage.compteurAttachmentName(
+                                            settings.plaqueVoiture, entry.date, i + 1))
+                                    src.copyTo(renamed, overwrite = true)
+                                    attachments.add(renamed)
+                                }
                             }
 
                             // 3. Envoyer un seul mail avec tout
@@ -288,6 +318,22 @@ fun EnvoiMensuelScreen(
                                     append("  - Photos compteur : ${compteurPeriod.size}\n")
                                     if (settings.plaqueVoiture.isNotBlank())
                                         append("  - Véhicule : ${settings.plaqueVoiture}\n")
+                                    if (fraisPeriod.isNotEmpty()) {
+                                        append("\nDétail des frais (TVA calculée auto) :\n")
+                                        fraisPeriod.forEach { t ->
+                                            val cat = t.categorie.ifBlank { "DIVERS" }
+                                            val ht = FraisTva.htFromTtc(t.montantEur, cat)
+                                            val tva = FraisTva.tvaFromTtc(t.montantEur, cat)
+                                            append("  - %s %s : %.2f € TTC (HT %.2f € · TVA %.2f €)\n"
+                                                .format(t.date, cat, t.montantEur, ht, tva))
+                                        }
+                                        val totalHt = fraisPeriod.sumOf {
+                                            FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
+                                        val totalTva = fraisPeriod.sumOf {
+                                            FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
+                                        append("  TOTAL : %.2f € TTC (HT %.2f € · TVA %.2f €)\n"
+                                            .format(totalFraisMontant, totalHt, totalTva))
+                                    }
                                     append("\nPièces jointes : Excel TEMPS + photos.\n\n")
                                     append("Cordialement,\n${settings.nomUtilisateur}")
                                 },

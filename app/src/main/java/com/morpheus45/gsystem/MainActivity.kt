@@ -37,7 +37,9 @@ import com.morpheus45.gsystem.ui.theme.GSystemTheme
 import com.morpheus45.gsystem.update.UpdateChecker
 import com.morpheus45.gsystem.update.UpdateDialog
 import com.morpheus45.gsystem.update.checkForUpdateSilently
+import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +67,19 @@ fun AppNav() {
 
     val navController = rememberNavController()
     val startDestination = if (settings.isReady) "home" else "settings"
+
+    // Période partagée (Temps + Frais + Envoi). Par défaut = cycle calculé ;
+    // le tech peut l'ajuster car le jour de coupure varie de 2-3 jours/mois.
+    // null = pas d'override -> on suit le cycle automatique.
+    val (cycleStart, cycleEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    var periodStartOverride by remember { mutableStateOf<LocalDate?>(null) }
+    var periodEndOverride by remember { mutableStateOf<LocalDate?>(null) }
+    val periodStart = periodStartOverride ?: cycleStart
+    val periodEnd = periodEndOverride ?: cycleEnd
+    val onPeriodChange: (LocalDate, LocalDate) -> Unit = { s, e ->
+        periodStartOverride = s; periodEndOverride = e
+    }
+    val onResetPeriod = { periodStartOverride = null; periodEndOverride = null }
 
     // Splash « Réveil de marque » au lancement (1 fois par session)
     var showSplash by remember { mutableStateOf(true) }
@@ -125,6 +140,8 @@ fun AppNav() {
         composable("temps") {
             TempsScreen(
                 settings = settings, store = store, repo = repo,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -149,6 +166,8 @@ fun AppNav() {
         composable("frais") {
             FraisScreen(
                 settings = settings, store = store, repo = repo,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -165,6 +184,8 @@ fun AppNav() {
             EnvoiMensuelScreen(
                 settings = settings, store = store,
                 settingsStore = settingsStore,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange,
                 onBack = { navController.popBackStack() }
             )
         }

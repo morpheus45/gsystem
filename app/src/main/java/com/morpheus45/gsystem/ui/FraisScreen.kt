@@ -40,10 +40,12 @@ import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.FraisTicket
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.photos.PhotoStorage
-import com.morpheus45.gsystem.ui.common.PeriodHeader
+import com.morpheus45.gsystem.ui.common.EditablePeriodHeader
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.util.FraisTva
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
 
 private val CATEGORIES = listOf("PARKING", "DIVERS", "AUTRE")
 private val FraisColor = Color(0xFFD84315) // orange foncé
@@ -54,15 +56,20 @@ fun FraisScreen(
     settings: AppSettings,
     store: EntriesStore,
     repo: EntriesRepository,
+    periodStart: LocalDate,
+    periodEnd: LocalDate,
+    onPeriodChange: (LocalDate, LocalDate) -> Unit,
+    onResetPeriod: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
     val periodTickets = store.frais.filter {
-        runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
+        runCatching { DateUtil.parseIso(it.date) in periodStart..periodEnd }.getOrDefault(false)
     }.sortedByDescending { it.timestamp }
     val totalMontant = periodTickets.sumOf { it.montantEur }
+    val totalTva = periodTickets.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie) }
+    val totalHt = totalMontant - totalTva
 
     var pendingFile by remember { mutableStateOf<File?>(null) }
     var editingTicket by remember { mutableStateOf<FraisTicket?>(null) }
@@ -177,16 +184,30 @@ fun FraisScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)) {
-            PeriodHeader(start, end, periodTickets.size, "tickets ce cycle")
+            EditablePeriodHeader(
+                start = periodStart, end = periodEnd,
+                count = periodTickets.size, totalLabel = "tickets",
+                onChange = onPeriodChange, onResetCycle = onResetPeriod
+            )
             Spacer(Modifier.height(6.dp))
 
             Card(colors = CardDefaults.cardColors(
                 containerColor = FraisColor.copy(alpha = 0.1f))) {
-                Row(modifier = Modifier.padding(10.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Total saisi du cycle", fontWeight = FontWeight.SemiBold)
-                    Text("%.2f €".format(totalMontant),
-                        fontWeight = FontWeight.Bold, color = FraisColor)
+                Column(modifier = Modifier.padding(10.dp).fillMaxWidth()) {
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total TTC de la période", fontWeight = FontWeight.SemiBold)
+                        Text("%.2f €".format(totalMontant),
+                            fontWeight = FontWeight.Bold, color = FraisColor)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("dont TVA / HT", fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text("TVA %.2f € · HT %.2f €".format(totalTva, totalHt),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                    }
                 }
             }
 
@@ -199,12 +220,17 @@ fun FraisScreen(
             Spacer(Modifier.height(8.dp))
 
             if (periodTickets.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucun ticket ce cycle.\nTape « Prendre photo » pour en ajouter.",
+                Box(modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center) {
+                    Text("Aucun ticket sur cette période.\nTape « Photo » pour en ajouter.",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
                     items(periodTickets, key = { it.id }) { ticket ->
                         TicketCard(
                             context = context, ticket = ticket,
