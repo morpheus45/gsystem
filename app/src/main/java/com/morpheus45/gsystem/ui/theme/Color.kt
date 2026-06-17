@@ -66,10 +66,10 @@ val CompteurStart  = Color(0xFF2563EB)
 val CompteurEnd    = Color(0xFF0A1740)
 val CompteurAccent = Color(0xFF60A5FA)
 
-// 07 BON RETOUR — indigo
-val BonStart       = Color(0xFF4F46E5)
-val BonEnd         = Color(0xFF15123A)
-val BonAccent      = Color(0xFFA5B4FC)
+// 07 COURRIER — indigo
+val CourrierStart  = Color(0xFF4F46E5)
+val CourrierEnd    = Color(0xFF15123A)
+val CourrierAccent = Color(0xFFA5B4FC)
 
 // 08 ENVOI MENSUEL — magenta / rose
 val EnvoiStart     = Color(0xFFDB2777)

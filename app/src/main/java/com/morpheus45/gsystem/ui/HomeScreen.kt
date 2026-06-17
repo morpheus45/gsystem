@@ -17,7 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SimCard
@@ -37,9 +37,9 @@ import com.morpheus45.gsystem.ui.components.FooterSpec
 import com.morpheus45.gsystem.ui.components.HairlineDivider
 import com.morpheus45.gsystem.ui.components.HairlineSettingsIcon
 import com.morpheus45.gsystem.ui.components.LiveStatusBar
-import com.morpheus45.gsystem.ui.theme.BonAccent
-import com.morpheus45.gsystem.ui.theme.BonEnd
-import com.morpheus45.gsystem.ui.theme.BonStart
+import com.morpheus45.gsystem.ui.theme.CourrierAccent
+import com.morpheus45.gsystem.ui.theme.CourrierEnd
+import com.morpheus45.gsystem.ui.theme.CourrierStart
 import com.morpheus45.gsystem.ui.theme.CompteurAccent
 import com.morpheus45.gsystem.ui.theme.CompteurEnd
 import com.morpheus45.gsystem.ui.theme.CompteurStart
@@ -79,7 +79,7 @@ fun HomeScreen(
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCompteur: () -> Unit,
-    onBonRetour: () -> Unit,
+    onCourrier: () -> Unit,
     onEnvoiMensuel: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -186,6 +186,18 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "02",
+                    label = "COURRIER",
+                    sub = "Viber « courrier ok »",
+                    icon = Icons.Outlined.Email,
+                    gradientStart = CourrierStart,
+                    gradientEnd = CourrierEnd,
+                    accent = CourrierAccent,
+                    onClick = onCourrier
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "03",
                     label = "GSM SEUL",
                     sub = "1 site · 1 email immediat",
                     icon = Icons.Outlined.SimCard,
@@ -199,7 +211,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "03",
+                    number = "04",
                     label = "GESTE CO",
                     sub = "Site + extensions",
                     icon = Icons.Outlined.Storefront,
@@ -213,7 +225,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
+                    number = "05",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -225,7 +237,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -241,7 +253,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "COMPTEUR",
                     sub = if (countCompt > 0)
                         "Dernier releve enregistre"
@@ -251,18 +263,6 @@ fun HomeScreen(
                     gradientEnd = CompteurEnd,
                     accent = CompteurAccent,
                     onClick = onCompteur
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "07",
-                    label = "BON RETOUR",
-                    sub = "Sorties · retours materiel",
-                    icon = Icons.Outlined.Inventory2,
-                    gradientStart = BonStart,
-                    gradientEnd = BonEnd,
-                    accent = BonAccent,
-                    onClick = onBonRetour
                 )
             }
             item {
