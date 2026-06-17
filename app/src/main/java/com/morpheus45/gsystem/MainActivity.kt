@@ -3,6 +3,7 @@ package com.morpheus45.gsystem
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ import com.morpheus45.gsystem.ui.GesteCoScreen
 import com.morpheus45.gsystem.ui.GsmSeulScreen
 import com.morpheus45.gsystem.ui.HomeScreen
 import com.morpheus45.gsystem.ui.SettingsScreen
+import com.morpheus45.gsystem.ui.SplashScreen
 import com.morpheus45.gsystem.ui.TempsScreen
 import com.morpheus45.gsystem.ui.theme.GSystemTheme
 import com.morpheus45.gsystem.update.UpdateChecker
@@ -64,6 +66,9 @@ fun AppNav() {
     val navController = rememberNavController()
     val startDestination = if (settings.isReady) "home" else "settings"
 
+    // Splash « Réveil de marque » au lancement (1 fois par session)
+    var showSplash by remember { mutableStateOf(true) }
+
     // Check de mise à jour discret au démarrage (1 fois par session)
     var pendingUpdate by remember { mutableStateOf<UpdateChecker.UpdateAvailable?>(null) }
     var updateCheckedThisSession by remember { mutableStateOf(false) }
@@ -74,6 +79,7 @@ fun AppNav() {
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
             HomeScreen(
@@ -167,5 +173,11 @@ fun AppNav() {
     // Dialogue de mise à jour, affiché par-dessus n'importe quel écran
     pendingUpdate?.let { update ->
         UpdateDialog(update = update, onDismiss = { pendingUpdate = null })
+    }
+
+        // Splash par-dessus tout, retiré à la fin de l'animation
+        if (showSplash) {
+            SplashScreen(onFinished = { showSplash = false })
+        }
     }
 }
