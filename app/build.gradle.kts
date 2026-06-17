@@ -15,8 +15,8 @@ android {
         // téléphones Android modernes.
         minSdk = 26
         targetSdk = 34
-        versionCode = 50
-        versionName = "0.22.0"
+        versionCode = 51
+        versionName = "0.22.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -83,11 +83,13 @@ android {
     }
 }
 
-// Exclusion globale de log4j-api dans toutes les configurations.
-// Apache POI le tire en transitive mais on utilise slf4j-nop à la place,
-// et log4j-api ≥2.18 nécessite Android API 26 minimum.
+// POI 5.x charge log4j-api au chargement de classe (IOUtils appelle
+// LogManager.getLogger). On DOIT donc conserver log4j-api, sinon
+// NoClassDefFoundError sur org.apache.poi.util.IOUtils au remplissage.
+// On exclut uniquement log4j-core (l'implémentation lourde, inutile :
+// log4j-api se rabat silencieusement sur un logger no-op sans core).
 configurations.all {
-    exclude(group = "org.apache.logging.log4j")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-core")
 }
 
 dependencies {
@@ -122,13 +124,11 @@ dependencies {
 
     // Apache POI : remplissage .xlsm directement sur le téléphone.
     // Macros VBA préservées lors de la sauvegarde.
-    implementation("org.apache.poi:poi:5.2.5") {
-        exclude(group = "org.apache.logging.log4j")
-    }
-    implementation("org.apache.poi:poi-ooxml:5.2.5") {
-        exclude(group = "org.apache.logging.log4j")
-    }
+    implementation("org.apache.poi:poi:5.2.5")
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
     implementation("org.apache.poi:poi-ooxml-lite:5.2.5")
+    // log4j-api (sans core) : requis par POI au chargement de IOUtils.
+    implementation("org.apache.logging.log4j:log4j-api:2.21.1")
     // SLF4J no-op pour éviter les avertissements POI
     implementation("org.slf4j:slf4j-nop:2.0.11")
 

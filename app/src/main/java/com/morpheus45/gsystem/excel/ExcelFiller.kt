@@ -4,8 +4,10 @@ import android.content.Context
 import android.net.Uri
 import com.morpheus45.gsystem.data.TempsEntry
 import com.morpheus45.gsystem.util.HoursCalculator
+import org.apache.poi.openxml4j.util.ZipSecureFile
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.apache.poi.ss.util.CellRangeAddress
+import org.apache.poi.util.IOUtils
 import org.apache.poi.xssf.usermodel.XSSFSheet
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
@@ -40,6 +42,14 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
     /** Point d'entrée principal. Lance toute la procédure de remplissage. */
     fun fill(entries: List<TempsEntry>): FillReport {
         if (entries.isEmpty()) return FillReport(0, 0, 0, emptyList(), emptyList())
+
+        // Garde-fous POI (gros classeurs .xlsm avec macros = ratio de
+        // décompression élevé). Sans ça POI lève une "Zip bomb detected"
+        // ou un dépassement de buffer sur certains fichiers légitimes.
+        runCatching {
+            IOUtils.setByteArrayMaxOverride(300_000_000)
+            ZipSecureFile.setMinInflateRatio(0.0)
+        }
 
         // 1. Copier l'URI distant dans un fichier temporaire pour ouvrir avec POI
         val tmpIn = File(context.cacheDir, "fill_in.xlsm")
