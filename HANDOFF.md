@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.4.0** (versionCode 62)
+> Date : 18 juin 2026 · Version actuelle : **v1.4.1** (versionCode 63)
 
 ---
 
@@ -256,7 +256,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.4.0
+## 9. État actuel — v1.4.1
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -300,6 +300,17 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
     (+ `priceFor` + `TYPES`), écran GESTE CO (ExtRow + buildEntry), Réglages (PriceField
     primes & cadeaux), RÉCAP (`when type`), CsvExporter (cumul + colonnes détail).
     ⚠ Pour ajouter un type : penser à TOUS ces points (TYPES pilote RÉCAP + CSV).
+
+- **v1.4.1** (cette session) : **mail mensuel — rendu propre**.
+  - **Texte brut nettoyé** (fallback) : suppression des barres ASCII `█` (illisibles
+    en police proportionnelle Outlook/Gmail) ; lignes courtes `LABEL : valeur` pour
+    Répartition TEMPS, Frais (HT/TVA regroupés dans le TOTAL) et Primes GESTE CO.
+  - **Version HTML** (tableaux + wordmark gsystems coloré + **graphe à barres
+    multicolore** de la répartition TEMPS — barres = `<div>` coloré à largeur px,
+    email-safe ; pas de vrai camembert car SVG/conic-gradient/JS non supportés en mail)
+    via `EXTRA_HTML_TEXT` (`EmailSender.sendMulti(htmlBody=…)`, helper `buildMonthlyHtml`).
+    Affichée par les clients qui la gèrent (Gmail…), sinon repli auto sur le texte brut.
+    ⚠ Outlook mobile peut l'ignorer → à tester côté Cédric. Voir mémoire « format mails texte brut ».
 
 ### Pas encore fait (idées v1.5+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.

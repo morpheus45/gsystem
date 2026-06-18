@@ -24,7 +24,10 @@ object EmailSender {
         body: String,
         attachments: List<File>,
         mimeType: String = "*/*",
-        chooserTitle: String = "Envoyer via…"
+        chooserTitle: String = "Envoyer via…",
+        /** Version HTML optionnelle (EXTRA_HTML_TEXT). Les clients qui la gèrent
+         *  (Gmail…) l'affichent ; les autres retombent sur `body` en texte brut. */
+        htmlBody: String? = null
     ) {
         val ccClean = cc.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
         val uris = ArrayList(attachments.map {
@@ -53,6 +56,7 @@ object EmailSender {
             if (ccClean.isNotEmpty()) putExtra(Intent.EXTRA_CC, ccClean)
             putExtra(Intent.EXTRA_SUBJECT, subject)
             putExtra(Intent.EXTRA_TEXT, body)
+            if (htmlBody != null) putExtra(Intent.EXTRA_HTML_TEXT, htmlBody)
         }
         val chooser = Intent.createChooser(intent, chooserTitle).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
