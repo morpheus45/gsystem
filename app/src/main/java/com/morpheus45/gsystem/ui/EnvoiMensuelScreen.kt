@@ -92,6 +92,14 @@ fun EnvoiMensuelScreen(
     }
     val totalFraisMontant = fraisPeriod.sumOf { it.montantEur }
 
+    // Répartition des interventions TEMPS par type, recalculée à chaque période.
+    // Rendue en camembert « texte » (barres) dans le corps du mail mensuel.
+    val tempsByType: List<Pair<String, Int>> = tempsPeriod
+        .groupingBy { it.typeMission.ifBlank { "—" } }
+        .eachCount().entries
+        .sortedByDescending { it.value }
+        .map { it.key to it.value }
+
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -318,6 +326,23 @@ fun EnvoiMensuelScreen(
                                     append("  - Photos compteur : ${compteurPeriod.size}\n")
                                     if (settings.plaqueVoiture.isNotBlank())
                                         append("  - Véhicule : ${settings.plaqueVoiture}\n")
+                                    if (tempsByType.isNotEmpty()) {
+                                        // Camembert « texte » : barres pleines proportionnelles
+                                        // au plus gros type (max 16 blocs), rendu lisible dans
+                                        // tout client mail sans HTML. Recalculé chaque période.
+                                        val maxCount = tempsByType.maxOf { it.second }
+                                        val typeW = tempsByType.maxOf { it.first.length }
+                                        val barMax = 16
+                                        append("\nRépartition TEMPS (${tempsPeriod.size} interv.) :\n")
+                                        tempsByType.forEach { (type, count) ->
+                                            val pct = 100.0 * count / tempsPeriod.size
+                                            val blocks = Math.round(count.toDouble() / maxCount * barMax)
+                                                .toInt().coerceAtLeast(1)
+                                            val bar = "█".repeat(blocks)
+                                            append("  %-${typeW}s  %-${barMax}s %d (%.0f%%)\n"
+                                                .format(type, bar, count, pct))
+                                        }
+                                    }
                                     if (fraisPeriod.isNotEmpty()) {
                                         append("\nDétail des frais (TVA calculée auto) :\n")
                                         fraisPeriod.forEach { t ->

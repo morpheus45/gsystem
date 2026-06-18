@@ -148,8 +148,19 @@ private fun sendGesteCoEmail(
     settings: AppSettings,
     entry: GesteCoEntry
 ) {
-    val subject = "GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}"
     val offered = entry.offeredList()
+    // Geste co « installé » sans cadeau = pas de mail.
+    // L'entrée reste enregistrée pour la prime interne, mais aucun envoi
+    // client n'est déclenché tant qu'il n'y a pas de geste commercial offert.
+    if (offered.isEmpty()) {
+        android.widget.Toast.makeText(
+            context,
+            "Geste co installé sans cadeau — aucun mail envoyé.",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
+        return
+    }
+    val subject = "GESTE CO - ${settings.siteCodeFixe} - ${entry.siteNumber}"
     val totalGift = entry.totalClientGift(settings.clientGifts)
     val installedCompact = entry.installedList()
         .joinToString(",") { (type, qty) -> if (qty <= 1) type else "$qty$type" }
@@ -164,9 +175,6 @@ private fun sendGesteCoEmail(
             append("Vu avec HOTLINE EPS.\n")
         }
         when {
-            offered.isEmpty() -> {
-                append("Pas de geste commercial cette fois.\n")
-            }
             offered.size == 1 -> {
                 val (type, qty) = offered[0]
                 val unit = settings.clientGifts.priceFor(type)
