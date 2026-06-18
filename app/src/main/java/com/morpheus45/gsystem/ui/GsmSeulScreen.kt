@@ -122,6 +122,7 @@ private fun sendGsmEmail(
             append("Pas de MEDIAS exploitables.\n")
         }
         append("Câbles laissés sur site : ${if (entry.cablesLaissesSurSite) "OUI" else "NON"}\n")
+        append("CPL déjà présent : ${if (entry.cplDejaPresent) "OUI" else "NON"}\n")
         if (entry.nomClient.isNotBlank()) append("Client : ${entry.nomClient}\n")
         if (entry.observations.isNotBlank()) append("Observations : ${entry.observations}\n")
         append("Date : ${DateUtil.fr(DateUtil.parseIso(entry.date))}\n\n")
@@ -161,6 +162,7 @@ private fun EntryCard(
                 val tags = buildList {
                     if (entry.pasMediasExploitables) add("Pas de MEDIAS")
                     add("Câbles : ${if (entry.cablesLaissesSurSite) "OUI" else "NON"}")
+                    add("CPL : ${if (entry.cplDejaPresent) "OUI" else "NON"}")
                 }
                 Text(tags.joinToString("  ·  "), fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
@@ -194,6 +196,7 @@ private fun AddGsmSeulDialog(
     var obs by remember { mutableStateOf("") }
     var pasMedias by remember { mutableStateOf(true) }
     var cablesLaisses by remember { mutableStateOf(false) }
+    var cplPresent by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -210,8 +213,9 @@ private fun AddGsmSeulDialog(
 
                 OutlinedTextField(value = siteNumber,
                     onValueChange = { siteNumber = it.trim() },
-                    label = { Text("N° de site (apparaît dans le sujet)") },
+                    label = { Text("N° de site * (apparaît dans le sujet)") },
                     singleLine = true,
+                    isError = siteNumber.isBlank(),
                     modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = date, onValueChange = { date = it },
@@ -254,6 +258,24 @@ private fun AddGsmSeulDialog(
                     Switch(checked = cablesLaisses, onCheckedChange = { cablesLaisses = it })
                 }
 
+                Spacer(Modifier.height(4.dp))
+                // Toggle "CPL déjà présent"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("CPL déjà présent", fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp)
+                        Text(if (cplPresent) "OUI dans le mail"
+                             else "NON dans le mail",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Switch(checked = cplPresent, onCheckedChange = { cplPresent = it })
+                }
+
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(value = nom, onValueChange = { nom = it },
                     label = { Text("Client / localité (optionnel)") }, singleLine = true,
@@ -274,7 +296,8 @@ private fun AddGsmSeulDialog(
                         nomClient = nom.trim(),
                         observations = obs.trim(),
                         pasMediasExploitables = pasMedias,
-                        cablesLaissesSurSite = cablesLaisses
+                        cablesLaissesSurSite = cablesLaisses,
+                        cplDejaPresent = cplPresent
                     ))
                 },
                 enabled = siteNumber.isNotBlank() && date.isNotBlank(),

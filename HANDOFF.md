@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.4.3** (versionCode 65)
+> Date : 18 juin 2026 · Version actuelle : **v1.5.0** (versionCode 66)
 
 ---
 
@@ -328,7 +328,12 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
   (noms de champs inchangés) — seul l'affichage change. Mail client : « Geste
   commercial » conservé.
 
-### Pas encore fait (idées v1.5+)
+- **v1.5.0** (cette session) : GSM SEUL — **3ᵉ toggle « CPL déjà présent »**
+  (`GsmSeulEntry.cplDejaPresent`, défaut false) : ligne « CPL déjà présent : OUI/NON »
+  dans le mail + tag sur la carte. **N° de site marqué obligatoire** (`*` + bordure
+  rouge `isError`) en GSM SEUL (l'enregistrement l'exigeait déjà ; GESTE CO l'avait déjà).
+
+### Pas encore fait (idées v1.6+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.

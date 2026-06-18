@@ -42,7 +42,9 @@ data class GsmSeulEntry(
     /** Si vrai, ajoute "Pas de MEDIAS exploitables." dans le corps. */
     val pasMediasExploitables: Boolean = true,
     /** OUI/NON dans le corps : "Câbles laissés sur site : OUI/NON". */
-    val cablesLaissesSurSite: Boolean = false
+    val cablesLaissesSurSite: Boolean = false,
+    /** OUI/NON dans le corps : "CPL déjà présent : OUI/NON". */
+    val cplDejaPresent: Boolean = false
 )
 
 /**
