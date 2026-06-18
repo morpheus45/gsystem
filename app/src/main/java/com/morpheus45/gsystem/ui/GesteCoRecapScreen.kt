@@ -242,7 +242,7 @@ fun GesteCoRecapScreen(
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                                 val offTxt = e.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
                                 if (offTxt.isNotEmpty()) {
-                                    Text("Cadeau : $offTxt", fontSize = 11.sp,
+                                    Text("GESTE CO : $offTxt", fontSize = 11.sp,
                                         color = ColorGesteCo)
                                 }
                             }

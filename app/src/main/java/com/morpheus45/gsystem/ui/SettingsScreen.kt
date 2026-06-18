@@ -204,7 +204,7 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle("Cadeau client (€/unité — apparaît dans l'email)")
+            SectionTitle("GESTE CO client (€/unité — apparaît dans l'email)")
             Text("Le montant offert au client par extension installée. Ces montants apparaissent dans le corps du mail GESTE CO. Mettre 0 pour ne pas envoyer le type au client.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),

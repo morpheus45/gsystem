@@ -155,7 +155,7 @@ private fun sendGesteCoEmail(
     if (offered.isEmpty()) {
         android.widget.Toast.makeText(
             context,
-            "Geste co installé sans cadeau — aucun mail envoyé.",
+            "Installé sans GESTE CO offert — aucun mail envoyé.",
             android.widget.Toast.LENGTH_LONG
         ).show()
         return
@@ -240,7 +240,7 @@ private fun SiteCard(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 if (offeredTxt.isNotBlank()) {
-                    Text("Cadeau : $offeredTxt",
+                    Text("GESTE CO : $offeredTxt",
                         fontSize = 12.sp,
                         color = ColorGesteCo)
                 }
@@ -255,7 +255,7 @@ private fun SiteCard(
             }
             Column(horizontalAlignment = Alignment.End) {
                 if (totalGift > 0) {
-                    Text("Cadeau %.2f €".format(totalGift),
+                    Text("GESTE CO %.2f €".format(totalGift),
                         fontSize = 11.sp, color = ColorGesteCo)
                 }
                 Row {
@@ -451,7 +451,7 @@ private fun AddGesteCoDialog(
                         Text("Installé", modifier = Modifier.weight(1f),
                             fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                             textAlign = TextAlign.Center)
-                        Text("Cadeau", modifier = Modifier.weight(1f),
+                        Text("GESTE CO", modifier = Modifier.weight(1f),
                             fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                             textAlign = TextAlign.Center, color = ColorGesteCo)
                     }
@@ -493,7 +493,7 @@ private fun AddGesteCoDialog(
                                          else Color(0xFFFFEBEE))) {
                         Column(modifier = Modifier.padding(8.dp)) {
                             if (!perTypeOk) {
-                                Text("✗ Cadeau > installé sur au moins un type",
+                                Text("✗ GESTE CO > installé sur au moins un type",
                                     color = Color(0xFFC62828), fontSize = 11.sp)
                             }
                             if (!halfOk) {
@@ -501,7 +501,7 @@ private fun AddGesteCoDialog(
                                     color = Color(0xFFC62828), fontSize = 11.sp)
                             }
                             if (!capOk) {
-                                Text("✗ Cadeau total %.2f € > %.2f €".format(totalGift, MAX_GIFT_EUR),
+                                Text("✗ GESTE CO total %.2f € > %.2f €".format(totalGift, MAX_GIFT_EUR),
                                     color = Color(0xFFC62828), fontSize = 11.sp)
                             }
                             if (allValid && installedAll > 0) {
@@ -509,7 +509,7 @@ private fun AddGesteCoDialog(
                                     fontWeight = FontWeight.SemiBold)
                             }
                             if (installedAll > 0) {
-                                Text("Installé : $installedAll   ·   Offert : $offeredAll   ·   Cadeau : %.2f €".format(totalGift),
+                                Text("Installé : $installedAll   ·   Offert : $offeredAll   ·   GESTE CO : %.2f €".format(totalGift),
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
                             }

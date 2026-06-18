@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.4.2** (versionCode 64)
+> Date : 18 juin 2026 · Version actuelle : **v1.4.3** (versionCode 65)
 
 ---
 
@@ -321,6 +321,12 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
     pour signaler la PJ. (Un lien cliquable vers une PJ depuis le corps = impossible.)
   - **Pas de tutoiement dans les corps de mail** (destinataires pro) — formulation
     neutre. Voir mémoire « format mails texte brut ».
+
+- **v1.4.3** (cette session) : renommage **« Cadeau » → « GESTE CO »** dans toute
+  l'UI (en-tête colonne du dialogue, cartes site, validations, RÉCAP, Réglages
+  « GESTE CO client », en-tête CSV). Le modèle reste `offered*`/`clientGifts`
+  (noms de champs inchangés) — seul l'affichage change. Mail client : « Geste
+  commercial » conservé.
 
 ### Pas encore fait (idées v1.5+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.

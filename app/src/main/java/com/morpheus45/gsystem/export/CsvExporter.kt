@@ -159,7 +159,7 @@ object CsvExporter {
         sb.appendLine()
 
         // ============ BLOC 2 — CADEAUX CLIENT (info séparée) ============
-        sb.appendLine(row("CADEAUX CLIENT OFFERTS"))
+        sb.appendLine(row("GESTE CO OFFERT AU CLIENT"))
         sb.appendLine(row("Type", "Quantité offerte"))
         for (type in GesteCoPrices.TYPES) {
             val q = offeredPerType[type] ?: 0
