@@ -239,7 +239,9 @@ data class AppSettings(
     val emailGesteCoTo: String = "",
     val emailGesteCoCc1: String = "",
     val emailGesteCoCc2: String = "",
-    val siteCodeFixe: String = "ISTGS54",
+    /** Code technicien (préfixe sujets GSM SEUL / GESTE CO). Propre à chaque tech,
+     *  vide par défaut depuis v1.2.0 — chacun saisit le sien dans Réglages. */
+    val siteCodeFixe: String = "",
     val cycleStartDay: Int = 21,
     val prices: GesteCoPrices = GesteCoPrices(),
     val clientGifts: GesteCoClientGifts = GesteCoClientGifts(),
@@ -258,18 +260,28 @@ data class AppSettings(
     val excelFileName: String = "",
     val firstRunDone: Boolean = false
 ) {
-    /** Adresses effectives en lecture (priorité GS/EPS v0.12+, fallback v0.11). */
-    val effectiveGsTo: String get() = emailGsTo.ifBlank { emailTemps.ifBlank { emailFrais } }
+    // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis
+    // v1.2.0 (FIXED_* ci-dessous), masqués dans Réglages : le tech ne les saisit
+    // plus. Pour changer une de ces adresses : éditer la constante puis publier une MAJ.
+    val effectiveGsTo: String get() = FIXED_GS_TO
     val effectiveGsCc1: String get() = emailGsCc1
     val effectiveGsCc2: String get() = emailGsCc2
-    val effectiveEpsTo: String get() = emailEpsTo.ifBlank { emailGsmSeulTo.ifBlank { emailGesteCoTo } }
-    val effectiveEpsCc1: String get() = emailEpsCc1.ifBlank { emailGsmSeulCc1.ifBlank { emailGesteCoCc1 } }
-    val effectiveEpsCc2: String get() = emailEpsCc2.ifBlank { emailGsmSeulCc2.ifBlank { emailGesteCoCc2 } }
+    val effectiveEpsTo: String get() = FIXED_EPS_TO
+    val effectiveEpsCc1: String get() = FIXED_EPS_CC1
+    /** Responsable secteur : seul destinataire EPS éditable (vide par défaut). */
+    val effectiveEpsCc2: String get() = emailEpsCc2
 
     val isReady: Boolean
         get() = effectiveGsTo.isNotBlank() &&
                 effectiveEpsTo.isNotBlank() &&
                 nomUtilisateur.isNotBlank()
+
+    companion object {
+        // Destinataires fixes G-Systems / EPS (mêmes pour tous les techs).
+        const val FIXED_GS_TO = "fdt@fggestion.fr"
+        const val FIXED_EPS_TO = "epsinfotechline@eps.e-i.com"
+        const val FIXED_EPS_CC1 = "johanna@fggestion.fr"
+    }
 }
 
 /**

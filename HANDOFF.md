@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.1.0** (versionCode 59)
+> Date : 18 juin 2026 · Version actuelle : **v1.2.0** (versionCode 60)
 
 ---
 
@@ -155,12 +155,19 @@ keystore/debug.keystore              ← Clé stable signée
 - Les fichiers sont copiés/renommés dans `cacheDir/exports` juste avant l'envoi.
 
 ### Emails
-- 2 groupes (Réglages) : **GS** (interne : TEMPS, FRAIS, COMPTEUR) et
-  **EPS** (clients : GSM SEUL, GESTE CO). Email perso ajouté en Cc sur Envoi Mensuel.
-- **EPS Cc 2 = « Responsable secteur »** (v1.1.0) : champ `emailEpsCc2`, libellé
-  « Responsable secteur (Cc 2) » dans Réglages, **modifiable et vide par défaut**.
-  Mis en copie des envois GSM SEUL et GESTE CO. (`AppSettings` n'a aucune valeur
-  par défaut codée en dur pour ce champ — chaque tech saisit le sien.)
+- 2 groupes : **GS** (interne : TEMPS, FRAIS, COMPTEUR) et **EPS** (clients :
+  GSM SEUL, GESTE CO). Email perso ajouté en Cc sur Envoi Mensuel.
+- **Destinataires fixes codés en dur** (v1.2.0) dans `AppSettings.companion` —
+  identiques pour toute l'équipe, **masqués dans Réglages**, le tech ne les saisit plus :
+  - `FIXED_GS_TO   = "fdt@fggestion.fr"`      → `effectiveGsTo`
+  - `FIXED_EPS_TO  = "epsinfotechline@eps.e-i.com"` → `effectiveEpsTo`
+  - `FIXED_EPS_CC1 = "johanna@fggestion.fr"`  → `effectiveEpsCc1`
+  - ⚠ Pour changer une de ces adresses : éditer la constante puis **publier une MAJ**
+    (plus modifiable côté téléphone).
+- **Seul champ email éditable dans Réglages = « Responsable secteur »** : `emailEpsCc2`
+  (`effectiveEpsCc2`), **modifiable et vide par défaut**, en copie des envois EPS.
+- Tous les écrans lisent les getters `effective*` (jamais les champs bruts) →
+  changer un getter suffit à propager partout (GSM SEUL, GESTE CO, RÉCAP, Envoi Mensuel).
 - `EmailSender.sendMulti` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE.
   ClipData + FLAG_GRANT_READ_URI_PERMISSION sur l'intent ET le chooser (sinon
   les PJ n'apparaissent pas après le chooser).
@@ -243,7 +250,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.1.0
+## 9. État actuel — v1.2.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -255,14 +262,21 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 - **v1.0.0** : Excel — clonage du style des lignes auto-insérées (>4 interventions/jour) ;
   signature Release par **clé de production** (GitHub secrets), repli sur clé debug
   si absente ; nettoyage du tutoriel.
-- **v1.1.0** (cette session) :
+- **v1.1.0** :
   - **Envoi Mensuel bloqué sans photo compteur** : bouton désactivé + bandeau rouge
     tant qu'aucune photo compteur sur la période (`hasCompteurPhoto`). Photo jointe
     auto, rien à renseigner par le tech (cf. §5).
-  - **Réglages EPS** : Cc 2 relibellé **« Responsable secteur (Cc 2) »**, modifiable
-    et **vide par défaut**, mis en copie des envois GSM SEUL / GESTE CO.
+  - **Réglages EPS** : Cc 2 relibellé **« Responsable secteur »**, modifiable et vide.
+- **v1.2.0** (cette session) :
+  - **Destinataires fixes codés en dur + masqués** dans Réglages (cf. §5 Emails) :
+    `fdt@fggestion.fr`, `epsinfotechline@eps.e-i.com`, `johanna@fggestion.fr`.
+    Réglages n'affiche plus que les champs perso (nom, plaque, email perso,
+    responsable secteur, code tech, cycle, primes). Plus de saisie d'adresses par le tech.
+  - **« Code site » renommé « Code tech »** (libellés UI + doc) : c'est le code
+    technicien personnel, pas un code de site. **Vide par défaut** (`siteCodeFixe = ""`,
+    plus de repli `ISTGS54`) pour que chaque tech saisisse le sien.
 
-### Pas encore fait (idées v1.2+)
+### Pas encore fait (idées v1.3+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
@@ -299,7 +313,10 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 - **Dev/utilisateur principal** : Cedric (morpheus45 GitHub)
 - **Société** : G-Systems FR (sécurité électronique / alarme)
-- **Code site Cedric** : ISTGS54 (utiliser ISTGSXXX comme exemple en doc)
+- **Code tech Cedric** : ISTGS54 — c'est un **code technicien** (propre à chaque
+  tech, pas un code de site), saisi dans Réglages, préfixe des sujets d'email
+  GSM SEUL / GESTE CO. Champ `siteCodeFixe` (nom JSON historique conservé).
+  Utiliser ISTGSXXX comme exemple en doc.
 - L'app est utilisée quotidiennement par Cedric, en cours d'extension à l'équipe.
 
 ---
