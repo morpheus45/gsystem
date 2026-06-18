@@ -92,6 +92,11 @@ fun EnvoiMensuelScreen(
     }
     val totalFraisMontant = fraisPeriod.sumOf { it.montantEur }
 
+    // Règle métier : l'envoi mensuel est bloqué tant qu'aucune photo compteur
+    // n'est présente sur la période. La photo est jointe automatiquement (nommée
+    // <PLAQUE>-<MM>-<AAAA>.jpg) — le tech n'a rien à renseigner sur la photo.
+    val hasCompteurPhoto = compteurPeriod.isNotEmpty()
+
     // Répartition des interventions TEMPS par type, recalculée à chaque période.
     // Rendue en camembert « texte » (barres) dans le corps du mail mensuel.
     val tempsByType: List<Pair<String, Int>> = tempsPeriod
@@ -234,6 +239,16 @@ fun EnvoiMensuelScreen(
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Envoyer", EnvoiColor)
+            if (!hasCompteurPhoto) {
+                Text(
+                    "⛔ Envoi bloqué : aucune photo compteur sur la période. " +
+                    "Prends la photo du compteur (tuile COMPTEUR) avant d'envoyer le mensuel.",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
             Button(
                 onClick = {
                     scope.launch {
@@ -373,7 +388,7 @@ fun EnvoiMensuelScreen(
                         working = false
                     }
                 },
-                enabled = !working && validRange && settings.effectiveGsTo.isNotBlank(),
+                enabled = !working && validRange && settings.effectiveGsTo.isNotBlank() && hasCompteurPhoto,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = EnvoiColor)
             ) {
@@ -395,8 +410,8 @@ fun EnvoiMensuelScreen(
 
             Spacer(Modifier.height(24.dp))
             Text(
-                "Si le fichier Excel n'est pas configuré, seules les photos seront envoyées. " +
-                "Tu peux quand même cliquer le bouton.",
+                "La photo du compteur est obligatoire : sans elle l'envoi reste bloqué. " +
+                "Si le fichier Excel n'est pas configuré, seuls les photos et tickets seront envoyés.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
             )

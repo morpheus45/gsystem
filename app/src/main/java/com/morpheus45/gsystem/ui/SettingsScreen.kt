@@ -128,7 +128,11 @@ fun SettingsScreen(
             Spacer(Modifier.height(6.dp))
             EmailField(value = emailEpsCc1, onChange = { emailEpsCc1 = it }, label = "Copie 1 (Cc)")
             Spacer(Modifier.height(6.dp))
-            EmailField(value = emailEpsCc2, onChange = { emailEpsCc2 = it }, label = "Copie 2 (Cc)")
+            EmailField(value = emailEpsCc2, onChange = { emailEpsCc2 = it }, label = "Responsable secteur (Cc 2)")
+            Text("Email du responsable de secteur, mis en copie des envois GSM SEUL et GESTE CO. Laisse vide si pas de responsable.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Véhicule")

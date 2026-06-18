@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 17 juin 2026 · Version actuelle : **v0.22.4** (versionCode 54)
+> Date : 18 juin 2026 · Version actuelle : **v1.1.0** (versionCode 59)
 
 ---
 
@@ -54,10 +54,11 @@ Kotlin 1.9.x + Jetpack Compose Material 3 (BOM 2024.06.00)
 ├── Coroutines 1.8
 └── (plus de WebView — l'écran BON RETOUR a été supprimé en v0.22.4)
 
-CI : GitHub Actions (.github/workflows/android-build.yml) → APK debug signée,
+CI : GitHub Actions (.github/workflows/android-build.yml) → APK signée,
      publication auto d'une Release avec asset .apk sur tag `v*`
-Signing : keystore/debug.keystore (committé exprès, stable pour les MAJ
-          seamless ; tous les builds CI partagent la même clé)
+Signing : clé de PRODUCTION (GitHub secrets) en priorité depuis v1.0.0 ;
+          repli automatique sur keystore/debug.keystore (committé exprès, stable)
+          si la clé prod est absente (PR, build local). storeFile prod JAMAIS commité.
 ```
 
 ---
@@ -156,9 +157,21 @@ keystore/debug.keystore              ← Clé stable signée
 ### Emails
 - 2 groupes (Réglages) : **GS** (interne : TEMPS, FRAIS, COMPTEUR) et
   **EPS** (clients : GSM SEUL, GESTE CO). Email perso ajouté en Cc sur Envoi Mensuel.
+- **EPS Cc 2 = « Responsable secteur »** (v1.1.0) : champ `emailEpsCc2`, libellé
+  « Responsable secteur (Cc 2) » dans Réglages, **modifiable et vide par défaut**.
+  Mis en copie des envois GSM SEUL et GESTE CO. (`AppSettings` n'a aucune valeur
+  par défaut codée en dur pour ce champ — chaque tech saisit le sien.)
 - `EmailSender.sendMulti` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE.
   ClipData + FLAG_GRANT_READ_URI_PERMISSION sur l'intent ET le chooser (sinon
   les PJ n'apparaissent pas après le chooser).
+
+### Envoi Mensuel — photo compteur obligatoire (v1.1.0)
+- Le bouton « Remplir Excel + envoyer le mensuel » est **désactivé tant qu'aucune
+  photo compteur** n'est présente sur la période (`hasCompteurPhoto =
+  compteurPeriod.isNotEmpty()` dans `EnvoiMensuelScreen.kt`). Un bandeau rouge
+  « ⛔ Envoi bloqué… » s'affiche sinon.
+- La photo compteur est **jointe automatiquement** (nommée `<PLAQUE>-<MM>-<AAAA>.jpg`)
+  — le tech n'a rien à renseigner sur la photo, la règle est codée en dur.
 
 ### GESTE CO — règles cadeau
 - Total cadeau client ≤ **4,50 €** ; offertes ≤ moitié des installées (arrondi inf.) ;
@@ -230,20 +243,26 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v0.22.4
+## 9. État actuel — v1.1.0
 
 ### Évolutions récentes (juin 2026)
-- **v0.22.1** : fix POI `IOUtils` (garder log4j-api) ; ExcelFiller réécrit sur
-  l'URI existant → conserve les macros VBA.
-- **v0.22.2** : fix pièces jointes mail manquantes (ACTION_SEND + ClipData).
-- **v0.22.3** : période éditable partagée (Temps/Frais/Envoi) ; TVA par catégorie
-  (FraisTva) ; récap frais+TVA dans le corps du mail ; scroll Frais corrigé ;
-  PJ renommées FRAIS-CATÉGORIE / PLAQUE-MM-AAAA.jpg.
-- **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») entre Clôture et GSM ;
-  **suppression complète de BON RETOUR** (tuile, route, écran, couleurs renommées
-  Courrier*) ; renumérotation des tuiles ; tutoriel + nouveau logo gsystems.
+- **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
+  de BON RETOUR ; renumérotation des tuiles ; tutoriel + nouveau logo gsystems.
+- **v0.23.0** : GESTE CO installé **sans cadeau → pas de mail** ; répartition TEMPS
+  (camembert texte) ajoutée dans le corps du mail mensuel.
+- **v0.23.1** : TEMPS — nouveau type **FERIE** (journée entière 7h, même logique que VACANCES).
+- **v0.24.0** : garde d'intégrité (anti-tamper) + mention copyright.
+- **v1.0.0** : Excel — clonage du style des lignes auto-insérées (>4 interventions/jour) ;
+  signature Release par **clé de production** (GitHub secrets), repli sur clé debug
+  si absente ; nettoyage du tutoriel.
+- **v1.1.0** (cette session) :
+  - **Envoi Mensuel bloqué sans photo compteur** : bouton désactivé + bandeau rouge
+    tant qu'aucune photo compteur sur la période (`hasCompteurPhoto`). Photo jointe
+    auto, rien à renseigner par le tech (cf. §5).
+  - **Réglages EPS** : Cc 2 relibellé **« Responsable secteur (Cc 2) »**, modifiable
+    et **vide par défaut**, mis en copie des envois GSM SEUL / GESTE CO.
 
-### Pas encore fait (idées v0.23+)
+### Pas encore fait (idées v1.2+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
@@ -297,5 +316,5 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-*Document mis à jour à l'issue de la session v0.22.x (Courrier + retrait Bon
-Retour + logo gsystems). Bon courage pour la suite.*
+*Document mis à jour à l'issue de la session v1.1.0 (photo compteur obligatoire à
+l'envoi mensuel + Responsable secteur en Cc 2 des envois EPS). Bon courage pour la suite.*
