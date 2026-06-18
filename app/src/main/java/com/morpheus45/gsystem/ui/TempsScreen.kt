@@ -42,9 +42,9 @@ import java.time.LocalDate
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
     "FINS", "INTE", "VISI", "MIGR",
-    "VACANCES", "FORMATION", "AUTRE")
+    "VACANCES", "FORMATION", "FERIE", "AUTRE")
 /** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
-private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION")
+private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION", "FERIE")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

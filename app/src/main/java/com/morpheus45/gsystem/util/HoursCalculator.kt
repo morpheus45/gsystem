@@ -6,7 +6,7 @@ import com.morpheus45.gsystem.data.TempsEntry
  * Calcul automatique des heures travaillées d'une journée.
  *
  * Cas spéciaux :
- *   - Si la journée contient une entrée VACANCES ou FORMATION → 7h (journée entière)
+ *   - Si la journée contient une entrée VACANCES, FORMATION ou FERIE → 7h (journée entière)
  *
  * Règle générale (confirmée par l'utilisateur — table à 9 cas) :
  *   - 0 slot actif (rien du tout)            → 0h
@@ -29,12 +29,8 @@ object HoursCalculator {
     fun computeForDay(entries: List<TempsEntry>): Double {
         if (entries.isEmpty()) return 0.0
 
-        // Cas special : si une entree VACANCES ou FORMATION existe, journee = 7h
-        val hasWholeDay = entries.any {
-            it.typeMission.equals("VACANCES", ignoreCase = true) ||
-            it.typeMission.equals("FORMATION", ignoreCase = true)
-        }
-        if (hasWholeDay) return 7.0
+        // Cas special : si une entree VACANCES, FORMATION ou FERIE existe, journee = 7h
+        if (entries.any { isWholeDayType(it) }) return 7.0
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
         val apremActive = entries.any { isInSlot(it, "APREM") }
@@ -52,6 +48,12 @@ object HoursCalculator {
         }
     }
 
+    /** Types « journée entière » → 7h fixe (mêmes que WHOLE_DAY_TYPES côté UI). */
+    private fun isWholeDayType(e: TempsEntry): Boolean =
+        e.typeMission.equals("VACANCES", ignoreCase = true) ||
+        e.typeMission.equals("FORMATION", ignoreCase = true) ||
+        e.typeMission.equals("FERIE", ignoreCase = true)
+
     private fun isInSlot(e: TempsEntry, slot: String): Boolean = when (slot) {
         "MATIN" -> e.slotMidi == "MATIN" || e.slotMidi.isBlank()  // legacy fallback
         "APREM" -> e.slotMidi == "APREM"
@@ -61,11 +63,8 @@ object HoursCalculator {
     /** Détaille la règle appliquée pour affichage utilisateur. */
     fun explainForDay(entries: List<TempsEntry>): String {
         if (entries.isEmpty()) return "Aucune intervention → 0h"
-        // Vacances / Formation : journee entiere
-        val whole = entries.firstOrNull {
-            it.typeMission.equals("VACANCES", ignoreCase = true) ||
-            it.typeMission.equals("FORMATION", ignoreCase = true)
-        }
+        // Vacances / Formation / Férié : journee entiere
+        val whole = entries.firstOrNull { isWholeDayType(it) }
         if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"
 
         val matinOk = entries.count { isInSlot(it, "MATIN") && it.observationType.isBlank() }
