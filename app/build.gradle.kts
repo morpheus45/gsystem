@@ -22,6 +22,15 @@ android {
 
     // Clé de signature debug STABLE, partagée par tous les builds (CI ou local)
     // pour permettre les mises à jour seamless sans réinstaller.
+    //
+    // Clé de PRODUCTION (secrète) : fournie via variables d'environnement
+    // (CI = GitHub secrets) ou propriétés Gradle locales NON versionnées.
+    // Si absente (PR, build local), on retombe proprement sur la clé debug
+    // pour ne jamais casser la CI. Le storeFile prod n'est JAMAIS commité.
+    val releaseStoreFile = System.getenv("RELEASE_STORE_FILE")
+        ?: (project.findProperty("RELEASE_STORE_FILE") as String?)
+    val hasReleaseKey = releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()
+
     signingConfigs {
         getByName("debug") {
             storeFile = rootProject.file("keystore/debug.keystore")
@@ -29,13 +38,24 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD")
+                    ?: project.findProperty("RELEASE_STORE_PASSWORD") as String?
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                    ?: project.findProperty("RELEASE_KEY_ALIAS") as String?
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                    ?: project.findProperty("RELEASE_KEY_PASSWORD") as String?
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
         debug {
             isMinifyEnabled = false
