@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.4.1** (versionCode 63)
+> Date : 18 juin 2026 · Version actuelle : **v1.4.2** (versionCode 64)
 
 ---
 
@@ -256,7 +256,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.4.1
+## 9. État actuel — v1.4.2
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -311,6 +311,16 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
     via `EXTRA_HTML_TEXT` (`EmailSender.sendMulti(htmlBody=…)`, helper `buildMonthlyHtml`).
     Affichée par les clients qui la gèrent (Gmail…), sinon repli auto sur le texte brut.
     ⚠ Outlook mobile peut l'ignorer → à tester côté Cédric. Voir mémoire « format mails texte brut ».
+
+- **v1.4.2** (cette session) :
+  - **Récap visuel HTML joint** au mensuel : `buildMonthlyHtml` écrit dans
+    `cacheDir/exports/Recap-mensuel_<start>.html` (doc complet + meta charset),
+    ajouté aux pièces jointes. S'ouvre dans le navigateur avec le rendu exact —
+    car le HTML **dans le corps** n'est pas fiable (Outlook ET Gmail ignorent
+    `EXTRA_HTML_TEXT` depuis un partage Android, vérifié). Ligne ajoutée au corps
+    pour signaler la PJ. (Un lien cliquable vers une PJ depuis le corps = impossible.)
+  - **Pas de tutoiement dans les corps de mail** (destinataires pro) — formulation
+    neutre. Voir mémoire « format mails texte brut ».
 
 ### Pas encore fait (idées v1.5+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
