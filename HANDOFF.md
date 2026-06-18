@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.2.0** (versionCode 60)
+> Date : 18 juin 2026 · Version actuelle : **v1.3.0** (versionCode 61)
 
 ---
 
@@ -165,7 +165,9 @@ keystore/debug.keystore              ← Clé stable signée
   - ⚠ Pour changer une de ces adresses : éditer la constante puis **publier une MAJ**
     (plus modifiable côté téléphone).
 - **Seul champ email éditable dans Réglages = « Responsable secteur »** : `emailEpsCc2`
-  (`effectiveEpsCc2`), **modifiable et vide par défaut**, en copie des envois EPS.
+  (`effectiveEpsCc2`), en copie des envois EPS. **OBLIGATOIRE depuis v1.3.0** : il
+  fait partie de `isReady` (propre à chaque secteur, donc à chaque tech de saisir
+  le sien) → app bloquée sur Réglages tant qu'il est vide.
 - Tous les écrans lisent les getters `effective*` (jamais les champs bruts) →
   changer un getter suffit à propager partout (GSM SEUL, GESTE CO, RÉCAP, Envoi Mensuel).
 - `EmailSender.sendMulti` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE.
@@ -179,6 +181,10 @@ keystore/debug.keystore              ← Clé stable signée
   « ⛔ Envoi bloqué… » s'affiche sinon.
 - La photo compteur est **jointe automatiquement** (nommée `<PLAQUE>-<MM>-<AAAA>.jpg`)
   — le tech n'a rien à renseigner sur la photo, la règle est codée en dur.
+- **Récap PRIMES GESTE CO** (v1.3.0) dans le corps du mail : `primesByType` agrège les
+  extensions installées de la période × `settings.prices`, rendu en barres texte
+  (barre ∝ montant €) + `TOTAL PRIMES`. Les primes ne sont PAS dans les mails GESTE CO
+  client (règle inchangée) — uniquement dans le mensuel interne (GS + copie perso).
 
 ### GESTE CO — règles cadeau
 - Total cadeau client ≤ **4,50 €** ; offertes ≤ moitié des installées (arrondi inf.) ;
@@ -250,7 +256,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.2.0
+## 9. État actuel — v1.3.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -275,6 +281,17 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
   - **« Code site » renommé « Code tech »** (libellés UI + doc) : c'est le code
     technicien personnel, pas un code de site. **Vide par défaut** (`siteCodeFixe = ""`,
     plus de repli `ISTGS54`) pour que chaque tech saisisse le sien.
+- **v1.3.0** (cette session) :
+  - **3 champs obligatoires** ajoutés à `isReady` (app bloquée sur Réglages tant
+    qu'ils sont vides) : **nom du tech**, **code tech** (`siteCodeFixe`, sinon trou
+    dans le sujet « GSM SEUL -  - n° ») et **responsable secteur** (`emailEpsCc2`,
+    propre à chaque secteur). Libellés `*`, aides, validation et tutoriel alignés.
+  - **Récap PRIMES GESTE CO dans le corps du mensuel** : extensions installées de la
+    période agrégées par type × tarif (`settings.prices`), rendu en barres « texte »
+    (même format que la répartition TEMPS, barre proportionnelle au montant €) +
+    `TOTAL PRIMES` de la période. `EnvoiMensuelScreen` : `gesteCoPeriod` + `primesByType`.
+    Aussi en StatRow à l'écran et en ligne de récap du mail. Va vers le groupe GS
+    (`fdt@fggestion.fr`) + copie perso.
 
 ### Pas encore fait (idées v1.3+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.

@@ -90,7 +90,25 @@ fun EnvoiMensuelScreen(
     val compteurPeriod = store.compteur.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }
+    val gesteCoPeriod = store.gesteCo.filter {
+        runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
+    }
     val totalFraisMontant = fraisPeriod.sumOf { it.montantEur }
+
+    // Récap PRIMES GESTE CO : agrégation des extensions INSTALLÉES par type sur la
+    // période × le tarif (settings.prices). Triple(libellé, nb installées, montant €),
+    // trié par montant décroissant. Rendu en barres « texte » dans le corps du mail.
+    val primesByType: List<Triple<String, Int, Double>> = run {
+        val counts = linkedMapOf<String, Int>()
+        gesteCoPeriod.forEach { e ->
+            e.installedList().forEach { (type, n) -> counts[type] = (counts[type] ?: 0) + n }
+        }
+        counts.entries
+            .map { (type, n) -> Triple(type, n, n * settings.prices.priceFor(type)) }
+            .sortedByDescending { it.third }
+    }
+    val totalPrimes = primesByType.sumOf { it.third }
+    val totalExtensions = primesByType.sumOf { it.second }
 
     // Règle métier : l'envoi mensuel est bloqué tant qu'aucune photo compteur
     // n'est présente sur la période. La photo est jointe automatiquement (nommée
@@ -236,6 +254,7 @@ fun EnvoiMensuelScreen(
             StatRow("Interventions TEMPS", "${tempsPeriod.size}")
             StatRow("Tickets de frais", "${fraisPeriod.size}  (${"%.2f €".format(totalFraisMontant)})")
             StatRow("Photos compteur", "${compteurPeriod.size}")
+            StatRow("Primes GESTE CO", "$totalExtensions ext.  (${"%.2f €".format(totalPrimes)})")
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Envoyer", EnvoiColor)
@@ -339,6 +358,7 @@ fun EnvoiMensuelScreen(
                                     append("  - Feuille TEMPS : ${tempsPeriod.size} interventions\n")
                                     append("  - Tickets de frais : ${fraisPeriod.size} (%.2f €)\n".format(totalFraisMontant))
                                     append("  - Photos compteur : ${compteurPeriod.size}\n")
+                                    append("  - Primes GESTE CO : %d ext. (%.2f €)\n".format(totalExtensions, totalPrimes))
                                     if (settings.plaqueVoiture.isNotBlank())
                                         append("  - Véhicule : ${settings.plaqueVoiture}\n")
                                     if (tempsByType.isNotEmpty()) {
@@ -373,6 +393,28 @@ fun EnvoiMensuelScreen(
                                             FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
                                         append("  TOTAL : %.2f € TTC (HT %.2f € · TVA %.2f €)\n"
                                             .format(totalFraisMontant, totalHt, totalTva))
+                                    }
+                                    // Récap PRIMES GESTE CO : même format que la répartition
+                                    // TEMPS (libellé · barre proportionnelle au montant € · nb × tarif),
+                                    // suivi du total des primes de la période.
+                                    if (primesByType.isEmpty()) {
+                                        append("\nPrimes GESTE CO : aucune extension installée sur la période.\n")
+                                    } else {
+                                        val maxEur = primesByType.maxOf { it.third }
+                                        val labelW = primesByType.maxOf { it.first.length }
+                                        val nbW = primesByType.maxOf { it.second.toString().length }
+                                        val eurW = primesByType.maxOf { "%.2f".format(it.third).length }
+                                        val barMaxP = 16
+                                        append("\nPrimes GESTE CO ($totalExtensions ext. · ${primesByType.size} types) :\n")
+                                        primesByType.forEach { (type, n, eur) ->
+                                            val unit = settings.prices.priceFor(type)
+                                            val blocks = Math.round(eur / maxEur * barMaxP)
+                                                .toInt().coerceAtLeast(1)
+                                            val bar = "█".repeat(blocks)
+                                            append("  %-${labelW}s  %-${barMaxP}s %${nbW}d × %.2f € = %${eurW}.2f €\n"
+                                                .format(type, bar, n, unit, eur))
+                                        }
+                                        append("  TOTAL PRIMES : %.2f €\n".format(totalPrimes))
                                     }
                                     append("\nPièces jointes : Excel TEMPS + photos.\n\n")
                                     append("Cordialement,\n${settings.nomUtilisateur}")

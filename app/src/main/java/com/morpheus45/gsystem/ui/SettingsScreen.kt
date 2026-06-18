@@ -95,18 +95,18 @@ fun SettingsScreen(
         ) {
             if (firstRun) {
                 Text(
-                    "Première utilisation : saisis ton nom, ta plaque et (si besoin) ton responsable de secteur. Les destinataires des emails sont déjà intégrés à l'app.",
+                    "Première utilisation : saisis ton nom, ton code tech et l'email de ton responsable de secteur (obligatoires). La plaque est conseillée. Les destinataires des emails sont déjà intégrés à l'app.",
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.height(12.dp))
             }
 
-            SectionTitle("Responsable secteur")
-            Text("Les destinataires G-Systems et EPS (feuille de temps, GSM SEUL, GESTE CO, frais, compteur) sont intégrés à l'app : rien à saisir. Seul l'email du responsable de secteur est à renseigner ici — il est mis en copie des envois GSM SEUL et GESTE CO.",
+            SectionTitle("Responsable secteur (obligatoire)")
+            Text("Les destinataires G-Systems et EPS (feuille de temps, GSM SEUL, GESTE CO, frais, compteur) sont intégrés à l'app : rien à saisir. En revanche l'email de TON responsable de secteur est obligatoire — il diffère selon le secteur, donc à toi de saisir le tien. Il est mis en copie des envois GSM SEUL et GESTE CO.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))
-            EmailField(value = emailEpsCc2, onChange = { emailEpsCc2 = it }, label = "Responsable secteur (Cc, optionnel)")
+            EmailField(value = emailEpsCc2, onChange = { emailEpsCc2 = it }, label = "Email du responsable de secteur *")
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Véhicule")
@@ -123,15 +123,15 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(20.dp))
-            SectionTitle("Code tech (préfixe sujet email)")
+            SectionTitle("Code tech (obligatoire)")
             OutlinedTextField(
                 value = siteCode, onValueChange = { siteCode = it },
-                label = { Text("Code technicien (ex : ISTGS54)") },
+                label = { Text("Code technicien (ex : ISTGS54) *") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "Ton code technicien personnel. Apparaît dans le sujet : « GSM SEUL - $siteCode - <n° site> »",
+                "Ton code technicien personnel, obligatoire. Apparaît dans le sujet : « GSM SEUL - $siteCode - <n° site> »",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 4.dp)
@@ -330,10 +330,10 @@ fun SettingsScreen(
                 Icon(Icons.Filled.Save, contentDescription = null)
                 Text("  Enregistrer", fontSize = 16.sp)
             }
-            if (nom.isBlank()) {
+            if (nom.isBlank() || emailEpsCc2.isBlank() || siteCode.isBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Le nom du technicien est nécessaire pour la signature des emails, mais tu peux quand même enregistrer maintenant.",
+                    "Le nom du technicien, le code tech et l'email du responsable de secteur sont obligatoires. Tant qu'ils ne sont pas remplis, l'app reste sur cet écran au lancement.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

@@ -274,6 +274,11 @@ data class AppSettings(
     val isReady: Boolean
         get() = effectiveGsTo.isNotBlank() &&
                 effectiveEpsTo.isNotBlank() &&
+                // Responsable secteur OBLIGATOIRE (propre à chaque tech) : tant qu'il
+                // est vide, l'app reste sur l'écran Réglages au lancement.
+                effectiveEpsCc2.isNotBlank() &&
+                // Code tech OBLIGATOIRE : sinon trou dans le sujet « GSM SEUL -  - n° ».
+                siteCodeFixe.isNotBlank() &&
                 nomUtilisateur.isNotBlank()
 
     companion object {
