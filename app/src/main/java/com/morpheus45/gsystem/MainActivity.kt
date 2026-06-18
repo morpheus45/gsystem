@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
+import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.CompteurScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
@@ -44,11 +48,47 @@ import java.time.LocalDate
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Garde d'intégrité : une copie modifiée/re-signée ne démarre pas.
+        if (!IntegrityGuard.isGenuine(this)) {
+            setContent { GSystemTheme { TamperBlockScreen() } }
+            return
+        }
         setContent {
             GSystemTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNav()
                 }
+            }
+        }
+    }
+}
+
+/** Écran affiché si la signature ne correspond pas au certificat officiel. */
+@Composable
+private fun TamperBlockScreen() {
+    Surface(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.fillMaxSize().padding(32.dp),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            androidx.compose.foundation.layout.Column(
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            ) {
+                androidx.compose.material3.Text(
+                    text = "COPIE NON AUTORISÉE",
+                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
+                androidx.compose.material3.Text(
+                    text = "Cette application est protégée. Sa signature ne correspond " +
+                        "pas au certificat officiel : elle a été décompilée, modifiée " +
+                        "ou re-signée sans autorisation.\n\n" +
+                        "© 2026 morpheus45 — Tous droits réservés.\n" +
+                        "Toute reproduction, décompilation ou modification est interdite.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
     }
