@@ -115,6 +115,9 @@ object CsvExporter {
             installedPerType["CAM"]   = (installedPerType["CAM"]   ?: 0) + e.installedCam
             installedPerType["DACCO"] = (installedPerType["DACCO"] ?: 0) + e.installedDacco
             installedPerType["BA"]    = (installedPerType["BA"]    ?: 0) + e.installedBa
+            installedPerType["CL"]       = (installedPerType["CL"]       ?: 0) + e.installedCl
+            installedPerType["DF"]       = (installedPerType["DF"]       ?: 0) + e.installedDf
+            installedPerType["SONDE IN"] = (installedPerType["SONDE IN"] ?: 0) + e.installedSondeIn
             offeredPerType["GSM"]   = (offeredPerType["GSM"]   ?: 0) + e.offeredGsm
             offeredPerType["CO"]    = (offeredPerType["CO"]    ?: 0) + e.offeredCo
             offeredPerType["DMP"]   = (offeredPerType["DMP"]   ?: 0) + e.offeredDmp
@@ -124,6 +127,9 @@ object CsvExporter {
             offeredPerType["CAM"]   = (offeredPerType["CAM"]   ?: 0) + e.offeredCam
             offeredPerType["DACCO"] = (offeredPerType["DACCO"] ?: 0) + e.offeredDacco
             offeredPerType["BA"]    = (offeredPerType["BA"]    ?: 0) + e.offeredBa
+            offeredPerType["CL"]       = (offeredPerType["CL"]       ?: 0) + e.offeredCl
+            offeredPerType["DF"]       = (offeredPerType["DF"]       ?: 0) + e.offeredDf
+            offeredPerType["SONDE IN"] = (offeredPerType["SONDE IN"] ?: 0) + e.offeredSondeIn
         }
 
         val sb = StringBuilder()
@@ -167,8 +173,10 @@ object CsvExporter {
             "Date", "Site",
             "Inst GSM", "Inst CO", "Inst DMP", "Inst SE",
             "Inst TC", "Inst SI", "Inst CAM", "Inst DACCO", "Inst BA",
+            "Inst CL", "Inst DF", "Inst SONDE IN",
             "Off GSM", "Off CO", "Off DMP", "Off SE",
             "Off TC", "Off SI", "Off CAM", "Off DACCO", "Off BA",
+            "Off CL", "Off DF", "Off SONDE IN",
             "EPS", "Prime", "Client", "Note"
         ))
         for (e in filtered) {
@@ -176,8 +184,10 @@ object CsvExporter {
                 e.date, e.siteNumber,
                 e.installedGsm, e.installedCo, e.installedDmp, e.installedSe,
                 e.installedTc, e.installedSi, e.installedCam, e.installedDacco, e.installedBa,
+                e.installedCl, e.installedDf, e.installedSondeIn,
                 e.offeredGsm, e.offeredCo, e.offeredDmp, e.offeredSe,
                 e.offeredTc, e.offeredSi, e.offeredCam, e.offeredDacco, e.offeredBa,
+                e.offeredCl, e.offeredDf, e.offeredSondeIn,
                 if (e.epsDerogation) "OUI" else "",
                 "%.2f €".format(e.totalPrime(prices)),
                 e.nomClient, e.observations

@@ -71,6 +71,10 @@ data class GesteCoEntry(
     val installedCam: Int = 0,
     val installedDacco: Int = 0,
     val installedBa: Int = 0,
+    // Nouveaux types (v1.4.0)
+    val installedCl: Int = 0,
+    val installedDf: Int = 0,
+    val installedSondeIn: Int = 0,
     // OFFERTES en cadeau (sous-ensemble) — apparaît dans le mail
     val offeredGsm: Int = 0,
     val offeredCo: Int = 0,
@@ -81,6 +85,9 @@ data class GesteCoEntry(
     val offeredCam: Int = 0,
     val offeredDacco: Int = 0,
     val offeredBa: Int = 0,
+    val offeredCl: Int = 0,
+    val offeredDf: Int = 0,
+    val offeredSondeIn: Int = 0,
     val epsDerogation: Boolean = false,
     val nomClient: String = "",
     val observations: String = ""
@@ -95,7 +102,10 @@ data class GesteCoEntry(
         installedSi * prices.si +
         installedCam * prices.cam +
         installedDacco * prices.dacco +
-        installedBa * prices.ba
+        installedBa * prices.ba +
+        installedCl * prices.cl +
+        installedDf * prices.df +
+        installedSondeIn * prices.sondeIn
 
     /** Total des CADEAUX CLIENT (sur les OFFERTES — apparaît dans l'email). */
     fun totalClientGift(gifts: GesteCoClientGifts): Double =
@@ -107,18 +117,23 @@ data class GesteCoEntry(
         offeredSi * gifts.si +
         offeredCam * gifts.cam +
         offeredDacco * gifts.dacco +
-        offeredBa * gifts.ba
+        offeredBa * gifts.ba +
+        offeredCl * gifts.cl +
+        offeredDf * gifts.df +
+        offeredSondeIn * gifts.sondeIn
 
     /** Alias pour compat (= prime). */
     fun totalEur(prices: GesteCoPrices): Double = totalPrime(prices)
 
     fun totalInstalled(): Int =
         installedGsm + installedCo + installedDmp + installedSe +
-        installedTc + installedSi + installedCam + installedDacco + installedBa
+        installedTc + installedSi + installedCam + installedDacco + installedBa +
+        installedCl + installedDf + installedSondeIn
 
     fun totalOffered(): Int =
         offeredGsm + offeredCo + offeredDmp + offeredSe +
-        offeredTc + offeredSi + offeredCam + offeredDacco + offeredBa
+        offeredTc + offeredSi + offeredCam + offeredDacco + offeredBa +
+        offeredCl + offeredDf + offeredSondeIn
 
     fun isEmpty(): Boolean = totalInstalled() == 0
 
@@ -133,6 +148,9 @@ data class GesteCoEntry(
         if (installedCam > 0)   add("CAM"   to installedCam)
         if (installedDacco > 0) add("DACCO" to installedDacco)
         if (installedBa > 0)    add("BA"    to installedBa)
+        if (installedCl > 0)       add("CL"       to installedCl)
+        if (installedDf > 0)       add("DF"       to installedDf)
+        if (installedSondeIn > 0)  add("SONDE IN" to installedSondeIn)
     }
 
     /** Liste des extensions OFFERTES (pour mail). */
@@ -146,6 +164,9 @@ data class GesteCoEntry(
         if (offeredCam > 0)   add("CAM"   to offeredCam)
         if (offeredDacco > 0) add("DACCO" to offeredDacco)
         if (offeredBa > 0)    add("BA"    to offeredBa)
+        if (offeredCl > 0)       add("CL"       to offeredCl)
+        if (offeredDf > 0)       add("DF"       to offeredDf)
+        if (offeredSondeIn > 0)  add("SONDE IN" to offeredSondeIn)
     }
 }
 
@@ -165,6 +186,10 @@ data class GesteCoPrices(
     val cam: Double = 4.00,
     val dacco: Double = 3.00,
     val ba: Double = 1.00,
+    // Nouveaux types (v1.4.0)
+    val cl: Double = 3.00,
+    val df: Double = 1.50,
+    val sondeIn: Double = 1.50,
 ) {
     fun priceFor(type: String): Double = when (type.uppercase()) {
         "GSM" -> gsm
@@ -176,10 +201,13 @@ data class GesteCoPrices(
         "CAM" -> cam
         "DACCO" -> dacco
         "BA" -> ba
+        "CL" -> cl
+        "DF" -> df
+        "SONDE IN" -> sondeIn
         else -> 0.0
     }
     companion object {
-        val TYPES = listOf("GSM", "CO", "DMP", "SE", "TC", "SI", "CAM", "DACCO", "BA")
+        val TYPES = listOf("GSM", "CO", "DMP", "SE", "TC", "SI", "CAM", "DACCO", "BA", "CL", "DF", "SONDE IN")
     }
 }
 
@@ -199,6 +227,10 @@ data class GesteCoClientGifts(
     val cam: Double = 0.0,
     val dacco: Double = 0.0,
     val ba: Double = 0.0,
+    // Nouveaux types (v1.4.0) — prime interne only, pas de cadeau client par défaut
+    val cl: Double = 0.0,
+    val df: Double = 0.0,
+    val sondeIn: Double = 0.0,
 ) {
     fun priceFor(type: String): Double = when (type.uppercase()) {
         "GSM" -> gsm
@@ -210,6 +242,9 @@ data class GesteCoClientGifts(
         "CAM" -> cam
         "DACCO" -> dacco
         "BA" -> ba
+        "CL" -> cl
+        "DF" -> df
+        "SONDE IN" -> sondeIn
         else -> 0.0
     }
 }

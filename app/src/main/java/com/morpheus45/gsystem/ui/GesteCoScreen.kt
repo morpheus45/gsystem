@@ -301,6 +301,9 @@ private fun AddGesteCoDialog(
     var iCam by remember { mutableStateOf(init(existing?.installedCam ?: 0)) }
     var iDacco by remember { mutableStateOf(init(existing?.installedDacco ?: 0)) }
     var iBa by remember { mutableStateOf(init(existing?.installedBa ?: 0)) }
+    var iCl by remember { mutableStateOf(init(existing?.installedCl ?: 0)) }
+    var iDf by remember { mutableStateOf(init(existing?.installedDf ?: 0)) }
+    var iSondeIn by remember { mutableStateOf(init(existing?.installedSondeIn ?: 0)) }
 
     var oGsm by remember { mutableStateOf(init(existing?.offeredGsm ?: 0)) }
     var oCo by remember { mutableStateOf(init(existing?.offeredCo ?: 0)) }
@@ -311,12 +314,15 @@ private fun AddGesteCoDialog(
     var oCam by remember { mutableStateOf(init(existing?.offeredCam ?: 0)) }
     var oDacco by remember { mutableStateOf(init(existing?.offeredDacco ?: 0)) }
     var oBa by remember { mutableStateOf(init(existing?.offeredBa ?: 0)) }
+    var oCl by remember { mutableStateOf(init(existing?.offeredCl ?: 0)) }
+    var oDf by remember { mutableStateOf(init(existing?.offeredDf ?: 0)) }
+    var oSondeIn by remember { mutableStateOf(init(existing?.offeredSondeIn ?: 0)) }
 
     fun n(s: String) = s.toIntOrNull() ?: 0
 
-    val installedAll = listOf(iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa)
+    val installedAll = listOf(iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn)
         .sumOf { n(it) }
-    val offeredAll = listOf(oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa)
+    val offeredAll = listOf(oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn)
         .sumOf { n(it) }
 
     val totalGift =
@@ -328,7 +334,10 @@ private fun AddGesteCoDialog(
         n(oSi) * settings.clientGifts.si +
         n(oCam) * settings.clientGifts.cam +
         n(oDacco) * settings.clientGifts.dacco +
-        n(oBa) * settings.clientGifts.ba
+        n(oBa) * settings.clientGifts.ba +
+        n(oCl) * settings.clientGifts.cl +
+        n(oDf) * settings.clientGifts.df +
+        n(oSondeIn) * settings.clientGifts.sondeIn
     val totalPrime =
         n(iGsm) * settings.prices.gsm +
         n(iCo) * settings.prices.co +
@@ -338,13 +347,17 @@ private fun AddGesteCoDialog(
         n(iSi) * settings.prices.si +
         n(iCam) * settings.prices.cam +
         n(iDacco) * settings.prices.dacco +
-        n(iBa) * settings.prices.ba
+        n(iBa) * settings.prices.ba +
+        n(iCl) * settings.prices.cl +
+        n(iDf) * settings.prices.df +
+        n(iSondeIn) * settings.prices.sondeIn
 
     val perTypeOk =
         n(oGsm) <= n(iGsm) && n(oCo) <= n(iCo) &&
         n(oDmp) <= n(iDmp) && n(oSe) <= n(iSe) &&
         n(oTc) <= n(iTc) && n(oSi) <= n(iSi) &&
-        n(oCam) <= n(iCam) && n(oDacco) <= n(iDacco) && n(oBa) <= n(iBa)
+        n(oCam) <= n(iCam) && n(oDacco) <= n(iDacco) && n(oBa) <= n(iBa) &&
+        n(oCl) <= n(iCl) && n(oDf) <= n(iDf) && n(oSondeIn) <= n(iSondeIn)
     val halfMax = installedAll / 2
     val halfOk = eps || offeredAll <= halfMax
     val capOk = eps || totalGift <= MAX_GIFT_EUR + 0.001
@@ -454,6 +467,10 @@ private fun AddGesteCoDialog(
                     ExtRow("CAM",   settings.prices.cam,   iCam,   { iCam = it },   oCam,   { oCam = it })
                     ExtRow("DACCO", settings.prices.dacco, iDacco, { iDacco = it }, oDacco, { oDacco = it })
                     ExtRow("BA",    settings.prices.ba,    iBa,    { iBa = it },    oBa,    { oBa = it })
+                    // 3 nouveaux (v1.4.0)
+                    ExtRow("CL",       settings.prices.cl,      iCl,      { iCl = it },      oCl,      { oCl = it })
+                    ExtRow("DF",       settings.prices.df,      iDf,      { iDf = it },      oDf,      { oDf = it })
+                    ExtRow("SONDE IN", settings.prices.sondeIn, iSondeIn, { iSondeIn = it }, oSondeIn, { oSondeIn = it })
 
                     Spacer(Modifier.height(10.dp))
                     // Dérogation EPS
@@ -534,8 +551,8 @@ private fun AddGesteCoDialog(
                                 if (!canSave) return@OutlinedButton
                                 val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
                                 onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
-                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa,
-                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa,
+                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn,
+                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn,
                                     n), false)
                             },
                             enabled = canSave,
@@ -559,8 +576,8 @@ private fun AddGesteCoDialog(
                                 if (!canSave) return@Button
                                 val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
                                 onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
-                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa,
-                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa,
+                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn,
+                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn,
                                     n), true)
                             },
                             enabled = canSave,
@@ -586,8 +603,10 @@ private fun buildEntry(
     date: String, siteNumber: String, nom: String, obs: String, eps: Boolean,
     iGsm: String, iCo: String, iDmp: String, iSe: String, iTc: String,
     iSi: String, iCam: String, iDacco: String, iBa: String,
+    iCl: String, iDf: String, iSondeIn: String,
     oGsm: String, oCo: String, oDmp: String, oSe: String, oTc: String,
     oSi: String, oCam: String, oDacco: String, oBa: String,
+    oCl: String, oDf: String, oSondeIn: String,
     n: (String) -> Int
 ): GesteCoEntry = GesteCoEntry(
     id = existing?.id ?: EntriesRepository.newId(),
@@ -597,10 +616,12 @@ private fun buildEntry(
     installedDmp = n(iDmp), installedSe = n(iSe),
     installedTc = n(iTc), installedSi = n(iSi),
     installedCam = n(iCam), installedDacco = n(iDacco), installedBa = n(iBa),
+    installedCl = n(iCl), installedDf = n(iDf), installedSondeIn = n(iSondeIn),
     offeredGsm = n(oGsm), offeredCo = n(oCo),
     offeredDmp = n(oDmp), offeredSe = n(oSe),
     offeredTc = n(oTc), offeredSi = n(oSi),
     offeredCam = n(oCam), offeredDacco = n(oDacco), offeredBa = n(oBa),
+    offeredCl = n(oCl), offeredDf = n(oDf), offeredSondeIn = n(oSondeIn),
     epsDerogation = eps,
     nomClient = nom.trim(), observations = obs.trim()
 )

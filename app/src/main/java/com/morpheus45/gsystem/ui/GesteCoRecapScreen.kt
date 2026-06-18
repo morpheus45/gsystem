@@ -56,6 +56,9 @@ fun GesteCoRecapScreen(
                 "CAM"   -> entry.installedCam
                 "DACCO" -> entry.installedDacco
                 "BA"    -> entry.installedBa
+                "CL"       -> entry.installedCl
+                "DF"       -> entry.installedDf
+                "SONDE IN" -> entry.installedSondeIn
                 else    -> 0
             }
         }

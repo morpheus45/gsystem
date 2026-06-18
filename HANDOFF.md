@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.3.0** (versionCode 61)
+> Date : 18 juin 2026 · Version actuelle : **v1.4.0** (versionCode 62)
 
 ---
 
@@ -256,7 +256,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.3.0
+## 9. État actuel — v1.4.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -293,7 +293,15 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
     Aussi en StatRow à l'écran et en ligne de récap du mail. Va vers le groupe GS
     (`fdt@fggestion.fr`) + copie perso.
 
-### Pas encore fait (idées v1.3+)
+- **v1.4.0** (cette session) :
+  - **3 nouveaux types GESTE CO** : **CL** (3 €), **DF** (1,50 €), **SONDE IN** (1,50 €).
+    Primes internes ; cadeau client = 0 par défaut (modifiable dans Réglages). Ajoutés
+    partout : `GesteCoEntry` (installed*/offered*), `GesteCoPrices`/`GesteCoClientGifts`
+    (+ `priceFor` + `TYPES`), écran GESTE CO (ExtRow + buildEntry), Réglages (PriceField
+    primes & cadeaux), RÉCAP (`when type`), CsvExporter (cumul + colonnes détail).
+    ⚠ Pour ajouter un type : penser à TOUS ces points (TYPES pilote RÉCAP + CSV).
+
+### Pas encore fait (idées v1.5+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
