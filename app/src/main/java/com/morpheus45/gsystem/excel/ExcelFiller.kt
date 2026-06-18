@@ -265,6 +265,22 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             }
         }
 
+        // 6. Recopier le style de la 1re ligne du jour (modèle) sur les lignes
+        //    ajoutées : bordures / police / format identiques. La colonne A est
+        //    ignorée (couverte par la fusion de date du jour, déjà étendue).
+        val templateRow = sheet.getRow(startRow)
+        if (templateRow != null) {
+            for (k in 0 until extra) {
+                val r = insertAt + k
+                val newRow = sheet.getRow(r) ?: sheet.createRow(r)
+                newRow.height = templateRow.height
+                for (c in 1..7) {
+                    val style = templateRow.getCell(c)?.cellStyle ?: continue
+                    (newRow.getCell(c) ?: newRow.createCell(c)).cellStyle = style
+                }
+            }
+        }
+
         return endRow + extra
     }
 
