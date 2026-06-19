@@ -76,6 +76,11 @@ val EnvoiStart     = Color(0xFFDB2777)
 val EnvoiEnd       = Color(0xFF3A0A1F)
 val EnvoiAccent    = Color(0xFFF9A8D4)
 
+// 02 ATTENTE CLIENT — teal alerte (procedure d'attente, appels /15 min)
+val AttenteStart   = Color(0xFF14B8A6)
+val AttenteEnd     = Color(0xFF06302B)
+val AttenteAccent  = Color(0xFF5EEAD4)
+
 // --- ETATS ---
 val Success        = Color(0xFF4ADE80)
 val Warning        = Color(0xFFFFB347)

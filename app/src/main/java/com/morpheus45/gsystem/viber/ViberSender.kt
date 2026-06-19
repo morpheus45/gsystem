@@ -44,6 +44,24 @@ object ViberSender {
     }
 
     /**
+     * Rappel affiché AU TECHNICIEN au moment du clic (Toast). Ce texte n'est
+     * PAS envoyé dans le message Viber du groupe : c'est une consigne perso.
+     */
+    const val ATTENTE_RAPPEL_TECH =
+        "Rappel : appels toutes les 15 minutes jusqu'au départ validé par la " +
+        "techline 03.88.39.88.94 (CHOIX 2 PUIS 3)."
+
+    /**
+     * Message « procédure attente client » envoyé au groupe Viber : le nom de
+     * la procédure + l'heure de début figée au moment du clic (now).
+     */
+    fun attenteClientMessage(): String {
+        val debut = java.time.LocalTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("HH'h'mm"))
+        return "PROCÉDURE ATTENTE CLIENT\nDébut : $debut"
+    }
+
+    /**
      * Ouvre un sélecteur d'apps de partage avec le message en texte brut.
      * Sur Android, Viber apparaît dans la liste — l'utilisateur le choisit,
      * sélectionne le chat, puis tape Envoyer.

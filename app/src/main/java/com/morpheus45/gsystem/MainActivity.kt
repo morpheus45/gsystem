@@ -147,6 +147,13 @@ fun AppNav() {
                 onFrais = { navController.navigate("frais") },
                 onCompteur = { navController.navigate("compteur") },
                 onCourrier = { ViberSender.share(context, "courrier ok") },
+                onAttenteClient = {
+                    android.widget.Toast.makeText(
+                        context, ViberSender.ATTENTE_RAPPEL_TECH,
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    ViberSender.share(context, ViberSender.attenteClientMessage())
+                },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onSettings = { navController.navigate("settings") }
             )

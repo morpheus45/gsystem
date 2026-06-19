@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.SimCard
@@ -37,6 +38,9 @@ import com.morpheus45.gsystem.ui.components.FooterSpec
 import com.morpheus45.gsystem.ui.components.HairlineDivider
 import com.morpheus45.gsystem.ui.components.HairlineSettingsIcon
 import com.morpheus45.gsystem.ui.components.LiveStatusBar
+import com.morpheus45.gsystem.ui.theme.AttenteAccent
+import com.morpheus45.gsystem.ui.theme.AttenteEnd
+import com.morpheus45.gsystem.ui.theme.AttenteStart
 import com.morpheus45.gsystem.ui.theme.CourrierAccent
 import com.morpheus45.gsystem.ui.theme.CourrierEnd
 import com.morpheus45.gsystem.ui.theme.CourrierStart
@@ -80,6 +84,7 @@ fun HomeScreen(
     onFrais: () -> Unit,
     onCompteur: () -> Unit,
     onCourrier: () -> Unit,
+    onAttenteClient: () -> Unit,
     onEnvoiMensuel: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -161,7 +166,7 @@ fun HomeScreen(
             }
         }
 
-        // ============ 8 TUILES
+        // ============ 9 TUILES
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -186,6 +191,18 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "02",
+                    label = "ATTENTE CLIENT",
+                    sub = "Viber heure début · rappel /15 min",
+                    icon = Icons.Outlined.HourglassEmpty,
+                    gradientStart = AttenteStart,
+                    gradientEnd = AttenteEnd,
+                    accent = AttenteAccent,
+                    onClick = onAttenteClient
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "03",
                     label = "COURRIER",
                     sub = "Viber « courrier ok »",
                     icon = Icons.Outlined.Email,
@@ -197,7 +214,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "03",
+                    number = "04",
                     label = "GSM SEUL",
                     sub = "1 site · 1 email immediat",
                     icon = Icons.Outlined.SimCard,
@@ -211,7 +228,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
+                    number = "05",
                     label = "GESTE CO",
                     sub = "Site + extensions",
                     icon = Icons.Outlined.Storefront,
@@ -225,7 +242,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -237,7 +254,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -253,7 +270,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "07",
+                    number = "08",
                     label = "COMPTEUR",
                     sub = if (countCompt > 0)
                         "Dernier releve enregistre"
@@ -267,7 +284,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "08",
+                    number = "09",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Send,
