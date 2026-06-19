@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.5.0** (versionCode 66)
+> Date : 18 juin 2026 · Version actuelle : **v1.6.0** (versionCode 67)
 
 ---
 
@@ -10,7 +10,7 @@
 **G-Systems** est une application Android (Kotlin + Jetpack Compose) pour
 techniciens d'alarme/sécurité électronique. Elle remplace 4 outils
 manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
-8 tuiles**.
+9 tuiles**.
 
 - **Repo GitHub** : <https://github.com/morpheus45/gsystem>
 - **Tutoriel tech** : <https://morpheus45.github.io/gsystem/>
@@ -20,25 +20,30 @@ manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
 
 ---
 
-## 2. Les 8 tuiles de l'accueil
+## 2. Les 9 tuiles de l'accueil
 
 | N° | Tuile | Couleur | Rôle |
 |---|---|---|---|
 | 01 | **CLÔTURE** | violet `#7C3AED` | Clôture d'intervention, feuille de temps, Viber auto (route `temps`) |
-| 02 | **COURRIER** | indigo `#4F46E5` | 1 appui → partage Viber « courrier ok » (aucune saisie) |
-| 03 | **GSM SEUL** | cyan `#06B6D4` | 1 site → 1 email immédiat |
-| 04 | **GESTE CO** | émeraude `#10B981` | Site + extensions, primes + cadeau client |
-| 05 | **RÉCAP** | ambre `#F59E0B` | Cumul cycle + total € |
-| 06 | **FRAIS** | orange `#EA580C` | Photos tickets + montant TTC + TVA auto + envoi lot |
-| 07 | **COMPTEUR** | bleu `#2563EB` | Photo kilométrique véhicule |
-| 08 | **ENVOI MENSUEL** | magenta `#DB2777` | Excel .xlsm + tickets + compteur en 1 mail |
+| 02 | **ATTENTE CLIENT** | teal `#14B8A6` | 1 appui → Toast consigne perso (appels /15 min, techline) + partage Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
+| 03 | **COURRIER** | indigo `#4F46E5` | 1 appui → partage Viber « courrier ok » (aucune saisie) |
+| 04 | **GSM SEUL** | cyan `#06B6D4` | 1 site → 1 email immédiat |
+| 05 | **GESTE CO** | émeraude `#10B981` | Site + extensions, primes + geste co client |
+| 06 | **RÉCAP** | ambre `#F59E0B` | Cumul cycle + total € |
+| 07 | **FRAIS** | orange `#EA580C` | Photos tickets + montant TTC + TVA auto + envoi lot |
+| 08 | **COMPTEUR** | bleu `#2563EB` | Photo kilométrique véhicule |
+| 09 | **ENVOI MENSUEL** | magenta `#DB2777` | Excel .xlsm + tickets + compteur en 1 mail |
 
-Le pip rose pulsant apparaît sur **08 ENVOI MENSUEL** dans les **3 derniers
+Le pip rose pulsant apparaît sur **09 ENVOI MENSUEL** dans les **3 derniers
 jours du cycle** (`endOfCycleApproaching`, basé sur `cycleEnd` et non plus un
 seuil fixe au 18).
 
-> **COURRIER (02)** n'ouvre pas d'écran : son `onClick` appelle directement
-> `ViberSender.share(context, "courrier ok")` depuis `MainActivity`.
+> **ATTENTE CLIENT (02)** et **COURRIER (03)** n'ouvrent pas d'écran : leur
+> `onClick` (dans `MainActivity`) déclenche directement un partage Viber.
+> ATTENTE CLIENT affiche en plus un **Toast** de consigne perso au tech
+> (`ViberSender.ATTENTE_RAPPEL_TECH` — appels /15 min jusqu'au départ validé
+> par la techline) puis partage `ViberSender.attenteClientMessage()` (heure de
+> début figée au clic). COURRIER partage `"courrier ok"`.
 
 ---
 
@@ -86,9 +91,10 @@ app/src/main/
 │   │                                  ACTION_SEND_MULTIPLE (n PJ) + ClipData
 │   │                                  pour propager les permissions URI
 │   ├── viber/ViberSender.kt         ← buildMessage() + OBSERVATION_LABELS +
-│   │                                  share(context, message)
+│   │                                  share(context, message) + attenteClientMessage()
+│   │                                  + ATTENTE_RAPPEL_TECH (Toast consigne perso)
 │   ├── ui/
-│   │   ├── HomeScreen.kt            ← 8 tuiles, data live, footer
+│   │   ├── HomeScreen.kt            ← 9 tuiles, data live, footer
 │   │   ├── TempsScreen.kt           ← Formulaire intervention + période éditable
 │   │   ├── GsmSeulScreen.kt
 │   │   ├── GesteCoScreen.kt
@@ -117,7 +123,7 @@ app/src/main/assets/bon_retour/      ← ⚠ ORPHELIN : assets de l'ancienne PWA
 
 docs/
 ├── index.html                       ← Tutoriel GitHub Pages (logo gsystems SVG,
-│                                      8 tuiles à jour, focus COURRIER)
+│                                      9 tuiles à jour, focus COURRIER)
 └── ROLLBACK_v0.13.14.md
 
 design/                              ← Artefacts design
@@ -256,7 +262,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.4.2
+## 9. État actuel — v1.6.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -332,8 +338,14 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
   (`GsmSeulEntry.cplDejaPresent`, défaut false) : ligne « CPL déjà présent : OUI/NON »
   dans le mail + tag sur la carte. **N° de site marqué obligatoire** (`*` + bordure
   rouge `isError`) en GSM SEUL (l'enregistrement l'exigeait déjà ; GESTE CO l'avait déjà).
+- **v1.6.0** : nouvelle tuile **02 ATTENTE CLIENT** (teal `#14B8A6`) — n'ouvre pas
+  d'écran : `onClick` (MainActivity) affiche un **Toast** de consigne perso au tech
+  (`ViberSender.ATTENTE_RAPPEL_TECH` : appels toutes les 15 min jusqu'au départ validé
+  par la techline) puis partage Viber `attenteClientMessage()` (« PROCÉDURE ATTENTE
+  CLIENT · Début : HHhMM », heure figée au clic). Tuiles renumérotées (9 au total ;
+  COURRIER → 03 … ENVOI MENSUEL → 09). Couleurs `Attente*` dans `theme/Color.kt`.
 
-### Pas encore fait (idées v1.6+)
+### Pas encore fait (idées v1.7+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
@@ -390,5 +402,6 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-*Document mis à jour à l'issue de la session v1.1.0 (photo compteur obligatoire à
-l'envoi mensuel + Responsable secteur en Cc 2 des envois EPS). Bon courage pour la suite.*
+*Document mis à jour pour v1.6.0 (tuile ATTENTE CLIENT + récap GESTE CO/primes,
+mails nettoyés + récap HTML joint, 3 nouveaux types GESTE CO, « Cadeau » → « GESTE CO »,
+champs obligatoires, toggle CPL). Bon courage pour la suite.*
