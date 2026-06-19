@@ -66,6 +66,10 @@ fun TempsScreen(
 
     var showAdd by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<TempsEntry?>(null) }
+    // ENVOIS EPS proposés après la clôture d'une INST (réutilise les formulaires existants)
+    var dispatchEntry by remember { mutableStateOf<TempsEntry?>(null) }
+    var showAddGesteCo by remember { mutableStateOf(false) }
+    var showAddGsm by remember { mutableStateOf(false) }
     // Mutuelle exclusion
     LaunchedEffect(editingEntry) { if (editingEntry != null) showAdd = false }
     LaunchedEffect(showAdd) { if (showAdd) editingEntry = null }
@@ -159,6 +163,8 @@ fun TempsScreen(
                     ViberSender.share(context, ViberSender.buildMessage(entry))
                 }
                 showAdd = false
+                // Installation → proposer les envois EPS (GESTE CO / GSM seul) pour le site
+                if (entry.typeMission == "INST") dispatchEntry = entry
             }
         )
     }
@@ -174,6 +180,50 @@ fun TempsScreen(
                     ViberSender.share(context, ViberSender.buildMessage(updated))
                 }
                 editingEntry = null
+            }
+        )
+    }
+
+    // ===== ENVOIS EPS après clôture d'une INST =====
+    // Réutilise les formulaires existants GESTE CO / GSM SEUL → Viber + mails
+    // STRICTEMENT identiques à avant. Les deux sont indépendants (l'un, l'autre,
+    // les deux ou aucun). Les entrées créées alimentent RÉCAP + ENVOI MENSUEL.
+    dispatchEntry?.let {
+        AlertDialog(
+            onDismissRequest = { dispatchEntry = null },
+            title = { Text("Installation enregistrée") },
+            text = { Text("Le Viber de clôture est parti. Ajouter un envoi EPS pour ce site ? (facultatif)") },
+            confirmButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = { showAddGesteCo = true }) { Text("+ GESTE CO") }
+                    TextButton(onClick = { showAddGsm = true }) { Text("+ GSM SEUL") }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dispatchEntry = null }) { Text("Terminé") }
+            }
+        )
+    }
+    if (showAddGesteCo) {
+        AddGesteCoDialog(
+            settings = settings,
+            existing = null,
+            onDismiss = { showAddGesteCo = false },
+            onSave = { entry, alsoSend ->
+                scope.launch { repo.addGesteCo(entry) }
+                if (alsoSend) sendGesteCoEmail(context, settings, entry)
+                showAddGesteCo = false
+            }
+        )
+    }
+    if (showAddGsm) {
+        AddGsmSeulDialog(
+            settings = settings,
+            onDismiss = { showAddGsm = false },
+            onSendAndSave = { entry ->
+                scope.launch { repo.addGsmSeul(entry) }
+                sendGsmEmail(context, settings, entry)
+                showAddGsm = false
             }
         )
     }

@@ -143,7 +143,7 @@ fun GesteCoScreen(
 }
 
 /** Compose le corps de mail GESTE CO en fonction des cadeaux offerts. */
-private fun sendGesteCoEmail(
+internal fun sendGesteCoEmail(
     context: android.content.Context,
     settings: AppSettings,
     entry: GesteCoEntry
@@ -276,7 +276,7 @@ private fun SiteCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddGesteCoDialog(
+internal fun AddGesteCoDialog(
     settings: AppSettings,
     existing: GesteCoEntry?,                  // null = nouveau ; sinon = edition
     onDismiss: () -> Unit,

@@ -30,8 +30,6 @@ import com.morpheus45.gsystem.ui.CompteurScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
-import com.morpheus45.gsystem.ui.GesteCoScreen
-import com.morpheus45.gsystem.ui.GsmSeulScreen
 import com.morpheus45.gsystem.ui.HomeScreen
 import com.morpheus45.gsystem.ui.SettingsScreen
 import com.morpheus45.gsystem.ui.SplashScreen
@@ -141,8 +139,6 @@ fun AppNav() {
                 settings = settings,
                 store = store,
                 onTemps = { navController.navigate("temps") },
-                onGsmSeul = { navController.navigate("gsm") },
-                onGesteCo = { navController.navigate("gesteco") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
                 onCompteur = { navController.navigate("compteur") },
@@ -189,18 +185,6 @@ fun AppNav() {
                 settings = settings, store = store, repo = repo,
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("gsm") {
-            GsmSeulScreen(
-                settings = settings, store = store, repo = repo,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("gesteco") {
-            GesteCoScreen(
-                settings = settings, store = store, repo = repo,
                 onBack = { navController.popBackStack() }
             )
         }
