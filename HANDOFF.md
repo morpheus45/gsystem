@@ -1,7 +1,14 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 20 juin 2026 · Version actuelle : **v1.8.4** (versionCode 73)
+> Date : 20 juin 2026 · Version actuelle : **v1.8.5** (versionCode 74)
+>
+> **v1.8.5 — mensuel : camembert PDF + mail épuré.** Dans `PdfExporter`, la
+> répartition TEMPS du récap mensuel passe des barres à un **camembert**
+> (`Canvas.drawArc` + légende, méthode `PdfBuilder.pie`). Le **corps du mail
+> mensuel** est réduit à l'essentiel : période concernée + liste des pièces
+> jointes (noms de fichiers) + formule de politesse. L'aperçu HTML inline
+> (`EXTRA_HTML_TEXT`) est retiré et la fonction `buildMonthlyHtml` supprimée.
 >
 > **v1.8.4 — récaps en PDF.** Nouveau `export/PdfExporter.kt` (rendu via
 > `android.graphics.pdf.PdfDocument`, pagination auto, aucune dépendance) :
@@ -55,9 +62,9 @@ teal, ENVOI vert). Valeurs dans `theme/Color.kt`.
 | 01 | **CLÔTURE** | violet `#7C3AED` | Intervention + Viber. **Pour une INST** : N° de site + sections **GESTE CO** (tableau 12 types) et **GSM seul** inline, puis dialogue « Envois EPS » (mails) |
 | 02 | **ATTENTE CLIENT** | violet clair `#8A5CF6` | Toast consigne perso (appels /15 min, techline) + Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
 | 03 | **COURRIER** | indigo `#6366F1` | 1 appui → Viber « courrier ok » |
-| 04 | **RÉCAP** | bleu `#3B82F6` | Cumul cycle GESTE CO + primes + total € |
+| 04 | **RÉCAP** | bleu `#3B82F6` | Cumul cycle GESTE CO + primes + total € · export **PDF** par mail |
 | 05 | **FRAIS** | cyan `#06B6D4` | Photos tickets + TTC + TVA auto + envoi lot |
-| 06 | **ENVOI MENSUEL** | vert `#22C55E` | **Photo compteur (capture inline)** + Excel .xlsm + tickets + récap en 1 mail |
+| 06 | **ENVOI MENSUEL** | vert `#22C55E` | **Photo compteur (capture inline)** + Excel .xlsm + tickets + **récap PDF (camembert)** en 1 mail |
 
 > **GSM SEUL et GESTE CO ne sont plus des tuiles** (v1.7.0) : fusionnés dans la
 > CLÔTURE d'une installation. Mails/Viber **identiques** (code réutilisé). Les
@@ -184,8 +191,8 @@ keystore/debug.keystore              ← Clé stable signée
 ### Frais & TVA (FraisTva.kt)
 - Le tech saisit un montant **TTC** ; l'app déduit HT et TVA par catégorie.
 - `RATES` : table catégorie→taux (défaut 20 %). Modifier la table pour ajuster.
-- Le récap frais (TTC/HT/TVA par ticket + totaux) est écrit dans le **corps du
-  mail** d'Envoi Mensuel (pas de CSV séparé — choix utilisateur explicite).
+- Le récap frais (TTC/HT/TVA par ticket + totaux) figure dans le **récap PDF**
+  joint à l'Envoi Mensuel (corps du mail épuré : période + liste des PJ).
 
 ### Nommage des pièces jointes (PhotoStorage.kt, à l'envoi)
 - Tickets frais → `FRAIS-<CATÉGORIE>.<ext>` (suffixe `-2`, `-3`… si doublon de catégorie)
@@ -452,6 +459,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-*Document mis à jour pour v1.6.0 (tuile ATTENTE CLIENT + récap GESTE CO/primes,
-mails nettoyés + récap HTML joint, 3 nouveaux types GESTE CO, « Cadeau » → « GESTE CO »,
-champs obligatoires, toggle CPL). Bon courage pour la suite.*
+*Document mis à jour pour v1.8.5 (clôture unifiée GSM/GESTE CO, compteur dans
+Envoi Mensuel, restyle « écran réel » des formulaires, typo sur une ligne, récaps
+GESTE CO et mensuel en PDF avec camembert + corps du mail mensuel épuré).
+Bon courage pour la suite.*

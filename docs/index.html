@@ -302,7 +302,7 @@
   <div class="card" style="border-left:4px solid var(--accent)">
     <p style="font-size:18px; margin:0 0 8px 0"><b>🚀 gsystems, c'est quoi ?</b></p>
     <p style="margin:0 0 10px 0"><b>Avant :</b> ton Excel d'un côté, tes mails de l'autre, Viber pour le groupe, et 12 photos de tickets perdues dans la galerie. <b>La galère.</b></p>
-    <p style="margin:0 0 10px 0"><b>Maintenant :</b> un seul écran, 8 boutons. Tu cliques, l'app <b>remplit ton Excel toute seule</b>, <b>joint tes photos</b>, <b>prépare tes mails avec les bons destinataires</b> et <b>écrit ton message Viber</b>. Toi, tu n'as plus qu'à appuyer sur <i>Envoyer</i>. ✨</p>
+    <p style="margin:0 0 10px 0"><b>Maintenant :</b> un seul écran, 6 boutons. Tu cliques, l'app <b>remplit ton Excel toute seule</b>, <b>joint tes photos</b>, <b>prépare tes mails avec les bons destinataires</b> et <b>écrit ton message Viber</b>. Toi, tu n'as plus qu'à appuyer sur <i>Envoyer</i>. ✨</p>
     <p style="margin:0">En clair : <b>tu fais ton terrain, l'app fait la paperasse.</b></p>
   </div>
 
@@ -353,12 +353,12 @@
     <p><b>👤 Ton identité</b></p>
     <ul>
       <li><b>Nom du technicien</b> (<b>obligatoire</b>) : ton nom complet (apparaîtra dans la signature des emails)</li>
-      <li><b>Code tech</b> (<b>obligatoire</b>) : <b>ton code technicien personnel</b> (ex : <code>ISTGSXXX</code>) — il apparaît dans le sujet des emails GSM SEUL / GESTE CO. Sans lui, l'app reste sur l'écran Réglages. <i>(Anciennement « code site ».)</i></li>
+      <li><b>Code tech</b> (<b>obligatoire</b>) : <b>ton code technicien personnel</b> (ex : <code>ISTGSXXX</code>) — il apparaît dans le sujet des emails GSM SEUL / GESTE CO. Sans lui, l'app reste sur l'écran Réglages.</li>
       <li><b>Département</b> : ton département (ex : <code>34</code>)</li>
     </ul>
 
     <p><b>📧 Les emails de destination</b></p>
-    <p>Bonne nouvelle : <b>les destinataires G-Systems et EPS sont désormais intégrés à l'app</b> (feuille de temps, GSM SEUL, GESTE CO, frais, compteur). <b>Tu n'as qu'une seule adresse à saisir :</b></p>
+    <p>Bonne nouvelle : <b>les destinataires G-Systems et EPS sont intégrés à l'app</b> (feuille de temps, GSM SEUL, GESTE CO, frais, compteur). <b>Tu n'as qu'une seule adresse à saisir :</b></p>
     <ul>
       <li><b>Responsable secteur</b> (<b>obligatoire</b>) : l'email de <b>ton</b> responsable de secteur — il diffère selon le secteur, donc à chacun de saisir le sien. Il est mis en copie des envois GSM SEUL et GESTE CO. Tant qu'il n'est pas rempli, l'app reste sur l'écran Réglages.</li>
     </ul>
@@ -391,6 +391,11 @@
   <!-- ============ LIER LE FICHIER EXCEL ============ -->
   <h2><span class="num">4</span>Lier ton fichier TEMPS .xlsm</h2>
 
+  <div class="card orange">
+    <p><b>⚠ D'abord : ton fichier doit avoir été « initialisé » une fois sur un vrai Excel (PC).</b></p>
+    <p>Avant de le lier à l'app, ouvre ton <code>.xlsm</code> au moins une fois sur <b>Excel (ordinateur)</b>, <b>signe-le</b>, ouvre la <b>trame</b> (les feuilles modèles) et <b>enregistre</b>. Cette <b>première ouverture</b> active les macros et la structure du fichier — sans elle, l'app ne pourra pas le remplir.</p>
+  </div>
+
   <div class="card purple">
     <p><b>C'est ICI qu'on dit à l'app où est ton fichier Excel.</b> Tu le fais <b>une seule fois</b>, l'app s'en souvient ensuite.</p>
     <ol>
@@ -411,7 +416,7 @@
   <!-- ============ UTILISATION ============ -->
   <h2><span class="num">5</span>Utilisation quotidienne</h2>
 
-  <p>L'écran d'accueil te montre <b>6 tuiles</b> (chacune avec sa couleur et un compteur en direct du nombre d'entrées du mois). <b>GSM SEUL et GESTE CO</b> se saisissent dans la <b>CLÔTURE</b> d'une installation (v1.7.0) ; <b>la photo du COMPTEUR</b> se prend dans <b>ENVOI MENSUEL</b> (v1.8.0). Voici à quoi sert chaque tuile :</p>
+  <p>L'écran d'accueil te montre <b>6 tuiles</b> (chacune avec sa couleur et un compteur en direct du nombre d'entrées du mois). <b>GSM SEUL et GESTE CO</b> se saisissent dans la <b>CLÔTURE</b> d'une installation ; <b>la photo du COMPTEUR</b> se prend dans <b>ENVOI MENSUEL</b>. Voici à quoi sert chaque tuile :</p>
 
   <div class="features">
     <div class="feature">
@@ -432,7 +437,7 @@
     <div class="feature">
       <span class="ic" style="background:#3b82f6">04</span>
       <b>RÉCAP GESTE CO</b>
-      Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €.
+      Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €. Le bouton <b>« Envoyer le récap PDF »</b> l'envoie par mail (primes par type, gestes offerts, détail par site).
     </div>
     <div class="feature">
       <span class="ic" style="background:#06b6d4">05</span>
@@ -442,8 +447,8 @@
     <div class="feature" style="grid-column: 1 / -1; background:#f0fdf4">
       <span class="ic" style="background:#22c55e">06</span>
       <b>ENVOI MENSUEL — le gros bouton</b>
-      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile dans les 3 derniers jours du cycle pour te rappeler que la clôture approche.
-      <br><br><b>📷 Depuis la v1.8.0, la photo du compteur se prend directement ici</b> : section <b>« Photo compteur »</b> → bouton <b>Prendre la photo du compteur</b> (l'ancienne tuile COMPTEUR a été retirée). <b>⚠ Elle reste obligatoire</b> : tant qu'il n'y a pas de photo compteur sur la période, le bouton d'envoi est <b>bloqué</b>. La photo est jointe et nommée automatiquement (<code>PLAQUE-MM-AAAA.jpg</code>), tu n'as rien à écrire dessus.
+      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint les photos de tickets + compteur</b> et <b>un récap PDF</b> (répartition de tes interventions en camembert, frais et primes), et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Le corps du mail reste simple : la période et la liste des pièces jointes. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile dans les 3 derniers jours du cycle pour te rappeler que la clôture approche.
+      <br><br><b>📷 La photo du compteur se prend directement ici</b> : section <b>« Photo compteur »</b> → bouton <b>Prendre la photo du compteur</b>. <b>⚠ Elle est obligatoire</b> : tant qu'il n'y a pas de photo compteur sur la période, le bouton d'envoi est <b>bloqué</b>. La photo est jointe et nommée automatiquement (<code>PLAQUE-MM-AAAA.jpg</code>), tu n'as rien à écrire dessus.
     </div>
   </div>
 
@@ -456,7 +461,7 @@
   <!-- ============ FOCUS GESTE CO ============ -->
   <div class="card" style="margin-top:18px; border-left:4px solid #10b981; background:var(--success-bg)">
     <p style="font-size:16px; margin:0 0 8px 0"><b>🎁 GESTE CO · « Installé » vs « GESTE CO » (À BIEN COMPRENDRE)</b></p>
-    <p style="margin:0 0 8px 0"><b>Depuis la v1.7.0, GESTE CO se saisit dans la CLÔTURE d'une installation</b> (Type = INST → active la section « Extensions installées (GESTE CO) », renseigne le N° de site). Dans le tableau, deux colonnes par type (GSM, CO, DMP, SE… jusqu'à SONDE IN) :</p>
+    <p style="margin:0 0 8px 0"><b>GESTE CO se saisit dans la CLÔTURE d'une installation</b> (Type = INST → active la section « Extensions installées (GESTE CO) », renseigne le N° de site). Dans le tableau, deux colonnes par type (GSM, CO, DMP, SE… jusqu'à SONDE IN) :</p>
     <ul style="margin:0 0 8px 0">
       <li><b>Installé</b> = tout ce que tu as posé sur le site. <b>C'est CETTE colonne qui compte tes primes.</b></li>
       <li><b>GESTE CO</b> = ce que tu offres au client (sous-ensemble des installées) → c'est ce qui part dans le mail client.</li>
