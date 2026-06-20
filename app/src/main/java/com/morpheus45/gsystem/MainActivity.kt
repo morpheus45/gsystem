@@ -26,7 +26,6 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
-import com.morpheus45.gsystem.ui.CompteurScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
@@ -141,7 +140,6 @@ fun AppNav() {
                 onTemps = { navController.navigate("temps") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
-                onCompteur = { navController.navigate("compteur") },
                 onCourrier = { ViberSender.share(context, "courrier ok") },
                 onAttenteClient = {
                     android.widget.Toast.makeText(
@@ -199,12 +197,6 @@ fun AppNav() {
                 settings = settings, store = store, repo = repo,
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
-                onBack = { navController.popBackStack() }
-            )
-        }
-        composable("compteur") {
-            CompteurScreen(
-                settings = settings, store = store, repo = repo,
                 onBack = { navController.popBackStack() }
             )
         }

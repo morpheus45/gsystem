@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Send
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
+import com.morpheus45.gsystem.data.CompteurEntry
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.SettingsStore
@@ -53,6 +55,49 @@ fun EnvoiMensuelScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val repo = remember { EntriesRepository.get(context) }
+
+    // Capture de la photo compteur directement ici (la tuile COMPTEUR a été
+    // fusionnée dans ENVOI MENSUEL). Crée une CompteurEntry → alimente la période.
+    var pendingCompteurFile by remember { mutableStateOf<java.io.File?>(null) }
+    val takeCompteurPhoto = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        val file = pendingCompteurFile
+        pendingCompteurFile = null
+        if (success && file != null && file.exists() && file.length() > 0) {
+            scope.launch {
+                repo.addCompteur(CompteurEntry(
+                    id = EntriesRepository.newId(),
+                    date = DateUtil.today().toString(),
+                    timestamp = System.currentTimeMillis(),
+                    fileName = file.name
+                ))
+            }
+        }
+    }
+    val requestCameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val f = PhotoStorage.newCompteurFile(context, settings.plaqueVoiture)
+            pendingCompteurFile = f
+            takeCompteurPhoto.launch(PhotoStorage.uriFor(context, f))
+        }
+    }
+    fun startCompteurCapture() {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            val f = PhotoStorage.newCompteurFile(context, settings.plaqueVoiture)
+            pendingCompteurFile = f
+            takeCompteurPhoto.launch(PhotoStorage.uriFor(context, f))
+        } else {
+            requestCameraPermission.launch(android.Manifest.permission.CAMERA)
+        }
+    }
+
     val (defaultStart, defaultEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
 
     // Dates Du / Au : initialisées sur la période partagée (Temps/Frais), modifiables
@@ -255,6 +300,29 @@ fun EnvoiMensuelScreen(
             StatRow("Tickets de frais", "${fraisPeriod.size}  (${"%.2f €".format(totalFraisMontant)})")
             StatRow("Photos compteur", "${compteurPeriod.size}")
             StatRow("Primes GESTE CO", "$totalExtensions ext.  (${"%.2f €".format(totalPrimes)})")
+
+            Spacer(Modifier.height(16.dp))
+            SectionTitle("Photo compteur", EnvoiColor)
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        if (hasCompteurPhoto) "✓ ${compteurPeriod.size} photo(s) compteur sur la période."
+                        else "Aucune photo compteur — obligatoire pour envoyer.",
+                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (hasCompteurPhoto) EnvoiColor else MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(onClick = { startCompteurCapture() },
+                        modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.CameraAlt, null)
+                        Text("  Prendre la photo du compteur")
+                    }
+                    Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le kilométrage est lu directement sur la photo.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(top = 4.dp))
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Envoyer", EnvoiColor)

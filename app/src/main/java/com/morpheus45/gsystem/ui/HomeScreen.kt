@@ -80,7 +80,6 @@ fun HomeScreen(
     onTemps: () -> Unit,
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
-    onCompteur: () -> Unit,
     onCourrier: () -> Unit,
     onAttenteClient: () -> Unit,
     onEnvoiMensuel: () -> Unit,
@@ -164,7 +163,7 @@ fun HomeScreen(
             }
         }
 
-        // ============ 7 TUILES
+        // ============ 6 TUILES
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -241,20 +240,6 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "06",
-                    label = "COMPTEUR",
-                    sub = if (countCompt > 0)
-                        "Dernier releve enregistre"
-                    else "Photo kilometrique vehicule",
-                    icon = Icons.Outlined.Speed,
-                    gradientStart = CompteurStart,
-                    gradientEnd = CompteurEnd,
-                    accent = CompteurAccent,
-                    onClick = onCompteur
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "07",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Send,

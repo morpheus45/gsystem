@@ -663,26 +663,25 @@ private fun AddTempsDialog(
                         }
                         Spacer(Modifier.height(6.dp))
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Button(
+                        onClick = {
+                            tried = true
+                            if (!allOk) return@Button
+                            val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs) else null
+                            val gsm = if (isInstall) extras.buildGsm(date, siteNumber, nom, obs) else null
+                            onSave(buildEntry(), geste, gsm, true)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
                     ) {
-                        TextButton(onClick = onDismiss) { Text("Annuler") }
-                        Button(
-                            onClick = {
-                                tried = true
-                                if (!allOk) return@Button
-                                val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs) else null
-                                val gsm = if (isInstall) extras.buildGsm(date, siteNumber, nom, obs) else null
-                                onSave(buildEntry(), geste, gsm, true)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
-                        ) {
-                            Icon(Icons.Filled.Send, contentDescription = null,
-                                tint = Color.White, modifier = Modifier.size(18.dp))
-                            Text("  Enregistrer", color = Color.White, maxLines = 1)
-                        }
+                        Icon(Icons.Filled.Send, contentDescription = null,
+                            tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Enregistrer", color = Color.White, fontSize = 16.sp)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                        Text("Annuler")
                     }
                 }
             }
