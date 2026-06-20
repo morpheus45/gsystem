@@ -109,7 +109,7 @@ fun GsmSeulScreen(
     }
 }
 
-private fun sendGsmEmail(
+internal fun sendGsmEmail(
     context: android.content.Context,
     settings: AppSettings,
     entry: GsmSeulEntry
@@ -185,7 +185,7 @@ private fun EntryCard(
 }
 
 @Composable
-private fun AddGsmSeulDialog(
+internal fun AddGsmSeulDialog(
     settings: AppSettings,
     onDismiss: () -> Unit,
     onSendAndSave: (GsmSeulEntry) -> Unit

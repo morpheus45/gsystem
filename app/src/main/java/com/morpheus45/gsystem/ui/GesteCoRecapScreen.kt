@@ -25,7 +25,7 @@ import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
-import com.morpheus45.gsystem.ui.theme.ColorGesteCo
+import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.util.DateUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +86,7 @@ fun GesteCoRecapScreen(
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ColorGesteCo, titleContentColor = Color.White,
+                    containerColor = RecapStart, titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
@@ -106,7 +106,7 @@ fun GesteCoRecapScreen(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Mes primes (sur les extensions INSTALLÉES)",
                         fontWeight = FontWeight.Bold,
-                        color = ColorGesteCo, fontSize = 14.sp)
+                        color = RecapStart, fontSize = 14.sp)
                     Text("Formule : quantité × prime unitaire",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
@@ -127,7 +127,7 @@ fun GesteCoRecapScreen(
                                 }
                                 Text("= %.2f €".format(total), fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = ColorGesteCo)
+                                    color = RecapStart)
                             }
                         } else {
                             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
@@ -149,7 +149,7 @@ fun GesteCoRecapScreen(
                             fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text("%.2f €".format(grandTotal),
                             fontWeight = FontWeight.Bold, fontSize = 22.sp,
-                            color = ColorGesteCo)
+                            color = RecapStart)
                     }
                 }
             }
@@ -160,7 +160,7 @@ fun GesteCoRecapScreen(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Répartition des interventions TEMPS",
                         fontWeight = FontWeight.Bold,
-                        color = ColorGesteCo, fontSize = 14.sp)
+                        color = RecapStart, fontSize = 14.sp)
                     Text("Par type sur le cycle ($tempsTotal interv.)",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
@@ -205,7 +205,7 @@ fun GesteCoRecapScreen(
                         )
                     },
                     enabled = periodEntries.isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
+                    colors = ButtonDefaults.buttonColors(containerColor = RecapStart)
                 ) {
                     Icon(Icons.Filled.Email, null, tint = Color.White)
                     Text("  Envoyer le récap CSV", color = Color.White)
@@ -243,11 +243,11 @@ fun GesteCoRecapScreen(
                                 val offTxt = e.offeredList().joinToString(", ") { "${it.first}×${it.second}" }
                                 if (offTxt.isNotEmpty()) {
                                     Text("GESTE CO : $offTxt", fontSize = 11.sp,
-                                        color = ColorGesteCo)
+                                        color = RecapStart)
                                 }
                             }
                             Text("%.2f €".format(e.totalPrime(settings.prices)),
-                                fontWeight = FontWeight.Bold, color = ColorGesteCo, fontSize = 14.sp)
+                                fontWeight = FontWeight.Bold, color = RecapStart, fontSize = 14.sp)
                         }
                     }
                 }

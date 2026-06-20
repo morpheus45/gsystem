@@ -39,7 +39,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 
 /** Plafond du cadeau total par site (sauf dérogation EPS). */
-private const val MAX_GIFT_EUR = 4.50
+internal const val MAX_GIFT_EUR = 4.50
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,7 +143,7 @@ fun GesteCoScreen(
 }
 
 /** Compose le corps de mail GESTE CO en fonction des cadeaux offerts. */
-private fun sendGesteCoEmail(
+internal fun sendGesteCoEmail(
     context: android.content.Context,
     settings: AppSettings,
     entry: GesteCoEntry
@@ -276,7 +276,7 @@ private fun SiteCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddGesteCoDialog(
+internal fun AddGesteCoDialog(
     settings: AppSettings,
     existing: GesteCoEntry?,                  // null = nouveau ; sinon = edition
     onDismiss: () -> Unit,
@@ -627,7 +627,7 @@ private fun buildEntry(
 )
 
 @Composable
-private fun ExtRow(
+internal fun ExtRow(
     label: String,
     primeUnit: Double,
     installed: String, onInstalledChange: (String) -> Unit,

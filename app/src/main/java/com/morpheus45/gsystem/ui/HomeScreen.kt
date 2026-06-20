@@ -78,8 +78,6 @@ fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
     onTemps: () -> Unit,
-    onGsmSeul: () -> Unit,
-    onGesteCo: () -> Unit,
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCompteur: () -> Unit,
@@ -166,7 +164,7 @@ fun HomeScreen(
             }
         }
 
-        // ============ 9 TUILES
+        // ============ 7 TUILES
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -215,34 +213,6 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "04",
-                    label = "GSM SEUL",
-                    sub = "1 site · 1 email immediat",
-                    icon = Icons.Outlined.SimCard,
-                    gradientStart = GsmStart,
-                    gradientEnd = GsmEnd,
-                    accent = GsmAccent,
-                    liveValue = if (countGsm > 0) countGsm.toString() else null,
-                    liveLabel = if (countGsm > 0) "ce cycle" else null,
-                    onClick = onGsmSeul
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "05",
-                    label = "GESTE CO",
-                    sub = "Site + extensions",
-                    icon = Icons.Outlined.Storefront,
-                    gradientStart = GesteStart,
-                    gradientEnd = GesteEnd,
-                    accent = GesteAccent,
-                    liveValue = if (countGeste > 0) countGeste.toString() else null,
-                    liveLabel = if (countGeste > 0) "ce cycle" else null,
-                    onClick = onGesteCo
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "06",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -254,7 +224,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "07",
+                    number = "05",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -270,7 +240,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "08",
+                    number = "06",
                     label = "COMPTEUR",
                     sub = if (countCompt > 0)
                         "Dernier releve enregistre"
@@ -284,7 +254,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "09",
+                    number = "07",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Send,
