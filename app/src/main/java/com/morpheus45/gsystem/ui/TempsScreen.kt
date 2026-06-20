@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.EntriesStore
+import com.morpheus45.gsystem.data.GesteCoEntry
+import com.morpheus45.gsystem.data.GsmSeulEntry
 import com.morpheus45.gsystem.data.TempsEntry
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CsvExporter
@@ -66,10 +68,10 @@ fun TempsScreen(
 
     var showAdd by remember { mutableStateOf(false) }
     var editingEntry by remember { mutableStateOf<TempsEntry?>(null) }
-    // ENVOIS EPS proposés après la clôture d'une INST (réutilise les formulaires existants)
-    var dispatchEntry by remember { mutableStateOf<TempsEntry?>(null) }
-    var showAddGesteCo by remember { mutableStateOf(false) }
-    var showAddGsm by remember { mutableStateOf(false) }
+    // Mails EPS à proposer après une clôture d'INSTALLATION (saisis inline dans le formulaire).
+    var mailGeste by remember { mutableStateOf<GesteCoEntry?>(null) }
+    var mailGsm by remember { mutableStateOf<GsmSeulEntry?>(null) }
+    var showDispatch by remember { mutableStateOf(false) }
     // Mutuelle exclusion
     LaunchedEffect(editingEntry) { if (editingEntry != null) showAdd = false }
     LaunchedEffect(showAdd) { if (showAdd) editingEntry = null }
@@ -157,14 +159,20 @@ fun TempsScreen(
             settings = settings,
             existing = null,
             onDismiss = { showAdd = false },
-            onSave = { entry, alsoShareViber ->
-                scope.launch { repo.addTemps(entry) }
+            onSave = { entry, geste, gsm, alsoShareViber ->
+                scope.launch {
+                    repo.addTemps(entry)
+                    if (geste != null) repo.addGesteCo(geste)
+                    if (gsm != null) repo.addGsmSeul(gsm)
+                }
                 if (alsoShareViber && entry.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(entry))
                 }
                 showAdd = false
-                // Installation → proposer les envois EPS (GESTE CO / GSM seul) pour le site
-                if (entry.typeMission == "INST") dispatchEntry = entry
+                // Mails EPS à proposer : GESTE CO seulement s'il y a un cadeau offert.
+                mailGeste = geste?.takeIf { it.offeredList().isNotEmpty() }
+                mailGsm = gsm
+                showDispatch = (mailGeste != null || mailGsm != null)
             }
         )
     }
@@ -174,7 +182,7 @@ fun TempsScreen(
             settings = settings,
             existing = e,
             onDismiss = { editingEntry = null },
-            onSave = { updated, alsoShareViber ->
+            onSave = { updated, _, _, alsoShareViber ->
                 scope.launch { repo.updateTemps(updated) }
                 if (alsoShareViber && updated.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(updated))
@@ -184,46 +192,32 @@ fun TempsScreen(
         )
     }
 
-    // ===== ENVOIS EPS après clôture d'une INST =====
-    // Réutilise les formulaires existants GESTE CO / GSM SEUL → Viber + mails
-    // STRICTEMENT identiques à avant. Les deux sont indépendants (l'un, l'autre,
-    // les deux ou aucun). Les entrées créées alimentent RÉCAP + ENVOI MENSUEL.
-    dispatchEntry?.let {
+    // ===== Mails EPS après clôture d'une INSTALLATION =====
+    // Les entrées GESTE CO / GSM ont été saisies INLINE dans le formulaire et
+    // déjà enregistrées (RÉCAP + ENVOI MENSUEL alimentés). Ici on ne fait QUE
+    // déclencher les mails (1 par appli mail) ; Viber clôture est déjà parti.
+    // Générateurs identiques aux écrans historiques → contenu strictement identique.
+    if (showDispatch) {
         AlertDialog(
-            onDismissRequest = { dispatchEntry = null },
-            title = { Text("Installation enregistrée") },
-            text = { Text("Le Viber de clôture est parti. Ajouter un envoi EPS pour ce site ? (facultatif)") },
+            onDismissRequest = { showDispatch = false },
+            title = { Text("Envois EPS à faire") },
+            text = { Text("Le Viber de clôture est parti. Tape chaque mail à envoyer (chacun ouvre ton appli mail).") },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
-                    TextButton(onClick = { showAddGesteCo = true }) { Text("+ GESTE CO") }
-                    TextButton(onClick = { showAddGsm = true }) { Text("+ GSM SEUL") }
+                    mailGeste?.let { g ->
+                        TextButton(onClick = { sendGesteCoEmail(context, settings, g) }) {
+                            Text("Envoyer mail GESTE CO")
+                        }
+                    }
+                    mailGsm?.let { s ->
+                        TextButton(onClick = { sendGsmEmail(context, settings, s) }) {
+                            Text("Envoyer mail GSM SEUL")
+                        }
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { dispatchEntry = null }) { Text("Terminé") }
-            }
-        )
-    }
-    if (showAddGesteCo) {
-        AddGesteCoDialog(
-            settings = settings,
-            existing = null,
-            onDismiss = { showAddGesteCo = false },
-            onSave = { entry, alsoSend ->
-                scope.launch { repo.addGesteCo(entry) }
-                if (alsoSend) sendGesteCoEmail(context, settings, entry)
-                showAddGesteCo = false
-            }
-        )
-    }
-    if (showAddGsm) {
-        AddGsmSeulDialog(
-            settings = settings,
-            onDismiss = { showAddGsm = false },
-            onSendAndSave = { entry ->
-                scope.launch { repo.addGsmSeul(entry) }
-                sendGsmEmail(context, settings, entry)
-                showAddGsm = false
+                TextButton(onClick = { showDispatch = false }) { Text("Terminé") }
             }
         )
     }
@@ -298,7 +292,7 @@ private fun AddTempsDialog(
     settings: AppSettings,
     existing: TempsEntry?,
     onDismiss: () -> Unit,
-    onSave: (entry: TempsEntry, alsoShareViber: Boolean) -> Unit
+    onSave: (entry: TempsEntry, geste: GesteCoEntry?, gsm: GsmSeulEntry?, alsoShareViber: Boolean) -> Unit
 ) {
     val isEditing = existing != null
     var date by remember { mutableStateOf(existing?.date ?: DateUtil.today().toString()) }
@@ -327,6 +321,10 @@ private fun AddTempsDialog(
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
+    // Clôture d'une INSTALLATION (nouvelle saisie) : sections GESTE CO + GSM inline.
+    var siteNumber by remember { mutableStateOf("") }
+    val extras = rememberInstallExtrasState()
+
     val isWholeDay = type in WHOLE_DAY_TYPES
 
     // Validation des champs obligatoires
@@ -335,7 +333,11 @@ private fun AddTempsDialog(
     val nomOk = isWholeDay || nom.isNotBlank()
     val villeOk = isWholeDay || ville.isNotBlank()
     val numeroOk = isWholeDay || numero.isNotBlank()
-    val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk
+    // INSTALL (nouvelle saisie) : N° de site obligatoire + règles GESTE CO respectées.
+    val isInstall = type == "INST" && !isEditing
+    val siteOk = !isInstall || siteNumber.isNotBlank()
+    val gesteOk = !isInstall || extras.gesteValid(settings.clientGifts)
+    val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk && siteOk && gesteOk
 
     // Pour eviter l'affichage des erreurs avant que l'utilisateur ne tente
     // d'enregistrer, on suit un "touched" par champ.
@@ -584,6 +586,23 @@ private fun AddTempsDialog(
                         )
                     }
 
+                    // ===== INSTALLATION : N° de site + GESTE CO + GSM seul (inline) =====
+                    if (isInstall) {
+                        Spacer(Modifier.height(14.dp))
+                        OutlinedTextField(
+                            value = siteNumber, onValueChange = { siteNumber = it.trim() },
+                            label = reqLabel("N° de site (GESTE CO / GSM)", true),
+                            singleLine = true,
+                            isError = tried && siteNumber.isBlank(),
+                            supportingText = if (tried && siteNumber.isBlank()) {
+                                { Text("Champ obligatoire") }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        InstallExtrasSection(extras, settings)
+                    }
+
                     Spacer(Modifier.height(14.dp))
                     Card(
                         colors = CardDefaults.cardColors(
@@ -628,7 +647,7 @@ private fun AddTempsDialog(
                             onClick = {
                                 tried = true
                                 if (!allOk) return@OutlinedButton
-                                onSave(buildEntry(), false)
+                                onSave(buildEntry(), null, null, false)
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -648,7 +667,9 @@ private fun AddTempsDialog(
                             onClick = {
                                 tried = true
                                 if (!allOk) return@Button
-                                onSave(buildEntry(), true)
+                                val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs) else null
+                                val gsm = if (isInstall) extras.buildGsm(date, siteNumber, nom, obs) else null
+                                onSave(buildEntry(), geste, gsm, true)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
                         ) {

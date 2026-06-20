@@ -39,7 +39,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 
 /** Plafond du cadeau total par site (sauf dérogation EPS). */
-private const val MAX_GIFT_EUR = 4.50
+internal const val MAX_GIFT_EUR = 4.50
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -627,7 +627,7 @@ private fun buildEntry(
 )
 
 @Composable
-private fun ExtRow(
+internal fun ExtRow(
     label: String,
     primeUnit: Double,
     installed: String, onInstalledChange: (String) -> Unit,
