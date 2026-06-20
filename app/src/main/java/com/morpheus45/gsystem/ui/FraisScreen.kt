@@ -191,8 +191,7 @@ fun FraisScreen(
             )
             Spacer(Modifier.height(6.dp))
 
-            Card(colors = CardDefaults.cardColors(
-                containerColor = FraisColor.copy(alpha = 0.1f))) {
+            AccentCard(FraisColor, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(10.dp).fillMaxWidth()) {
                     Row(modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween) {

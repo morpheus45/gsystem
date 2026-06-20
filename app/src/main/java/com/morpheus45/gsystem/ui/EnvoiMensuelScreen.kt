@@ -212,8 +212,7 @@ fun EnvoiMensuelScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SectionTitle("Période du mensuel", EnvoiColor)
-            Card(modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp)) {
+            AccentCard(EnvoiColor, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.DateRange, null, tint = EnvoiColor)
@@ -265,8 +264,7 @@ fun EnvoiMensuelScreen(
 
             // Section : fichier Excel
             SectionTitle("Mon fichier TEMPS .xlsm", EnvoiColor)
-            Card(modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp)) {
+            AccentCard(EnvoiColor, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Description, null, tint = EnvoiColor)
@@ -303,7 +301,7 @@ fun EnvoiMensuelScreen(
 
             Spacer(Modifier.height(16.dp))
             SectionTitle("Photo compteur", EnvoiColor)
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
+            AccentCard(EnvoiColor, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         if (hasCompteurPhoto) "✓ ${compteurPeriod.size} photo(s) compteur sur la période."

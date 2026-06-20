@@ -102,7 +102,7 @@ fun GesteCoRecapScreen(
             }
 
             item {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            AccentCard(RecapStart, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Mes primes (sur les extensions INSTALLÉES)",
                         fontWeight = FontWeight.Bold,
@@ -156,7 +156,7 @@ fun GesteCoRecapScreen(
             }
 
             item {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            AccentCard(RecapStart, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Répartition des interventions TEMPS",
                         fontWeight = FontWeight.Bold,
