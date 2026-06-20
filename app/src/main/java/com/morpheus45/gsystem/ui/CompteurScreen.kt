@@ -37,7 +37,7 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 import java.io.File
 
-private val CompteurColor = Color(0xFF00838F) // bleu canard
+private val CompteurColor = Color(0xFF14B8A6) // teal (couleur de la tuile COMPTEUR)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

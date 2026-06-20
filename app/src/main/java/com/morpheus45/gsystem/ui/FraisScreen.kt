@@ -48,7 +48,7 @@ import java.io.File
 import java.time.LocalDate
 
 private val CATEGORIES = listOf("PARKING", "DIVERS", "AUTRE")
-private val FraisColor = Color(0xFFD84315) // orange foncé
+private val FraisColor = Color(0xFF06B6D4) // cyan (couleur de la tuile FRAIS)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -51,35 +51,40 @@ val GesteStart     = Color(0xFF10B981)
 val GesteEnd       = Color(0xFF0A3025)
 val GesteAccent    = Color(0xFF6EE7B7)
 
-// 04 RECAP — ambre / or
-val RecapStart     = Color(0xFFF59E0B)
-val RecapEnd       = Color(0xFF7A4E0A)
-val RecapAccent    = Color(0xFFFCD34D)
+// PALETTE CONTINUE violet -> vert : chaque tuile démarre là où la précédente
+// finit (effet « waterfall » sur la pile d'accueil). CLÔTURE reste l'ancrage violet.
+// Ordre accueil : 01 CLÔTURE · 02 ATTENTE · 03 COURRIER · 04 RECAP · 05 FRAIS ·
+// 06 COMPTEUR · 07 ENVOI MENSUEL.
 
-// 05 FRAIS — orange feu
-val FraisStart     = Color(0xFFEA580C)
-val FraisEnd       = Color(0xFF7A2D0C)
-val FraisAccent    = Color(0xFFFB923C)
+// 02 ATTENTE CLIENT — violet clair
+val AttenteStart   = Color(0xFF8A5CF6)
+val AttenteEnd     = Color(0xFF6366F1)
+val AttenteAccent  = Color(0xFFDDD6FE)
 
-// 06 COMPTEUR — bleu electrique
-val CompteurStart  = Color(0xFF2563EB)
-val CompteurEnd    = Color(0xFF14306E)
-val CompteurAccent = Color(0xFF60A5FA)
+// 03 COURRIER — indigo
+val CourrierStart  = Color(0xFF6366F1)
+val CourrierEnd    = Color(0xFF3B82F6)
+val CourrierAccent = Color(0xFFC7D2FE)
 
-// 07 COURRIER — indigo
-val CourrierStart  = Color(0xFF4F46E5)
-val CourrierEnd    = Color(0xFF2A2480)
-val CourrierAccent = Color(0xFFA5B4FC)
+// 04 RECAP — bleu
+val RecapStart     = Color(0xFF3B82F6)
+val RecapEnd       = Color(0xFF06B6D4)
+val RecapAccent    = Color(0xFFBFDBFE)
 
-// 08 ENVOI MENSUEL — magenta / rose
-val EnvoiStart     = Color(0xFFDB2777)
-val EnvoiEnd       = Color(0xFF7A1542)
-val EnvoiAccent    = Color(0xFFF9A8D4)
+// 05 FRAIS — cyan
+val FraisStart     = Color(0xFF06B6D4)
+val FraisEnd       = Color(0xFF14B8A6)
+val FraisAccent    = Color(0xFFA5F3FC)
 
-// 02 ATTENTE CLIENT — teal alerte (procedure d'attente, appels /15 min)
-val AttenteStart   = Color(0xFF14B8A6)
-val AttenteEnd     = Color(0xFF0B5E54)
-val AttenteAccent  = Color(0xFF5EEAD4)
+// 06 COMPTEUR — teal
+val CompteurStart  = Color(0xFF14B8A6)
+val CompteurEnd    = Color(0xFF22C55E)
+val CompteurAccent = Color(0xFF99F6E4)
+
+// 07 ENVOI MENSUEL — vert (fin de palette)
+val EnvoiStart     = Color(0xFF22C55E)
+val EnvoiEnd       = Color(0xFF15803D)
+val EnvoiAccent    = Color(0xFFBBF7D0)
 
 // --- ETATS ---
 val Success        = Color(0xFF4ADE80)
