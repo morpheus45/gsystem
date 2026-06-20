@@ -1,7 +1,17 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 20 juin 2026 · Version actuelle : **v1.8.0** (versionCode 69)
+> Date : 20 juin 2026 · Version actuelle : **v1.8.2** (versionCode 71)
+>
+> **v1.8.2 — restyle « écran réel » des formulaires.** Briques partagées dans
+> `ui/FormStyle.kt` : `FormHeaderBar` (bandeau d'en-tête plein, couleur de la
+> tuile), `AccentCard` (carte sombre à bord coloré, wrapper 1-pour-1 d'un Card),
+> `AccentTextField` (champ à accent coloré). Appliquées à CLÔTURE (bandeau violet,
+> N° site orange, cartes GESTE CO/GSM à bord, pastille de validation sombre au lieu
+> du carton rose clair), FRAIS, ENVOI MENSUEL et RÉCAP. **Les tuiles d'accueil et
+> toute la logique métier (Viber/mails/Excel) sont inchangées.** L'appli était déjà
+> en thème sombre (`theme/Theme.kt` = scheme « Obsidian ») : le restyle est de la
+> mise en forme, pas un passage clair→sombre.
 
 ---
 
