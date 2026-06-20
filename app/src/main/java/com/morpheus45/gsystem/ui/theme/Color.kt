@@ -53,32 +53,32 @@ val GesteAccent    = Color(0xFF6EE7B7)
 
 // 04 RECAP — ambre / or
 val RecapStart     = Color(0xFFF59E0B)
-val RecapEnd       = Color(0xFF3D2810)
+val RecapEnd       = Color(0xFF7A4E0A)
 val RecapAccent    = Color(0xFFFCD34D)
 
 // 05 FRAIS — orange feu
 val FraisStart     = Color(0xFFEA580C)
-val FraisEnd       = Color(0xFF3A1407)
+val FraisEnd       = Color(0xFF7A2D0C)
 val FraisAccent    = Color(0xFFFB923C)
 
 // 06 COMPTEUR — bleu electrique
 val CompteurStart  = Color(0xFF2563EB)
-val CompteurEnd    = Color(0xFF0A1740)
+val CompteurEnd    = Color(0xFF14306E)
 val CompteurAccent = Color(0xFF60A5FA)
 
 // 07 COURRIER — indigo
 val CourrierStart  = Color(0xFF4F46E5)
-val CourrierEnd    = Color(0xFF15123A)
+val CourrierEnd    = Color(0xFF2A2480)
 val CourrierAccent = Color(0xFFA5B4FC)
 
 // 08 ENVOI MENSUEL — magenta / rose
 val EnvoiStart     = Color(0xFFDB2777)
-val EnvoiEnd       = Color(0xFF3A0A1F)
+val EnvoiEnd       = Color(0xFF7A1542)
 val EnvoiAccent    = Color(0xFFF9A8D4)
 
 // 02 ATTENTE CLIENT — teal alerte (procedure d'attente, appels /15 min)
 val AttenteStart   = Color(0xFF14B8A6)
-val AttenteEnd     = Color(0xFF06302B)
+val AttenteEnd     = Color(0xFF0B5E54)
 val AttenteAccent  = Color(0xFF5EEAD4)
 
 // --- ETATS ---

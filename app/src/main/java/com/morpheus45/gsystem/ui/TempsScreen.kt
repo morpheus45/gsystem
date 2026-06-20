@@ -203,21 +203,27 @@ fun TempsScreen(
             title = { Text("Envois EPS à faire") },
             text = { Text("Le Viber de clôture est parti. Tape chaque mail à envoyer (chacun ouvre ton appli mail).") },
             confirmButton = {
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     mailGeste?.let { g ->
-                        TextButton(onClick = { sendGesteCoEmail(context, settings, g) }) {
+                        Button(onClick = { sendGesteCoEmail(context, settings, g) },
+                            modifier = Modifier.fillMaxWidth()) {
                             Text("Envoyer mail GESTE CO")
                         }
                     }
                     mailGsm?.let { s ->
-                        TextButton(onClick = { sendGsmEmail(context, settings, s) }) {
+                        Button(onClick = { sendGsmEmail(context, settings, s) },
+                            modifier = Modifier.fillMaxWidth()) {
                             Text("Envoyer mail GSM SEUL")
                         }
                     }
+                    TextButton(onClick = { showDispatch = false },
+                        modifier = Modifier.align(Alignment.End)) {
+                        Text("Terminé")
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDispatch = false }) { Text("Terminé") }
             }
         )
     }
@@ -675,15 +681,7 @@ private fun AddTempsDialog(
                         ) {
                             Icon(Icons.Filled.Send, contentDescription = null,
                                 tint = Color.White, modifier = Modifier.size(18.dp))
-                            Text(
-                                when {
-                                    isEditing && isWholeDay -> "  Enregistrer"
-                                    isEditing -> "  Enregistrer & Viber"
-                                    isWholeDay -> "  Enregistrer"
-                                    else -> "  Enregistrer & Viber"
-                                },
-                                color = Color.White
-                            )
+                            Text("  Enregistrer", color = Color.White, maxLines = 1)
                         }
                     }
                 }
