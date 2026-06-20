@@ -52,8 +52,13 @@ internal fun FormHeaderBar(title: String, accent: Color, trailing: String? = nul
  * ce qui rend le remplacement direct dans les écrans existants sans risque.
  */
 @Composable
-internal fun AccentCard(accent: Color, content: @Composable () -> Unit) {
+internal fun AccentCard(
+    accent: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
     Card(
+        modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = accent.copy(alpha = 0.08f)),
         border = BorderStroke(1.dp, accent.copy(alpha = 0.55f)),
         shape = RoundedCornerShape(12.dp)
