@@ -40,12 +40,14 @@ val Typography = Typography(
         lineHeight = 36.sp,
         letterSpacing = (-0.3).sp
     ),
-    // Title — gros titres dans les cartes
+    // Title — titres de barre (TopAppBar) + gros titres de cartes.
+    // 19sp : assez compact pour que les titres longs (« RÉCAP GESTE CO - cycle »,
+    // « TEMPS - Feuille de temps ») tiennent sur UNE ligne avec la police Tektur.
     titleLarge = TextStyle(
         fontFamily = TekturFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 26.sp,
-        lineHeight = 30.sp,
+        fontSize = 19.sp,
+        lineHeight = 23.sp,
         letterSpacing = 0.2.sp
     ),
     titleMedium = TextStyle(
@@ -82,13 +84,15 @@ val Typography = Typography(
         fontSize = 11.sp,
         lineHeight = 15.sp
     ),
-    // Label — codes, references, numerotation (Geist Mono Bold pour les accents)
+    // Label — texte des BOUTONS (Material3 utilise labelLarge) + codes/références.
+    // 14sp + interlettrage réduit : les libellés de boutons (« Envoyer le récap
+    // CSV »…) tiennent sur UNE ligne sans déborder.
     labelLarge = TextStyle(
         fontFamily = GeistMonoFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 22.sp,
-        lineHeight = 26.sp,
-        letterSpacing = 1.sp
+        fontSize = 14.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.4.sp
     ),
     labelMedium = TextStyle(
         fontFamily = GeistMonoFamily,

@@ -196,7 +196,7 @@ fun EnvoiMensuelScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("ENVOI MENSUEL") },
+                title = { Text("ENVOI MENSUEL", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },

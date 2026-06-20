@@ -153,7 +153,7 @@ fun FraisScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("TICKETS DE FRAIS") },
+                title = { Text("TICKETS DE FRAIS", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },

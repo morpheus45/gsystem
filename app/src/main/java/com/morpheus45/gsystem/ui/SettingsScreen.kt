@@ -83,7 +83,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (firstRun) "Bienvenue — configuration" else "Réglages") },
+                title = { Text(if (firstRun) "Bienvenue — configuration" else "Réglages", maxLines = 1) },
                 navigationIcon = {
                     if (!firstRun) {
                         IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }

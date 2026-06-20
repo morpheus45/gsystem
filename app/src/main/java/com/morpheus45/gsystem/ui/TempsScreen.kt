@@ -80,7 +80,7 @@ fun TempsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("TEMPS - Feuille de temps") },
+                title = { Text("TEMPS - Feuille de temps", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },

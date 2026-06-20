@@ -81,7 +81,7 @@ fun GesteCoRecapScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("RÉCAP GESTE CO — cycle") },
+                title = { Text("RÉCAP GESTE CO — cycle", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
