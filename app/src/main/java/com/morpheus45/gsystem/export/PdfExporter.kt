@@ -5,9 +5,12 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
+import com.morpheus45.gsystem.data.AppSettings
+import com.morpheus45.gsystem.data.FraisTicket
 import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.util.FraisTva
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDate
@@ -136,6 +139,119 @@ object PdfExporter {
         return out
     }
 
+    /**
+     * RÉCAP MENSUEL en PDF — remplace le fichier .html joint à l'envoi mensuel.
+     * Reprend le même contenu visuel : en-tête gsystems, synthèse, répartition
+     * TEMPS (barres), tableau frais (TTC/HT/TVA) et tableau primes GESTE CO.
+     */
+    fun exportMonthlyRecap(
+        context: Context,
+        settings: AppSettings,
+        start: LocalDate, end: LocalDate,
+        tempsCount: Int,
+        tempsByType: List<Pair<String, Int>>,
+        fraisPeriod: List<FraisTicket>,
+        totalFraisMontant: Double,
+        compteurCount: Int,
+        primesByType: List<Triple<String, Int, Double>>,
+        totalPrimes: Double,
+        totalExtensions: Int
+    ): File {
+        val green = Color.rgb(0x16, 0xA3, 0x4A)  // vert ENVOI lisible sur blanc
+        val doc = PdfDocument()
+        val b = PdfBuilder(doc)
+
+        val pBrandG = paint(Color.rgb(0xEE, 0x23, 0x22), 22f, bold = true)
+        val pBrand = paint(Color.BLACK, 22f, bold = true)
+        val pSub = paint(GREY_TXT, 10f)
+        val pSection = paint(green, 13f, bold = true)
+        val pHead = paint(GREY_TXT, 9f, bold = true)
+        val pCell = paint(Color.BLACK, 10f)
+        val pCellB = paint(Color.BLACK, 11f, bold = true)
+        val pSmall = paint(GREY_TXT, 9f)
+        val pLine = Paint().apply { color = GREY_LINE; strokeWidth = 0.7f }
+
+        // En-tête (wordmark gsystems : g rouge + systems noir)
+        b.brand("g", pBrandG, "systems", pBrand, gapBefore = 6f)
+        b.text("Récap mensuel — ${DateUtil.fr(start)} → ${DateUtil.fr(end)}", pSub, gapBefore = 6f)
+        if (settings.nomUtilisateur.isNotBlank()) b.text(settings.nomUtilisateur, pSub, gapBefore = 1f)
+        b.space(12f)
+
+        // Synthèse
+        b.text("RÉCAP", pSection, gapBefore = 2f)
+        b.text("• Feuille TEMPS : $tempsCount interventions", pCell, gapBefore = 4f)
+        b.text("• Tickets de frais : ${fraisPeriod.size}  (${eur(totalFraisMontant)})", pCell, gapBefore = 2f)
+        b.text("• Photos compteur : $compteurCount", pCell, gapBefore = 2f)
+        if (settings.plaqueVoiture.isNotBlank())
+            b.text("• Véhicule : ${settings.plaqueVoiture}", pCell, gapBefore = 2f)
+        b.space(14f)
+
+        // Répartition TEMPS (barres colorées)
+        if (tempsByType.isNotEmpty()) {
+            b.text("RÉPARTITION TEMPS ($tempsCount interv.)", pSection, gapBefore = 2f)
+            val palette = intArrayOf(
+                Color.rgb(0xEE, 0x23, 0x22), Color.rgb(0x25, 0x63, 0xEB),
+                Color.rgb(0x10, 0xB9, 0x81), Color.rgb(0xF5, 0x9E, 0x0B),
+                Color.rgb(0x7C, 0x3A, 0xED), Color.rgb(0x06, 0xB6, 0xD4),
+                Color.rgb(0xEA, 0x58, 0x0C), Color.rgb(0xDB, 0x27, 0x77)
+            )
+            val maxCount = tempsByType.maxOf { it.second }
+            b.space(4f)
+            tempsByType.forEachIndexed { i, (type, count) ->
+                val pct = 100.0 * count / tempsCount
+                val w = (count.toDouble() / maxCount * 220).toFloat().coerceAtLeast(6f)
+                b.barRow(type, pCell, w, palette[i % palette.size],
+                    "$count · ${"%.0f%%".format(pct)}", pSmall, gapBefore = 3f)
+            }
+            b.space(14f)
+        }
+
+        // Frais (TTC / HT / TVA)
+        if (fraisPeriod.isNotEmpty()) {
+            b.text("FRAIS (TVA calculée auto)", pSection, gapBefore = 2f)
+            val cX = floatArrayOf(MARGIN, 130f, 290f, 380f, 470f)
+            b.row(listOf("Date", "Type", "TTC", "HT", "TVA"), cX, pHead, gapBefore = 6f)
+            b.hline(pLine)
+            fraisPeriod.forEach { t ->
+                val cat = t.categorie.ifBlank { "DIVERS" }
+                b.row(
+                    listOf(t.date, cat, eur(t.montantEur),
+                        eur(FraisTva.htFromTtc(t.montantEur, cat)),
+                        eur(FraisTva.tvaFromTtc(t.montantEur, cat))),
+                    cX, pCell, gapBefore = 4f
+                )
+            }
+            val totalHt = fraisPeriod.sumOf { FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
+            val totalTva = fraisPeriod.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
+            b.hline(pLine)
+            b.row(listOf("TOTAL", "", eur(totalFraisMontant), eur(totalHt), eur(totalTva)), cX, pCellB, gapBefore = 4f)
+            b.space(14f)
+        }
+
+        // Primes GESTE CO
+        b.text("PRIMES GESTE CO", pSection, gapBefore = 2f)
+        if (primesByType.isEmpty()) {
+            b.text("Aucune extension installée sur la période.", pSub, gapBefore = 4f)
+        } else {
+            val cX = floatArrayOf(MARGIN, 260f, 365f, 470f)
+            b.row(listOf("Type", "Nb", "Tarif", "Total"), cX, pHead, gapBefore = 6f)
+            b.hline(pLine)
+            primesByType.forEach { (type, n, eurv) ->
+                b.row(listOf(type, n.toString(), eur(settings.prices.priceFor(type)), eur(eurv)), cX, pCell, gapBefore = 4f)
+            }
+            b.hline(pLine)
+            b.row(listOf("TOTAL PRIMES ($totalExtensions ext.)", "", "", eur(totalPrimes)), cX, pCellB, gapBefore = 4f)
+        }
+        b.space(16f)
+        b.text("Cordialement, ${settings.nomUtilisateur}", pSub, gapBefore = 2f)
+
+        b.finish()
+        val out = File(ensureExportDir(context), "Recap-mensuel_${start}.pdf")
+        FileOutputStream(out).use { doc.writeTo(it) }
+        doc.close()
+        return out
+    }
+
     // ---------- Helpers données ----------
     private fun summarizeInstalled(e: GesteCoEntry): String = buildSummary(
         "GSM" to e.installedGsm, "CO" to e.installedCo, "DMP" to e.installedDmp, "SE" to e.installedSe,
@@ -212,6 +328,29 @@ private class PdfBuilder(private val doc: PdfDocument) {
         y += maxOf(lp.textSize, rp.textSize)
         canvas.drawText(left, MARGIN, y, lp)
         canvas.drawText(right, PAGE_W - MARGIN - rp.measureText(right), y, rp)
+    }
+
+    /** Wordmark bicolore : `a` puis `b` à la suite, sur la même ligne. */
+    fun brand(a: String, ap: Paint, b: String, bp: Paint, gapBefore: Float = 0f) {
+        y += gapBefore
+        ensure(maxOf(ap.textSize, bp.textSize) + 4f)
+        y += maxOf(ap.textSize, bp.textSize)
+        canvas.drawText(a, MARGIN, y, ap)
+        canvas.drawText(b, MARGIN + ap.measureText(a), y, bp)
+    }
+
+    /** Ligne « libellé · barre colorée · valeur » (graphe de répartition). */
+    fun barRow(label: String, labelPaint: Paint, barW: Float, barColor: Int,
+               value: String, valuePaint: Paint, gapBefore: Float = 0f) {
+        val h = 12f
+        y += gapBefore
+        ensure(h + 4f)
+        y += h
+        canvas.drawText(label, MARGIN, y, labelPaint)
+        val barX = MARGIN + 80f
+        val bp = Paint().apply { color = barColor; isAntiAlias = true }
+        canvas.drawRect(barX, y - h + 1f, barX + barW, y, bp)
+        canvas.drawText(value, PAGE_W - MARGIN - valuePaint.measureText(value), y, valuePaint)
     }
 
     fun hline(paint: Paint) {

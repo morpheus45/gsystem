@@ -34,6 +34,7 @@ import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.excel.ExcelFiller
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.export.PdfExporter
 import com.morpheus45.gsystem.util.FraisTva
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -423,19 +424,18 @@ fun EnvoiMensuelScreen(
                                 compteurPeriod.size,
                                 primesByType, totalPrimes, totalExtensions
                             )
-                            // Récap visuel joint en fichier .html : s'ouvre dans le navigateur
-                            // avec le rendu exact (wordmark + barres + tableaux). Fiable partout,
-                            // contrairement au corps de mail que les apps mail affichent en texte.
+                            // Récap visuel joint en PDF : rendu fiable et lisible partout
+                            // (en-tête, répartition TEMPS, tableaux frais + primes), ouvrable
+                            // directement sans navigateur — remplace l'ancien fichier .html.
                             runCatching {
-                                val recapFile = java.io.File(exportDir, "Recap-mensuel_${start}.html")
-                                recapFile.writeText(
-                                    "<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"utf-8\">" +
-                                    "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
-                                    "<title>Récap mensuel ${settings.nomUtilisateur}</title></head>" +
-                                    "<body style=\"margin:0;padding:16px;background:#ffffff\">$htmlBody</body></html>",
-                                    Charsets.UTF_8
+                                val recapPdf = PdfExporter.exportMonthlyRecap(
+                                    context, settings, start, end,
+                                    tempsPeriod.size, tempsByType,
+                                    fraisPeriod, totalFraisMontant,
+                                    compteurPeriod.size,
+                                    primesByType, totalPrimes, totalExtensions
                                 )
-                                attachments.add(recapFile)
+                                attachments.add(recapPdf)
                             }
                             EmailSender.sendMulti(
                                 context = context,
@@ -490,9 +490,8 @@ fun EnvoiMensuelScreen(
                                         }
                                         append("TOTAL PRIMES : %.2f €\n".format(totalPrimes))
                                     }
-                                    append("\nRécap visuel détaillé en pièce jointe : « Recap-mensuel_${start}.html »")
-                                    append(" (à ouvrir dans le navigateur : wordmark, graphiques, tableaux).\n")
-                                    append("\nPièces jointes : Excel TEMPS + photos + récap HTML.\n\n")
+                                    append("\nRécap visuel détaillé en pièce jointe : « Recap-mensuel_${start}.pdf ».\n")
+                                    append("\nPièces jointes : Excel TEMPS + photos + récap PDF.\n\n")
                                     append("Cordialement,\n${settings.nomUtilisateur}")
                                 },
                                 attachments = attachments,
