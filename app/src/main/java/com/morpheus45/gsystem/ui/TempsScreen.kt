@@ -36,6 +36,7 @@ import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.EditablePeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
+import com.morpheus45.gsystem.ui.theme.Warning
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
@@ -375,37 +376,12 @@ private fun AddTempsDialog(
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // ---- En-tete ----
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (isEditing) {
-                            Box(
-                                modifier = Modifier
-                                    .background(ColorTemps, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("EN MODIFICATION", color = Color.White,
-                                    fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(Modifier.height(4.dp))
-                        }
-                        Text(
-                            if (isEditing) "Modifier intervention" else "Nouvelle intervention",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                    Text(
-                        "* obligatoire",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Divider()
+                // ---- En-tête : bandeau coloré plein (style « écran réel ») ----
+                FormHeaderBar(
+                    title = if (isEditing) "MODIFIER L'INTERVENTION" else "CLÔTURE",
+                    accent = ColorTemps,
+                    trailing = "* obligatoire"
+                )
 
                 // ---- Contenu scrollable ----
                 Column(
@@ -595,10 +571,10 @@ private fun AddTempsDialog(
                     // ===== INSTALLATION : N° de site + GESTE CO + GSM seul (inline) =====
                     if (isInstall) {
                         Spacer(Modifier.height(14.dp))
-                        OutlinedTextField(
+                        AccentTextField(
                             value = siteNumber, onValueChange = { siteNumber = it.trim() },
-                            label = reqLabel("N° de site (GESTE CO / GSM)", true),
-                            singleLine = true,
+                            label = reqLabel("N° de site (commun GESTE CO / GSM)", true),
+                            accent = Warning,
                             isError = tried && siteNumber.isBlank(),
                             supportingText = if (tried && siteNumber.isBlank()) {
                                 { Text("Champ obligatoire") }

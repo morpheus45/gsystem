@@ -19,6 +19,7 @@ import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.data.GsmSeulEntry
 import com.morpheus45.gsystem.ui.theme.ColorGesteCo
 import com.morpheus45.gsystem.ui.theme.ColorGsmSeul
+import com.morpheus45.gsystem.ui.theme.Error
 
 /**
  * État + UI des sections optionnelles ajoutées à la clôture d'une INSTALLATION :
@@ -121,10 +122,7 @@ internal fun rememberInstallExtrasState(): InstallExtrasState = remember { Insta
 @Composable
 internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettings) {
     // ===== GESTE CO =====
-    Card(
-        colors = CardDefaults.cardColors(containerColor = ColorGesteCo.copy(alpha = 0.10f)),
-        shape = RoundedCornerShape(10.dp)
-    ) {
+    AccentCard(ColorGesteCo) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -172,14 +170,18 @@ internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettin
                 }
                 Spacer(Modifier.height(8.dp))
                 val valid = state.gesteValid(settings.clientGifts)
-                Card(colors = CardDefaults.cardColors(
-                    containerColor = if (valid) ColorGesteCo.copy(alpha = 0.10f) else Color(0xFFFFEBEE))) {
+                val barColor = if (valid) ColorGesteCo else Error
+                Surface(
+                    color = barColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Column(modifier = Modifier.padding(8.dp)) {
                         if (!valid) {
-                            Text("✗ Règle non respectée (cadeau > installé, > moitié, ou > 4,50 €)",
-                                color = Color(0xFFC62828), fontSize = 11.sp)
+                            Text("✗ Règle non respectée (offert > installé, > moitié, ou > 4,50 €)",
+                                color = barColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         } else if (state.installedAll() > 0) {
-                            Text("✓ Règles OK", fontSize = 11.sp, color = ColorGesteCo,
+                            Text("✓ Règles OK", fontSize = 11.sp, color = barColor,
                                 fontWeight = FontWeight.SemiBold)
                         }
                         Text("Installé : ${state.installedAll()}  ·  Offert : ${state.offeredAll()}  ·  GESTE CO : %.2f €".format(state.totalGift(settings.clientGifts)),
@@ -196,10 +198,7 @@ internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettin
     Spacer(Modifier.height(10.dp))
 
     // ===== GSM seul =====
-    Card(
-        colors = CardDefaults.cardColors(containerColor = ColorGsmSeul.copy(alpha = 0.10f)),
-        shape = RoundedCornerShape(10.dp)
-    ) {
+    AccentCard(ColorGsmSeul) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
