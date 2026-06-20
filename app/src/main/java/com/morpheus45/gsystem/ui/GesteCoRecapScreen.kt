@@ -23,7 +23,7 @@ import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.email.EmailSender
-import com.morpheus45.gsystem.export.CsvExporter
+import com.morpheus45.gsystem.export.PdfExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.util.DateUtil
@@ -180,7 +180,7 @@ fun GesteCoRecapScreen(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Button(
                     onClick = {
-                        val csv = CsvExporter.exportGesteCo(
+                        val pdf = PdfExporter.exportGesteCo(
                             context, store.gesteCo, settings.prices, start, end
                         )
                         EmailSender.send(
@@ -198,17 +198,18 @@ fun GesteCoRecapScreen(
                                     append("  - $t × $q  →  %.2f €\n".format(tot))
                                 }
                                 append("\nTOTAL CYCLE : %.2f €\n\n".format(grandTotal))
-                                append("Détail en pièce jointe (CSV).\n\n")
+                                append("Détail en pièce jointe (PDF).\n\n")
                                 append("Cordialement,\n${settings.nomUtilisateur}")
                             },
-                            attachment = csv
+                            attachment = pdf,
+                            mimeType = "application/pdf"
                         )
                     },
                     enabled = periodEntries.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(containerColor = RecapStart)
                 ) {
                     Icon(Icons.Filled.Email, null, tint = Color.White)
-                    Text("  Envoyer le récap CSV", color = Color.White)
+                    Text("  Envoyer le récap PDF", color = Color.White)
                 }
             }
             }

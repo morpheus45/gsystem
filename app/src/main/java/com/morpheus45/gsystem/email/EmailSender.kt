@@ -72,13 +72,16 @@ object EmailSender {
         subject: String,
         body: String,
         attachment: File? = null,
-        chooserTitle: String = "Envoyer via…"
+        chooserTitle: String = "Envoyer via…",
+        /** Type MIME de la pièce jointe. Défaut CSV (héritage) ; PDF passe
+         *  "application/pdf" pour que l'app mail la reconnaisse correctement. */
+        mimeType: String = "text/csv"
     ) {
         val ccClean = cc.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
 
         val intent = Intent(if (attachment != null) Intent.ACTION_SEND else Intent.ACTION_SENDTO).apply {
             if (attachment != null) {
-                type = "text/csv"
+                type = mimeType
                 val uri = FileProvider.getUriForFile(
                     context, "${context.packageName}.fileprovider", attachment
                 )
