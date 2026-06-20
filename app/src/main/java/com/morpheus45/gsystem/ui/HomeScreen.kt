@@ -15,12 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.Outbox
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
@@ -176,7 +176,7 @@ fun HomeScreen(
                     number = "01",
                     label = "CLÔTURE",
                     sub = "Clôture d'intervention",
-                    icon = Icons.Outlined.AccessTime,
+                    icon = Icons.Outlined.Assignment,
                     gradientStart = TempsStart,
                     gradientEnd = TempsEnd,
                     accent = TempsAccent,
@@ -190,7 +190,7 @@ fun HomeScreen(
                     number = "02",
                     label = "ATTENTE CLIENT",
                     sub = "Viber heure début · rappel /15 min",
-                    icon = Icons.Outlined.HourglassEmpty,
+                    icon = Icons.Outlined.Timer,
                     gradientStart = AttenteStart,
                     gradientEnd = AttenteEnd,
                     accent = AttenteAccent,
@@ -242,7 +242,7 @@ fun HomeScreen(
                     number = "06",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
-                    icon = Icons.Outlined.Send,
+                    icon = Icons.Outlined.Outbox,
                     gradientStart = EnvoiStart,
                     gradientEnd = EnvoiEnd,
                     accent = EnvoiAccent,
