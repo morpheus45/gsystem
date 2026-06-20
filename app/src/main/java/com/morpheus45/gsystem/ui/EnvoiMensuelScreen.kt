@@ -35,7 +35,6 @@ import com.morpheus45.gsystem.excel.ExcelFiller
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.export.PdfExporter
-import com.morpheus45.gsystem.util.FraisTva
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -415,15 +414,6 @@ fun EnvoiMensuelScreen(
                                 settings.effectiveGsCc2,
                                 settings.emailMoi
                             )
-                            // Version HTML (tableaux) — affichée par les clients qui gèrent
-                            // EXTRA_HTML_TEXT ; sinon repli sur `body` texte propre ci-dessous.
-                            val htmlBody = buildMonthlyHtml(
-                                settings, start, end,
-                                tempsPeriod.size, tempsByType,
-                                fraisPeriod, totalFraisMontant,
-                                compteurPeriod.size,
-                                primesByType, totalPrimes, totalExtensions
-                            )
                             // Récap visuel joint en PDF : rendu fiable et lisible partout
                             // (en-tête, répartition TEMPS, tableaux frais + primes), ouvrable
                             // directement sans navigateur — remplace l'ancien fichier .html.
@@ -442,57 +432,11 @@ fun EnvoiMensuelScreen(
                                 to = settings.effectiveGsTo,
                                 cc = ccList,
                                 subject = "FEUILLES DE TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
-                                htmlBody = htmlBody,
                                 body = buildString {
                                     append("Bonjour,\n\n")
-                                    append("Envoi mensuel pour la période ${DateUtil.fr(start)} -> ${DateUtil.fr(end)}.\n\n")
-                                    append("Récap :\n")
-                                    append("  - Feuille TEMPS : ${tempsPeriod.size} interventions\n")
-                                    append("  - Tickets de frais : ${fraisPeriod.size} (%.2f €)\n".format(totalFraisMontant))
-                                    append("  - Photos compteur : ${compteurPeriod.size}\n")
-                                    append("  - Primes GESTE CO : %d ext. (%.2f €)\n".format(totalExtensions, totalPrimes))
-                                    if (settings.plaqueVoiture.isNotBlank())
-                                        append("  - Véhicule : ${settings.plaqueVoiture}\n")
-                                    if (tempsByType.isNotEmpty()) {
-                                        // Liste simple « TYPE : nb (pct%) » — pas de barres ASCII
-                                        // (illisibles en police proportionnelle des clients mail).
-                                        append("\nRépartition TEMPS (${tempsPeriod.size} interv.) :\n")
-                                        tempsByType.forEach { (type, count) ->
-                                            val pct = 100.0 * count / tempsPeriod.size
-                                            append("%s : %d (%.0f%%)\n".format(type, count, pct))
-                                        }
-                                    }
-                                    if (fraisPeriod.isNotEmpty()) {
-                                        // Une ligne courte par ticket (TTC) ; le détail HT/TVA
-                                        // est regroupé dans le TOTAL (lisible sur écran étroit).
-                                        append("\nFrais (TVA calculée auto) :\n")
-                                        fraisPeriod.forEach { t ->
-                                            val cat = t.categorie.ifBlank { "DIVERS" }
-                                            append("%s %s : %.2f €\n".format(t.date, cat, t.montantEur))
-                                        }
-                                        val totalHt = fraisPeriod.sumOf {
-                                            FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
-                                        val totalTva = fraisPeriod.sumOf {
-                                            FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
-                                        append("TOTAL : %.2f € TTC\n".format(totalFraisMontant))
-                                        append("(HT %.2f € · TVA %.2f €)\n".format(totalHt, totalTva))
-                                    }
-                                    // Récap PRIMES GESTE CO : même format que la répartition
-                                    // TEMPS (libellé · barre proportionnelle au montant € · nb × tarif),
-                                    // suivi du total des primes de la période.
-                                    if (primesByType.isEmpty()) {
-                                        append("\nPrimes GESTE CO : aucune extension installée sur la période.\n")
-                                    } else {
-                                        append("\nPrimes GESTE CO ($totalExtensions ext. · ${primesByType.size} types) :\n")
-                                        primesByType.forEach { (type, n, eur) ->
-                                            val unit = settings.prices.priceFor(type)
-                                            append("%s : %d × %.2f € = %.2f €\n".format(type, n, unit, eur))
-                                        }
-                                        append("TOTAL PRIMES : %.2f €\n".format(totalPrimes))
-                                    }
-                                    append("\nRécap visuel détaillé en pièce jointe : « Recap-mensuel_${start}.pdf ».\n")
-                                    append("\nPièces jointes : Excel TEMPS + photos + récap PDF.\n\n")
-                                    append("Cordialement,\n${settings.nomUtilisateur}")
+                                    append("Veuillez trouver ci-joint, pour la période du ${DateUtil.fr(start)} au ${DateUtil.fr(end)} :\n\n")
+                                    attachments.forEach { append("  - ${it.name}\n") }
+                                    append("\nCordialement,\n${settings.nomUtilisateur}")
                                 },
                                 attachments = attachments,
                                 mimeType = "*/*"
@@ -549,98 +493,6 @@ private fun StatRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, fontSize = 13.sp)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-/**
- * Construit la version HTML (tableaux) du mail mensuel. Affichée par les clients
- * qui gèrent EXTRA_HTML_TEXT ; les autres retombent sur la version texte brut.
- * Styles 100 % inline (les blocs <style> sont retirés par la plupart des clients).
- */
-private fun buildMonthlyHtml(
-    settings: AppSettings,
-    start: LocalDate,
-    end: LocalDate,
-    tempsCount: Int,
-    tempsByType: List<Pair<String, Int>>,
-    fraisPeriod: List<com.morpheus45.gsystem.data.FraisTicket>,
-    totalFraisMontant: Double,
-    compteurCount: Int,
-    primesByType: List<Triple<String, Int, Double>>,
-    totalPrimes: Double,
-    totalExtensions: Int
-): String {
-    val hCell  = "padding:6px 10px;background:#2b2d33;color:#ffffff;font-size:13px;text-align:left"
-    val hCellR = "padding:6px 10px;background:#2b2d33;color:#ffffff;font-size:13px;text-align:right"
-    val cell   = "padding:5px 10px;border-bottom:1px solid #eeeeee"
-    val cellR  = "padding:5px 10px;border-bottom:1px solid #eeeeee;text-align:right"
-    val tbl    = "border-collapse:collapse;margin:0 0 16px 0"
-    fun money(d: Double) = "%.2f €".format(d)
-    return buildString {
-        append("<div style=\"font-family:Arial,Helvetica,sans-serif;color:#2b2d33;font-size:14px;line-height:1.5\">")
-        append("<div style=\"font-size:22px;font-weight:bold;margin:0 0 12px 0\">")
-        append("<span style=\"color:#ee2322\">g</span>systems</div>")
-        append("<p>Bonjour,</p>")
-        append("<p>Envoi mensuel pour la période <b>${DateUtil.fr(start)} &rarr; ${DateUtil.fr(end)}</b>.</p>")
-        append("<p style=\"margin:0 0 4px 0\"><b>Récap</b></p><ul style=\"margin:0 0 16px 0;padding-left:18px\">")
-        append("<li>Feuille TEMPS : $tempsCount interventions</li>")
-        append("<li>Tickets de frais : ${fraisPeriod.size} (${money(totalFraisMontant)})</li>")
-        append("<li>Photos compteur : $compteurCount</li>")
-        if (settings.plaqueVoiture.isNotBlank()) append("<li>Véhicule : ${settings.plaqueVoiture}</li>")
-        append("</ul>")
-        if (tempsByType.isNotEmpty()) {
-            // Graphe à barres multicolore (1 couleur/type, palette des tuiles de l'app).
-            // Barres = <div> coloré à largeur px dans une cellule → email-safe (Gmail/Outlook).
-            val palette = listOf(
-                "#ee2322", "#2563eb", "#10b981", "#f59e0b",
-                "#7c3aed", "#06b6d4", "#ea580c", "#db2777"
-            )
-            val maxCount = tempsByType.maxOf { it.second }
-            append("<p style=\"margin:0 0 4px 0\"><b>Répartition TEMPS</b> ($tempsCount interv.)</p>")
-            append("<table style=\"border-collapse:collapse;width:100%;margin:0 0 16px 0;font-size:13px\">")
-            tempsByType.forEachIndexed { i, pair ->
-                val type = pair.first
-                val count = pair.second
-                val pct = 100.0 * count / tempsCount
-                val w = (count.toDouble() / maxCount * 170).toInt().coerceAtLeast(6)
-                val color = palette[i % palette.size]
-                append("<tr>")
-                append("<td style=\"padding:4px 8px 4px 0;white-space:nowrap\">$type</td>")
-                append("<td style=\"padding:4px 0;width:100%\"><div style=\"background:$color;height:13px;width:${w}px\"></div></td>")
-                append("<td style=\"padding:4px 0 4px 8px;white-space:nowrap;text-align:right\">$count &middot; ${"%.0f%%".format(pct)}</td>")
-                append("</tr>")
-            }
-            append("</table>")
-        }
-        if (fraisPeriod.isNotEmpty()) {
-            append("<p style=\"margin:0 0 4px 0\"><b>Frais</b> (TVA calculée auto)</p>")
-            append("<table style=\"$tbl\"><tr><th style=\"$hCell\">Date</th><th style=\"$hCell\">Type</th><th style=\"$hCellR\">TTC</th><th style=\"$hCellR\">HT</th><th style=\"$hCellR\">TVA</th></tr>")
-            fraisPeriod.forEach { t ->
-                val cat = t.categorie.ifBlank { "DIVERS" }
-                val ht = FraisTva.htFromTtc(t.montantEur, cat)
-                val tva = FraisTva.tvaFromTtc(t.montantEur, cat)
-                append("<tr><td style=\"$cell\">${t.date}</td><td style=\"$cell\">$cat</td><td style=\"$cellR\">${money(t.montantEur)}</td><td style=\"$cellR\">${money(ht)}</td><td style=\"$cellR\">${money(tva)}</td></tr>")
-            }
-            val totalHt = fraisPeriod.sumOf { FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
-            val totalTva = fraisPeriod.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
-            append("<tr><td style=\"$cell\" colspan=\"2\"><b>TOTAL</b></td><td style=\"$cellR\"><b>${money(totalFraisMontant)}</b></td><td style=\"$cellR\">${money(totalHt)}</td><td style=\"$cellR\">${money(totalTva)}</td></tr>")
-            append("</table>")
-        }
-        if (primesByType.isNotEmpty()) {
-            append("<p style=\"margin:0 0 4px 0\"><b>Primes GESTE CO</b> ($totalExtensions ext.)</p>")
-            append("<table style=\"$tbl\"><tr><th style=\"$hCell\">Type</th><th style=\"$hCellR\">Nb</th><th style=\"$hCellR\">Tarif</th><th style=\"$hCellR\">Total</th></tr>")
-            primesByType.forEach { (type, n, eur) ->
-                val unit = settings.prices.priceFor(type)
-                append("<tr><td style=\"$cell\">$type</td><td style=\"$cellR\">$n</td><td style=\"$cellR\">${money(unit)}</td><td style=\"$cellR\">${money(eur)}</td></tr>")
-            }
-            append("<tr><td style=\"$cell\" colspan=\"3\"><b>TOTAL PRIMES</b></td><td style=\"$cellR\"><b>${money(totalPrimes)}</b></td></tr>")
-            append("</table>")
-        } else {
-            append("<p>Primes GESTE CO : aucune extension installée sur la période.</p>")
-        }
-        append("<p>Pièces jointes : Excel TEMPS + photos.</p>")
-        append("<p>Cordialement,<br>${settings.nomUtilisateur}</p>")
-        append("</div>")
     }
 }
 

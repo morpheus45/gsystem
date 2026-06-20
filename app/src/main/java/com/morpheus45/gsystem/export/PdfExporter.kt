@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.FraisTicket
@@ -168,7 +169,6 @@ object PdfExporter {
         val pHead = paint(GREY_TXT, 9f, bold = true)
         val pCell = paint(Color.BLACK, 10f)
         val pCellB = paint(Color.BLACK, 11f, bold = true)
-        val pSmall = paint(GREY_TXT, 9f)
         val pLine = Paint().apply { color = GREY_LINE; strokeWidth = 0.7f }
 
         // En-tête (wordmark gsystems : g rouge + systems noir)
@@ -186,23 +186,19 @@ object PdfExporter {
             b.text("• Véhicule : ${settings.plaqueVoiture}", pCell, gapBefore = 2f)
         b.space(14f)
 
-        // Répartition TEMPS (barres colorées)
+        // Répartition TEMPS (camembert + légende, comme l'écran RÉCAP)
         if (tempsByType.isNotEmpty()) {
             b.text("RÉPARTITION TEMPS ($tempsCount interv.)", pSection, gapBefore = 2f)
             val palette = intArrayOf(
-                Color.rgb(0xEE, 0x23, 0x22), Color.rgb(0x25, 0x63, 0xEB),
-                Color.rgb(0x10, 0xB9, 0x81), Color.rgb(0xF5, 0x9E, 0x0B),
-                Color.rgb(0x7C, 0x3A, 0xED), Color.rgb(0x06, 0xB6, 0xD4),
-                Color.rgb(0xEA, 0x58, 0x0C), Color.rgb(0xDB, 0x27, 0x77)
+                Color.rgb(0x25, 0x63, 0xEB), Color.rgb(0x10, 0xB9, 0x81),
+                Color.rgb(0xEF, 0x44, 0x44), Color.rgb(0xF5, 0x9E, 0x0B),
+                Color.rgb(0x7C, 0x3A, 0xED), Color.rgb(0x22, 0xC5, 0x5E),
+                Color.rgb(0x06, 0xB6, 0xD4), Color.rgb(0xDB, 0x27, 0x77)
             )
-            val maxCount = tempsByType.maxOf { it.second }
-            b.space(4f)
-            tempsByType.forEachIndexed { i, (type, count) ->
-                val pct = 100.0 * count / tempsCount
-                val w = (count.toDouble() / maxCount * 220).toFloat().coerceAtLeast(6f)
-                b.barRow(type, pCell, w, palette[i % palette.size],
-                    "$count · ${"%.0f%%".format(pct)}", pSmall, gapBefore = 3f)
+            val pieData = tempsByType.mapIndexed { i, (type, count) ->
+                Triple(type, count, palette[i % palette.size])
             }
+            b.pie(pieData, tempsCount, pCell, gapBefore = 8f)
             b.space(14f)
         }
 
@@ -339,18 +335,39 @@ private class PdfBuilder(private val doc: PdfDocument) {
         canvas.drawText(b, MARGIN + ap.measureText(a), y, bp)
     }
 
-    /** Ligne « libellé · barre colorée · valeur » (graphe de répartition). */
-    fun barRow(label: String, labelPaint: Paint, barW: Float, barColor: Int,
-               value: String, valuePaint: Paint, gapBefore: Float = 0f) {
-        val h = 12f
+    /**
+     * Camembert + légende (répartition). `data` = liste (libellé, valeur, couleur).
+     * Le disque est dessiné à gauche, la légende « libellé  nb (pct%) » à droite.
+     */
+    fun pie(data: List<Triple<String, Int, Int>>, total: Int, legendPaint: Paint, gapBefore: Float = 0f) {
+        if (total <= 0 || data.isEmpty()) return
+        val size = 132f
         y += gapBefore
-        ensure(h + 4f)
-        y += h
-        canvas.drawText(label, MARGIN, y, labelPaint)
-        val barX = MARGIN + 80f
-        val bp = Paint().apply { color = barColor; isAntiAlias = true }
-        canvas.drawRect(barX, y - h + 1f, barX + barW, y, bp)
-        canvas.drawText(value, PAGE_W - MARGIN - valuePaint.measureText(value), y, valuePaint)
+        val legendH = data.size * (legendPaint.textSize + 7f)
+        ensure(maxOf(size, legendH) + 6f)
+        val top = y
+        val left = MARGIN + 6f
+        val rect = RectF(left, top, left + size, top + size)
+        val arc = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+        var start = -90f
+        for ((_, count, color) in data) {
+            val sweep = 360f * count / total
+            arc.color = color
+            canvas.drawArc(rect, start, sweep, true, arc)
+            start += sweep
+        }
+        // Légende à droite du disque
+        val lx = left + size + 26f
+        var ly = top + legendPaint.textSize + 2f
+        val sw = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+        for ((label, count, color) in data) {
+            sw.color = color
+            canvas.drawRect(lx, ly - legendPaint.textSize + 2f, lx + 11f, ly + 1f, sw)
+            val pct = 100.0 * count / total
+            canvas.drawText("$label   $count (${"%.0f%%".format(pct)})", lx + 17f, ly, legendPaint)
+            ly += legendPaint.textSize + 7f
+        }
+        y = maxOf(top + size, ly) + 2f
     }
 
     fun hline(paint: Paint) {
