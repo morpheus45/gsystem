@@ -411,51 +411,41 @@
   <!-- ============ UTILISATION ============ -->
   <h2><span class="num">5</span>Utilisation quotidienne</h2>
 
-  <p>L'écran d'accueil te montre <b>9 tuiles</b> (depuis v0.17.0, chacune avec sa propre couleur et un compteur en direct du nombre d'entrées du mois). Voici à quoi sert chacune :</p>
+  <p>L'écran d'accueil te montre <b>7 tuiles</b> (chacune avec sa couleur et un compteur en direct du nombre d'entrées du mois). <b>Depuis la v1.7.0, GSM SEUL et GESTE CO ne sont plus des tuiles séparées</b> : ils se saisissent directement dans la <b>CLÔTURE</b> d'une installation (voir focus plus bas). Voici à quoi sert chaque tuile :</p>
 
   <div class="features">
     <div class="feature">
       <span class="ic" style="background:#7c3aed">01</span>
       <b>CLÔTURE</b>
-      Saisie d'une intervention (date, dept, type, client, ville, n°, OK/NR/Annulé…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé prêt à envoyer au groupe.
+      Saisie d'une intervention (date, dept, type, client, ville, n°, OK/NR/Annulé…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé. <b>Pour une installation (Type = INST)</b>, le formulaire affiche en plus le <b>N° de site</b> + les sections <b>GESTE CO</b> (extensions) et <b>GSM seul</b> — tout au même endroit (focus plus bas).
     </div>
     <div class="feature">
-      <span class="ic" style="background:#14b8a6">02</span>
+      <span class="ic" style="background:#8a5cf6">02</span>
       <b>ATTENTE CLIENT</b>
       Un appui = Viber s'ouvre avec la <b>procédure + l'heure de début</b> (générée au clic), prêt à envoyer au groupe. Un rappel s'affiche pour toi : appeler toutes les 15 minutes jusqu'au départ validé par la techline <b>03.88.39.88.94</b> (CHOIX 2 PUIS 3) — ce rappel n'est pas envoyé dans le message.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#4f46e5">03</span>
+      <span class="ic" style="background:#6366f1">03</span>
       <b>COURRIER</b>
       Un appui = Viber s'ouvre avec le message « courrier ok » déjà tapé, prêt à envoyer au groupe. Pour signaler le passage du courrier sans rien saisir.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#06b6d4">04</span>
-      <b>GSM SEUL</b>
-      Une installation GSM uniquement = un email immédiat (sujet <code>GSM SEUL - ISTGSXXX - n°site</code>, destinataire + 2 copies).
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#10b981">05</span>
-      <b>GESTE CO</b>
-      Tableau "Installé / GESTE CO" par type (GSM, CO, DMP, SE…). L'app vérifie les règles automatiquement (4,50 € max, moitié max…). Dérogation EPS dispo.
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#f59e0b">06</span>
+      <span class="ic" style="background:#3b82f6">04</span>
       <b>RÉCAP GESTE CO</b>
       Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#ea580c">07</span>
+      <span class="ic" style="background:#06b6d4">05</span>
       <b>TICKETS DE FRAIS</b>
       Tape "Prendre photo" pour chaque ticket (parking, divers…). Saisis le montant TTC. L'app calcule la TVA et le HT automatiquement. À la fin, "Envoyer le lot" = tous les tickets + le récap TVA dans un mail.
     </div>
     <div class="feature">
-      <span class="ic" style="background:#2563eb">08</span>
+      <span class="ic" style="background:#14b8a6">06</span>
       <b>COMPTEUR VOITURE</b>
       Photo du compteur. Auto-nommé avec ta plaque + le mois (<code>AB-123-CD-05-2026.jpg</code>). Envoi par email d'un clic — le kilométrage est lu directement sur la photo.
     </div>
-    <div class="feature" style="grid-column: 1 / -1; background:#fdf2f8">
-      <span class="ic" style="background:#db2777">09</span>
+    <div class="feature" style="grid-column: 1 / -1; background:#f0fdf4">
+      <span class="ic" style="background:#22c55e">07</span>
       <b>ENVOI MENSUEL — le gros bouton</b>
       Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint toutes les photos de tickets + compteur</b>, et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile dans les 3 derniers jours du cycle pour te rappeler que la clôture approche.
       <br><br><b>⚠ La photo du compteur est obligatoire</b> : tant que tu n'as pas pris la photo du compteur (tuile <b>COMPTEUR</b>) sur la période, le bouton d'envoi reste <b>bloqué</b>. La photo est jointe et nommée automatiquement, tu n'as rien à écrire dessus.
@@ -471,7 +461,7 @@
   <!-- ============ FOCUS GESTE CO ============ -->
   <div class="card" style="margin-top:18px; border-left:4px solid #10b981; background:var(--success-bg)">
     <p style="font-size:16px; margin:0 0 8px 0"><b>🎁 GESTE CO · « Installé » vs « GESTE CO » (À BIEN COMPRENDRE)</b></p>
-    <p style="margin:0 0 8px 0">Dans le tableau, deux colonnes par type (GSM, CO, DMP, SE…) :</p>
+    <p style="margin:0 0 8px 0"><b>Depuis la v1.7.0, GESTE CO se saisit dans la CLÔTURE d'une installation</b> (Type = INST → active la section « Extensions installées (GESTE CO) », renseigne le N° de site). Dans le tableau, deux colonnes par type (GSM, CO, DMP, SE… jusqu'à SONDE IN) :</p>
     <ul style="margin:0 0 8px 0">
       <li><b>Installé</b> = tout ce que tu as posé sur le site. <b>C'est CETTE colonne qui compte tes primes.</b></li>
       <li><b>GESTE CO</b> = ce que tu offres au client (sous-ensemble des installées) → c'est ce qui part dans le mail client.</li>
@@ -494,12 +484,14 @@
         </ul>
         <span style="font-size:13px; color:var(--muted)">(Pour <b>VACANCES / FORMATION / FÉRIÉ</b>, l'app passe en « journée 7h » et ne demande ni client ni n° — pas de Viber.)</span>
       </li>
+      <li><b>Installation (Type = INST) ?</b> Le formulaire affiche en plus le <b>N° de site</b> (obligatoire) et deux sections facultatives : <b>Extensions installées (GESTE CO)</b> (tableau 12 types, règles vérifiées automatiquement) et <b>GSM seul</b> (3 cases). Active et remplis selon le chantier.</li>
       <li>En bas du formulaire, <b>vérifie l'aperçu du message Viber</b> :
         <div class="mock">Message Viber qui sera pré-rempli :
 34 inst durand sète 43001714 ok</div>
       </li>
-      <li>Tape le bouton <b>« Enregistrer &amp; Viber »</b>.</li>
+      <li>Tape le bouton <b>« Enregistrer »</b> (le Viber part automatiquement).</li>
       <li>Le sélecteur Android s'ouvre → choisis <b>Viber</b> → sélectionne le <b>groupe</b> → tape <b>Envoyer</b>.</li>
+      <li><b>Pour une installation</b>, un dialogue <b>« Envois EPS »</b> apparaît ensuite : tape <b>Envoyer mail GESTE CO</b> et/ou <b>Envoyer mail GSM SEUL</b> (chacun ouvre ton appli mail), puis <b>Terminé</b>.</li>
       <li>✅ C'est clôturé : l'intervention apparaît dans l'historique et compte dans tes <b>heures auto</b> du jour.</li>
     </ol>
     <p style="margin:0 0 6px 0"><b>À quoi ressemble le formulaire</b> (exemple) :</p>
@@ -512,9 +504,11 @@
  N° interv. *  43001714
  Observation   OK  ▾
  Note libre    (optionnel)
- [   Enregistrer & Viber   ]
+ N° de site *  12345        (si INST)
+ [GESTE CO ▸] [GSM seul ▸]  (si INST)
+ [        Enregistrer        ]
 └─────────────────────────────────┘</div>
-    <p style="margin:8px 0 0 0; font-size:13px; color:var(--muted)">📷 <i>Les captures d'écran réelles seront ajoutées ici une fois la prochaine version (clôture unifiée) installée et validée.</i></p>
+    <p style="margin:8px 0 0 0; font-size:13px; color:var(--muted)">📷 <i>La clôture unifiée est en ligne (v1.7.0). Envoie-moi tes captures d'écran de chaque étape et je les intègre ici à la place de l'écran stylisé.</i></p>
   </div>
 
   <!-- ============ ALGORITHME HEURES ============ -->

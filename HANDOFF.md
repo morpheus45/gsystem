@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 18 juin 2026 · Version actuelle : **v1.6.0** (versionCode 67)
+> Date : 20 juin 2026 · Version actuelle : **v1.7.0** (versionCode 68)
 
 ---
 
@@ -10,7 +10,7 @@
 **G-Systems** est une application Android (Kotlin + Jetpack Compose) pour
 techniciens d'alarme/sécurité électronique. Elle remplace 4 outils
 manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
-9 tuiles**.
+7 tuiles**.
 
 - **Repo GitHub** : <https://github.com/morpheus45/gsystem>
 - **Tutoriel tech** : <https://morpheus45.github.io/gsystem/>
@@ -20,23 +20,32 @@ manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
 
 ---
 
-## 2. Les 9 tuiles de l'accueil
+## 2. Les 7 tuiles de l'accueil
+
+Palette continue **violet → vert** (v1.7.0, effet « waterfall » : chaque tuile
+finit sur la couleur de départ de la suivante ; CLÔTURE reste l'ancrage violet).
+Chaque écran reprend la couleur de sa tuile (RÉCAP bleu, FRAIS cyan, COMPTEUR
+teal, ENVOI vert). Valeurs dans `theme/Color.kt`.
 
 | N° | Tuile | Couleur | Rôle |
 |---|---|---|---|
-| 01 | **CLÔTURE** | violet `#7C3AED` | Clôture d'intervention, feuille de temps, Viber auto (route `temps`) |
-| 02 | **ATTENTE CLIENT** | teal `#14B8A6` | 1 appui → Toast consigne perso (appels /15 min, techline) + partage Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
-| 03 | **COURRIER** | indigo `#4F46E5` | 1 appui → partage Viber « courrier ok » (aucune saisie) |
-| 04 | **GSM SEUL** | cyan `#06B6D4` | 1 site → 1 email immédiat |
-| 05 | **GESTE CO** | émeraude `#10B981` | Site + extensions, primes + geste co client |
-| 06 | **RÉCAP** | ambre `#F59E0B` | Cumul cycle + total € |
-| 07 | **FRAIS** | orange `#EA580C` | Photos tickets + montant TTC + TVA auto + envoi lot |
-| 08 | **COMPTEUR** | bleu `#2563EB` | Photo kilométrique véhicule |
-| 09 | **ENVOI MENSUEL** | magenta `#DB2777` | Excel .xlsm + tickets + compteur en 1 mail |
+| 01 | **CLÔTURE** | violet `#7C3AED` | Intervention + Viber. **Pour une INST** : N° de site + sections **GESTE CO** (tableau 12 types) et **GSM seul** inline, puis dialogue « Envois EPS » (mails) |
+| 02 | **ATTENTE CLIENT** | violet clair `#8A5CF6` | Toast consigne perso (appels /15 min, techline) + Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
+| 03 | **COURRIER** | indigo `#6366F1` | 1 appui → Viber « courrier ok » |
+| 04 | **RÉCAP** | bleu `#3B82F6` | Cumul cycle GESTE CO + primes + total € |
+| 05 | **FRAIS** | cyan `#06B6D4` | Photos tickets + TTC + TVA auto + envoi lot |
+| 06 | **COMPTEUR** | teal `#14B8A6` | Photo kilométrique véhicule |
+| 07 | **ENVOI MENSUEL** | vert `#22C55E` | Excel .xlsm + tickets + compteur + récap en 1 mail |
 
-Le pip rose pulsant apparaît sur **09 ENVOI MENSUEL** dans les **3 derniers
-jours du cycle** (`endOfCycleApproaching`, basé sur `cycleEnd` et non plus un
-seuil fixe au 18).
+> **GSM SEUL et GESTE CO ne sont plus des tuiles** (v1.7.0) : fusionnés dans la
+> CLÔTURE d'une installation. Mails/Viber **identiques** (code réutilisé). Les
+> fichiers `GsmSeulScreen`/`GesteCoScreen` subsistent : leurs dialogues +
+> `sendGsmEmail`/`sendGesteCoEmail` (passés `internal`) sont réutilisés par
+> `InstallExtras.kt` (état + sections inline de la clôture). Le composable public
+> de chaque écran est devenu du code mort (plus de route).
+
+Le pip rose pulsant apparaît sur **07 ENVOI MENSUEL** dans les **3 derniers
+jours du cycle** (`endOfCycleApproaching`, basé sur `cycleEnd`).
 
 > **ATTENTE CLIENT (02)** et **COURRIER (03)** n'ouvrent pas d'écran : leur
 > `onClick` (dans `MainActivity`) déclenche directement un partage Viber.
@@ -94,7 +103,8 @@ app/src/main/
 │   │                                  share(context, message) + attenteClientMessage()
 │   │                                  + ATTENTE_RAPPEL_TECH (Toast consigne perso)
 │   ├── ui/
-│   │   ├── HomeScreen.kt            ← 9 tuiles, data live, footer
+│   │   ├── HomeScreen.kt            ← 7 tuiles, data live, footer
+│   │   ├── InstallExtras.kt         ← sections GESTE CO + GSM inline de la clôture INST
 │   │   ├── TempsScreen.kt           ← Formulaire intervention + période éditable
 │   │   ├── GsmSeulScreen.kt
 │   │   ├── GesteCoScreen.kt
@@ -123,7 +133,7 @@ app/src/main/assets/bon_retour/      ← ⚠ ORPHELIN : assets de l'ancienne PWA
 
 docs/
 ├── index.html                       ← Tutoriel GitHub Pages (logo gsystems SVG,
-│                                      9 tuiles à jour, focus COURRIER)
+│                                      7 tuiles à jour, clôture unifiée)
 └── ROLLBACK_v0.13.14.md
 
 design/                              ← Artefacts design
@@ -262,7 +272,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.6.0
+## 9. État actuel — v1.7.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -344,8 +354,19 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
   par la techline) puis partage Viber `attenteClientMessage()` (« PROCÉDURE ATTENTE
   CLIENT · Début : HHhMM », heure figée au clic). Tuiles renumérotées (9 au total ;
   COURRIER → 03 … ENVOI MENSUEL → 09). Couleurs `Attente*` dans `theme/Color.kt`.
+- **v1.7.0** (cette session) : **CLÔTURE UNIFIÉE** — GSM SEUL et GESTE CO retirés
+  de l'accueil (9 → 7 tuiles) et **fusionnés dans la CLÔTURE d'une INST** : sections
+  inline (tableau GESTE CO 12 types + dérogation + prime ; 3 toggles GSM seul) +
+  **N° de site + N° intervention obligatoires** ; au Clôturer, dialogue « Envois EPS »
+  pour déclencher les mails. Code isolé dans `InstallExtras.kt`, réutilise
+  `ExtRow`/`MAX_GIFT_EUR` + `sendGesteCoEmail`/`sendGsmEmail` (`internal`) → Viber +
+  mails + RÉCAP + ENVOI MENSUEL + remplissage Excel **strictement inchangés**.
+  Bouton « Enregistrer » raccourci (débordait). **Palette continue violet → vert**
+  (waterfall) + chaque écran assorti à la couleur de sa tuile.
+  ⚠ `assets/bon_retour/` toujours orphelin ; composables `GsmSeulScreen`/`GesteCoScreen`
+  devenus du code mort (dialogues/senders réutilisés, mais plus de route).
 
-### Pas encore fait (idées v1.7+)
+### Pas encore fait (idées v1.8+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
