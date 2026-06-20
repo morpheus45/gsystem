@@ -1,7 +1,20 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 20 juin 2026 · Version actuelle : **v1.8.2** (versionCode 71)
+> Date : 20 juin 2026 · Version actuelle : **v1.8.4** (versionCode 73)
+>
+> **v1.8.4 — récaps en PDF.** Nouveau `export/PdfExporter.kt` (rendu via
+> `android.graphics.pdf.PdfDocument`, pagination auto, aucune dépendance) :
+> `exportGesteCo` (le bouton RÉCAP envoie un PDF au lieu du CSV) et
+> `exportMonthlyRecap` (la pièce jointe `Recap-mensuel_*.html` de l'ENVOI MENSUEL
+> devient un PDF lisible : en-tête, répartition TEMPS en barres, tableaux frais +
+> primes). `EmailSender.send` a un paramètre `mimeType` (défaut `text/csv`). Le
+> corps HTML inline (EXTRA_HTML_TEXT) du mensuel est conservé. Mêmes données et
+> mêmes destinataires/sujets.
+>
+> **v1.8.3 — typo sur une ligne.** `theme/Type.kt` : `titleLarge` 26→19 sp (titres
+> de barre) et `labelLarge` 22→14 sp (boutons Material3), + `maxLines=1` sur les
+> titres des 5 écrans actifs. Tuiles d'accueil inchangées (`displayLarge`/`labelMedium`).
 >
 > **v1.8.2 — restyle « écran réel » des formulaires.** Briques partagées dans
 > `ui/FormStyle.kt` : `FormHeaderBar` (bandeau d'en-tête plein, couleur de la
