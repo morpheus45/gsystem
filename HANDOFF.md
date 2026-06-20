@@ -1,7 +1,7 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 20 juin 2026 · Version actuelle : **v1.7.0** (versionCode 68)
+> Date : 20 juin 2026 · Version actuelle : **v1.8.0** (versionCode 69)
 
 ---
 
@@ -10,7 +10,7 @@
 **G-Systems** est une application Android (Kotlin + Jetpack Compose) pour
 techniciens d'alarme/sécurité électronique. Elle remplace 4 outils
 manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
-7 tuiles**.
+6 tuiles**.
 
 - **Repo GitHub** : <https://github.com/morpheus45/gsystem>
 - **Tutoriel tech** : <https://morpheus45.github.io/gsystem/>
@@ -20,7 +20,7 @@ manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
 
 ---
 
-## 2. Les 7 tuiles de l'accueil
+## 2. Les 6 tuiles de l'accueil
 
 Palette continue **violet → vert** (v1.7.0, effet « waterfall » : chaque tuile
 finit sur la couleur de départ de la suivante ; CLÔTURE reste l'ancrage violet).
@@ -34,8 +34,7 @@ teal, ENVOI vert). Valeurs dans `theme/Color.kt`.
 | 03 | **COURRIER** | indigo `#6366F1` | 1 appui → Viber « courrier ok » |
 | 04 | **RÉCAP** | bleu `#3B82F6` | Cumul cycle GESTE CO + primes + total € |
 | 05 | **FRAIS** | cyan `#06B6D4` | Photos tickets + TTC + TVA auto + envoi lot |
-| 06 | **COMPTEUR** | teal `#14B8A6` | Photo kilométrique véhicule |
-| 07 | **ENVOI MENSUEL** | vert `#22C55E` | Excel .xlsm + tickets + compteur + récap en 1 mail |
+| 06 | **ENVOI MENSUEL** | vert `#22C55E` | **Photo compteur (capture inline)** + Excel .xlsm + tickets + récap en 1 mail |
 
 > **GSM SEUL et GESTE CO ne sont plus des tuiles** (v1.7.0) : fusionnés dans la
 > CLÔTURE d'une installation. Mails/Viber **identiques** (code réutilisé). Les
@@ -272,7 +271,7 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-## 9. État actuel — v1.7.0
+## 9. État actuel — v1.8.0
 
 ### Évolutions récentes (juin 2026)
 - **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
@@ -365,8 +364,15 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
   (waterfall) + chaque écran assorti à la couleur de sa tuile.
   ⚠ `assets/bon_retour/` toujours orphelin ; composables `GsmSeulScreen`/`GesteCoScreen`
   devenus du code mort (dialogues/senders réutilisés, mais plus de route).
+- **v1.8.0** (cette session) : **COMPTEUR fusionné dans ENVOI MENSUEL** — section
+  « Photo compteur » + bouton de capture inline dans `EnvoiMensuelScreen` (caméra +
+  permission, réutilise `PhotoStorage.newCompteurFile` ; `repo = EntriesRepository.get`).
+  Tuile COMPTEUR retirée (7 → 6 tuiles, ENVOI → 06) ; `CompteurScreen` orphelin.
+  **Photo toujours obligatoire** (`hasCompteurPhoto` bloque l'envoi) et **renommage
+  `<PLAQUE>-<MM>-<AAAA>.jpg` à l'envoi inchangé**. Fix bouton « Enregistrer » de la
+  clôture (pleine largeur, label visible, Annuler dessous).
 
-### Pas encore fait (idées v1.8+)
+### Pas encore fait (idées v1.9+)
 - [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
 - [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
 - [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
