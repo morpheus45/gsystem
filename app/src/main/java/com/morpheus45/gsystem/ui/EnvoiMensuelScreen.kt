@@ -313,9 +313,11 @@ fun EnvoiMensuelScreen(
                     )
                     Spacer(Modifier.height(6.dp))
                     OutlinedButton(onClick = { startCompteurCapture() },
-                        modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.CameraAlt, null)
-                        Text("  Prendre la photo du compteur")
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = EnvoiColor)) {
+                        Icon(Icons.Filled.CameraAlt, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Photo du compteur", maxLines = 1)
                     }
                     Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le kilométrage est lu directement sur la photo.",
                         fontSize = 11.sp,
@@ -510,8 +512,9 @@ fun EnvoiMensuelScreen(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = EnvoiColor)
             ) {
-                Icon(Icons.Filled.Send, null, tint = Color.White)
-                Text("  Remplir Excel + envoyer le mensuel", color = Color.White, fontSize = 15.sp)
+                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Envoyer le mensuel", color = Color.White, fontSize = 16.sp, maxLines = 1)
             }
             if (working) {
                 Spacer(Modifier.height(8.dp))

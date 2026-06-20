@@ -482,28 +482,39 @@
       <li><b>Installation (Type = INST) ?</b> Le formulaire affiche en plus le <b>N° de site</b> (obligatoire) et deux sections facultatives : <b>Extensions installées (GESTE CO)</b> (tableau 12 types, règles vérifiées automatiquement) et <b>GSM seul</b> (3 cases). Active et remplis selon le chantier.</li>
       <li>En bas du formulaire, <b>vérifie l'aperçu du message Viber</b> :
         <div class="mock">Message Viber qui sera pré-rempli :
-34 inst durand sète 43001714 ok</div>
+34 inst client ville 43001714 ok</div>
       </li>
       <li>Tape le bouton <b>« Enregistrer »</b> (le Viber part automatiquement).</li>
       <li>Le sélecteur Android s'ouvre → choisis <b>Viber</b> → sélectionne le <b>groupe</b> → tape <b>Envoyer</b>.</li>
       <li><b>Pour une installation</b>, un dialogue <b>« Envois EPS »</b> apparaît ensuite : tape <b>Envoyer mail GESTE CO</b> et/ou <b>Envoyer mail GSM SEUL</b> (chacun ouvre ton appli mail), puis <b>Terminé</b>.</li>
       <li>✅ C'est clôturé : l'intervention apparaît dans l'historique et compte dans tes <b>heures auto</b> du jour.</li>
     </ol>
-    <p style="margin:0 0 6px 0"><b>À quoi ressemble le formulaire</b> (exemple) :</p>
-    <div class="mock">┌ Nouvelle intervention ──────────┐
- Date *        2026-06-20
- Type *        INST  ▾
- Département *  34     Créneau * Matin ▾
- Nom client *  DURAND
- Ville *       SÈTE
- N° interv. *  43001714
- Observation   OK  ▾
- Note libre    (optionnel)
- N° de site *  12345        (si INST)
- [GESTE CO ▸] [GSM seul ▸]  (si INST)
- [        Enregistrer        ]
-└─────────────────────────────────┘</div>
-    <p style="margin:8px 0 0 0; font-size:13px; color:var(--muted)">📷 <i>La clôture unifiée est en ligne (v1.7.0). Envoie-moi tes captures d'écran de chaque étape et je les intègre ici à la place de l'écran stylisé.</i></p>
+    <p style="margin:0 0 8px 0"><b>À quoi ressemble le formulaire d'une installation</b> :</p>
+    <div style="background:#1a1a20; border-radius:14px; overflow:hidden; max-width:330px; margin:0 auto; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+      <div style="background:#7C3AED; color:#fff; padding:10px 14px; font-size:15px; font-weight:700;">CLÔTURE</div>
+      <div style="padding:12px 14px; color:#ececf0;">
+        <div style="font-size:10px; color:#9a9aa6; margin-bottom:4px;">Type de mission</div>
+        <div style="margin-bottom:10px;">
+          <span style="background:#7C3AED; color:#fff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:12px;">INSTALL</span>
+          <span style="background:#26262e; color:#9a9aa6; font-size:11px; padding:4px 12px; border-radius:12px;">SAV</span>
+        </div>
+        <div style="display:flex; gap:6px; margin-bottom:8px;">
+          <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">Date</div><div style="font-size:12px;">2026-06-20</div></div>
+          <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">N° interv. *</div><div style="font-size:12px;">43001714</div></div>
+        </div>
+        <div style="background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px; margin-bottom:8px;"><div style="font-size:9px; color:#9a9aa6;">Client · ville *</div><div style="font-size:12px;">client · ville</div></div>
+        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (GESTE CO / GSM)</div><div style="font-size:12px;">12345</div></div>
+        <div style="background:#13251f; border:1px solid #10B981; border-radius:10px; padding:9px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#5eead4;">Extensions installées (GESTE CO)</span><span style="width:30px; height:16px; background:#10B981; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
+          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Tableau 12 types · Installé / GESTE CO · dérogation · prime</div>
+        </div>
+        <div style="background:#0f2025; border:1px solid #06B6D4; border-radius:10px; padding:9px; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#22d3ee;">GSM seul sur ce site</span><span style="width:30px; height:16px; background:#3a3a44; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#9a9aa6; border-radius:50%; position:absolute; top:2px; left:2px;"></span></span></div>
+          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Pas de MEDIAS · Câbles laissés · CPL déjà présent</div>
+        </div>
+        <div style="background:#7C3AED; color:#fff; text-align:center; font-size:14px; font-weight:700; padding:11px; border-radius:11px;">Enregistrer</div>
+      </div>
+    </div>
   </div>
 
   <!-- ============ ALGORITHME HEURES ============ -->
