@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>G-Systems · Installation pour techniciens</title>
-  <meta name="description" content="Tutoriel d'installation pas-à-pas de l'app G-Systems sur téléphone Android." />
+  <title>G-Systems · Guide technicien</title>
+  <meta name="description" content="Guide de démarrage de l'app G-Systems pour les techniciens — simple et visuel." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%23ee2322'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
@@ -29,241 +29,89 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.55;
+      line-height: 1.5;
     }
-    .container {
-      max-width: 740px;
-      margin: 0 auto;
-      padding: 20px 16px 80px;
-    }
-    header {
-      text-align: center;
-      padding-top: 12px;
-      margin-bottom: 24px;
-    }
-    /* Logo animé « Réveil de marque » : le G se dessine, s'embrase,
-       puis « systems » jaillit de la gueule du G. Boucle de respiration. */
-    .brand-logo {
-      width: 260px;
-      max-width: 72%;
-      height: auto;
-      margin-bottom: 14px;
-      overflow: visible;
-    }
+    .container { max-width: 720px; margin: 0 auto; padding: 20px 16px 80px; }
+    header { text-align: center; padding-top: 12px; margin-bottom: 20px; }
+    .brand-logo { width: 240px; max-width: 70%; height: auto; margin-bottom: 12px; overflow: visible; }
     .bl-g {
       fill: none; stroke: #ee2322; stroke-width: 30;
       stroke-linecap: round; stroke-linejoin: round;
       stroke-dasharray: 560; stroke-dashoffset: 560;
-      animation:
-        bl-draw .7s cubic-bezier(.65,0,.35,1) forwards,
-        bl-ignite .5s ease forwards .9s,
-        bl-breathe 2.8s ease-in-out infinite 1.8s;
+      animation: bl-draw .7s cubic-bezier(.65,0,.35,1) forwards,
+        bl-ignite .5s ease forwards .9s, bl-breathe 2.8s ease-in-out infinite 1.8s;
     }
     .bl-word {
       font-family: 'Segoe UI', system-ui, sans-serif;
       font-weight: 600; font-size: 62px; letter-spacing: -1px;
       fill: #2b2d33; opacity: 0;
-      animation:
-        bl-wordin .4s ease forwards .35s,
-        bl-shoot 1.05s cubic-bezier(.5,0,.15,1) forwards 1.3s;
+      animation: bl-wordin .4s ease forwards .35s, bl-shoot 1.05s cubic-bezier(.5,0,.15,1) forwards 1.3s;
     }
     @keyframes bl-draw { to { stroke-dashoffset: 0; } }
-    @keyframes bl-ignite {
-      0%   { stroke: #ee2322; filter: drop-shadow(0 0 0 rgba(238,35,34,0)); }
-      100% { stroke: #ff4338; filter: drop-shadow(0 0 10px rgba(238,35,34,.55)); }
-    }
-    @keyframes bl-breathe {
-      0%,100% { filter: drop-shadow(0 0 6px rgba(238,35,34,.4)); }
-      50%     { filter: drop-shadow(0 0 16px rgba(238,35,34,.75)); }
-    }
+    @keyframes bl-ignite { 0% { stroke: #ee2322; filter: drop-shadow(0 0 0 rgba(238,35,34,0)); } 100% { stroke: #ff4338; filter: drop-shadow(0 0 10px rgba(238,35,34,.55)); } }
+    @keyframes bl-breathe { 0%,100% { filter: drop-shadow(0 0 6px rgba(238,35,34,.4)); } 50% { filter: drop-shadow(0 0 16px rgba(238,35,34,.75)); } }
     @keyframes bl-wordin { to { opacity: 1; } }
-    @keyframes bl-shoot {
-      0%   { transform: translateX(0); }
-      28%  { transform: translateX(-95px); }
-      50%  { transform: translateX(-95px); }
-      82%  { transform: translateX(9px); }
-      100% { transform: translateX(0); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .bl-g { animation: none; stroke-dashoffset: 0; stroke: #ee2322; }
-      .bl-word { animation: none; opacity: 1; }
-    }
-    h1 {
-      margin: 0 0 4px;
-      font-size: 28px;
-      letter-spacing: -.5px;
-    }
-    .subtitle {
-      color: var(--muted);
-      margin: 0;
-      font-size: 14.5px;
-    }
+    @keyframes bl-shoot { 0% { transform: translateX(0); } 28% { transform: translateX(-95px); } 50% { transform: translateX(-95px); } 82% { transform: translateX(9px); } 100% { transform: translateX(0); } }
+    @media (prefers-reduced-motion: reduce) { .bl-g { animation: none; stroke-dashoffset: 0; stroke: #ee2322; } .bl-word { animation: none; opacity: 1; } }
+    .subtitle { color: var(--muted); margin: 0; font-size: 14.5px; }
+
     h2 {
-      margin: 30px 0 12px;
-      font-size: 19px;
-      color: var(--accent);
-      letter-spacing: -.2px;
+      margin: 34px 0 14px; font-size: 20px; color: var(--accent);
+      letter-spacing: -.2px; display: flex; align-items: center; gap: 10px;
     }
-    h2 .num {
-      display: inline-block;
-      width: 28px; height: 28px;
-      background: var(--accent);
-      color: white;
-      border-radius: 50%;
-      text-align: center;
-      line-height: 28px;
-      font-size: 14px;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
+    h2 .ico { font-size: 22px; line-height: 1; }
 
     /* Cartes */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 18px 16px;
-      margin-bottom: 12px;
-    }
-    .card.green {
-      background: var(--success-bg);
-      border-left: 4px solid var(--success);
-      border-radius: 10px;
-    }
-    .card.orange {
-      background: var(--warning-bg);
-      border-left: 4px solid var(--warning);
-      border-radius: 10px;
-    }
-    .card.red {
-      background: var(--danger-bg);
-      border-left: 4px solid var(--danger);
-      border-radius: 10px;
-    }
-    .card.purple {
-      background: var(--accent-soft);
-      border-left: 4px solid var(--accent);
-      border-radius: 10px;
-    }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 12px; }
+    .card.green { background: var(--success-bg); border-left: 4px solid var(--success); border-radius: 10px; }
+    .card.orange { background: var(--warning-bg); border-left: 4px solid var(--warning); border-radius: 10px; }
+    .card.red { background: var(--danger-bg); border-left: 4px solid var(--danger); border-radius: 10px; }
+    .card.purple { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 10px; }
     .card p:first-child { margin-top: 0; }
     .card p:last-child { margin-bottom: 0; }
-    .card ul, .card ol {
-      margin: 6px 0; padding-left: 22px;
-    }
-    .card li { margin: 4px 0; }
-    .card code {
-      background: white;
-      border: 1px solid var(--border);
-      padding: 2px 6px;
-      border-radius: 5px;
-      font-size: 13px;
-      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
-      color: var(--accent);
+    .card ul, .card ol { margin: 6px 0; padding-left: 20px; }
+    .card li { margin: 5px 0; }
+    code {
+      background: #fff; border: 1px solid var(--border); padding: 2px 6px;
+      border-radius: 5px; font-size: 13px;
+      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace; color: var(--accent);
     }
 
-    /* Bouton de téléchargement */
-    .download-card {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 22px 18px;
-      margin-bottom: 20px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,.04);
-    }
+    /* Téléchargement */
+    .download-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 22px 18px; margin-bottom: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
     .download-btn {
-      display: inline-block;
-      width: 100%;
-      max-width: 360px;
-      padding: 17px 24px;
-      background: var(--accent);
-      color: white;
-      text-decoration: none;
-      border-radius: 14px;
-      font-size: 17px;
-      font-weight: 700;
-      box-shadow: 0 3px 10px rgba(91,62,177,.35);
-      transition: transform .08s, box-shadow .08s;
+      display: inline-block; width: 100%; max-width: 360px; padding: 17px 24px;
+      background: var(--accent); color: #fff; text-decoration: none; border-radius: 14px;
+      font-size: 17px; font-weight: 700; box-shadow: 0 3px 10px rgba(91,62,177,.35); transition: transform .08s;
     }
-    .download-btn:active {
-      transform: translateY(1px);
-      box-shadow: 0 1px 5px rgba(91,62,177,.3);
-    }
-    .meta {
-      margin-top: 12px;
-      font-size: 13px;
-      color: var(--muted);
-    }
+    .download-btn:active { transform: translateY(1px); }
+    .meta { margin-top: 12px; font-size: 13px; color: var(--muted); }
     .meta strong { color: var(--accent); font-weight: 700; }
 
-    /* Liste des fonctionnalités (grille) */
-    .features {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin: 12px 0;
-    }
-    .feature {
-      padding: 12px;
-      background: var(--accent-soft);
-      border-radius: 10px;
-      font-size: 13px;
-    }
-    .feature .ic {
-      display: inline-block;
-      width: 28px; height: 28px;
-      border-radius: 8px;
-      margin-bottom: 6px;
-      color: white;
-      text-align: center;
-      font-weight: 700;
-      line-height: 28px;
-      font-size: 12px;
-    }
-    .feature b { display: block; margin: 2px 0 4px; color: var(--text); font-size: 14px; }
+    /* Étapes numérotées */
+    .steps { display: grid; gap: 12px; margin: 14px 0; }
+    .step { display: flex; gap: 14px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; align-items: flex-start; }
+    .step .n { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .step .t { flex: 1; }
+    .step .t b.h { display: block; font-size: 15.5px; margin: 3px 0 4px; }
+    .step .t p { margin: 4px 0; font-size: 14px; }
+    .step .t .small { font-size: 12.5px; color: var(--muted); }
 
-    /* Mini-écrans (mockups) */
-    .mock {
-      background: #2b2b30;
-      color: #f0f0f5;
-      padding: 12px;
-      border-radius: 10px;
-      font-family: ui-monospace, "Cascadia Code", "Courier New", monospace;
-      font-size: 12px;
-      white-space: pre;
-      overflow-x: auto;
-      margin: 8px 0;
-    }
+    /* Tuiles (liste courte) */
+    .tiles { display: grid; gap: 8px; margin: 14px 0; }
+    .tile-row { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+    .tile-row .dot { flex: none; width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .tile-row .tx b { display: block; font-size: 14.5px; margin-bottom: 2px; }
+    .tile-row .tx span { font-size: 13px; color: var(--muted); }
 
-    .summary {
-      background: var(--accent);
-      color: white;
-      padding: 18px;
-      border-radius: 14px;
-      text-align: center;
-      margin: 28px 0 12px;
-    }
-    .summary p { margin: 6px 0; }
-    .summary .big {
-      font-size: 17px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
+    .center-img { text-align: center; margin: 18px 0 6px; }
+    .cap { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 
-    footer {
-      text-align: center;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-      font-size: 12.5px;
-      color: var(--muted);
-    }
+    .mock { background: #2b2b30; color: #f0f0f5; padding: 12px; border-radius: 10px; font-family: ui-monospace, monospace; font-size: 12.5px; white-space: pre-wrap; margin: 8px 0; }
+
+    footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
     footer a { color: var(--accent); text-decoration: none; }
-    @media (max-width: 480px) {
-      .features { grid-template-columns: 1fr; }
-      h1 { font-size: 24px; }
-      .container { padding: 14px 12px 60px; }
-    }
+    @media (max-width: 480px) { .container { padding: 14px 12px 60px; } }
   </style>
 </head>
 <body>
@@ -275,151 +123,79 @@
       <path class="bl-g" d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"/>
       <g clip-path="url(#mouthH)"><text class="bl-word" x="178" y="128">systems</text></g>
     </svg>
-    <p class="subtitle">Application pour techniciens · Android</p>
+    <p class="subtitle">L'appli des techniciens · Android</p>
   </header>
 
-  <!-- Bouton de téléchargement -->
+  <!-- Téléchargement -->
   <div class="download-card">
-    <a class="download-btn"
-       href="https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk"
-       id="dl-btn">
-      Télécharger l'application
+    <a class="download-btn" href="https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk" id="dl-btn">
+      📲 Télécharger l'appli
     </a>
-    <div class="meta">
-      Dernière version : <strong id="version">…</strong> &nbsp;·&nbsp;
-      Android 8.0+ requis &nbsp;·&nbsp;
-      ~26 MB
+    <div class="meta">Version <strong id="version">…</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~26 Mo</div>
+  </div>
+
+  <div class="card orange">
+    <p><b>⚠ Ouvre cette page depuis ton téléphone</b> (pas l'ordinateur). Le bouton installe l'appli directement sur ton mobile.</p>
+  </div>
+
+  <!-- C'EST QUOI -->
+  <div class="card purple">
+    <p style="font-size:17px; margin:0 0 8px"><b>🚀 G-Systems, en 1 phrase</b></p>
+    <p style="margin:0">Avant : Excel, mails, Viber, photos partout — la galère. Maintenant : <b>un écran, 6 boutons</b>. Tu fais ton terrain, <b>l'appli fait la paperasse</b> (Excel rempli, photos jointes, mails et Viber prêts). Toi tu tapes juste <i>Envoyer</i>. ✨</p>
+  </div>
+
+  <!-- ============ DEMARRER ============ -->
+  <h2><span class="ico">⚡</span>Démarrer (une seule fois)</h2>
+
+  <div class="steps">
+    <div class="step">
+      <div class="n">1</div>
+      <div class="t">
+        <b class="h">📲 Installe l'appli</b>
+        <p>Tape le gros bouton violet ci-dessus. Ton navigateur télécharge le fichier.</p>
+        <p class="small">Android va prévenir que l'appli vient d'en dehors du Play Store : tape <b>Paramètres</b> → active <b>« Autoriser cette source »</b> → reviens en arrière → <b>Installer</b>. À faire une seule fois.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">2</div>
+      <div class="t">
+        <b class="h">✍️ Remplis tes infos</b>
+        <p>Au 1ᵉʳ lancement, 3 champs sont <b>obligatoires</b> (sinon l'appli reste bloquée sur Réglages) :</p>
+        <p>• <b>Ton nom</b> &nbsp; • <b>Ton code tech</b> (ex <code>ISTGSxxx</code>) &nbsp; • <b>L'email de ton responsable de secteur</b></p>
+        <p class="small">Ajoute aussi ta <b>plaque</b> (pour nommer les photos). Les adresses du boulot et EPS sont déjà dans l'appli — rien à taper, tu ne peux pas te tromper.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">3</div>
+      <div class="t">
+        <b class="h">📊 Prépare ton fichier Excel</b>
+        <p>Sur un <b>vrai Excel (PC)</b> : ouvre ton <code>.xlsm</code> une fois, <b>signe-le</b>, ouvre la <b>trame</b> et <b>enregistre</b>. Cette première ouverture active les macros.</p>
+        <p class="small">Mets-le ensuite sur ton tél (OneDrive, Drive, ou Téléchargements). Il peut s'appeler n'importe comment.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">4</div>
+      <div class="t">
+        <b class="h">🔗 Lie ton fichier à l'appli</b>
+        <p>Accueil → <b>ENVOI MENSUEL</b> → <b>« Choisir mon fichier .xlsm »</b> → sélectionne ton fichier. C'est gardé en mémoire, à faire une seule fois.</p>
+      </div>
     </div>
   </div>
 
-  <div class="card orange">
-    <p><strong>⚠ Important — ouvre cette page <u>depuis ton téléphone</u></strong>
-       (pas depuis un ordinateur). Le bouton ci-dessus télécharge l'app
-       directement sur ton mobile.</p>
+  <div class="card green">
+    <p style="margin:0"><b>✅ C'est prêt.</b> Une boîte mail (Gmail/Outlook) et <b>Viber</b> installés sur le tél, et tu peux bosser.</p>
   </div>
 
-  <!-- ============ C'EST QUOI ============ -->
-  <div class="card" style="border-left:4px solid var(--accent)">
-    <p style="font-size:18px; margin:0 0 8px 0"><b>🚀 gsystems, c'est quoi ?</b></p>
-    <p style="margin:0 0 10px 0"><b>Avant :</b> ton Excel d'un côté, tes mails de l'autre, Viber pour le groupe, et 12 photos de tickets perdues dans la galerie. <b>La galère.</b></p>
-    <p style="margin:0 0 10px 0"><b>Maintenant :</b> un seul écran, 6 boutons. Tu cliques, l'app <b>remplit ton Excel toute seule</b>, <b>joint tes photos</b>, <b>prépare tes mails avec les bons destinataires</b> et <b>écrit ton message Viber</b>. Toi, tu n'as plus qu'à appuyer sur <i>Envoyer</i>. ✨</p>
-    <p style="margin:0">En clair : <b>tu fais ton terrain, l'app fait la paperasse.</b></p>
-  </div>
+  <!-- ============ ACCUEIL ============ -->
+  <h2><span class="ico">🏠</span>Ton écran d'accueil</h2>
 
-  <!-- ============ AVANT DE COMMENCER ============ -->
-  <h2><span class="num">1</span>Avant de commencer (5 min)</h2>
+  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">6 tuiles, une couleur par fonction. Chaque tuile affiche un compteur en direct.</p>
 
-  <div class="card">
-    <p><b>Ce qu'il faut sur ton téléphone avant d'installer :</b></p>
-    <ol>
-      <li><b>Une boîte mail configurée</b> (Gmail, Outlook, Mail…). C'est elle qui va envoyer les emails au boulot. Si tu peux lire tes emails sur le tél, c'est déjà bon.</li>
-      <li><b>Ton fichier <code>TEMPS xxxx.xlsm</code> accessible sur le téléphone</b>. Trois options :
-        <ul>
-          <li>Installe <b>OneDrive</b> sur ton tél et connecte-toi avec ton compte pro → ton fichier apparaît automatiquement.</li>
-          <li>Ou <b>Google Drive</b> si ton fichier est là.</li>
-          <li>Ou copie-le par <b>câble USB / WhatsApp à toi-même / email à toi-même</b> dans <code>Téléchargements</code>.</li>
-        </ul>
-        Le fichier peut s'appeler <b>n'importe comment</b> (<code>TEMPS 2026.xlsm</code>, <code>feuille_jean.xlsm</code>, etc.) du moment qu'il a la <b>même structure de feuilles</b> que celui de l'équipe (semaines S.1 à S.53).
-      </li>
-    </ol>
-  </div>
-
-  <!-- ============ INSTALLATION ============ -->
-  <h2><span class="num">2</span>Installer l'application</h2>
-
-  <div class="card">
-    <p><b>Tape le gros bouton violet en haut de cette page.</b></p>
-    <p>Ton navigateur (Chrome / Edge / Samsung Internet) télécharge le fichier <code>app-debug.apk</code>. Le téléchargement prend quelques secondes (~26 MB).</p>
-  </div>
-
-  <div class="card orange">
-    <p><b>Android va te demander d'autoriser l'installation.</b> C'est normal — l'app vient de GitHub, pas du Play Store.</p>
-    <ol>
-      <li>Une fenêtre s'ouvre : <i>« Pour votre sécurité, votre téléphone n'autorise pas… »</i></li>
-      <li>Tape <b>Paramètres</b> sur cette fenêtre</li>
-      <li>Active <b>« Autoriser depuis cette source »</b> pour Chrome (ou ton navigateur)</li>
-      <li>Reviens en arrière (flèche)</li>
-      <li>Tape <b>Installer</b></li>
-    </ol>
-    <p>👉 <b>À faire une seule fois</b>. Les futures mises à jour passeront toutes seules.</p>
-  </div>
-
-  <!-- ============ PREMIER LANCEMENT ============ -->
-  <h2><span class="num">3</span>Premier lancement (à remplir une fois)</h2>
-
-  <div class="card">
-    <p>L'app s'ouvre sur un écran de réglages. <b>Remplis ces champs :</b></p>
-
-    <p><b>👤 Ton identité</b></p>
-    <ul>
-      <li><b>Nom du technicien</b> (<b>obligatoire</b>) : ton nom complet (apparaîtra dans la signature des emails)</li>
-      <li><b>Code tech</b> (<b>obligatoire</b>) : <b>ton code technicien personnel</b> (ex : <code>ISTGSXXX</code>) — il apparaît dans le sujet des emails GSM SEUL / GESTE CO. Sans lui, l'app reste sur l'écran Réglages.</li>
-      <li><b>Département</b> : ton département (ex : <code>34</code>)</li>
-    </ul>
-
-    <p><b>📧 Les emails de destination</b></p>
-    <p>Bonne nouvelle : <b>les destinataires G-Systems et EPS sont intégrés à l'app</b> (feuille de temps, GSM SEUL, GESTE CO, frais, compteur). <b>Tu n'as qu'une seule adresse à saisir :</b></p>
-    <ul>
-      <li><b>Responsable secteur</b> (<b>obligatoire</b>) : l'email de <b>ton</b> responsable de secteur — il diffère selon le secteur, donc à chacun de saisir le sien. Il est mis en copie des envois GSM SEUL et GESTE CO. Tant qu'il n'est pas rempli, l'app reste sur l'écran Réglages.</li>
-    </ul>
-
-    <p><b>🚗 Ton véhicule</b></p>
-    <ul>
-      <li><b>Plaque immatriculation</b> (ex: <code>AB-123-CD</code>) — sert à nommer automatiquement tes photos (<code>AB-123-CD_2026-05-30_compteur.jpg</code>)</li>
-    </ul>
-
-    <p><b>🔧 Autres réglages (les défauts conviennent à 95 % des cas)</b></p>
-    <ul>
-      <li><b>Cycle mensuel</b> : <code>21</code> (= période du 21 au 20 du mois suivant — c'est la période <i>par défaut</i> pour le récap, tu peux la changer au moment de l'envoi)</li>
-      <li><b>Tarifs primes & GESTE CO client</b> : déjà pré-remplis aux bonnes valeurs</li>
-    </ul>
-
-    <p>Une fois tout rempli, tape <b>Enregistrer</b>. Tu arrives sur l'écran d'accueil.</p>
-  </div>
-
-  <!-- ============ LES RÈGLES D'OR ============ -->
-  <div class="card" style="border-left:4px solid var(--success); background:var(--success-bg)">
-    <p style="font-size:16px; margin:0 0 8px 0"><b>🔑 Les règles d'or (sinon ça coince)</b></p>
-    <ul style="margin:0">
-      <li><b>Bordure rouge ou astérisque <span style="color:#d33">*</span> = champ obligatoire.</b> Dans tous les écrans (CLÔTURE, GSM SEUL, GESTE CO…), tant qu'un champ marqué en rouge n'est pas rempli (ex. le <b>N° de site</b>), le bouton <b>Enregistrer / Envoyer reste grisé</b> et rien ne part.</li>
-      <li><b>3 champs obligatoires</b> au premier lancement : <b>ton nom</b>, <b>ton code tech</b> et <b>l'email de ton responsable de secteur</b>. Tant qu'ils ne sont pas remplis, l'app <b>reste bloquée sur l'écran Réglages</b>. (Code tech et responsable changent d'un tech à l'autre → chacun saisit les siens.)</li>
-      <li><b>Photo du compteur = obligatoire</b> pour l'envoi mensuel : pas de photo sur la période = <b>bouton d'envoi bloqué</b>. Prends-la (tuile <b>COMPTEUR</b>) avant la clôture.</li>
-      <li><b>Les destinataires sont déjà dans l'app</b> : aucune adresse pro à taper, <b>tu ne peux pas te tromper.</b></li>
-    </ul>
-  </div>
-
-  <!-- ============ LIER LE FICHIER EXCEL ============ -->
-  <h2><span class="num">4</span>Lier ton fichier TEMPS .xlsm</h2>
-
-  <div class="card orange">
-    <p><b>⚠ D'abord : ton fichier doit avoir été « initialisé » une fois sur un vrai Excel (PC).</b></p>
-    <p>Avant de le lier à l'app, ouvre ton <code>.xlsm</code> au moins une fois sur <b>Excel (ordinateur)</b>, <b>signe-le</b>, ouvre la <b>trame</b> (les feuilles modèles) et <b>enregistre</b>. Cette <b>première ouverture</b> active les macros et la structure du fichier — sans elle, l'app ne pourra pas le remplir.</p>
-  </div>
-
-  <div class="card purple">
-    <p><b>C'est ICI qu'on dit à l'app où est ton fichier Excel.</b> Tu le fais <b>une seule fois</b>, l'app s'en souvient ensuite.</p>
-    <ol>
-      <li>Sur l'écran d'accueil, tape <b>ENVOI MENSUEL</b> (le bouton bleu en bas)</li>
-      <li>Section <b>« Mon fichier TEMPS .xlsm »</b> → tape <b>Choisir mon fichier .xlsm</b></li>
-      <li>Le sélecteur Android s'ouvre. Navigue vers ton fichier :
-        <ul>
-          <li>Si tu utilises OneDrive : tape ☰ → <b>OneDrive</b> → ton dossier → ton fichier</li>
-          <li>Si Drive : tape ☰ → <b>Google Drive</b></li>
-          <li>Sinon : <b>Téléchargements</b> ou autre dossier local</li>
-        </ul>
-      </li>
-      <li>Tape sur ton fichier <code>.xlsm</code> → c'est lié</li>
-    </ol>
-    <p>L'écran affiche maintenant : <i>« Fichier choisi : Mon_TEMPS_2026.xlsm »</i> ✓</p>
-  </div>
-
-  <!-- ============ UTILISATION ============ -->
-  <h2><span class="num">5</span>Utilisation quotidienne</h2>
-
-  <p>L'écran d'accueil te montre <b>6 tuiles</b> (chacune avec sa couleur et un compteur en direct du nombre d'entrées du mois). <b>GSM SEUL et GESTE CO</b> se saisissent dans la <b>CLÔTURE</b> d'une installation ; <b>la photo du COMPTEUR</b> se prend dans <b>ENVOI MENSUEL</b>. Voici à quoi sert chaque tuile :</p>
-
-  <div style="text-align:center; margin:16px 0 8px;">
-    <svg viewBox="0 0 340 662" width="290" style="max-width:82%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems avec ses 6 tuiles">
+  <div class="center-img">
+    <svg viewBox="0 0 340 662" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems avec ses 6 tuiles">
       <defs>
         <linearGradient id="tCloture" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#2c1854"/></linearGradient>
         <linearGradient id="tAttente" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A5CF6"/><stop offset="1" stop-color="#312160"/></linearGradient>
@@ -430,46 +206,34 @@
       </defs>
       <rect x="2" y="2" width="336" height="658" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
       <text x="24" y="52" fill="#f4f4f0" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800"><tspan fill="#ee2322">g</tspan>systems</text>
-
       <g font-family="Segoe UI, Arial, sans-serif">
-        <!-- 01 CLÔTURE -->
         <rect x="22" y="76" width="296" height="82" rx="18" fill="url(#tCloture)"/>
         <circle cx="64" cy="117" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="125" text-anchor="middle" font-size="21">📋</text>
         <text x="100" y="111" fill="#fff" font-size="17" font-weight="800">CLÔTURE</text>
         <text x="100" y="132" fill="#ffffff" fill-opacity="0.82" font-size="11">Intervention + Viber</text>
         <text x="302" y="122" text-anchor="end" fill="#fff" font-size="15" font-weight="700">12</text>
-
-        <!-- 02 ATTENTE CLIENT -->
         <rect x="22" y="166" width="296" height="82" rx="18" fill="url(#tAttente)"/>
         <circle cx="64" cy="207" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="215" text-anchor="middle" font-size="21">⏱️</text>
         <text x="100" y="201" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
         <text x="100" y="222" fill="#ffffff" fill-opacity="0.82" font-size="11">Procédure + heure de début</text>
-
-        <!-- 03 COURRIER -->
         <rect x="22" y="256" width="296" height="82" rx="18" fill="url(#tCourrier)"/>
         <circle cx="64" cy="297" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="305" text-anchor="middle" font-size="21">✉️</text>
         <text x="100" y="291" fill="#fff" font-size="17" font-weight="800">COURRIER</text>
         <text x="100" y="312" fill="#ffffff" fill-opacity="0.82" font-size="11">« courrier ok »</text>
-
-        <!-- 04 RÉCAP GESTE CO -->
         <rect x="22" y="346" width="296" height="82" rx="18" fill="url(#tRecap)"/>
         <circle cx="64" cy="387" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="395" text-anchor="middle" font-size="21">📊</text>
         <text x="100" y="381" fill="#fff" font-size="17" font-weight="800">RÉCAP GESTE CO</text>
         <text x="100" y="402" fill="#ffffff" fill-opacity="0.82" font-size="11">Primes du cycle · PDF</text>
-
-        <!-- 05 TICKETS DE FRAIS -->
         <rect x="22" y="436" width="296" height="82" rx="18" fill="url(#tFrais)"/>
         <circle cx="64" cy="477" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="485" text-anchor="middle" font-size="21">🧾</text>
         <text x="100" y="471" fill="#fff" font-size="17" font-weight="800">TICKETS DE FRAIS</text>
         <text x="100" y="492" fill="#ffffff" fill-opacity="0.82" font-size="11">Photos + TVA auto</text>
         <text x="302" y="482" text-anchor="end" fill="#fff" font-size="15" font-weight="700">4</text>
-
-        <!-- 06 ENVOI MENSUEL -->
         <rect x="22" y="526" width="296" height="82" rx="18" fill="url(#tEnvoi)"/>
         <circle cx="64" cy="567" r="21" fill="#ffffff" fill-opacity="0.18"/>
         <text x="64" y="575" text-anchor="middle" font-size="21">📤</text>
@@ -478,90 +242,33 @@
         <circle cx="300" cy="544" r="5" fill="#ff5da2"/>
       </g>
     </svg>
-    <div style="font-size:12.5px; color:var(--muted); margin-top:4px;">L'écran d'accueil : 6 tuiles, une couleur par fonction (le pip rose sur ENVOI MENSUEL = clôture du cycle proche).</div>
+    <div class="cap">Le pip rose sur ENVOI MENSUEL = fin de cycle proche.</div>
   </div>
 
-  <div class="features">
-    <div class="feature">
-      <span class="ic" style="background:#7c3aed">01</span>
-      <b>CLÔTURE</b>
-      Saisie d'une intervention (date, dept, type, client, ville, n°, OK/NR/Annulé…). À l'enregistrement, Viber s'ouvre avec le message déjà tapé. <b>Pour une installation (Type = INST)</b>, le formulaire affiche en plus le <b>N° de site</b> + les sections <b>GESTE CO</b> (extensions) et <b>GSM seul</b> — tout au même endroit (focus plus bas).
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#8a5cf6">02</span>
-      <b>ATTENTE CLIENT</b>
-      Un appui = Viber s'ouvre avec la <b>procédure + l'heure de début</b> (générée au clic), prêt à envoyer au groupe. Un rappel s'affiche pour toi : appeler toutes les 15 minutes jusqu'au départ validé par la techline <b>03.88.39.88.94</b> (CHOIX 2 PUIS 3) — ce rappel n'est pas envoyé dans le message.
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#6366f1">03</span>
-      <b>COURRIER</b>
-      Un appui = Viber s'ouvre avec le message « courrier ok » déjà tapé, prêt à envoyer au groupe. Pour signaler que le courrier est déposé, sans rien saisir.
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#3b82f6">04</span>
-      <b>RÉCAP GESTE CO</b>
-      Le cumul du cycle pour voir tes primes : combien de GSM, CO, etc., et le total en €. Le bouton <b>« Envoyer le récap PDF »</b> l'envoie par mail (primes par type, gestes offerts, détail par site).
-    </div>
-    <div class="feature">
-      <span class="ic" style="background:#06b6d4">05</span>
-      <b>TICKETS DE FRAIS</b>
-      Tape "Prendre photo" pour chaque ticket (parking, divers…). Saisis le montant TTC. L'app calcule la TVA et le HT automatiquement. À la fin, "Envoyer le lot" = tous les tickets + le récap TVA dans un mail.
-    </div>
-    <div class="feature" style="grid-column: 1 / -1; background:#f0fdf4">
-      <span class="ic" style="background:#22c55e">06</span>
-      <b>ENVOI MENSUEL — le gros bouton</b>
-      Quand la direction te demande le mensuel (souvent fin de la 3e semaine) : tu cliques, l'app <b>remplit ton Excel</b>, <b>joint les photos de tickets + compteur</b> et <b>un récap PDF</b> (répartition de tes interventions en camembert, frais et primes), et tu n'as qu'à taper <i>Envoyer</i> dans ton app mail. Le corps du mail reste simple : la période et la liste des pièces jointes. Tu peux modifier la période (Du / Au) si la direction demande une période différente. <b>Un pip rose pulsant</b> apparaît automatiquement sur cette tuile dans les 3 derniers jours du cycle pour te rappeler que la clôture approche.
-      <br><br><b>📷 La photo du compteur se prend directement ici</b> : section <b>« Photo compteur »</b> → bouton <b>Prendre la photo du compteur</b>. <b>⚠ Elle est obligatoire</b> : tant qu'il n'y a pas de photo compteur sur la période, le bouton d'envoi est <b>bloqué</b>. La photo est jointe et nommée automatiquement (<code>PLAQUE-MM-AAAA.jpg</code>), tu n'as rien à écrire dessus.
-    </div>
+  <div class="tiles">
+    <div class="tile-row"><div class="dot" style="background:#ede9fe">📋</div><div class="tx"><b>CLÔTURE</b><span>Saisir une intervention → Viber pré-rempli. Pour une <b>installation</b> : N° de site + GESTE CO + GSM, tout au même endroit.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#eee9fe">⏱️</div><div class="tx"><b>ATTENTE CLIENT</b><span>Viber « procédure + heure de début ». Rappel perso : rappeler toutes les 15 min jusqu'au feu vert de la techline.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#e7e9fd">✉️</div><div class="tx"><b>COURRIER</b><span>Un appui → Viber « courrier ok », pour dire que le courrier est déposé.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#e4effd">📊</div><div class="tx"><b>RÉCAP GESTE CO</b><span>Tes primes du cycle. Bouton « Envoyer le récap <b>PDF</b> ».</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#e0f5fb">🧾</div><div class="tx"><b>TICKETS DE FRAIS</b><span>Photo + montant TTC → TVA/HT calculés tout seuls. « Envoyer le lot » = tout part en un mail.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#dcfce7">📤</div><div class="tx"><b>ENVOI MENSUEL</b><span>Le gros bouton de fin de cycle. La <b>photo du compteur</b> se prend ici (obligatoire).</span></div></div>
   </div>
 
-  <!-- ============ FOCUS COURRIER ============ -->
-  <div class="card" style="margin-top:18px; border-left:4px solid #4f46e5">
-    <p><b>📬 COURRIER · comment ça marche</b></p>
-    <p style="margin:8px 0 0 0">Un seul appui sur la tuile <b>COURRIER</b> ouvre le sélecteur de partage Android avec le message <b>« courrier ok »</b> déjà prêt. Choisis <b>Viber</b> dans la liste, sélectionne le chat du groupe, et tape <b>Envoyer</b>. Aucune saisie à faire.</p>
+  <!-- ============ CLOTURER ============ -->
+  <h2><span class="ico">📋</span>Clôturer une intervention</h2>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div class="t"><p style="margin:0">Accueil → <b>CLÔTURE</b> → <b>« Nouvelle intervention »</b>.</p></div></div>
+    <div class="step"><div class="n">2</div><div class="t"><p style="margin:0">Remplis le formulaire. <b>Tout champ avec un astérisque <span style="color:#d33">*</span> rouge est obligatoire</b> (date, type, client, ville, n°, observation OK/NR…).</p></div></div>
+    <div class="step"><div class="n">3</div><div class="t"><p style="margin:0"><b>Installation ?</b> Le N° de site apparaît, plus les sections <b>GESTE CO</b> (extensions) et <b>GSM seul</b>. Remplis selon le chantier.</p></div></div>
+    <div class="step"><div class="n">4</div><div class="t"><p style="margin:0">Tape <b>Enregistrer</b> → Viber s'ouvre avec le message prêt → choisis le <b>groupe</b> → <b>Envoyer</b>.</p></div></div>
+    <div class="step"><div class="n">5</div><div class="t"><p style="margin:0">Pour une installation, le dialogue <b>« Envois EPS »</b> s'affiche pour les mails (voir plus bas).</p></div></div>
   </div>
 
-  <!-- ============ FOCUS GESTE CO ============ -->
-  <div class="card" style="margin-top:18px; border-left:4px solid #10b981; background:var(--success-bg)">
-    <p style="font-size:16px; margin:0 0 8px 0"><b>🎁 GESTE CO · « Installé » vs « GESTE CO » (À BIEN COMPRENDRE)</b></p>
-    <p style="margin:0 0 8px 0"><b>GESTE CO se saisit dans la CLÔTURE d'une installation</b> (Type = INST → active la section « Extensions installées (GESTE CO) », renseigne le N° de site). Dans le tableau, deux colonnes par type (GSM, CO, DMP, SE… jusqu'à SONDE IN) :</p>
-    <ul style="margin:0 0 8px 0">
-      <li><b>Installé</b> = tout ce que tu as posé sur le site. <b>C'est CETTE colonne qui compte tes primes.</b></li>
-      <li><b>GESTE CO</b> = ce que tu offres au client (sous-ensemble des installées) → c'est ce qui part dans le mail client.</li>
-    </ul>
-    <p style="margin:0 0 8px 0"><b>⚠ Impératif pour que tes primes soient justes :</b> remplis <b>TOUJOURS la colonne « Installé »</b>, <b>même si tu n'offres aucun GESTE CO</b>. Les primes du récap mensuel se calculent uniquement sur les extensions installées — si tu ne les saisis pas, ta prime du mois sera fausse (manquante).</p>
-    <p style="margin:0"><b>Pas de GESTE CO ? C'est normal qu'aucun mail ne parte.</b> Si la colonne « GESTE CO » est à zéro, l'app affiche <i>« Installé sans GESTE CO offert — aucun mail envoyé »</i> et n'envoie <b>pas</b> de mail client. Mais ton entrée <b>reste enregistrée</b> et tes extensions installées comptent quand même pour ta prime. 👉 Donc même sans GESTE CO offert : <b>saisis et enregistre</b> tes installées.</p>
-  </div>
-
-  <!-- ============ FOCUS CLÔTURE PAS À PAS ============ -->
-  <div class="card" style="border-left:4px solid #7C3AED">
-    <p style="font-size:16px; margin:0 0 8px 0"><b>🗂️ Clôturer une intervention — pas à pas</b></p>
-    <ol style="margin:0 0 12px 0">
-      <li>Accueil → tape la tuile <b>01 CLÔTURE</b>.</li>
-      <li>En bas, tape <b>« Nouvelle intervention »</b>.</li>
-      <li>Remplis le formulaire. <b>Tout champ avec une bordure ou un astérisque <span style="color:#d33">*</span> rouge est obligatoire</b> :
-        <ul>
-          <li><b>Date</b> · <b>Type</b> (INST, SAV, RESI…) · <b>Département</b> · <b>Créneau</b> (Matin / Après-midi)</li>
-          <li><b>Nom client</b> · <b>Ville</b> · <b>N° intervention</b></li>
-          <li><b>Observation</b> : OK, ou NR client / NR technique / NR client absent / Annulé</li>
-        </ul>
-        <span style="font-size:13px; color:var(--muted)">(Pour <b>VACANCES / FORMATION / FÉRIÉ</b>, l'app passe en « journée 7h » et ne demande ni client ni n° — pas de Viber.)</span>
-      </li>
-      <li><b>Installation (Type = INST) ?</b> Le formulaire affiche en plus le <b>N° de site</b> (obligatoire) et deux sections facultatives : <b>Extensions installées (GESTE CO)</b> (tableau 12 types, règles vérifiées automatiquement) et <b>GSM seul</b> (3 cases). Active et remplis selon le chantier.</li>
-      <li>En bas du formulaire, <b>vérifie l'aperçu du message Viber</b> :
-        <div class="mock">Message Viber qui sera pré-rempli :
-34 inst client ville 43001714 ok</div>
-      </li>
-      <li>Tape le bouton <b>« Enregistrer »</b> (le Viber part automatiquement).</li>
-      <li>Le sélecteur Android s'ouvre → choisis <b>Viber</b> → sélectionne le <b>groupe</b> → tape <b>Envoyer</b>.</li>
-      <li><b>Pour une installation</b>, un dialogue <b>« Envois EPS »</b> apparaît ensuite : tape <b>Envoyer mail GESTE CO</b> et/ou <b>Envoyer mail GSM SEUL</b> (chacun ouvre ton appli mail), puis <b>Terminé</b>.</li>
-      <li>✅ C'est clôturé : l'intervention apparaît dans l'historique et compte dans tes <b>heures auto</b> du jour.</li>
-    </ol>
-    <p style="margin:0 0 8px 0"><b>À quoi ressemble le formulaire d'une installation</b> :</p>
-    <div style="background:#1a1a20; border-radius:14px; overflow:hidden; max-width:330px; margin:0 auto; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+  <div class="center-img">
+    <div style="background:#1a1a20; border-radius:14px; overflow:hidden; max-width:320px; margin:0 auto; text-align:left; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
       <div style="background:#7C3AED; color:#fff; padding:10px 14px; font-size:15px; font-weight:700;">CLÔTURE</div>
       <div style="padding:12px 14px; color:#ececf0;">
-        <div style="font-size:10px; color:#9a9aa6; margin-bottom:4px;">Type de mission</div>
         <div style="margin-bottom:10px;">
           <span style="background:#7C3AED; color:#fff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:12px;">INSTALL</span>
           <span style="background:#26262e; color:#9a9aa6; font-size:11px; padding:4px 12px; border-radius:12px;">SAV</span>
@@ -570,201 +277,98 @@
           <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">Date</div><div style="font-size:12px;">2026-06-20</div></div>
           <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">N° interv. *</div><div style="font-size:12px;">43001714</div></div>
         </div>
-        <div style="background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px; margin-bottom:8px;"><div style="font-size:9px; color:#9a9aa6;">Client · ville *</div><div style="font-size:12px;">client · ville</div></div>
-        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (GESTE CO / GSM)</div><div style="font-size:12px;">12345</div></div>
+        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (commun GESTE CO / GSM)</div><div style="font-size:12px;">12345</div></div>
         <div style="background:#13251f; border:1px solid #10B981; border-radius:10px; padding:9px; margin-bottom:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#5eead4;">Extensions installées (GESTE CO)</span><span style="width:30px; height:16px; background:#10B981; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
-          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Tableau 12 types · Installé / GESTE CO · dérogation · prime</div>
+          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Tableau Installé / GESTE CO · prime calculée</div>
         </div>
         <div style="background:#0f2025; border:1px solid #06B6D4; border-radius:10px; padding:9px; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#22d3ee;">GSM seul sur ce site</span><span style="width:30px; height:16px; background:#3a3a44; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#9a9aa6; border-radius:50%; position:absolute; top:2px; left:2px;"></span></span></div>
-          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Pas de MEDIAS · Câbles laissés · CPL déjà présent</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#22d3ee;">GSM seul sur ce site</span><span style="width:30px; height:16px; background:#06B6D4; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
         </div>
         <div style="background:#7C3AED; color:#fff; text-align:center; font-size:14px; font-weight:700; padding:11px; border-radius:11px;">Enregistrer</div>
       </div>
     </div>
+    <div class="cap">Le formulaire de clôture d'une installation.</div>
   </div>
 
-  <!-- ============ ALGORITHME HEURES ============ -->
-  <h2><span class="num">6</span>Comment l'app calcule tes heures</h2>
-
-  <div class="card purple">
-    <p><b>Tu ne saisis plus les heures manuellement</b> dans le formulaire TEMPS.
-       L'app les calcule automatiquement à partir de tes interventions de la journée
-       en utilisant la règle suivante.</p>
+  <div class="card" style="border-left:4px solid #FF3D5A">
+    <p style="margin:0 0 8px"><b>📧 Le dialogue « Envois EPS »</b> — après une installation, tu vois d'un coup d'œil ce qui est <b>envoyé</b> (✓ vert) et ce qui reste <b>à faire</b> (✗ ambre). Tape « Envoyer », ça passe au vert.</p>
+    <div style="background:#2a1a20; border-radius:14px; max-width:300px; margin:6px auto 0; padding:14px; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+      <div style="color:#fff; font-weight:700; font-size:14px;">Envois EPS à faire</div>
+      <div style="color:#b8becc; font-size:11px; margin:2px 0 10px;">1 / 2 envoyé</div>
+      <div style="display:flex; align-items:center; gap:10px; background:rgba(74,222,128,.1); border:1px solid rgba(74,222,128,.5); border-radius:11px; padding:9px 11px; margin-bottom:8px;">
+        <span style="width:22px;height:22px;border-radius:50%;background:#4ADE80;color:#0c2a16;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">✓</span>
+        <div style="flex:1;color:#fff;font-size:12px;line-height:1.35;">Mail GESTE CO<br><span style="color:#4ADE80;font-size:10px;">Envoyé</span></div>
+        <span style="font-size:10px;color:#b8becc;border:1px solid rgba(255,255,255,.25);padding:4px 9px;border-radius:7px;">Renvoyer</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; background:rgba(255,179,71,.08); border:1px solid rgba(255,179,71,.5); border-radius:11px; padding:9px 11px;">
+        <span style="width:22px;height:22px;border-radius:50%;border:2px solid #FFB347;color:#FFB347;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">✕</span>
+        <div style="flex:1;color:#fff;font-size:12px;line-height:1.35;">Mail GSM SEUL<br><span style="color:#FFB347;font-size:10px;">À faire</span></div>
+        <span style="font-size:11px;color:#fff;background:#FF3D5A;padding:5px 12px;border-radius:8px;font-weight:600;">Envoyer</span>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <p><b>Étape 1 — chaque intervention est rattachée à un slot :</b></p>
-    <ul>
-      <li><b>Matin</b> : pour les interventions de la matinée</li>
-      <li><b>Après-midi</b> : pour les interventions de l'après-midi</li>
-    </ul>
-    <p>Le slot est <b>pré-rempli automatiquement</b> selon l'heure du téléphone
-       (avant 13h = Matin, après = Après-midi). Tu peux le modifier d'un tap si
-       tu saisis en différé le soir.</p>
-
-    <p><b>Étape 2 — chaque slot est classé en 3 états :</b></p>
-    <ul>
-      <li>🟢 <b>OK</b> = au moins 1 mission <b>réalisée</b> dans le slot (INST, SAV, REPA…)</li>
-      <li>🟥 <b>NR</b> = uniquement des NR dans le slot (client absent, technique, etc.) <b>sans aucune mission réalisée</b></li>
-      <li>⬜ <b>VIDE</b> = aucune intervention dans le slot</li>
-    </ul>
-    <p>Si un slot contient un mix (par ex. 1 NR client absent + 1 SAV réalisé),
-       le slot compte comme <b>OK</b> car il y a au moins une mission réalisée.</p>
-
-    <p><b>Étape 3 — règle des heures (table à 9 cas) :</b></p>
-    <table style="width:100%; border-collapse:collapse; margin-top:6px; font-size:13px;">
-      <thead>
-        <tr style="background:var(--accent-light)">
-          <th style="padding:6px; border:1px solid var(--border)">Matin \ Aprem</th>
-          <th style="padding:6px; border:1px solid var(--border)">🟢 OK</th>
-          <th style="padding:6px; border:1px solid var(--border)">🟥 NR</th>
-          <th style="padding:6px; border:1px solid var(--border)">⬜ VIDE</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">🟢 OK</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center; background:#e8f5e9"><b>8h</b></td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
-        </tr>
-        <tr>
-          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">🟥 NR</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">6h</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
-        </tr>
-        <tr>
-          <td style="padding:6px; border:1px solid var(--border); background:var(--accent-light); font-weight:600">⬜ VIDE</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center">4h</td>
-          <td style="padding:6px; border:1px solid var(--border); text-align:center; background:#fdecea">0h</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p style="margin-top:10px"><b>Logique résumée :</b></p>
-    <ul>
-      <li><b>0 slot actif</b> (aucune intervention de la journée) → <b>0h</b></li>
-      <li><b>1 seul slot actif</b> (peu importe OK ou NR) → <b>4h</b></li>
-      <li><b>2 slots actifs, les deux avec au moins 1 OK</b> → <b>8h</b></li>
-      <li><b>2 slots actifs sinon</b> (mix OK + NR, ou 2 NR seuls) → <b>6h</b></li>
-    </ul>
-  </div>
+  <!-- ============ A COMPRENDRE ============ -->
+  <h2><span class="ico">💡</span>2 trucs à comprendre</h2>
 
   <div class="card green">
-    <p><b>Exemples concrets :</b></p>
-    <ul>
-      <li>SAV matin + INST aprem → <b>8h</b> (OK + OK)</li>
-      <li>INST matin + NR client absent aprem → <b>6h</b> (OK + NR)</li>
-      <li>INST matin seul, rien aprem → <b>4h</b> (OK + VIDE)</li>
-      <li>NR client absent matin + rien aprem → <b>4h</b> (NR + VIDE)</li>
-      <li>1 NR + 1 SAV le matin + INST aprem → <b>8h</b> (le SAV rend le matin OK)</li>
-      <li>Aucune intervention de la journée → <b>0h</b></li>
+    <p style="margin:0 0 6px"><b>🎁 GESTE CO : « Installé » ≠ « Offert »</b></p>
+    <ul style="margin:0">
+      <li><b>Installé</b> = tout ce que tu as posé. <b>C'est ça qui compte tes primes.</b></li>
+      <li><b>GESTE CO</b> = ce que tu offres au client (part dans le mail client).</li>
     </ul>
+    <p style="margin:8px 0 0"><b>⚠ Remplis TOUJOURS « Installé »</b>, même sans rien offrir — sinon ta prime du mois sera fausse. Pas de geste offert = aucun mail client, mais ton entrée et tes primes sont bien enregistrées.</p>
   </div>
 
   <div class="card purple">
-    <p>L'écran TEMPS te montre <b>en temps réel</b> les heures calculées
-       pour aujourd'hui, avec le détail des slots. Exemple à l'écran :</p>
-    <p style="background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; margin-top:6px">
-      <b>Heures auto aujourd'hui &nbsp;&nbsp;&nbsp; 8 h</b><br>
-      <span style="color:var(--muted); font-size:11px">Matin: OK (1) + 1 NR &nbsp;·&nbsp; Aprem: OK (1) &nbsp;→&nbsp; 8h</span>
-    </p>
-    <p>Au moment de l'<b>ENVOI MENSUEL</b>, l'app reporte automatiquement ces heures
-       dans la colonne E de ton fichier Excel pour chaque jour.</p>
+    <p style="margin:0 0 6px"><b>⏰ Tes heures se calculent toutes seules</b></p>
+    <p style="margin:0 0 6px">Tu ne saisis plus tes heures. L'appli les déduit de tes interventions du jour :</p>
+    <ul style="margin:0">
+      <li>Matin <b>et</b> après-midi avec du réalisé → <b>8h</b></li>
+      <li>Une seule demi-journée → <b>4h</b></li>
+      <li>2 demi-journées mais que des NR (rien réalisé) → <b>6h</b></li>
+      <li>Aucune intervention → <b>0h</b></li>
+    </ul>
+    <p style="margin:8px 0 0; font-size:13px; color:var(--muted)">L'écran TEMPS affiche le total du jour en direct. À l'ENVOI MENSUEL, les heures partent toutes seules dans ton Excel.</p>
   </div>
 
-  <!-- ============ MISES À JOUR ============ -->
-  <h2><span class="num">7</span>Mises à jour : tu n'as rien à faire</h2>
-
+  <!-- ============ MAJ ============ -->
+  <h2><span class="ico">🔄</span>Mises à jour</h2>
   <div class="card green">
-    <p>À chaque ouverture de l'app, elle vérifie automatiquement si une nouvelle version existe.</p>
-    <p><b>Quand c'est le cas :</b></p>
-    <ul>
-      <li>Une fenêtre s'affiche : <i>« Nouvelle version disponible »</i></li>
-      <li>Tape <b>Mettre à jour</b></li>
-      <li>L'app se télécharge et s'installe en 30 secondes par-dessus l'ancienne</li>
-    </ul>
-    <p>Tes données et tes réglages sont conservés.</p>
+    <p style="margin:0">Rien à faire. À l'ouverture, si une nouvelle version existe, l'appli te propose <b>« Mettre à jour »</b> — un tap, 30 secondes, et tes données sont conservées.</p>
   </div>
 
-  <!-- ============ DÉPANNAGE ============ -->
-  <h2><span class="num">8</span>Si ça coince…</h2>
+  <!-- ============ DEPANNAGE ============ -->
+  <h2><span class="ico">🛠️</span>Si ça coince</h2>
 
-  <div class="card red">
-    <p><b>❌ « Cette app demande Android 8.0 ou supérieur »</b></p>
-    <p>Ton téléphone est trop ancien. Tu auras besoin d'un téléphone sorti après 2018 environ.</p>
-  </div>
-
-  <div class="card red">
-    <p><b>❌ Le sélecteur ne trouve pas mon fichier .xlsm</b></p>
-    <ul>
-      <li>Vérifie qu'il est bien sur le téléphone (pas seulement sur le PC).</li>
-      <li>Sur OneDrive : ouvre une fois le fichier dans l'app OneDrive du tél pour le télécharger en cache.</li>
-      <li>Essaie depuis <code>Téléchargements</code> en le copiant via USB d'abord.</li>
-    </ul>
-  </div>
-
-  <div class="card red">
-    <p><b>❌ Le mail ne s'ouvre pas avec destinataire pré-rempli</b></p>
-    <p>Vérifie que tu as une <b>app email</b> installée et connectée sur le téléphone (Gmail, Outlook). Sinon télécharge Gmail depuis le Play Store et configure ton compte.</p>
-  </div>
-
-  <div class="card red">
-    <p><b>❌ Viber ne s'ouvre pas après "Enregistrer & ouvrir Viber"</b></p>
-    <p>Vérifie que <b>Viber est installé</b> sur ton téléphone. Si oui, quand Android te propose la liste des apps, choisis Viber.</p>
-  </div>
-
-  <div class="card red">
-    <p><b>❌ Le popup de mise à jour n'apparaît pas</b></p>
-    <p>Vérifie ta connexion Internet, puis dans l'app : <b>⚙ Réglages → Vérifier maintenant</b>.</p>
-  </div>
-
-  <!-- ============ RÉSUMÉ ============ -->
-  <div class="summary">
-    <p class="big">Pour résumer :</p>
-    <p>1️⃣ &nbsp; Télécharge l'APK ↑</p>
-    <p>2️⃣ &nbsp; Autorise l'install une fois</p>
-    <p>3️⃣ &nbsp; Remplis tes infos (5 min)</p>
-    <p>4️⃣ &nbsp; Lie ton fichier .xlsm</p>
-    <p>5️⃣ &nbsp; Tu peux travailler 🚀</p>
-  </div>
+  <div class="card red"><p style="margin:0"><b>Le sélecteur ne trouve pas mon .xlsm</b> → vérifie qu'il est bien sur le tél (pas que sur le PC). Sur OneDrive, ouvre-le une fois dans l'app OneDrive pour le mettre en cache.</p></div>
+  <div class="card red"><p style="margin:0"><b>Le mail s'ouvre sans destinataire</b> → il te faut une app mail installée et connectée (Gmail, Outlook).</p></div>
+  <div class="card red"><p style="margin:0"><b>Viber ne s'ouvre pas</b> → vérifie que Viber est installé, puis choisis-le dans la liste des apps.</p></div>
+  <div class="card red"><p style="margin:0"><b>« Android 8.0 requis »</b> → ton téléphone est trop ancien (il faut un modèle sorti après ~2018).</p></div>
 
   <footer>
     <p>
-      Repo : <a href="https://github.com/morpheus45/gsystem">github.com/morpheus45/gsystem</a><br/>
       <a href="https://github.com/morpheus45/gsystem/releases">Toutes les versions</a>
       &nbsp;·&nbsp;
       <a href="https://github.com/morpheus45/gsystem/issues">Signaler un souci</a>
     </p>
-    <p style="margin-top:14px; font-size:11px; color:#aaa;">
-      Cette app est un outil interne G-Systems, pas distribué via le Play Store.
-    </p>
+    <p style="margin-top:14px; font-size:11px; color:#aaa;">Outil interne G-Systems — pas distribué via le Play Store.</p>
   </footer>
 
 </div>
 
 <script>
-  // Récupère la dernière release via l'API GitHub pour afficher le numéro de version.
-  // Le bouton utilise déjà l'URL "latest" qui est toujours à jour.
   fetch("https://api.github.com/repos/morpheus45/gsystem/releases/latest", {
     headers: { "Accept": "application/vnd.github+json" }
   })
     .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function(d){
-      var v = document.getElementById("version");
-      v.textContent = d.tag_name || "?";
+      document.getElementById("version").textContent = d.tag_name || "?";
       var apk = (d.assets || []).find(function(a){ return /\.apk$/i.test(a.name); });
-      if (apk) {
-        document.getElementById("dl-btn").setAttribute("href", apk.browser_download_url);
-      }
+      if (apk) document.getElementById("dl-btn").setAttribute("href", apk.browser_download_url);
     })
-    .catch(function(){
-      document.getElementById("version").textContent = "dernière";
-    });
+    .catch(function(){ document.getElementById("version").textContent = "dernière"; });
 </script>
 </body>
 </html>
