@@ -4,14 +4,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
@@ -36,6 +40,7 @@ import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.EditablePeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
+import com.morpheus45.gsystem.ui.theme.Success
 import com.morpheus45.gsystem.ui.theme.Warning
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.util.HoursCalculator
@@ -73,6 +78,9 @@ fun TempsScreen(
     var mailGeste by remember { mutableStateOf<GesteCoEntry?>(null) }
     var mailGsm by remember { mutableStateOf<GsmSeulEntry?>(null) }
     var showDispatch by remember { mutableStateOf(false) }
+    // Suivi « envoyé / à faire » dans le dialogue Envois EPS (✓ vert / ✗ ambre).
+    var gesteSent by remember { mutableStateOf(false) }
+    var gsmSent by remember { mutableStateOf(false) }
     // Mutuelle exclusion
     LaunchedEffect(editingEntry) { if (editingEntry != null) showAdd = false }
     LaunchedEffect(showAdd) { if (showAdd) editingEntry = null }
@@ -173,6 +181,8 @@ fun TempsScreen(
                 // Mails EPS à proposer : GESTE CO seulement s'il y a un cadeau offert.
                 mailGeste = geste?.takeIf { it.offeredList().isNotEmpty() }
                 mailGsm = gsm
+                gesteSent = false
+                gsmSent = false
                 showDispatch = (mailGeste != null || mailGsm != null)
             }
         )
@@ -199,25 +209,35 @@ fun TempsScreen(
     // déclencher les mails (1 par appli mail) ; Viber clôture est déjà parti.
     // Générateurs identiques aux écrans historiques → contenu strictement identique.
     if (showDispatch) {
+        val total = (if (mailGeste != null) 1 else 0) + (if (mailGsm != null) 1 else 0)
+        val done = (if (mailGeste != null && gesteSent) 1 else 0) +
+                   (if (mailGsm != null && gsmSent) 1 else 0)
         AlertDialog(
             onDismissRequest = { showDispatch = false },
             title = { Text("Envois EPS à faire") },
-            text = { Text("Le Viber de clôture est parti. Tape chaque mail à envoyer (chacun ouvre ton appli mail).") },
+            text = {
+                Column {
+                    Text("Le Viber de clôture est parti. Envoie chaque mail ci-dessous.")
+                    Spacer(Modifier.height(4.dp))
+                    Text("$done / $total envoyé", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+            },
             confirmButton = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     mailGeste?.let { g ->
-                        Button(onClick = { sendGesteCoEmail(context, settings, g) },
-                            modifier = Modifier.fillMaxWidth()) {
-                            Text("Envoyer mail GESTE CO")
+                        EpsMailRow("Mail GESTE CO", gesteSent) {
+                            sendGesteCoEmail(context, settings, g)
+                            gesteSent = true
                         }
                     }
                     mailGsm?.let { s ->
-                        Button(onClick = { sendGsmEmail(context, settings, s) },
-                            modifier = Modifier.fillMaxWidth()) {
-                            Text("Envoyer mail GSM SEUL")
+                        EpsMailRow("Mail GSM SEUL", gsmSent) {
+                            sendGsmEmail(context, settings, s)
+                            gsmSent = true
                         }
                     }
                     TextButton(onClick = { showDispatch = false },
@@ -227,6 +247,56 @@ fun TempsScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Ligne d'un mail EPS dans le dialogue Envois EPS, avec statut visuel :
+ * ✓ vert « Envoyé » une fois lancé, ✗ ambre « À faire » tant que non envoyé.
+ */
+@Composable
+private fun EpsMailRow(label: String, sent: Boolean, onSend: () -> Unit) {
+    val accent = if (sent) Success else Warning
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(accent.copy(alpha = 0.10f), RoundedCornerShape(14.dp))
+            .border(1.dp, accent.copy(alpha = 0.55f), RoundedCornerShape(14.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .then(
+                    if (sent) Modifier.background(Success, CircleShape)
+                    else Modifier.border(2.dp, Warning, CircleShape)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (sent) Icons.Filled.Check else Icons.Filled.Close,
+                contentDescription = null,
+                tint = if (sent) Color(0xFF0C2A16) else Warning,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text(if (sent) "Envoyé" else "À faire", fontSize = 12.sp, color = accent)
+        }
+        if (sent) {
+            OutlinedButton(onClick = onSend) { Text("Renvoyer", fontSize = 12.sp) }
+        } else {
+            Button(
+                onClick = onSend,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Envoyer", fontSize = 13.sp, color = Color.White)
+            }
+        }
     }
 }
 
