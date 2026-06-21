@@ -155,7 +155,7 @@ fun TempsScreen(
                             entry = e,
                             onEdit = { editingEntry = e },
                             onResend = { ViberSender.share(context, ViberSender.buildMessage(e)) },
-                            onDelete = { scope.launch { repo.removeTemps(e.id) } }
+                            onDelete = { scope.launch { repo.removeTempsCascade(e.id) } }
                         )
                     }
                 }
@@ -713,9 +713,10 @@ private fun AddTempsDialog(
                         onClick = {
                             tried = true
                             if (!allOk) return@Button
-                            val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs) else null
-                            val gsm = if (isInstall) extras.buildGsm(date, siteNumber, nom, obs) else null
-                            onSave(buildEntry(), geste, gsm, true)
+                            val entry = buildEntry()
+                            val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs, entry.id) else null
+                            val gsm = if (isInstall) extras.buildGsm(date, siteNumber, nom, obs, entry.id) else null
+                            onSave(entry, geste, gsm, true)
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)

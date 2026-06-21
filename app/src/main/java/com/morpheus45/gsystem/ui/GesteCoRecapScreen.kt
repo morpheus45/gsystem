@@ -8,9 +8,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,12 +22,14 @@ import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.EntriesStore
+import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.PdfExporter
 import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.util.DateUtil
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +40,8 @@ fun GesteCoRecapScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var toDelete by remember { mutableStateOf<GesteCoEntry?>(null) }
     val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
     val periodEntries = store.gesteCo.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
@@ -249,11 +254,35 @@ fun GesteCoRecapScreen(
                             }
                             Text("%.2f €".format(e.totalPrime(settings.prices)),
                                 fontWeight = FontWeight.Bold, color = RecapStart, fontSize = 14.sp)
+                            IconButton(onClick = { toDelete = e }) {
+                                Icon(Icons.Filled.Delete, "Supprimer ce site",
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    toDelete?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { toDelete = null },
+            title = { Text("Supprimer ce site ?") },
+            text = {
+                Text("Site ${entry.siteNumber} — ${DateUtil.fr(DateUtil.parseIso(entry.date))}. " +
+                    "Cette entrée GESTE CO sera retirée du récap et des primes.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch { repo.removeGesteCo(entry.id) }
+                    toDelete = null
+                }) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { toDelete = null }) { Text("Annuler") }
+            }
+        )
     }
 }
 

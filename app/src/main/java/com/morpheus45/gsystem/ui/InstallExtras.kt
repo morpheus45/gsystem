@@ -81,10 +81,11 @@ internal class InstallExtrasState {
     }
 
     /** Crée l'entrée GESTE CO si des extensions sont installées, sinon null. */
-    fun buildGeste(date: String, site: String, nom: String, obs: String): GesteCoEntry? {
+    fun buildGeste(date: String, site: String, nom: String, obs: String, tempsId: String): GesteCoEntry? {
         if (!gesteOn || installedAll() == 0) return null
         return GesteCoEntry(
             id = EntriesRepository.newId(),
+            tempsId = tempsId,
             date = date.trim(), siteNumber = site.trim(),
             installedGsm = n(iGsm), installedCo = n(iCo), installedDmp = n(iDmp), installedSe = n(iSe),
             installedTc = n(iTc), installedSi = n(iSi), installedCam = n(iCam),
@@ -99,10 +100,11 @@ internal class InstallExtrasState {
     }
 
     /** Crée l'entrée GSM seul si le toggle est actif, sinon null. */
-    fun buildGsm(date: String, site: String, nom: String, obs: String): GsmSeulEntry? {
+    fun buildGsm(date: String, site: String, nom: String, obs: String, tempsId: String): GsmSeulEntry? {
         if (!gsmOn) return null
         return GsmSeulEntry(
             id = EntriesRepository.newId(),
+            tempsId = tempsId,
             date = date.trim(), siteNumber = site.trim(),
             nomClient = nom.trim(), observations = obs.trim(),
             pasMediasExploitables = pasMedias,

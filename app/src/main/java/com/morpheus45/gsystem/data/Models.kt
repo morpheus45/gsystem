@@ -44,7 +44,10 @@ data class GsmSeulEntry(
     /** OUI/NON dans le corps : "Câbles laissés sur site : OUI/NON". */
     val cablesLaissesSurSite: Boolean = false,
     /** OUI/NON dans le corps : "CPL déjà présent : OUI/NON". */
-    val cplDejaPresent: Boolean = false
+    val cplDejaPresent: Boolean = false,
+    /** Id de l'intervention TEMPS dont cette entrée est issue (clôture). Permet
+     *  de cascader la suppression. Vide pour les entrées historiques. */
+    val tempsId: String = ""
 )
 
 /**
@@ -92,7 +95,10 @@ data class GesteCoEntry(
     val offeredSondeIn: Int = 0,
     val epsDerogation: Boolean = false,
     val nomClient: String = "",
-    val observations: String = ""
+    val observations: String = "",
+    /** Id de l'intervention TEMPS dont cette entrée est issue (clôture). Permet
+     *  de cascader la suppression. Vide pour les entrées historiques. */
+    val tempsId: String = ""
 ) {
     /** Total des PRIMES (sur les INSTALLÉES — n'apparait QUE dans RÉCAP). */
     fun totalPrime(prices: GesteCoPrices): Double =
