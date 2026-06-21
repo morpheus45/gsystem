@@ -1,7 +1,28 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 20 juin 2026 · Version actuelle : **v1.8.5** (versionCode 74)
+> Date : 21 juin 2026 · Version actuelle : **v1.8.8** (versionCode 77)
+>
+> **v1.8.8 — fix suppression en cascade.** Clôturer une installation crée une
+> entrée TEMPS + une GESTE CO + une GSM séparées ; supprimer l'intervention ne
+> retirait que la TEMPS (orphelins dans le RÉCAP/primes). Ajout d'un champ
+> `tempsId` sur `GesteCoEntry` / `GsmSeulEntry` (renseigné par `buildGeste`/`buildGsm`),
+> `EntriesRepository.removeTempsCascade()` qui supprime l'intervention + ses
+> entrées liées, et la suppression d'une intervention passe par cette méthode.
+> Le RÉCAP GESTE CO permet aussi de supprimer un site (poubelle + confirmation)
+> pour nettoyer les orphelins antérieurs.
+>
+> **v1.8.7 — dialogue « Envois EPS » avec statut.** Chaque mail (GESTE CO, GSM SEUL)
+> affiche ✓ vert « Envoyé » / ✗ ambre « À faire » + compteur « X / N », bouton
+> « Envoyer » → « Renvoyer » (composable `EpsMailRow` dans `TempsScreen`). Le ✓
+> marque que l'envoi a été lancé (pas de confirmation de remise possible).
+>
+> **v1.8.6 — icônes des tuiles** alignées sur le tuto : CLÔTURE=Assignment,
+> ATTENTE=Timer, ENVOI=Outbox (HomeScreen). Tuiles sinon inchangées.
+>
+> **v1.8.3 — typo sur une ligne** (`theme/Type.kt` : titleLarge 19sp, labelLarge 14sp,
+> `maxLines=1` sur les titres) · **v1.8.2 — restyle « écran réel »** (`ui/FormStyle.kt` :
+> FormHeaderBar / AccentCard / AccentTextField sur CLÔTURE, FRAIS, ENVOI, RÉCAP).
 >
 > **v1.8.5 — mensuel : camembert PDF + mail épuré.** Dans `PdfExporter`, la
 > répartition TEMPS du récap mensuel passe des barres à un **camembert**
@@ -459,7 +480,8 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 ---
 
-*Document mis à jour pour v1.8.5 (clôture unifiée GSM/GESTE CO, compteur dans
+*Document mis à jour pour v1.8.8 (clôture unifiée GSM/GESTE CO, compteur dans
 Envoi Mensuel, restyle « écran réel » des formulaires, typo sur une ligne, récaps
-GESTE CO et mensuel en PDF avec camembert + corps du mail mensuel épuré).
+GESTE CO et mensuel en PDF avec camembert + mail mensuel épuré, icônes des tuiles,
+dialogue « Envois EPS » avec statut ✓/✗, suppression en cascade des entrées liées).
 Bon courage pour la suite.*
