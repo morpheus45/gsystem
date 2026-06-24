@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Outbox
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
@@ -78,6 +79,7 @@ fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
     onTemps: () -> Unit,
+    onDemandeCamera: () -> Unit,
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCourrier: () -> Unit,
@@ -188,6 +190,18 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "02",
+                    label = "DEMANDE CAMERA",
+                    sub = "Demande de rappel installation caméra(s)",
+                    icon = Icons.Outlined.Videocam,
+                    gradientStart = GsmStart,
+                    gradientEnd = GsmEnd,
+                    accent = GsmAccent,
+                    onClick = onDemandeCamera
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "03",
                     label = "ATTENTE CLIENT",
                     sub = "Viber heure début · rappel /15 min",
                     icon = Icons.Outlined.Timer,
@@ -199,7 +213,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "03",
+                    number = "04",
                     label = "COURRIER",
                     sub = "Viber « courrier ok »",
                     icon = Icons.Outlined.Email,
@@ -211,7 +225,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
+                    number = "05",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -223,7 +237,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -239,7 +253,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Outbox,

@@ -26,6 +26,7 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
+import com.morpheus45.gsystem.ui.DemandeCameraScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
@@ -138,6 +139,7 @@ fun AppNav() {
                 settings = settings,
                 store = store,
                 onTemps = { navController.navigate("temps") },
+                onDemandeCamera = { navController.navigate("demande_camera") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
                 onCourrier = { ViberSender.share(context, "courrier ok") },
@@ -189,6 +191,12 @@ fun AppNav() {
         composable("gesteco_recap") {
             GesteCoRecapScreen(
                 settings = settings, store = store, repo = repo,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("demande_camera") {
+            DemandeCameraScreen(
+                settings = settings,
                 onBack = { navController.popBackStack() }
             )
         }
