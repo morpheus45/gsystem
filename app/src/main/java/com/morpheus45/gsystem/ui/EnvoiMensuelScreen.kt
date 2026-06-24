@@ -34,6 +34,8 @@ import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.excel.ExcelFiller
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.BackupUploader
 import com.morpheus45.gsystem.export.PdfExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -427,21 +429,39 @@ fun EnvoiMensuelScreen(
                                 )
                                 attachments.add(recapPdf)
                             }
+                            val mailBody = buildString {
+                                append("Bonjour,\n\n")
+                                append("Veuillez trouver ci-joint, pour la période du ${DateUtil.fr(start)} au ${DateUtil.fr(end)} :\n\n")
+                                attachments.forEach { append("  - ${it.name}\n") }
+                                append("\nCordialement,\n${settings.nomUtilisateur}")
+                            }
                             EmailSender.sendMulti(
                                 context = context,
                                 to = settings.effectiveGsTo,
                                 cc = ccList,
                                 subject = "FEUILLES DE TEMPS ${DateUtil.fr(start)} -> ${DateUtil.fr(end)} - ${settings.plaqueVoiture}",
-                                body = buildString {
-                                    append("Bonjour,\n\n")
-                                    append("Veuillez trouver ci-joint, pour la période du ${DateUtil.fr(start)} au ${DateUtil.fr(end)} :\n\n")
-                                    attachments.forEach { append("  - ${it.name}\n") }
-                                    append("\nCordialement,\n${settings.nomUtilisateur}")
-                                },
+                                body = mailBody,
                                 attachments = attachments,
                                 mimeType = "*/*"
                             )
                             status = "Email préparé avec ${attachments.size} pièce(s) jointe(s). Choisis ton app email et envoie."
+
+                            // Copie du mail (corps + pièces jointes) sur le Drive partagé,
+                            // dans Sauvegardes G-Systems / <nom> / <AAAA-MM>/. Non bloquant.
+                            if (BackupConfig.isConfigured && settings.nomUtilisateur.isNotBlank()) {
+                                runCatching {
+                                    val month = start.toString().take(7)
+                                    BackupUploader.uploadBytes(
+                                        settings.nomUtilisateur, month,
+                                        "mail-mensuel_${start}.txt", "text/plain",
+                                        mailBody.toByteArray(Charsets.UTF_8)
+                                    )
+                                    attachments.forEach { f ->
+                                        BackupUploader.uploadFile(
+                                            settings.nomUtilisateur, month, f, mimeForFile(f.name))
+                                    }
+                                }
+                            }
                         }.onFailure { ex ->
                             errorMsg = "Erreur : ${ex.message ?: ex.javaClass.simpleName}"
                             status = null
@@ -494,6 +514,17 @@ private fun StatRow(label: String, value: String) {
         Text(label, fontSize = 13.sp)
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
+}
+
+/** Type MIME d'une pièce jointe d'après son extension (pour le rangement Drive). */
+private fun mimeForFile(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
+    "pdf" -> "application/pdf"
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    "xlsm" -> "application/vnd.ms-excel.sheet.macroEnabled.12"
+    "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    "txt" -> "text/plain"
+    else -> "application/octet-stream"
 }
 
 private fun resolveFileName(context: android.content.Context, uri: Uri): String? {

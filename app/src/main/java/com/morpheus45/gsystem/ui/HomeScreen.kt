@@ -57,9 +57,9 @@ import com.morpheus45.gsystem.ui.theme.FraisStart
 import com.morpheus45.gsystem.ui.theme.GesteAccent
 import com.morpheus45.gsystem.ui.theme.GesteEnd
 import com.morpheus45.gsystem.ui.theme.GesteStart
-import com.morpheus45.gsystem.ui.theme.GsmAccent
-import com.morpheus45.gsystem.ui.theme.GsmEnd
-import com.morpheus45.gsystem.ui.theme.GsmStart
+import com.morpheus45.gsystem.ui.theme.CameraAccent
+import com.morpheus45.gsystem.ui.theme.CameraEnd
+import com.morpheus45.gsystem.ui.theme.CameraStart
 import com.morpheus45.gsystem.ui.theme.Obsidian
 import com.morpheus45.gsystem.ui.theme.RecapAccent
 import com.morpheus45.gsystem.ui.theme.RecapEnd
@@ -193,9 +193,9 @@ fun HomeScreen(
                     label = "DEMANDE CAMERA",
                     sub = "Demande de rappel installation caméra(s)",
                     icon = Icons.Outlined.Videocam,
-                    gradientStart = GsmStart,
-                    gradientEnd = GsmEnd,
-                    accent = GsmAccent,
+                    gradientStart = CameraStart,
+                    gradientEnd = CameraEnd,
+                    accent = CameraAccent,
                     onClick = onDemandeCamera
                 )
             }

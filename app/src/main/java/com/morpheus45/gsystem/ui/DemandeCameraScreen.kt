@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.email.EmailSender
-import com.morpheus45.gsystem.ui.theme.ColorGsmSeul
+import com.morpheus45.gsystem.ui.theme.CameraStart
 
 /**
  * DEMANDE CAMÉRA — sur la base de l'ancien GSM SEUL : un formulaire court
@@ -51,7 +51,7 @@ fun DemandeCameraScreen(
                     IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Retour") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ColorGsmSeul, titleContentColor = Color.White,
+                    containerColor = CameraStart, titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
@@ -64,10 +64,10 @@ fun DemandeCameraScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            AccentCard(ColorGsmSeul) {
+            AccentCard(CameraStart) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text("Demande de rappel pour installation caméra(s)",
-                        fontWeight = FontWeight.Bold, color = ColorGsmSeul, fontSize = 15.sp)
+                        fontWeight = FontWeight.Bold, color = CameraStart, fontSize = 15.sp)
                     Text("Envoi immédiat à EPS (epsinfotechline + copies).",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f))
@@ -85,7 +85,7 @@ fun DemandeCameraScreen(
                             fontWeight = FontWeight.Bold)
                     }
                 },
-                accent = ColorGsmSeul,
+                accent = CameraStart,
                 isError = tried && !siteOk,
                 supportingText = if (tried && !siteOk) { { Text("Champ obligatoire") } } else null,
                 modifier = Modifier.fillMaxWidth()
@@ -102,7 +102,7 @@ fun DemandeCameraScreen(
                             fontWeight = FontWeight.Bold)
                     }
                 },
-                accent = ColorGsmSeul,
+                accent = CameraStart,
                 isError = tried && !nbOk,
                 supportingText = if (tried && !nbOk) { { Text("Au moins 1") } } else null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -120,10 +120,10 @@ fun DemandeCameraScreen(
 
             // Aperçu du sujet (identique au format GSM SEUL : HD-100 - code - site)
             Card(colors = CardDefaults.cardColors(
-                containerColor = ColorGsmSeul.copy(alpha = 0.10f))) {
+                containerColor = CameraStart.copy(alpha = 0.10f))) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text("Sujet de l'email :", fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                        color = ColorGsmSeul)
+                        color = CameraStart)
                     Text(buildSubject(settings.siteCodeFixe, siteNumber.ifBlank { "<n° site>" }),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurface)
@@ -140,7 +140,7 @@ fun DemandeCameraScreen(
                     onBack()
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorGsmSeul)
+                colors = ButtonDefaults.buttonColors(containerColor = CameraStart)
             ) {
                 Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White,
                     modifier = Modifier.size(18.dp))

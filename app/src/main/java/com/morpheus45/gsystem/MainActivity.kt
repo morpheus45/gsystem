@@ -22,6 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.BackupExporter
+import com.morpheus45.gsystem.backup.BackupUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
@@ -40,7 +43,10 @@ import com.morpheus45.gsystem.update.UpdateDialog
 import com.morpheus45.gsystem.update.checkForUpdateSilently
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.viber.ViberSender
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
@@ -129,6 +135,29 @@ fun AppNav() {
         if (!updateCheckedThisSession) {
             updateCheckedThisSession = true
             pendingUpdate = checkForUpdateSilently()
+        }
+    }
+
+    // Sauvegarde complète automatique sur le Drive, 1×/semaine, à l'ouverture.
+    // Non bloquant ; en local rien n'est purgé (seul le zip temporaire est effacé).
+    var backupCheckedThisSession by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.isReady) {
+        if (backupCheckedThisSession) return@LaunchedEffect
+        if (!BackupConfig.isConfigured || !settings.isReady ||
+            settings.nomUtilisateur.isBlank()) return@LaunchedEffect
+        backupCheckedThisSession = true
+        val now = System.currentTimeMillis()
+        if (now - settings.lastDriveBackup < BackupConfig.BACKUP_INTERVAL_MS) return@LaunchedEffect
+        runCatching {
+            val zip = withContext(Dispatchers.IO) {
+                val settingsJson = Json.encodeToString(AppSettings.serializer(), settings)
+                BackupExporter.createBackupZip(context, settingsJson)
+            }
+            val month = DateUtil.today().toString().take(7)
+            val ok = BackupUploader.uploadFile(
+                settings.nomUtilisateur, month, zip, "application/zip")
+            runCatching { zip.delete() }
+            if (ok) settingsStore.update { it.copy(lastDriveBackup = now) }
         }
     }
 

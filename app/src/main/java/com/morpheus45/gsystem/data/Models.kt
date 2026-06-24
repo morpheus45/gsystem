@@ -301,6 +301,8 @@ data class AppSettings(
     val excelFileUri: String = "",
     /** Nom d'affichage du fichier Excel choisi (pour la GUI). */
     val excelFileName: String = "",
+    /** Horodatage (ms) de la dernière sauvegarde complète envoyée sur le Drive. */
+    val lastDriveBackup: Long = 0L,
     val firstRunDone: Boolean = false
 ) {
     // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis

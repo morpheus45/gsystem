@@ -53,10 +53,16 @@ val GesteAccent    = Color(0xFF6EE7B7)
 
 // PALETTE CONTINUE violet -> vert : chaque tuile démarre là où la précédente
 // finit (effet « waterfall » sur la pile d'accueil). CLÔTURE reste l'ancrage violet.
-// Ordre accueil : 01 CLÔTURE · 02 ATTENTE · 03 COURRIER · 04 RECAP · 05 FRAIS ·
-// 06 COMPTEUR · 07 ENVOI MENSUEL.
+// Ordre accueil : 01 CLÔTURE · 02 DEMANDE CAMERA · 03 ATTENTE · 04 COURRIER ·
+// 05 RECAP · 06 FRAIS · 07 ENVOI MENSUEL.
 
-// 02 ATTENTE CLIENT — violet clair
+// 02 DEMANDE CAMERA — violet : fait le pont CLÔTURE -> ATTENTE pour garder
+// la waterfall (sa fin = le départ d'ATTENTE #8A5CF6).
+val CameraStart    = Color(0xFF9168F0)
+val CameraEnd      = Color(0xFF8A5CF6)
+val CameraAccent   = Color(0xFFDDD6FE)
+
+// 03 ATTENTE CLIENT — violet clair
 val AttenteStart   = Color(0xFF8A5CF6)
 val AttenteEnd     = Color(0xFF6366F1)
 val AttenteAccent  = Color(0xFFDDD6FE)
