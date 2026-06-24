@@ -2,7 +2,9 @@ package com.morpheus45.gsystem.backup
 
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
+import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.util.DateUtil
+import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
@@ -25,6 +27,31 @@ object StatsUploader {
             val geste = store.gesteCo.filter { inP(it.date) }
             val compteur = store.compteur.filter { inP(it.date) }
 
+            // Répartition des interventions par type (camembert du dashboard).
+            val repartition = JSONArray()
+            temps.groupingBy { it.typeMission.ifBlank { "—" } }.eachCount()
+                .entries.sortedByDescending { it.value }
+                .forEach { (type, count) ->
+                    repartition.put(JSONObject().put("type", type).put("count", count))
+                }
+
+            // Primes par type (sur les extensions installées), comme l'écran RÉCAP.
+            val installedByType = linkedMapOf<String, Int>()
+            geste.forEach { g ->
+                g.installedList().forEach { (t, c) ->
+                    installedByType[t] = (installedByType[t] ?: 0) + c
+                }
+            }
+            val primesParType = JSONArray()
+            GesteCoPrices.TYPES.forEach { t ->
+                val q = installedByType[t] ?: 0
+                if (q > 0) {
+                    val unit = settings.prices.priceFor(t)
+                    primesParType.put(JSONObject()
+                        .put("type", t).put("qty", q).put("unit", unit).put("total", q * unit))
+                }
+            }
+
             val json = JSONObject().apply {
                 put("tech", settings.nomUtilisateur)
                 put("month", s.take(7))
@@ -35,6 +62,8 @@ object StatsUploader {
                 put("primes", geste.sumOf { it.totalPrime(settings.prices) })
                 put("extensions", geste.sumOf { it.totalInstalled() })
                 put("compteur", compteur.size)
+                put("repartition", repartition)
+                put("primesParType", primesParType)
                 put("maj", System.currentTimeMillis())
             }.toString()
 
