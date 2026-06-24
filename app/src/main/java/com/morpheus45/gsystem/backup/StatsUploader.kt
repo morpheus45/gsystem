@@ -2,6 +2,7 @@ package com.morpheus45.gsystem.backup
 
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
+import com.morpheus45.gsystem.util.DateUtil
 import org.json.JSONObject
 import java.time.LocalDate
 
@@ -42,5 +43,20 @@ object StatsUploader {
                 "application/json", json.toByteArray(Charsets.UTF_8)
             )
         }
+    }
+
+    /**
+     * Synchronisation manuelle : (re)pousse les stats de TOUS les cycles déjà
+     * présents dans les données. Retourne le nombre de cycles synchronisés.
+     */
+    suspend fun syncAll(settings: AppSettings, store: EntriesStore): Int {
+        if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return 0
+        val dates = (store.temps.map { it.date } + store.frais.map { it.date } +
+                store.gesteCo.map { it.date } + store.compteur.map { it.date })
+            .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        if (dates.isEmpty()) return 0
+        val cycles = dates.map { DateUtil.cyclePeriod(it, settings.cycleStartDay) }.toSet()
+        cycles.forEach { (start, end) -> push(settings, store, start, end) }
+        return cycles.size
     }
 }

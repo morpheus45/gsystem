@@ -3,7 +3,7 @@
  *
  * UNE seule web app à la même URL /exec :
  *   - POST (depuis l'app Android) : enregistre un fichier sur le Drive, rangé
- *     dans  Sauvegardes G-Systems / <mois> / <tech> / <fichier>.
+ *     dans  Sauvegardes G-Systems / <tech> / <mois> / <fichier>.
  *   - GET (depuis un navigateur)  : affiche le TABLEAU DE BORD comptable
  *     (stats par tech + bouton « tout télécharger »).
  *
@@ -24,17 +24,17 @@ function doPost(e) {
     if (p.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
 
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-    const monthFolder = getOrCreateFolder(root, sanitize(p.month || 'sans-date'));
-    const userFolder = getOrCreateFolder(monthFolder, sanitize(p.user || 'Inconnu'));
+    const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
+    const monthFolder = getOrCreateFolder(userFolder, sanitize(p.month || 'sans-date'));
 
     const bytes = Utilities.base64Decode(p.dataBase64);
     const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream',
                                    p.fileName || 'fichier');
 
-    const same = userFolder.getFilesByName(p.fileName || 'fichier');
+    const same = monthFolder.getFilesByName(p.fileName || 'fichier');
     while (same.hasNext()) same.next().setTrashed(true);
 
-    const file = userFolder.createFile(blob);
+    const file = monthFolder.createFile(blob);
     return json({ ok: true, id: file.getId(), name: file.getName() });
   } catch (err) {
     return json({ ok: false, error: String(err) });
@@ -51,38 +51,42 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-/** Liste des mois disponibles (noms des sous-dossiers), du plus récent au plus ancien. */
+/** Liste des mois présents (sous-dossiers de chaque tech), du plus récent au plus ancien. */
 function getMonths() {
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-  const out = [];
-  const it = root.getFolders();
-  while (it.hasNext()) {
-    const name = it.next().getName();
-    if (name !== '_telechargements') out.push(name);
+  const set = {};
+  const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next();
+    if (u.getName() === '_telechargements') continue;
+    const ms = u.getFolders();
+    while (ms.hasNext()) set[ms.next().getName()] = true;
   }
+  const out = Object.keys(set);
   out.sort().reverse();
   return out;
 }
 
-/** Stats par tech pour un mois donné (lit chaque _stats.json). */
+/** Stats par tech pour un mois donné (lit chaque <tech>/<mois>/_stats.json). */
 function getStats(month) {
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-  const mIt = root.getFoldersByName(month);
-  if (!mIt.hasNext()) return [];
-  const monthFolder = mIt.next();
   const rows = [];
-  const techs = monthFolder.getFolders();
-  while (techs.hasNext()) {
-    const tech = techs.next();
+  const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next();
+    if (u.getName() === '_telechargements') continue;
+    const mIt = u.getFoldersByName(month);
+    if (!mIt.hasNext()) continue;
+    const mf = mIt.next();
     const row = {
-      tech: tech.getName(), periode: '', interventions: null, tickets: null,
+      tech: u.getName(), periode: '', interventions: null, tickets: null,
       frais: null, primes: null, extensions: null, compteur: null, fichiers: 0, stats: false
     };
     let n = 0;
-    const fit = tech.getFiles();
+    const fit = mf.getFiles();
     while (fit.hasNext()) { fit.next(); n++; }
     row.fichiers = n;
-    const sIt = tech.getFilesByName('_stats.json');
+    const sIt = mf.getFilesByName('_stats.json');
     if (sIt.hasNext()) {
       try {
         const s = JSON.parse(sIt.next().getBlob().getDataAsString('UTF-8'));
@@ -106,16 +110,16 @@ function getStats(month) {
 function makeZip(month) {
   try {
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-    const mIt = root.getFoldersByName(month);
-    if (!mIt.hasNext()) return { ok: false, error: 'Mois introuvable' };
-    const monthFolder = mIt.next();
-
     const blobs = [];
-    const techs = monthFolder.getFolders();
-    while (techs.hasNext()) {
-      const tech = techs.next();
-      const tname = tech.getName();
-      const files = tech.getFiles();
+    const users = root.getFolders();
+    while (users.hasNext()) {
+      const u = users.next();
+      if (u.getName() === '_telechargements') continue;
+      const mIt = u.getFoldersByName(month);
+      if (!mIt.hasNext()) continue;
+      const mf = mIt.next();
+      const tname = u.getName();
+      const files = mf.getFiles();
       while (files.hasNext()) {
         const f = files.next();
         const b = f.getBlob().copyBlob();

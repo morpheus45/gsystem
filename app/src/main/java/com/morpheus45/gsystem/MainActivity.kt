@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.backup.BackupConfig
 import com.morpheus45.gsystem.backup.BackupExporter
 import com.morpheus45.gsystem.backup.BackupUploader
+import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
@@ -205,6 +206,23 @@ fun AppNav() {
                             // Pas de mise à jour : afficher un message via le state
                             // (le bouton lui-même affiche son retour via une Snackbar locale)
                         }
+                    }
+                },
+                onSync = {
+                    val n = StatsUploader.syncAll(settings, repo.store.value)
+                    runCatching {
+                        val zip = withContext(Dispatchers.IO) {
+                            BackupExporter.createBackupZip(
+                                context, Json.encodeToString(AppSettings.serializer(), settings))
+                        }
+                        val month = DateUtil.today().toString().take(7)
+                        BackupUploader.uploadFile(settings.nomUtilisateur, month, zip, "application/zip")
+                        runCatching { zip.delete() }
+                    }
+                    when {
+                        !BackupConfig.isConfigured -> "Sauvegarde Drive non configurée"
+                        n == 0 -> "Aucune donnée à synchroniser"
+                        else -> "✅ $n mois synchronisés sur le Drive"
                     }
                 }
             )

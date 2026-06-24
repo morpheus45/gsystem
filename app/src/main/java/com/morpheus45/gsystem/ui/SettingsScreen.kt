@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import android.widget.Toast
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.backup.BackupExporter
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -39,7 +42,8 @@ fun SettingsScreen(
     settings: AppSettings,
     onSave: (AppSettings) -> Unit,
     onBack: () -> Unit,
-    onCheckUpdate: () -> Unit = {}
+    onCheckUpdate: () -> Unit = {},
+    onSync: suspend () -> String = { "" }
 ) {
     // Destinataires fixes (GS To, EPS To, EPS Cc 1) codés en dur dans AppSettings
     // et masqués ici. Seul le responsable secteur (EPS Cc 2) reste éditable.
@@ -267,6 +271,35 @@ fun SettingsScreen(
                 Icon(Icons.Filled.Archive, contentDescription = null)
                 Text("  Créer une sauvegarde ZIP et l'envoyer")
             }
+
+            Spacer(Modifier.height(10.dp))
+            val syncScope = rememberCoroutineScope()
+            var syncing by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = {
+                    if (syncing) return@OutlinedButton
+                    syncing = true
+                    syncScope.launch {
+                        val msg = onSync()
+                        syncing = false
+                        Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                    }
+                },
+                enabled = !syncing,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (syncing) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Text("  Synchronisation…")
+                } else {
+                    Icon(Icons.Filled.CloudUpload, contentDescription = null)
+                    Text("  Synchroniser tout sur le Drive")
+                }
+            }
+            Text("Pousse sur le Drive partagé les stats de TOUS les mois déjà saisis + une sauvegarde complète. Utile une fois pour rattraper l'historique.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(20.dp))
             SectionTitle("Mises à jour")
