@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.EntriesStore
@@ -155,7 +156,10 @@ fun TempsScreen(
                             entry = e,
                             onEdit = { editingEntry = e },
                             onResend = { ViberSender.share(context, ViberSender.buildMessage(e)) },
-                            onDelete = { scope.launch { repo.removeTempsCascade(e.id) } }
+                            onDelete = { scope.launch {
+                                repo.removeTempsCascade(e.id)
+                                StatsUploader.push(settings, repo.store.value, periodStart, periodEnd)
+                            } }
                         )
                     }
                 }
@@ -173,6 +177,7 @@ fun TempsScreen(
                     repo.addTemps(entry)
                     if (geste != null) repo.addGesteCo(geste)
                     if (gsm != null) repo.addGsmSeul(gsm)
+                    StatsUploader.push(settings, repo.store.value, periodStart, periodEnd)
                 }
                 if (alsoShareViber && entry.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(entry))

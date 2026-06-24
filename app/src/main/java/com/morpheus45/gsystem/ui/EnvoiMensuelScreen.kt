@@ -36,6 +36,7 @@ import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.backup.BackupConfig
 import com.morpheus45.gsystem.backup.BackupUploader
+import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.export.PdfExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -460,6 +461,8 @@ fun EnvoiMensuelScreen(
                                         BackupUploader.uploadFile(
                                             settings.nomUtilisateur, month, f, mimeForFile(f.name))
                                     }
+                                    // Stats définitives du mois (tableau de bord comptable).
+                                    StatsUploader.push(settings, store, start, end)
                                 }
                             }
                         }.onFailure { ex ->
