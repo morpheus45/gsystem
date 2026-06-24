@@ -415,9 +415,10 @@ private fun AddTempsDialog(
     val nomOk = isWholeDay || nom.isNotBlank()
     val villeOk = isWholeDay || ville.isNotBlank()
     val numeroOk = isWholeDay || numero.isNotBlank()
-    // INSTALL (nouvelle saisie) : N° de site obligatoire + règles GESTE CO respectées.
+    // INSTALL (nouvelle saisie) : N° de site obligatoire SEULEMENT si un mail part
+    // (GESTE CO offert ou GSM seul) + règles GESTE CO respectées.
     val isInstall = type == "INST" && !isEditing
-    val siteOk = !isInstall || siteNumber.isNotBlank()
+    val siteOk = !isInstall || !extras.needsSite() || siteNumber.isNotBlank()
     val gesteOk = !isInstall || extras.gesteValid(settings.clientGifts)
     val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk && siteOk && gesteOk
 
@@ -648,11 +649,11 @@ private fun AddTempsDialog(
                         Spacer(Modifier.height(14.dp))
                         AccentTextField(
                             value = siteNumber, onValueChange = { siteNumber = it.trim() },
-                            label = reqLabel("N° de site (commun GESTE CO / GSM)", true),
+                            label = reqLabel("N° de site (commun GESTE CO / GSM)", extras.needsSite()),
                             accent = Warning,
-                            isError = tried && siteNumber.isBlank(),
-                            supportingText = if (tried && siteNumber.isBlank()) {
-                                { Text("Champ obligatoire") }
+                            isError = tried && extras.needsSite() && siteNumber.isBlank(),
+                            supportingText = if (tried && extras.needsSite() && siteNumber.isBlank()) {
+                                { Text("Obligatoire si GESTE CO offert ou GSM seul") }
                             } else null,
                             modifier = Modifier.fillMaxWidth()
                         )

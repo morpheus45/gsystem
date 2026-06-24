@@ -113,8 +113,12 @@ internal class InstallExtrasState {
         )
     }
 
-    /** Au moins une section active → le N° de site devient obligatoire. */
-    fun needsSite(): Boolean = (gesteOn && installedAll() > 0) || gsmOn
+    /**
+     * N° de site obligatoire UNIQUEMENT si un mail va partir : GESTE CO offert
+     * (offeredAll > 0) ou GSM seul actif. Sinon (juste des installées pour la
+     * prime, rien d'offert, pas de GSM) → le N° de site reste facultatif.
+     */
+    fun needsSite(): Boolean = (gesteOn && offeredAll() > 0) || gsmOn
 }
 
 @Composable
