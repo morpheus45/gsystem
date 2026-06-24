@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>G-Systems · Accéder aux sauvegardes (lecteur réseau)</title>
+  <meta name="description" content="Connecter le dossier de sauvegardes G-Systems comme un lecteur réseau sur l'ordinateur." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%23ee2322'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root { --accent:#1d9e75; --bg:#f7f6fb; --card:#fff; --text:#1f1f23; --muted:#66666b; --border:#e6e3ee; --warning:#c87600; --warning-bg:#fff8ee; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+    .container{max-width:720px;margin:0 auto;padding:24px 16px 70px}
+    h1{font-size:24px;margin:0 0 6px}
+    .sub{color:var(--muted);margin:0 0 22px;font-size:14.5px}
+    h2{font-size:19px;color:var(--accent);margin:30px 0 12px;display:flex;align-items:center;gap:10px}
+    .step{display:flex;gap:14px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px;align-items:flex-start}
+    .step .n{flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .step .t{flex:1}
+    .step .t b{display:block;font-size:15.5px;margin:3px 0 4px}
+    .step .t p{margin:4px 0;font-size:14px}
+    .step .t .small{font-size:12.5px;color:var(--muted)}
+    .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+    .card.warn{background:var(--warning-bg);border-left:4px solid var(--warning);border-radius:10px}
+    a{color:var(--accent);font-weight:600;text-decoration:none}
+    code{background:#fff;border:1px solid var(--border);padding:2px 6px;border-radius:5px;font-size:13px;font-family:ui-monospace,monospace;color:var(--accent)}
+    footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted);text-align:center}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>📁 Accéder aux sauvegardes G-Systems</h1>
+  <p class="sub">Voir le dossier des sauvegardes sur ton ordinateur, comme un lecteur réseau.</p>
+
+  <div class="card">
+    <p style="margin:0">Toutes les sauvegardes (mails mensuels + données) sont rangées sur <b>Google Drive</b> : <b>un dossier par mois, puis un sous-dossier par technicien</b>. Deux façons d'y accéder : <b>télécharger une période en un zip</b> (le plus simple, ci-dessous), ou <b>monter le dossier comme un lecteur réseau</b> (plus bas).</p>
+  </div>
+
+  <h2><span>📥</span>Télécharger une période (1 zip, par tech)</h2>
+  <div class="card">
+    <p style="margin:0 0 8px">Sur <a href="https://drive.google.com">drive.google.com</a> (ou dans le lecteur monté) :</p>
+    <ol style="margin:0;padding-left:20px">
+      <li>Ouvre le dossier des sauvegardes → entre dans le <b>mois voulu</b> (ex <code>2026-06</code>).</li>
+      <li><b>Clic droit</b> sur ce dossier de mois → <b>Télécharger</b>.</li>
+      <li>Google Drive prépare <b>un seul fichier ZIP</b> contenant <b>un sous-dossier par technicien</b> (mail + Excel + photos + récap PDF de chacun).</li>
+    </ol>
+    <p class="small" style="margin:8px 0 0">Tu choisis la période = le mois, et tu récupères tout, déjà séparé par tech. Aucune installation nécessaire pour ça.</p>
+  </div>
+
+  <h2><span>🖥️</span>(Optionnel) Le voir comme un lecteur réseau</h2>
+
+  <div class="step">
+    <div class="n">1</div>
+    <div class="t">
+      <b>Installe « Google Drive pour ordinateur »</b>
+      <p>Télécharge-le ici : <a href="https://www.google.com/intl/fr/drive/download/">google.com/drive/download</a> → installe-le.</p>
+      <p class="small">Windows et Mac. C'est l'outil officiel Google, gratuit.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">2</div>
+    <div class="t">
+      <b>Connecte-toi avec ton compte Google</b>
+      <p>Celui à qui le dossier de sauvegardes a été <b>partagé</b> (en lecture). Un nouveau lecteur (ex <code>G:</code>) apparaît dans l'Explorateur.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">3</div>
+    <div class="t">
+      <b>Ajoute le dossier partagé à ton Drive</b>
+      <p>Va sur <a href="https://drive.google.com">drive.google.com</a> → <b>Partagés avec moi</b> → clic droit sur le dossier des sauvegardes → <b>« Ajouter un raccourci vers Drive »</b> → choisis <b>Mon Drive</b>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="n">4</div>
+    <div class="t">
+      <b>Ouvre-le comme un dossier réseau</b>
+      <p>Dans l'Explorateur : <code>G:\Mon Drive\…\</code> → tu navigues dans les dossiers des techniciens et des mois, tu ouvres / télécharges les fichiers comme sur un disque réseau.</p>
+      <p class="small">Astuce : clic droit sur le dossier → <b>Épingler à Accès rapide</b> pour le retrouver d'un clic.</p>
+    </div>
+  </div>
+
+  <div class="card warn">
+    <p style="margin:0"><b>👩‍💼 Pour la comptable</b> : exactement les mêmes 4 étapes, avec <b>son</b> compte Google — à condition que le dossier lui ait été partagé <b>en Lecteur</b>. Elle voit alors tout le contenu du dossier (tous les techniciens, tous les mois) et <b>rien d'autre</b> de ton Drive.</p>
+  </div>
+
+  <h2><span>🛠️</span>Variante « vrai lecteur réseau » (avancé)</h2>
+  <div class="card">
+    <p style="margin:0 0 6px">Si tu veux une <b>vraie lettre de lecteur mappée</b> (ex <code>Z:</code>) en lecture seule, on peut utiliser <a href="https://rclone.org">rclone</a> (gratuit) qui monte un dossier Drive comme un disque. C'est plus technique (configuration Google une fois). Dis-moi si tu veux, je te prépare le script.</p>
+  </div>
+
+  <footer>
+    Outil interne G-Systems · accès aux sauvegardes Drive
+  </footer>
+
+</div>
+</body>
+</html>

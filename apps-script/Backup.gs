@@ -13,7 +13,9 @@
  *
  * L'app Android envoie un POST JSON :
  *   { token, user, month, fileName, mimeType, dataBase64 }
- * Le fichier est rangé dans :  Sauvegardes G-Systems / <user> / <month> / <fileName>
+ * Le fichier est rangé dans :  Sauvegardes G-Systems / <month> / <user> / <fileName>
+ * (rangement MOIS -> TECH : la compta télécharge un mois = 1 zip avec 1
+ *  sous-dossier par technicien.)
  */
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
@@ -26,18 +28,18 @@ function doPost(e) {
     if (p.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
 
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-    const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
-    const monthFolder = getOrCreateFolder(userFolder, sanitize(p.month || 'sans-date'));
+    const monthFolder = getOrCreateFolder(root, sanitize(p.month || 'sans-date'));
+    const userFolder = getOrCreateFolder(monthFolder, sanitize(p.user || 'Inconnu'));
 
     const bytes = Utilities.base64Decode(p.dataBase64);
     const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream',
                                    p.fileName || 'fichier');
 
-    // Remplace un fichier de même nom dans le mois (évite les doublons).
-    const same = monthFolder.getFilesByName(p.fileName || 'fichier');
+    // Remplace un fichier de même nom dans le dossier du tech (évite les doublons).
+    const same = userFolder.getFilesByName(p.fileName || 'fichier');
     while (same.hasNext()) same.next().setTrashed(true);
 
-    const file = monthFolder.createFile(blob);
+    const file = userFolder.createFile(blob);
     return json({ ok: true, id: file.getId(), name: file.getName() });
   } catch (err) {
     return json({ ok: false, error: String(err) });
