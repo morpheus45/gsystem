@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>G-Systems · Espace comptable</title>
+  <meta name="description" content="Récupérer les sauvegardes des techniciens G-Systems sur le Drive partagé." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect rx='15' width='100' height='100' fill='%23ee2322'/%3E%3Ctext x='50' y='72' font-size='65' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EG%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root { --accent:#1d9e75; --bg:#f7f6fb; --card:#fff; --text:#1f1f23; --muted:#66666b; --border:#e6e3ee; --warning:#c87600; --warning-bg:#fff8ee; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+    .container{max-width:720px;margin:0 auto;padding:26px 16px 70px}
+    .badge{display:inline-block;background:#e1f5ee;color:var(--accent);font-weight:700;font-size:12.5px;padding:5px 12px;border-radius:20px;margin-bottom:10px}
+    h1{font-size:25px;margin:0 0 6px}
+    .sub{color:var(--muted);margin:0 0 22px;font-size:14.5px}
+    h2{font-size:19px;color:var(--accent);margin:30px 0 12px;display:flex;align-items:center;gap:10px}
+    .step{display:flex;gap:14px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px;align-items:flex-start}
+    .step .n{flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .step .t{flex:1}
+    .step .t b{display:block;font-size:15.5px;margin:3px 0 4px}
+    .step .t p{margin:4px 0;font-size:14px}
+    .step .t .small{font-size:12.5px;color:var(--muted)}
+    .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+    .card.warn{background:var(--warning-bg);border-left:4px solid var(--warning);border-radius:10px}
+    .card.green{background:#ecf8ed;border-left:4px solid var(--accent);border-radius:10px}
+    ol,ul{margin:6px 0;padding-left:20px}
+    li{margin:5px 0}
+    a{color:var(--accent);font-weight:600;text-decoration:none}
+    code{background:#fff;border:1px solid var(--border);padding:2px 6px;border-radius:5px;font-size:13px;font-family:ui-monospace,monospace;color:var(--accent)}
+    footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--border);font-size:12.5px;color:var(--muted);text-align:center}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="badge">ESPACE COMPTABLE</div>
+  <h1>📁 Récupérer les sauvegardes des techniciens</h1>
+  <p class="sub">Les techniciens envoient automatiquement leurs feuilles de temps, frais et récaps sur un dossier Google Drive partagé. Voici comment les récupérer.</p>
+
+  <div class="card green">
+    <p style="margin:0"><b>Comment c'est rangé :</b> le dossier partagé contient <b>un dossier par mois</b> (ex <code>2026-06</code>), et dans chaque mois, <b>un sous-dossier par technicien</b> (Excel, photos de tickets, récap PDF, mail mensuel).</p>
+  </div>
+
+  <h2><span>📥</span>Télécharger un mois complet (1 zip, par tech)</h2>
+  <div class="step">
+    <div class="n">1</div>
+    <div class="t">
+      <b>Ouvre le dossier partagé</b>
+      <p>Depuis le lien que t'a envoyé G-Systems, ou sur <a href="https://drive.google.com">drive.google.com</a> → <b>Partagés avec moi</b>.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">2</div>
+    <div class="t">
+      <b>Choisis le mois voulu</b>
+      <p>Entre dans le dossier du mois à récupérer (ex <code>2026-06</code> = juin 2026).</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">3</div>
+    <div class="t">
+      <b>Clic droit → Télécharger</b>
+      <p>Fais <b>clic droit sur le dossier du mois</b> (ou coche-le puis menu <b>⋮ → Télécharger</b>).</p>
+      <p class="small">Google Drive compresse tout automatiquement, ça peut prendre quelques secondes.</p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="n">4</div>
+    <div class="t">
+      <b>Tu obtiens un seul fichier ZIP</b>
+      <p>À l'intérieur : <b>un sous-dossier par technicien</b>, avec son Excel, ses photos et son récap PDF du mois. Tout est déjà séparé par personne.</p>
+    </div>
+  </div>
+
+  <div class="card warn">
+    <p style="margin:0">🔒 Tu vois <b>uniquement ce dossier de sauvegardes</b> (tous les techniciens, tous les mois). Le reste du Drive du compte n'est <b>pas accessible</b>. En lecture seule : tu peux consulter et télécharger, mais rien n'est modifié ni supprimé.</p>
+  </div>
+
+  <h2><span>🖥️</span>(Optionnel) Le voir comme un lecteur réseau</h2>
+  <div class="card">
+    <p style="margin:0 0 8px">Si tu préfères y accéder en permanence comme un disque (ex <code>G:</code>) dans l'Explorateur Windows :</p>
+    <ol style="margin:0">
+      <li>Installe <a href="https://www.google.com/intl/fr/drive/download/">Google Drive pour ordinateur</a> (officiel, gratuit) et connecte-toi avec ton compte.</li>
+      <li>Sur <a href="https://drive.google.com">drive.google.com</a> → <b>Partagés avec moi</b> → clic droit sur le dossier → <b>« Ajouter un raccourci vers Drive »</b> → <b>Mon Drive</b>.</li>
+      <li>Le dossier apparaît alors dans le lecteur monté (<code>G:\Mon Drive\…</code>), navigable comme un dossier réseau.</li>
+    </ol>
+    <p class="small" style="margin:8px 0 0">Le téléchargement par mois (ci-dessus) reste possible aussi depuis ce lecteur (clic droit → Télécharger).</p>
+  </div>
+
+  <footer>
+    Outil interne G-Systems · espace comptable · sauvegardes Drive
+  </footer>
+
+</div>
+</body>
+</html>
