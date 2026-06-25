@@ -52,7 +52,7 @@ function getStats(month) {
     const mf = mIt.next();
     const row = { tech: u.getName(), periode: '', interventions: null, tickets: null,
       frais: null, primes: null, extensions: null, compteur: null, fichiers: 0,
-      repartition: [], primesParType: [] };
+      repartition: [], primesParType: [], clotures: [] };
     let n = 0; const fit = mf.getFiles(); while (fit.hasNext()) { fit.next(); n++; } row.fichiers = n;
     const sIt = mf.getFilesByName('_stats.json');
     if (sIt.hasNext()) { try {
@@ -60,6 +60,7 @@ function getStats(month) {
       row.periode = s.periode || ''; row.interventions = num(s.interventions); row.tickets = num(s.tickets);
       row.frais = num(s.frais); row.primes = num(s.primes); row.extensions = num(s.extensions); row.compteur = num(s.compteur);
       row.repartition = s.repartition || []; row.primesParType = s.primesParType || [];
+      row.clotures = s.clotures || [];
     } catch (err) {} }
     rows.push(row);
   }
@@ -139,6 +140,11 @@ select{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size
 .pt tfoot td{font-weight:700;color:var(--blue);border-bottom:none}
 .empty,.empty2{color:var(--low);font-size:13px;padding:14px 0}
 .empty{text-align:center;padding:34px}
+.ctab{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
+.cl{width:100%;border-collapse:collapse;font-size:12.5px}
+.cl th,.cl td{padding:5px 9px;border-bottom:1px solid #1e212a;text-align:left;white-space:nowrap}
+.cl thead th{position:sticky;top:0;background:var(--card2);color:var(--mid);font-size:11px}
+.ok{color:#4ADE80}.nr{color:#FFB347}.an{color:#FF6B6B}
 </style></head><body>
 <div class="head">
   <svg class="logo" viewBox="0 0 470 200" xmlns="http://www.w3.org/2000/svg" aria-label="gsystems">
@@ -171,14 +177,23 @@ function loadMonth(){current=document.getElementById('month').value||current;
   google.script.run.withSuccessHandler(render).getStats(current);}
 function aggregate(rows){
   var g={tech:'VUE GLOBALE — tous les techniciens',periode:'',interventions:0,tickets:0,frais:0,primes:0,extensions:0,compteur:0,repartition:[],primesParType:[]};
-  var rep={},pri={};
+  var rep={},pri={},clo=[];
   rows.forEach(function(r){if(r.periode)g.periode=r.periode;
     g.interventions+=r.interventions||0;g.tickets+=r.tickets||0;g.frais+=r.frais||0;g.primes+=r.primes||0;g.extensions+=r.extensions||0;g.compteur+=r.compteur||0;
     (r.repartition||[]).forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
-    (r.primesParType||[]).forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});});
+    (r.primesParType||[]).forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
+    (r.clotures||[]).forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,tech:r.tech});});});
   g.repartition=Object.keys(rep).map(function(t){return {type:t,count:rep[t]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(t){return pri[t];}).sort(function(a,b){return b.total-a.total;});
+  g.clotures=clo;
   return g;}
+function obsCell(o){var cl=(o==='OK')?'ok':((o==='Annulé')?'an':'nr');return '<span class="'+cl+'">'+o+'</span>';}
+function cloturesTable(list,withTech){
+  if(!list||!list.length)return '<div class="empty2">Aucune clôture</div>';
+  var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
+  var head='<tr><th>Date</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th></tr>';
+  var body=l.map(function(c){return '<tr><td>'+c.date+'</td>'+(withTech?'<td>'+(c.tech||'')+'</td>':'')+'<td>'+(c.type||'')+'</td><td>'+(c.client||'')+'</td><td>'+(c.ville||'')+'</td><td>'+(c.num||'')+'</td><td>'+obsCell(c.obs||'')+'</td></tr>';}).join('');
+  return '<div class="ctab"><table class="cl"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);
   if(!total)return '<div class="empty2">Aucune intervention</div>';
@@ -197,7 +212,8 @@ function buildCard(s,glob){
     '<div class="th">'+(glob?'🌐 ':'👤 ')+s.tech+(s.periode?' <span class="per">('+s.periode+')</span>':'')+'</div>'+
     '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Total frais',money(s.frais))+chip('Total primes',money(s.primes))+'</div>'+
     '<div class="cols"><div class="col"><div class="ct">Répartition interventions</div>'+pie(s.repartition)+'</div>'+
-    '<div class="col"><div class="ct">Primes par type</div>'+primesTable(s.primesParType)+'</div></div></div>';}
+    '<div class="col"><div class="ct">Primes par type</div>'+primesTable(s.primesParType)+'</div></div>'+
+    '<div class="ct" style="margin-top:14px">Clôtures du mois ('+((s.clotures||[]).length)+')</div>'+cloturesTable(s.clotures,glob)+'</div>';}
 function render(rows){
   if(!rows||!rows.length){document.getElementById('global').innerHTML='';document.getElementById('techs').innerHTML='<div class="empty">Aucun technicien ce mois.</div>';return;}
   document.getElementById('global').innerHTML=buildCard(aggregate(rows),true);
@@ -206,5 +222,6 @@ function download(){if(!current)return;var b=document.getElementById('dl');b.dis
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='⬇ Télécharger tout le mois';
     if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(current);}
 init();
+setInterval(function(){if(current){google.script.run.withSuccessHandler(render).getStats(current);}},45000);
 </script></body></html>
 `;

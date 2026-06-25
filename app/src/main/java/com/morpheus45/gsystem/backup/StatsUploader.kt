@@ -52,6 +52,22 @@ object StatsUploader {
                 }
             }
 
+            // Liste détaillée des clôtures (pour le fil de supervision).
+            val clotures = JSONArray()
+            temps.sortedBy { it.date }.forEach { t ->
+                val obs = when (t.observationType) {
+                    "NR_CLIENT" -> "NR client"
+                    "NR_TECHNIQUE" -> "NR technique"
+                    "NR_CLIENT_ABS" -> "NR client absent"
+                    "ANNULE" -> "Annulé"
+                    else -> "OK"
+                }
+                clotures.put(JSONObject()
+                    .put("date", t.date).put("type", t.typeMission)
+                    .put("client", t.nomClient).put("ville", t.ville)
+                    .put("num", t.numeroIntervention).put("obs", obs))
+            }
+
             val json = JSONObject().apply {
                 put("tech", settings.nomUtilisateur)
                 put("month", s.take(7))
@@ -64,6 +80,7 @@ object StatsUploader {
                 put("compteur", compteur.size)
                 put("repartition", repartition)
                 put("primesParType", primesParType)
+                put("clotures", clotures)
                 put("maj", System.currentTimeMillis())
             }.toString()
 
