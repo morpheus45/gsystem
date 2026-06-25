@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.morpheus45.gsystem"
-    compileSdk = 34
+    // 35 requis par le flavor "play" (targetSdk 35). Le flavor "sideload"
+    // continue de cibler targetSdk 34 (rien ne change pour l'APK quotidien).
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.morpheus45.gsystem"
@@ -18,6 +20,35 @@ android {
         versionCode = 88
         versionName = "1.9.9"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    // ===================================================================
+    //  DEUX CANAUX DE DISTRIBUTION (build flavors) — un seul code source.
+    //
+    //   • sideload : l'APK actuel, diffusé via GitHub Releases.
+    //                Garde l'auto-update + IntegrityGuard + targetSdk 34.
+    //                => RIEN ne change pour ton usage quotidien.
+    //
+    //   • play     : build conforme Google Play (AAB).
+    //                Pas d'auto-update, IntegrityGuard désactivé (Play re-signe),
+    //                targetSdk 35. Voir playstore/code-changes-required.md.
+    //
+    //  Le flag BuildConfig.PLAY_BUILD permet au code partagé (MainActivity,
+    //  SettingsScreen) de désactiver l'auto-update / la garde d'intégrité
+    //  uniquement sur le canal Play.
+    // ===================================================================
+    flavorDimensions += "canal"
+    productFlavors {
+        create("sideload") {
+            dimension = "canal"
+            buildConfigField("boolean", "PLAY_BUILD", "false")
+        }
+        create("play") {
+            dimension = "canal"
+            targetSdk = 35
+            versionNameSuffix = "-play"
+            buildConfigField("boolean", "PLAY_BUILD", "true")
+        }
     }
 
     // Clé de signature debug STABLE, partagée par tous les builds (CI ou local)
