@@ -150,14 +150,18 @@ fun AppNav() {
         val now = System.currentTimeMillis()
         if (now - settings.lastDriveBackup < BackupConfig.BACKUP_INTERVAL_MS) return@LaunchedEffect
         runCatching {
-            val zip = withContext(Dispatchers.IO) {
+            val zipBytes = withContext(Dispatchers.IO) {
                 val settingsJson = Json.encodeToString(AppSettings.serializer(), settings)
-                BackupExporter.createBackupZip(context, settingsJson)
+                val zip = BackupExporter.createBackupZip(context, settingsJson)
+                val bytes = zip.readBytes()
+                runCatching { zip.delete() }
+                bytes
             }
             val month = DateUtil.today().toString().take(7)
-            val ok = BackupUploader.uploadFile(
-                settings.nomUtilisateur, month, zip, "application/zip")
-            runCatching { zip.delete() }
+            // Nom FIXE : chaque sauvegarde écrase la précédente (pas d'accumulation).
+            val ok = BackupUploader.uploadBytes(
+                settings.nomUtilisateur, month, "sauvegarde-complete.zip",
+                "application/zip", zipBytes)
             if (ok) settingsStore.update { it.copy(lastDriveBackup = now) }
         }
     }
@@ -211,13 +215,16 @@ fun AppNav() {
                 onSync = {
                     val n = StatsUploader.syncAll(settings, repo.store.value)
                     runCatching {
-                        val zip = withContext(Dispatchers.IO) {
-                            BackupExporter.createBackupZip(
+                        val zipBytes = withContext(Dispatchers.IO) {
+                            val zip = BackupExporter.createBackupZip(
                                 context, Json.encodeToString(AppSettings.serializer(), settings))
+                            val bytes = zip.readBytes()
+                            runCatching { zip.delete() }
+                            bytes
                         }
                         val month = DateUtil.today().toString().take(7)
-                        BackupUploader.uploadFile(settings.nomUtilisateur, month, zip, "application/zip")
-                        runCatching { zip.delete() }
+                        BackupUploader.uploadBytes(settings.nomUtilisateur, month,
+                            "sauvegarde-complete.zip", "application/zip", zipBytes)
                     }
                     when {
                         !BackupConfig.isConfigured -> "Sauvegarde Drive non configurée"
