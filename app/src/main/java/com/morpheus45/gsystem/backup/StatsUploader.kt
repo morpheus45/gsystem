@@ -65,7 +65,8 @@ object StatsUploader {
                 clotures.put(JSONObject()
                     .put("date", t.date).put("type", t.typeMission)
                     .put("client", t.nomClient).put("ville", t.ville)
-                    .put("num", t.numeroIntervention).put("obs", obs))
+                    .put("num", t.numeroIntervention).put("obs", obs)
+                    .put("note", t.observations))
             }
 
             // Données granulaires datées : permettent de recalculer les stats

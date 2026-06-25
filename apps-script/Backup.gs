@@ -145,6 +145,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .clt{width:100%;border-collapse:collapse;font-size:12.5px}
 .clt th,.clt td{padding:5px 9px;border-bottom:1px solid #1e212a;text-align:left;white-space:nowrap}
 .clt thead th{position:sticky;top:0;background:var(--card2);color:var(--mid);font-size:11px}
+.clt td.note{white-space:normal;max-width:260px;color:var(--mid)}
 .ok{color:#4ADE80}.nr{color:#FFB347}.an{color:#FF6B6B}
 </style></head><body>
 <div class="head">
@@ -208,16 +209,17 @@ function aggregate(techs){
   techs.forEach(function(s){g.interventions+=s.interventions;g.tickets+=s.tickets;g.frais+=s.frais;g.primes+=s.primes;g.extensions+=s.extensions;
     s.repartition.forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
     s.primesParType.forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
-    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,tech:s.tech});});});
+    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,note:c.note,tech:s.tech});});});
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;return g;}
-function obsCell(o){var cl=(o==='OK')?'ok':((o==='Annulé')?'an':'nr');return '<span class="'+cl+'">'+o+'</span>';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function obsCell(o){var cl=(o==='OK')?'ok':((o==='Annulé')?'an':'nr');return '<span class="'+cl+'">'+esc(o)+'</span>';}
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
-  var head='<tr><th>Date</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+c.date+'</td>'+(withTech?'<td>'+(c.tech||'')+'</td>':'')+'<td>'+(c.type||'')+'</td><td>'+(c.client||'')+'</td><td>'+(c.ville||'')+'</td><td>'+(c.num||'')+'</td><td>'+obsCell(c.obs||'')+'</td></tr>';}).join('');
+  var head='<tr><th>Date</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
+  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);
