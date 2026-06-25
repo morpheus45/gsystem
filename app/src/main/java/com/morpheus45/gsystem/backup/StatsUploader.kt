@@ -68,6 +68,19 @@ object StatsUploader {
                     .put("num", t.numeroIntervention).put("obs", obs))
             }
 
+            // Données granulaires datées : permettent de recalculer les stats
+            // sur n'importe quelle période côté dashboard.
+            val fraisArr = JSONArray()
+            frais.forEach { f -> fraisArr.put(JSONObject().put("d", f.date).put("m", f.montantEur)) }
+            val gestesArr = JSONArray()
+            geste.forEach { g ->
+                val tMap = JSONObject()
+                g.installedList().forEach { (type, c) -> tMap.put(type, c) }
+                gestesArr.put(JSONObject().put("d", g.date).put("t", tMap))
+            }
+            val pricesObj = JSONObject()
+            GesteCoPrices.TYPES.forEach { t -> pricesObj.put(t, settings.prices.priceFor(t)) }
+
             val json = JSONObject().apply {
                 put("tech", settings.nomUtilisateur)
                 put("month", s.take(7))
@@ -81,6 +94,9 @@ object StatsUploader {
                 put("repartition", repartition)
                 put("primesParType", primesParType)
                 put("clotures", clotures)
+                put("fraisList", fraisArr)
+                put("gestes", gestesArr)
+                put("prices", pricesObj)
                 put("maj", System.currentTimeMillis())
             }.toString()
 
