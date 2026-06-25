@@ -4,6 +4,7 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.util.DateUtil
+import com.morpheus45.gsystem.util.FraisTva
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -72,7 +73,13 @@ object StatsUploader {
             // Données granulaires datées : permettent de recalculer les stats
             // sur n'importe quelle période côté dashboard.
             val fraisArr = JSONArray()
-            frais.forEach { f -> fraisArr.put(JSONObject().put("d", f.date).put("m", f.montantEur)) }
+            frais.forEach { f ->
+                val cat = f.categorie.ifBlank { "DIVERS" }
+                fraisArr.put(JSONObject()
+                    .put("d", f.date).put("m", f.montantEur).put("cat", cat)
+                    .put("tva", FraisTva.tvaFromTtc(f.montantEur, cat))
+                    .put("ht", FraisTva.htFromTtc(f.montantEur, cat)))
+            }
             val gestesArr = JSONArray()
             geste.forEach { g ->
                 val tMap = JSONObject()
