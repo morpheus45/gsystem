@@ -1,58 +1,42 @@
 # G-Systems · Document de transmission
 
 > Snapshot du projet pour reprendre la main rapidement.
-> Date : 21 juin 2026 · Version actuelle : **v1.8.8** (versionCode 77)
+> Date : 25 juin 2026 · Version actuelle : **v1.9.9** (versionCode 88)
 >
-> **v1.8.8 — fix suppression en cascade.** Clôturer une installation crée une
-> entrée TEMPS + une GESTE CO + une GSM séparées ; supprimer l'intervention ne
-> retirait que la TEMPS (orphelins dans le RÉCAP/primes). Ajout d'un champ
-> `tempsId` sur `GesteCoEntry` / `GsmSeulEntry` (renseigné par `buildGeste`/`buildGsm`),
-> `EntriesRepository.removeTempsCascade()` qui supprime l'intervention + ses
-> entrées liées, et la suppression d'une intervention passe par cette méthode.
-> Le RÉCAP GESTE CO permet aussi de supprimer un site (poubelle + confirmation)
-> pour nettoyer les orphelins antérieurs.
+> **v1.9.x — supervision & sauvegarde Drive.** Toute la série v1.9 ajoute un
+> écosystème de **sauvegarde + supervision** autour de l'app, sans toucher au
+> métier (Viber/mails/Excel inchangés) :
 >
-> **v1.8.7 — dialogue « Envois EPS » avec statut.** Chaque mail (GESTE CO, GSM SEUL)
-> affiche ✓ vert « Envoyé » / ✗ ambre « À faire » + compteur « X / N », bouton
-> « Envoyer » → « Renvoyer » (composable `EpsMailRow` dans `TempsScreen`). Le ✓
-> marque que l'envoi a été lancé (pas de confirmation de remise possible).
+> - **Sauvegarde Drive automatique** (`backup/`) : l'app POST ses fichiers vers un
+>   **web app Google Apps Script** (`apps-script/Backup.gs`), qui range tout dans
+>   `Sauvegardes G-Systems / <tech> / <mois> / <fichier>`. Sauvegarde complète
+>   (ZIP) **1×/semaine** à l'ouverture (nom **fixe** `sauvegarde-complete.zip` →
+>   la nouvelle écrase l'ancienne, pas d'accumulation).
+> - **Stats de supervision** (`StatsUploader`) : à **chaque clôture** et à
+>   l'**Envoi Mensuel**, l'app dépose un `_stats.json` (KPIs + répartition +
+>   primes/type + liste des clôtures avec note + frais datés nature/TVA + gestes
+>   datés + barème). Non bloquant, silencieux si pas de réseau.
+> - **Dashboard administratif** (HTML servi par le `doGet` du script) : siglé
+>   G-Systems, **période Du/Au** (presets 7j / 30j / ce mois / tout), **vue
+>   globale + accordéon par technicien**, camembert répartition, primes/type,
+>   **détail des frais (nature · TVA)** dépliable, table des clôtures avec
+>   observations, **téléchargement ZIP** de la période, auto-refresh 60 s.
+> - **Réglages** : bouton **« Synchroniser tout sur le Drive »** (`onSync` →
+>   `StatsUploader.syncAll` rejoue tous les cycles présents + pousse le ZIP complet).
+> - **Nouvelle tuile 02 « DEMANDE CAMÉRA »** (`DemandeCameraScreen`, base GSM SEUL) :
+>   N° de site + nb de caméras + précisions → email EPS immédiat, sujet
+>   `HD-100 - <code tech> - Site numéro <site>`.
+> - **Page comptable dédiée** (`docs/comptable.html`) séparée du tuto tech.
+> - **Clôture** : N° de site obligatoire **seulement si** GESTE CO offert ou GSM seul.
 >
-> **v1.8.6 — icônes des tuiles** alignées sur le tuto : CLÔTURE=Assignment,
-> ATTENTE=Timer, ENVOI=Outbox (HomeScreen). Tuiles sinon inchangées.
->
-> **v1.8.3 — typo sur une ligne** (`theme/Type.kt` : titleLarge 19sp, labelLarge 14sp,
-> `maxLines=1` sur les titres) · **v1.8.2 — restyle « écran réel »** (`ui/FormStyle.kt` :
-> FormHeaderBar / AccentCard / AccentTextField sur CLÔTURE, FRAIS, ENVOI, RÉCAP).
->
-> **v1.8.5 — mensuel : camembert PDF + mail épuré.** Dans `PdfExporter`, la
-> répartition TEMPS du récap mensuel passe des barres à un **camembert**
-> (`Canvas.drawArc` + légende, méthode `PdfBuilder.pie`). Le **corps du mail
-> mensuel** est réduit à l'essentiel : période concernée + liste des pièces
-> jointes (noms de fichiers) + formule de politesse. L'aperçu HTML inline
-> (`EXTRA_HTML_TEXT`) est retiré et la fonction `buildMonthlyHtml` supprimée.
->
-> **v1.8.4 — récaps en PDF.** Nouveau `export/PdfExporter.kt` (rendu via
-> `android.graphics.pdf.PdfDocument`, pagination auto, aucune dépendance) :
-> `exportGesteCo` (le bouton RÉCAP envoie un PDF au lieu du CSV) et
-> `exportMonthlyRecap` (la pièce jointe `Recap-mensuel_*.html` de l'ENVOI MENSUEL
-> devient un PDF lisible : en-tête, répartition TEMPS en barres, tableaux frais +
-> primes). `EmailSender.send` a un paramètre `mimeType` (défaut `text/csv`). Le
-> corps HTML inline (EXTRA_HTML_TEXT) du mensuel est conservé. Mêmes données et
-> mêmes destinataires/sujets.
->
-> **v1.8.3 — typo sur une ligne.** `theme/Type.kt` : `titleLarge` 26→19 sp (titres
-> de barre) et `labelLarge` 22→14 sp (boutons Material3), + `maxLines=1` sur les
-> titres des 5 écrans actifs. Tuiles d'accueil inchangées (`displayLarge`/`labelMedium`).
->
-> **v1.8.2 — restyle « écran réel » des formulaires.** Briques partagées dans
-> `ui/FormStyle.kt` : `FormHeaderBar` (bandeau d'en-tête plein, couleur de la
-> tuile), `AccentCard` (carte sombre à bord coloré, wrapper 1-pour-1 d'un Card),
-> `AccentTextField` (champ à accent coloré). Appliquées à CLÔTURE (bandeau violet,
-> N° site orange, cartes GESTE CO/GSM à bord, pastille de validation sombre au lieu
-> du carton rose clair), FRAIS, ENVOI MENSUEL et RÉCAP. **Les tuiles d'accueil et
-> toute la logique métier (Viber/mails/Excel) sont inchangées.** L'appli était déjà
-> en thème sombre (`theme/Theme.kt` = scheme « Obsidian ») : le restyle est de la
-> mise en forme, pas un passage clair→sombre.
+> **Rappel des refontes structurantes précédentes (toujours valables) :**
+> **v1.7.0 — CLÔTURE UNIFIÉE** (GSM SEUL + GESTE CO fusionnés dans la clôture d'une
+> INST, sections inline) · **v1.8.0 — COMPTEUR fusionné dans ENVOI MENSUEL**
+> (capture photo inline) · **v1.8.2/8.3 — restyle « écran réel »** des formulaires
+> (`ui/FormStyle.kt`) + typo · **v1.8.4/8.5 — récaps en PDF** (`export/PdfExporter.kt`,
+> camembert) + mail mensuel épuré · **v1.8.6 — icônes des tuiles** · **v1.8.7 —
+> dialogue « Envois EPS » avec statut ✓/✗** · **v1.8.8 — suppression en cascade**
+> (`tempsId` + `removeTempsCascade`).
 
 ---
 
@@ -61,48 +45,54 @@
 **G-Systems** est une application Android (Kotlin + Jetpack Compose) pour
 techniciens d'alarme/sécurité électronique. Elle remplace 4 outils
 manuels (Excel, mails, Viber, photos) par **un seul écran d'accueil avec
-6 tuiles**.
+7 tuiles**, et **remonte automatiquement les chiffres de chaque tech sur un
+Drive partagé** consultable via un dashboard administratif (supervision compta).
 
 - **Repo GitHub** : <https://github.com/morpheus45/gsystem>
 - **Tutoriel tech** : <https://morpheus45.github.io/gsystem/>
+- **Page comptable** : <https://morpheus45.github.io/gsystem/comptable.html>
 - **APK direct** : `https://github.com/morpheus45/gsystem/releases/latest/download/app-debug.apk`
+- **Dashboard admin** : le `/exec` du déploiement Apps Script (cf. `BackupConfig.ENDPOINT`)
 - **Utilisateur principal** : Cedric Lago Gomez (ISTGS54), G-Systems FR
 - **OS cible** : Android 8.0+ (minSdk 26, targetSdk 34)
 
 ---
 
-## 2. Les 6 tuiles de l'accueil
+## 2. Les 7 tuiles de l'accueil
 
-Palette continue **violet → vert** (v1.7.0, effet « waterfall » : chaque tuile
-finit sur la couleur de départ de la suivante ; CLÔTURE reste l'ancrage violet).
-Chaque écran reprend la couleur de sa tuile (RÉCAP bleu, FRAIS cyan, COMPTEUR
-teal, ENVOI vert). Valeurs dans `theme/Color.kt`.
+Palette continue **violet → vert** (effet « waterfall » : chaque tuile finit sur
+la couleur de départ de la suivante ; CLÔTURE reste l'ancrage violet). Chaque
+écran reprend la couleur de sa tuile. Valeurs dans `theme/Color.kt`.
+⚠ Le commentaire `// ============ 6 TUILES` dans `HomeScreen.kt` est **périmé**
+(il y en a 7 depuis l'ajout de DEMANDE CAMÉRA) — cosmétique, à corriger.
 
-| N° | Tuile | Couleur | Rôle |
+| N° | Tuile | Icône | Rôle |
 |---|---|---|---|
-| 01 | **CLÔTURE** | violet `#7C3AED` | Intervention + Viber. **Pour une INST** : N° de site + sections **GESTE CO** (tableau 12 types) et **GSM seul** inline, puis dialogue « Envois EPS » (mails) |
-| 02 | **ATTENTE CLIENT** | violet clair `#8A5CF6` | Toast consigne perso (appels /15 min, techline) + Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
-| 03 | **COURRIER** | indigo `#6366F1` | 1 appui → Viber « courrier ok » |
-| 04 | **RÉCAP** | bleu `#3B82F6` | Cumul cycle GESTE CO + primes + total € · export **PDF** par mail |
-| 05 | **FRAIS** | cyan `#06B6D4` | Photos tickets + TTC + TVA auto + envoi lot |
-| 06 | **ENVOI MENSUEL** | vert `#22C55E` | **Photo compteur (capture inline)** + Excel .xlsm + tickets + **récap PDF (camembert)** en 1 mail |
+| 01 | **CLÔTURE** | `Assignment` | Intervention + Viber. **Pour une INST** : N° de site + sections **GESTE CO** (tableau 12 types) et **GSM seul** inline, puis dialogue « Envois EPS » (mails). **Note de clôture** (observations) saisissable |
+| 02 | **DEMANDE CAMÉRA** | `Videocam` | Formulaire court (N° site + nb caméras + précisions) → email EPS immédiat, sujet `HD-100 - <code tech> - Site numéro <site>` |
+| 03 | **ATTENTE CLIENT** | `Timer` | Toast consigne perso (appels /15 min, techline) + Viber « PROCÉDURE ATTENTE CLIENT · Début : HHhMM » |
+| 04 | **COURRIER** | `Email` | 1 appui → Viber « courrier ok » |
+| 05 | **RÉCAP** | `BarChart` | Cumul cycle GESTE CO + primes + total € · export **PDF** par mail |
+| 06 | **FRAIS** | `Receipt` | Photos tickets + TTC + TVA auto + envoi lot |
+| 07 | **ENVOI MENSUEL** | `Outbox` | **Photo compteur (capture inline)** + Excel .xlsm + tickets + **récap PDF (camembert)** en 1 mail |
 
-> **GSM SEUL et GESTE CO ne sont plus des tuiles** (v1.7.0) : fusionnés dans la
-> CLÔTURE d'une installation. Mails/Viber **identiques** (code réutilisé). Les
-> fichiers `GsmSeulScreen`/`GesteCoScreen` subsistent : leurs dialogues +
-> `sendGsmEmail`/`sendGesteCoEmail` (passés `internal`) sont réutilisés par
-> `InstallExtras.kt` (état + sections inline de la clôture). Le composable public
-> de chaque écran est devenu du code mort (plus de route).
+> **DEMANDE CAMÉRA (02)** ouvre un écran (`DemandeCameraScreen`, route
+> `demande_camera`) bâti sur l'ancien GSM SEUL : `sendCameraEmail` envoie vers
+> `effectiveEpsTo` + Cc EPS, **pas de Viber**. **ATTENTE CLIENT (03)** et
+> **COURRIER (04)** n'ouvrent **pas** d'écran : leur `onClick` (dans
+> `MainActivity`) déclenche directement un partage Viber. ATTENTE CLIENT affiche
+> en plus un **Toast** de consigne perso au tech (`ViberSender.ATTENTE_RAPPEL_TECH`)
+> puis partage `ViberSender.attenteClientMessage()` (heure de début figée au clic).
+> COURRIER partage `"courrier ok"`.
+
+> **GSM SEUL et GESTE CO ne sont plus des tuiles** (depuis v1.7.0) : fusionnés
+> dans la CLÔTURE d'une installation. Mails/Viber **identiques** (code réutilisé
+> via `InstallExtras.kt` + `sendGsmEmail`/`sendGesteCoEmail` passés `internal`).
+> Les composables publics `GsmSeulScreen`/`GesteCoScreen` et `CompteurScreen`
+> subsistent en **code mort** (plus de route).
 
 Le pip rose pulsant apparaît sur **07 ENVOI MENSUEL** dans les **3 derniers
 jours du cycle** (`endOfCycleApproaching`, basé sur `cycleEnd`).
-
-> **ATTENTE CLIENT (02)** et **COURRIER (03)** n'ouvrent pas d'écran : leur
-> `onClick` (dans `MainActivity`) déclenche directement un partage Viber.
-> ATTENTE CLIENT affiche en plus un **Toast** de consigne perso au tech
-> (`ViberSender.ATTENTE_RAPPEL_TECH` — appels /15 min jusqu'au départ validé
-> par la techline) puis partage `ViberSender.attenteClientMessage()` (heure de
-> début figée au clic). COURRIER partage `"courrier ok"`.
 
 ---
 
@@ -116,13 +106,16 @@ Kotlin 1.9.x + Jetpack Compose Material 3 (BOM 2024.06.00)
 │     ⚠ GARDER log4j-api 2.21.1, exclure SEULEMENT log4j-core (voir §10)
 ├── Coil 2.5 (miniatures)
 ├── Coroutines 1.8
-└── (plus de WebView — l'écran BON RETOUR a été supprimé en v0.22.4)
+├── org.json (payloads stats/backup vers Apps Script)
+└── android.graphics.pdf.PdfDocument (récaps PDF, aucune dépendance)
 
-CI : GitHub Actions (.github/workflows/android-build.yml) → APK signée,
-     publication auto d'une Release avec asset .apk sur tag `v*`
+CI : GitHub Actions (.github/workflows/) → APK signée, publication auto d'une
+     Release avec asset .apk sur tag `v*`
 Signing : clé de PRODUCTION (GitHub secrets) en priorité depuis v1.0.0 ;
           repli automatique sur keystore/debug.keystore (committé exprès, stable)
-          si la clé prod est absente (PR, build local). storeFile prod JAMAIS commité.
+          si la clé prod est absente. storeFile prod JAMAIS commité.
+Backend léger : Google Apps Script (apps-script/Backup.gs) — Drive partagé,
+          réception des fichiers + dashboard admin. Pas de serveur à maintenir.
 ```
 
 ---
@@ -133,302 +126,234 @@ Signing : clé de PRODUCTION (GitHub secrets) en priorité depuis v1.0.0 ;
 app/src/main/
 ├── AndroidManifest.xml
 ├── java/com/morpheus45/gsystem/
-│   ├── MainActivity.kt              ← NavHost, routes home/settings/temps/gsm/
-│   │                                  gesteco/gesteco_recap/frais/compteur/
-│   │                                  envoi_mensuel (+ période partagée, splash,
-│   │                                  check MAJ). onCourrier = ViberSender.share
+│   ├── MainActivity.kt              ← NavHost : home/settings/temps/gesteco_recap/
+│   │                                  demande_camera/frais/envoi_mensuel.
+│   │                                  Sauvegarde Drive auto (1×/sem), check MAJ,
+│   │                                  splash, période partagée, onSync Réglages.
+│   ├── backup/                      ← ★ NOUVEAU (v1.9) — sauvegarde + supervision
+│   │   ├── BackupConfig.kt          ← ENDPOINT (web app /exec) + TOKEN partagé +
+│   │   │                              BACKUP_INTERVAL_MS (7 j)
+│   │   ├── BackupExporter.kt        ← createBackupZip(context, settingsJson)
+│   │   ├── BackupUploader.kt        ← POST JSON {token,user,month,fileName,
+│   │   │                              mimeType,dataBase64} → Drive. Non bloquant.
+│   │   └── StatsUploader.kt         ← push() (à chaque clôture + mensuel) écrit
+│   │                                  _stats.json ; syncAll() rejoue tous les cycles
 │   ├── data/
-│   │   ├── Models.kt                ← TempsEntry, GsmSeulEntry, GesteCoEntry,
-│   │   │                              FraisTicket (categorie + montantEur),
-│   │   │                              CompteurEntry, EntriesStore, AppSettings
-│   │   ├── EntriesRepository.kt     ← Storage JSON
+│   │   ├── Models.kt                ← TempsEntry (+ observations), GsmSeulEntry
+│   │   │                              (+ tempsId), GesteCoEntry (+ observations,
+│   │   │                              tempsId, installedList/totalInstalled/
+│   │   │                              totalPrime), FraisTicket, CompteurEntry,
+│   │   │                              EntriesStore, AppSettings, GesteCoPrices
+│   │   ├── EntriesRepository.kt     ← Storage JSON + removeTempsCascade()
 │   │   └── SettingsStore.kt         ← DataStore
-│   ├── excel/ExcelFiller.kt         ← Remplissage .xlsm via POI (réécrit sur
-│   │                                  l'URI existant → conserve les macros VBA)
-│   ├── export/CsvExporter.kt        ← CSV (BOM UTF-8 + sep=;)
-│   ├── email/EmailSender.kt         ← sendMulti() : ACTION_SEND (1 PJ) /
-│   │                                  ACTION_SEND_MULTIPLE (n PJ) + ClipData
-│   │                                  pour propager les permissions URI
+│   ├── excel/ExcelFiller.kt         ← Remplissage .xlsm via POI (macros VBA conservées)
+│   ├── export/
+│   │   ├── CsvExporter.kt
+│   │   └── PdfExporter.kt           ← RÉCAP GESTE CO + récap mensuel en PDF (camembert)
+│   ├── email/EmailSender.kt         ← send() + sendMulti() (1 PJ ACTION_SEND /
+│   │                                  n PJ ACTION_SEND_MULTIPLE + ClipData)
 │   ├── viber/ViberSender.kt         ← buildMessage() + OBSERVATION_LABELS +
-│   │                                  share(context, message) + attenteClientMessage()
-│   │                                  + ATTENTE_RAPPEL_TECH (Toast consigne perso)
+│   │                                  share() + attenteClientMessage() +
+│   │                                  ATTENTE_RAPPEL_TECH (Toast consigne perso)
+│   ├── photos/PhotoStorage.kt       ← newCompteurFile, nommage des PJ
+│   ├── security/IntegrityGuard.kt   ← anti-tamper (bloque copie re-signée)
 │   ├── ui/
 │   │   ├── HomeScreen.kt            ← 7 tuiles, data live, footer
+│   │   ├── DemandeCameraScreen.kt   ← ★ NOUVEAU — formulaire caméra → email EPS
 │   │   ├── InstallExtras.kt         ← sections GESTE CO + GSM inline de la clôture INST
-│   │   ├── TempsScreen.kt           ← Formulaire intervention + période éditable
-│   │   ├── GsmSeulScreen.kt
-│   │   ├── GesteCoScreen.kt
-│   │   ├── GesteCoRecapScreen.kt
-│   │   ├── FraisScreen.kt            ← Scroll (weight 1f), période éditable,
-│   │   │                              totaux TTC/TVA/HT
-│   │   ├── CompteurScreen.kt
-│   │   ├── EnvoiMensuelScreen.kt     ← Remplit Excel + PJ renommées + récap
-│   │   │                              frais/TVA dans le corps du mail
-│   │   ├── SettingsScreen.kt
+│   │   ├── TempsScreen.kt           ← Formulaire intervention (+ note) ; appelle
+│   │   │                              StatsUploader.push à la clôture
+│   │   ├── EnvoiMensuelScreen.kt    ← Excel + PJ renommées + récap PDF + capture
+│   │   │                              compteur inline ; StatsUploader.push (figé)
+│   │   ├── FraisScreen.kt           ← période éditable, totaux TTC/TVA/HT
+│   │   ├── GesteCoRecapScreen.kt    ← RÉCAP, export PDF, suppression d'un site
+│   │   ├── SettingsScreen.kt        ← onSync « Synchroniser tout sur le Drive »
+│   │   ├── FormStyle.kt             ← FormHeaderBar / AccentCard / AccentTextField
+│   │   ├── GsmSeulScreen.kt / GesteCoScreen.kt / CompteurScreen.kt ← code mort
+│   │   ├── SplashScreen.kt
 │   │   ├── components/IndicatorCalm.kt  ← CategoryTile, HomeBigButton, etc.
 │   │   ├── theme/ (Color.kt, Type.kt, Theme.kt)
 │   │   └── common/Common.kt          ← PeriodHeader + EditablePeriodHeader (Du/Au)
-│   ├── update/ (UpdateChecker.kt, UpdateDialog.kt)
-│   ├── util/
-│   │   ├── Dates.kt                 ← objet DateUtil : cyclePeriod(date, startDay),
-│   │   │                              parseIso, fr(), today()
-│   │   ├── FraisTva.kt              ← TVA par catégorie (RATES, défaut 20 %)
-│   │   └── HoursCalculator.kt        ← Règle 0/4/6/8h (+ 7h vacances/formation)
-│   └── backup/                      ← ZIP export + restore
+│   ├── update/ (UpdateChecker.kt, UpdateDialog.kt, UpdateInstaller.kt)
+│   └── util/ (Dates.kt = DateUtil, FraisTva.kt, HoursCalculator.kt)
+│
+├── res/xml/backup_rules.xml
 └── res/ (font/, drawable/, mipmap-*/, values/)
 
-app/src/main/assets/bon_retour/      ← ⚠ ORPHELIN : assets de l'ancienne PWA
-                                        BON RETOUR, plus référencés (écran et
-                                        route supprimés en v0.22.4). À nettoyer.
-
+apps-script/Backup.gs                ← ★ NOUVEAU — web app Drive : doPost (réception
+                                        fichiers) + doGet (dashboard admin HTML) +
+                                        getAllData + makeZip(from,to)
 docs/
-├── index.html                       ← Tutoriel GitHub Pages (logo gsystems SVG,
-│                                      7 tuiles à jour, clôture unifiée)
+├── index.html                       ← Tutoriel tech (GitHub Pages, logo SVG animé)
+├── comptable.html                   ← ★ NOUVEAU — page comptable dédiée
 └── ROLLBACK_v0.13.14.md
 
-design/                              ← Artefacts design
-logodraft/                           ← Réfs logo gsystems (gs_ref*.png) + splash-preview.html
+app/src/main/assets/bon_retour/      ← ⚠ ORPHELIN (ancienne PWA BON RETOUR). À nettoyer.
 .github/workflows/                   ← CI Android build + release auto
 keystore/debug.keystore              ← Clé stable signée
 ```
 
 ---
 
-## 5. Règles métier critiques (à ne pas casser)
+## 5. Sauvegarde Drive & supervision (★ cœur de la v1.9)
+
+### Principe
+Aucun serveur à héberger : un **web app Google Apps Script** (`apps-script/Backup.gs`,
+déployé en « Exécuter en tant que MOI / accès Tout le monde ») reçoit les POST de
+l'app et sert le dashboard. L'URL `/exec` et le `TOKEN` partagé sont **codés en
+dur** dans `BackupConfig` (comme les adresses mail) → pour changer de Drive,
+éditer `ENDPOINT`/`TOKEN` **des deux côtés** (Kotlin + `SHARED_TOKEN` du script)
+puis publier une MAJ + une nouvelle version du déploiement.
+
+### Flux app → Drive
+- `BackupUploader.uploadBytes(user, month, fileName, mimeType, bytes)` :
+  POST JSON `{token, user, month, fileName, mimeType, dataBase64}`. Le script
+  range dans `Sauvegardes G-Systems / <user> / <month> / <fileName>` (un fichier
+  de même nom est remplacé). **`instanceFollowRedirects = true`** (le `/exec`
+  renvoie un 302). Tolérant à l'échec → retourne `false`, ne casse jamais l'app.
+- **Sauvegarde complète auto** (`MainActivity`, `LaunchedEffect`) : 1×/semaine à
+  l'ouverture si `now - lastDriveBackup ≥ BACKUP_INTERVAL_MS`. ZIP via
+  `BackupExporter.createBackupZip`, **nom fixe `sauvegarde-complete.zip`**
+  (écrase la précédente). Met à jour `settings.lastDriveBackup`.
+- **Stats live** (`StatsUploader.push`) appelée dans `TempsScreen` (à chaque
+  clôture, ×2) et `EnvoiMensuelScreen` (figé à l'envoi). Écrit `_stats.json` :
+  KPIs (interventions, tickets, frais €, primes, extensions, compteur),
+  `repartition` (par type), `primesParType`, `clotures` (date/type/client/ville/
+  num/obs/**note**), `fraisList` (datés, cat, TVA, HT), `gestes` (datés, qty/type),
+  `prices` (barème). → le dashboard recalcule sur n'importe quelle période.
+- **Sync manuelle** (Réglages → `onSync`) : `StatsUploader.syncAll` rejoue **tous
+  les cycles** présents dans les données + repousse le ZIP complet. Retourne un
+  message (« ✅ N mois synchronisés »).
+
+### Dashboard admin (`doGet` → `DASHBOARD_HTML`)
+Page sombre siglée G-Systems : barre **Du/Au** + presets (7 j / 30 j / ce mois /
+tout), **vue globale** (agrégat tous techs) + **une carte accordéon par tech**.
+Chaque carte : chips KPIs, **détail des frais (nature · TVA)** dépliable,
+**camembert** répartition interventions (conic-gradient), **primes par type**,
+**table des clôtures** (avec colonne Note/observations, code couleur OK/NR/Annulé).
+Bouton **⬇ Télécharger** → `makeZip(from, to)` zippe tous les fichiers du Drive
+sur la période (un sous-dossier `tech/mois/`) et renvoie un lien public temporaire
+(`_telechargements`, purgé après 1 h). Auto-refresh `getAllData` toutes les 60 s.
+
+---
+
+## 6. Règles métier critiques (à ne pas casser)
 
 ### Calcul des heures (HoursCalculator.kt)
-- **VACANCES / FORMATION** : journée entière fixe = **7h**
+- **VACANCES / FORMATION / FERIE** : journée entière fixe = **7h**
 - Autres : par jour, créneaux Matin + Après-midi
   - 0 actif → 0h · 1 actif → 4h · 2 actifs OK+OK → **8h** · 2 actifs avec ≥1 NR → 6h
 
 ### Cycle de paie & période partagée
 - Par défaut : du **21** du mois → 20 du mois suivant (`settings.cycleStartDay`)
 - `DateUtil.cyclePeriod(today, startDay)` retourne `(start, end)`
-- **Période éditable partagée** (depuis v0.22.3) : l'état `periodStart/periodEnd`
-  vit dans `MainActivity.AppNav` et est passé à **Temps, Frais et Envoi Mensuel**.
-  Toute saisie Du/Au dans un écran se propage aux autres (via `onPeriodChange`).
-  `EditablePeriodHeader` (Common.kt) gère la saisie ; bouton « ↺ Cycle par défaut ».
+- **Période éditable partagée** : l'état `periodStart/periodEnd` vit dans
+  `MainActivity.AppNav` et est passé à **Temps, Frais et Envoi Mensuel**
+  (propagation via `onPeriodChange` ; `onResetPeriod` revient au cycle auto).
+
+### Clôture d'une installation (INST)
+- Sections **GESTE CO** (12 types) + **GSM seul** inline (`InstallExtras.kt`),
+  réutilisent `ExtRow`/`MAX_GIFT_EUR` + `sendGesteCoEmail`/`sendGsmEmail`.
+- **N° intervention obligatoire** ; **N° de site obligatoire SEULEMENT si** un
+  GESTE CO est offert ou GSM seul coché (v1.9, commit e6d6500).
+- Clôturer crée une entrée **TEMPS + (GESTE CO) + (GSM)** liées par `tempsId`.
+  Supprimer l'intervention passe par `removeTempsCascade()` (sinon orphelins dans
+  RÉCAP/primes). Le RÉCAP permet aussi de supprimer un site à la main.
+- **Note de clôture** (`observations`) remonte dans `_stats.json` → dashboard.
 
 ### Frais & TVA (FraisTva.kt)
-- Le tech saisit un montant **TTC** ; l'app déduit HT et TVA par catégorie.
-- `RATES` : table catégorie→taux (défaut 20 %). Modifier la table pour ajuster.
-- Le récap frais (TTC/HT/TVA par ticket + totaux) figure dans le **récap PDF**
-  joint à l'Envoi Mensuel (corps du mail épuré : période + liste des PJ).
+- Le tech saisit un montant **TTC** ; l'app déduit HT et TVA par catégorie
+  (`RATES`, défaut 20 %). Récap frais dans le **PDF** mensuel (mail épuré).
 
 ### Nommage des pièces jointes (PhotoStorage.kt, à l'envoi)
-- Tickets frais → `FRAIS-<CATÉGORIE>.<ext>` (suffixe `-2`, `-3`… si doublon de catégorie)
+- Tickets frais → `FRAIS-<CATÉGORIE>.<ext>` (suffixe `-2`, `-3`… si doublon)
 - Compteur → `<PLAQUE>-<MM>-<AAAA>.jpg`
-- Les fichiers sont copiés/renommés dans `cacheDir/exports` juste avant l'envoi.
 
 ### Emails
 - 2 groupes : **GS** (interne : TEMPS, FRAIS, COMPTEUR) et **EPS** (clients :
-  GSM SEUL, GESTE CO). Email perso ajouté en Cc sur Envoi Mensuel.
-- **Destinataires fixes codés en dur** (v1.2.0) dans `AppSettings.companion` —
-  identiques pour toute l'équipe, **masqués dans Réglages**, le tech ne les saisit plus :
-  - `FIXED_GS_TO   = "fdt@fggestion.fr"`      → `effectiveGsTo`
+  GSM SEUL, GESTE CO, **DEMANDE CAMÉRA**). Email perso en Cc sur Envoi Mensuel.
+- **Destinataires fixes codés en dur** (`AppSettings.companion`), masqués dans Réglages :
+  - `FIXED_GS_TO   = "fdt@fggestion.fr"`            → `effectiveGsTo`
   - `FIXED_EPS_TO  = "epsinfotechline@eps.e-i.com"` → `effectiveEpsTo`
-  - `FIXED_EPS_CC1 = "johanna@fggestion.fr"`  → `effectiveEpsCc1`
-  - ⚠ Pour changer une de ces adresses : éditer la constante puis **publier une MAJ**
-    (plus modifiable côté téléphone).
-- **Seul champ email éditable dans Réglages = « Responsable secteur »** : `emailEpsCc2`
-  (`effectiveEpsCc2`), en copie des envois EPS. **OBLIGATOIRE depuis v1.3.0** : il
-  fait partie de `isReady` (propre à chaque secteur, donc à chaque tech de saisir
-  le sien) → app bloquée sur Réglages tant qu'il est vide.
-- Tous les écrans lisent les getters `effective*` (jamais les champs bruts) →
-  changer un getter suffit à propager partout (GSM SEUL, GESTE CO, RÉCAP, Envoi Mensuel).
-- `EmailSender.sendMulti` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE.
-  ClipData + FLAG_GRANT_READ_URI_PERMISSION sur l'intent ET le chooser (sinon
-  les PJ n'apparaissent pas après le chooser).
+  - `FIXED_EPS_CC1 = "johanna@fggestion.fr"`        → `effectiveEpsCc1`
+  - ⚠ Changer une adresse = éditer la constante puis **publier une MAJ**.
+- **Seul champ email éditable = « Responsable secteur »** (`emailEpsCc2` /
+  `effectiveEpsCc2`), **OBLIGATOIRE** (`isReady`). Tous les écrans lisent les
+  getters `effective*`.
+- `EmailSender` : 1 PJ → ACTION_SEND ; n PJ → ACTION_SEND_MULTIPLE. ClipData +
+  `FLAG_GRANT_READ_URI_PERMISSION` sur l'intent ET le chooser (sinon PJ perdues).
 
-### Envoi Mensuel — photo compteur obligatoire (v1.1.0)
-- Le bouton « Remplir Excel + envoyer le mensuel » est **désactivé tant qu'aucune
-  photo compteur** n'est présente sur la période (`hasCompteurPhoto =
-  compteurPeriod.isNotEmpty()` dans `EnvoiMensuelScreen.kt`). Un bandeau rouge
-  « ⛔ Envoi bloqué… » s'affiche sinon.
-- La photo compteur est **jointe automatiquement** (nommée `<PLAQUE>-<MM>-<AAAA>.jpg`)
-  — le tech n'a rien à renseigner sur la photo, la règle est codée en dur.
-- **Récap PRIMES GESTE CO** (v1.3.0) dans le corps du mail : `primesByType` agrège les
-  extensions installées de la période × `settings.prices`, rendu en barres texte
-  (barre ∝ montant €) + `TOTAL PRIMES`. Les primes ne sont PAS dans les mails GESTE CO
-  client (règle inchangée) — uniquement dans le mensuel interne (GS + copie perso).
+### Envoi Mensuel
+- Bouton **bloqué tant qu'aucune photo compteur** sur la période
+  (`hasCompteurPhoto`) — capture inline dans l'écran (caméra + permission). Photo
+  jointe + renommée `<PLAQUE>-<MM>-<AAAA>.jpg` auto.
+- **Récap PRIMES GESTE CO** + répartition TEMPS dans le **PDF** joint (corps de
+  mail épuré : période + liste des PJ). Va vers GS (`fdt@fggestion.fr`) + copie perso.
+- Déclenche `StatsUploader.push` (stats du cycle figées au dashboard).
 
 ### GESTE CO — règles cadeau
-- Total cadeau client ≤ **4,50 €** ; offertes ≤ moitié des installées (arrondi inf.) ;
-  dérogation EPS possible. Primes (€) ≠ cadeau client (€) : 2 lignes dans le CSV récap.
+- Cadeau client ≤ **4,50 €** ; offertes ≤ moitié des installées ; dérogation EPS.
+  Primes (€, internes) ≠ cadeau client (€). **TYPES** (`GesteCoPrices.TYPES`)
+  pilote RÉCAP, CSV/PDF et `StatsUploader` → ajouter un type = toucher tous ces points.
 
-### Sauvegarde
-- ZIP exportable manuellement. **JAMAIS** d'effacement auto à l'upgrade.
+### Sauvegarde locale
+- ZIP exportable manuellement + sauvegarde Drive auto. **JAMAIS** d'effacement
+  auto à l'upgrade.
 
 ---
 
-## 6. Auto-update
+## 7. Auto-update
 
 `UpdateChecker.kt` appelle `GET /repos/morpheus45/gsystem/releases/latest`,
 compare le semver, exige un asset `.apk`. `checkForUpdateSilently()` tourne
-**une fois par session** au lancement (MainActivity). Le tutoriel/Release se
-propage donc avec un petit délai (build CI + check à l'ouverture suivante).
-
-- Prereleases exclues automatiquement par `releases/latest` → pratique pour tester.
-- Promotion prerelease → stable : `gh release edit vX.Y.Z --prerelease=false --latest`.
-
-La clé `keystore/debug.keystore` est partagée (local + CI) → MAJ sans réinstall.
+**une fois par session** au lancement (MainActivity). La clé
+`keystore/debug.keystore` est partagée (local + CI) → MAJ sans réinstall.
 **Ne JAMAIS la regénérer** sinon les utilisateurs perdent leurs données.
+
+- Prereleases exclues par `releases/latest`. Promotion : `gh release edit vX.Y.Z --prerelease=false --latest` (mais `gh` indisponible sur le poste → API REST).
 
 ---
 
-## 7. Workflow de release (CI auto sur tag)
+## 8. Workflow de release (CI auto sur tag)
 
 ```bash
-# 1. Bump version
-#    app/build.gradle.kts → versionCode + versionName
-
-# 2. Commit + tag + push  (le push du tag v* déclenche build + release auto)
+# 1. Bump version : app/build.gradle.kts → versionCode + versionName
+# 2. Commit + tag + push (le push du tag v* déclenche build + release auto)
 git add <fichiers> && git commit -m "vX.Y.Z: ..."
 git tag vX.Y.Z && git push origin HEAD --tags
-
-# 3. Surveiller le build (API GitHub ; `gh` n'est PAS installé sur ce poste)
-curl -s "https://api.github.com/repos/morpheus45/gsystem/actions/runs?event=push&branch=vX.Y.Z&per_page=1" | grep '"status"'
-
+# 3. Surveiller (gh ABSENT → curl sur l'API, rate-limit 60/h non authentifié)
+curl -s "https://api.github.com/repos/morpheus45/gsystem/actions/runs?per_page=3" | grep '"status"'
 # 4. Vérifier la Release + asset .apk
 curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep -E '"tag_name"|\.apk'
 ```
 
-Le workflow `.github/workflows/android-build.yml` build l'APK debug et, sur tag
-`v*`, crée la Release avec l'APK en asset. Les utilisateurs voient le popup MAJ
-à l'ouverture suivante.
-
-> ⚠ **`gh` (GitHub CLI) n'est pas disponible** sur la machine du dev — passer par
-> l'API REST via `curl` (attention au rate-limit 60/h non authentifié).
+> ⚠ **`gh` (GitHub CLI) n'est pas installé** sur la machine — passer par l'API REST `curl`.
 
 ---
 
-## 8. Historique des refontes design
+## 9. État actuel — v1.9.9
 
-| Version | Direction | Statut |
-|---|---|---|
-| 0.1 – 0.14.x | Material 3 standard, 1 couleur vive/bouton | Abandonné (« criard ») |
-| 0.15.0 | « INDICATOR CALM » crème/ambre | Rejeté (« blanc fade ») |
-| 0.16.0 | « OBSIDIAN » noir + signal rouge mono | Rejeté (« trop monochrome ») |
-| **0.17.x+** | **« MISSION CONTROL »** dark + 8 gradients + data live | **EN PRODUCTION** |
+### Évolutions de la série v1.9 (juin 2026)
+- **v1.9.0 — supervision** : `StatsUploader` met à jour les stats compta à chaque
+  clôture ; premier dashboard Apps Script.
+- **v1.9.x — Réglages** : bouton « Synchroniser tout sur le Drive » + rangement
+  Drive **Tech → Mois**.
+- **v1.9.x — stats enrichies** : répartition + primes/type + dashboard admin siglé.
+- **v1.9.x — supervision fine** : chaque clôture visible ; dashboard pro avec
+  période Du/Au global + par tech ; note de clôture (observations) ; **accordéon
+  par tech + détail des frais (nature/TVA)**.
+- **v1.9.x — sauvegarde Drive** : mail mensuel + zip hebdo ; **nom de zip fixe**
+  (la nouvelle écrase l'ancienne) ; dégradé des tuiles préservé.
+- **DEMANDE CAMÉRA** : nouvelle tuile N°2 (base GSM SEUL) → email EPS.
+- **docs** : page comptable dédiée (`comptable.html`), séparée du tuto tech.
+- **Clôture** : N° de site obligatoire **seulement si** GESTE CO offert ou GSM seul.
 
-Logo : le **wordmark officiel gsystems** (G rouge `#ee2322` arrondi + « systems »
-anthracite `#2b2d33`) est la référence de marque. Reproduit en SVG **animé**
-dans `docs/index.html` (header : le G se dessine, s'embrase, puis « systems »
-jaillit de la gueule du G — séquence « Réveil de marque ») et dans
-`logodraft/splash-preview.html`.
-
-Ne reviens **pas** à du blanc/monochrome. L'utilisateur veut : dark base,
-identité chromatique par catégorie, typo XL (Tektur), animations subtiles, data live.
-
----
-
-## 9. État actuel — v1.8.0
-
-### Évolutions récentes (juin 2026)
-- **v0.22.4** : tuile **02 COURRIER** (Viber « courrier ok ») ; suppression complète
-  de BON RETOUR ; renumérotation des tuiles ; tutoriel + nouveau logo gsystems.
-- **v0.23.0** : GESTE CO installé **sans cadeau → pas de mail** ; répartition TEMPS
-  (camembert texte) ajoutée dans le corps du mail mensuel.
-- **v0.23.1** : TEMPS — nouveau type **FERIE** (journée entière 7h, même logique que VACANCES).
-- **v0.24.0** : garde d'intégrité (anti-tamper) + mention copyright.
-- **v1.0.0** : Excel — clonage du style des lignes auto-insérées (>4 interventions/jour) ;
-  signature Release par **clé de production** (GitHub secrets), repli sur clé debug
-  si absente ; nettoyage du tutoriel.
-- **v1.1.0** :
-  - **Envoi Mensuel bloqué sans photo compteur** : bouton désactivé + bandeau rouge
-    tant qu'aucune photo compteur sur la période (`hasCompteurPhoto`). Photo jointe
-    auto, rien à renseigner par le tech (cf. §5).
-  - **Réglages EPS** : Cc 2 relibellé **« Responsable secteur »**, modifiable et vide.
-- **v1.2.0** (cette session) :
-  - **Destinataires fixes codés en dur + masqués** dans Réglages (cf. §5 Emails) :
-    `fdt@fggestion.fr`, `epsinfotechline@eps.e-i.com`, `johanna@fggestion.fr`.
-    Réglages n'affiche plus que les champs perso (nom, plaque, email perso,
-    responsable secteur, code tech, cycle, primes). Plus de saisie d'adresses par le tech.
-  - **« Code site » renommé « Code tech »** (libellés UI + doc) : c'est le code
-    technicien personnel, pas un code de site. **Vide par défaut** (`siteCodeFixe = ""`,
-    plus de repli `ISTGS54`) pour que chaque tech saisisse le sien.
-- **v1.3.0** (cette session) :
-  - **3 champs obligatoires** ajoutés à `isReady` (app bloquée sur Réglages tant
-    qu'ils sont vides) : **nom du tech**, **code tech** (`siteCodeFixe`, sinon trou
-    dans le sujet « GSM SEUL -  - n° ») et **responsable secteur** (`emailEpsCc2`,
-    propre à chaque secteur). Libellés `*`, aides, validation et tutoriel alignés.
-  - **Récap PRIMES GESTE CO dans le corps du mensuel** : extensions installées de la
-    période agrégées par type × tarif (`settings.prices`), rendu en barres « texte »
-    (même format que la répartition TEMPS, barre proportionnelle au montant €) +
-    `TOTAL PRIMES` de la période. `EnvoiMensuelScreen` : `gesteCoPeriod` + `primesByType`.
-    Aussi en StatRow à l'écran et en ligne de récap du mail. Va vers le groupe GS
-    (`fdt@fggestion.fr`) + copie perso.
-
-- **v1.4.0** (cette session) :
-  - **3 nouveaux types GESTE CO** : **CL** (3 €), **DF** (1,50 €), **SONDE IN** (1,50 €).
-    Primes internes ; cadeau client = 0 par défaut (modifiable dans Réglages). Ajoutés
-    partout : `GesteCoEntry` (installed*/offered*), `GesteCoPrices`/`GesteCoClientGifts`
-    (+ `priceFor` + `TYPES`), écran GESTE CO (ExtRow + buildEntry), Réglages (PriceField
-    primes & cadeaux), RÉCAP (`when type`), CsvExporter (cumul + colonnes détail).
-    ⚠ Pour ajouter un type : penser à TOUS ces points (TYPES pilote RÉCAP + CSV).
-
-- **v1.4.1** (cette session) : **mail mensuel — rendu propre**.
-  - **Texte brut nettoyé** (fallback) : suppression des barres ASCII `█` (illisibles
-    en police proportionnelle Outlook/Gmail) ; lignes courtes `LABEL : valeur` pour
-    Répartition TEMPS, Frais (HT/TVA regroupés dans le TOTAL) et Primes GESTE CO.
-  - **Version HTML** (tableaux + wordmark gsystems coloré + **graphe à barres
-    multicolore** de la répartition TEMPS — barres = `<div>` coloré à largeur px,
-    email-safe ; pas de vrai camembert car SVG/conic-gradient/JS non supportés en mail)
-    via `EXTRA_HTML_TEXT` (`EmailSender.sendMulti(htmlBody=…)`, helper `buildMonthlyHtml`).
-    Affichée par les clients qui la gèrent (Gmail…), sinon repli auto sur le texte brut.
-    ⚠ Outlook mobile peut l'ignorer → à tester côté Cédric. Voir mémoire « format mails texte brut ».
-
-- **v1.4.2** (cette session) :
-  - **Récap visuel HTML joint** au mensuel : `buildMonthlyHtml` écrit dans
-    `cacheDir/exports/Recap-mensuel_<start>.html` (doc complet + meta charset),
-    ajouté aux pièces jointes. S'ouvre dans le navigateur avec le rendu exact —
-    car le HTML **dans le corps** n'est pas fiable (Outlook ET Gmail ignorent
-    `EXTRA_HTML_TEXT` depuis un partage Android, vérifié). Ligne ajoutée au corps
-    pour signaler la PJ. (Un lien cliquable vers une PJ depuis le corps = impossible.)
-  - **Pas de tutoiement dans les corps de mail** (destinataires pro) — formulation
-    neutre. Voir mémoire « format mails texte brut ».
-
-- **v1.4.3** (cette session) : renommage **« Cadeau » → « GESTE CO »** dans toute
-  l'UI (en-tête colonne du dialogue, cartes site, validations, RÉCAP, Réglages
-  « GESTE CO client », en-tête CSV). Le modèle reste `offered*`/`clientGifts`
-  (noms de champs inchangés) — seul l'affichage change. Mail client : « Geste
-  commercial » conservé.
-
-- **v1.5.0** (cette session) : GSM SEUL — **3ᵉ toggle « CPL déjà présent »**
-  (`GsmSeulEntry.cplDejaPresent`, défaut false) : ligne « CPL déjà présent : OUI/NON »
-  dans le mail + tag sur la carte. **N° de site marqué obligatoire** (`*` + bordure
-  rouge `isError`) en GSM SEUL (l'enregistrement l'exigeait déjà ; GESTE CO l'avait déjà).
-- **v1.6.0** : nouvelle tuile **02 ATTENTE CLIENT** (teal `#14B8A6`) — n'ouvre pas
-  d'écran : `onClick` (MainActivity) affiche un **Toast** de consigne perso au tech
-  (`ViberSender.ATTENTE_RAPPEL_TECH` : appels toutes les 15 min jusqu'au départ validé
-  par la techline) puis partage Viber `attenteClientMessage()` (« PROCÉDURE ATTENTE
-  CLIENT · Début : HHhMM », heure figée au clic). Tuiles renumérotées (9 au total ;
-  COURRIER → 03 … ENVOI MENSUEL → 09). Couleurs `Attente*` dans `theme/Color.kt`.
-- **v1.7.0** (cette session) : **CLÔTURE UNIFIÉE** — GSM SEUL et GESTE CO retirés
-  de l'accueil (9 → 7 tuiles) et **fusionnés dans la CLÔTURE d'une INST** : sections
-  inline (tableau GESTE CO 12 types + dérogation + prime ; 3 toggles GSM seul) +
-  **N° de site + N° intervention obligatoires** ; au Clôturer, dialogue « Envois EPS »
-  pour déclencher les mails. Code isolé dans `InstallExtras.kt`, réutilise
-  `ExtRow`/`MAX_GIFT_EUR` + `sendGesteCoEmail`/`sendGsmEmail` (`internal`) → Viber +
-  mails + RÉCAP + ENVOI MENSUEL + remplissage Excel **strictement inchangés**.
-  Bouton « Enregistrer » raccourci (débordait). **Palette continue violet → vert**
-  (waterfall) + chaque écran assorti à la couleur de sa tuile.
-  ⚠ `assets/bon_retour/` toujours orphelin ; composables `GsmSeulScreen`/`GesteCoScreen`
-  devenus du code mort (dialogues/senders réutilisés, mais plus de route).
-- **v1.8.0** (cette session) : **COMPTEUR fusionné dans ENVOI MENSUEL** — section
-  « Photo compteur » + bouton de capture inline dans `EnvoiMensuelScreen` (caméra +
-  permission, réutilise `PhotoStorage.newCompteurFile` ; `repo = EntriesRepository.get`).
-  Tuile COMPTEUR retirée (7 → 6 tuiles, ENVOI → 06) ; `CompteurScreen` orphelin.
-  **Photo toujours obligatoire** (`hasCompteurPhoto` bloque l'envoi) et **renommage
-  `<PLAQUE>-<MM>-<AAAA>.jpg` à l'envoi inchangé**. Fix bouton « Enregistrer » de la
-  clôture (pleine largeur, label visible, Annuler dessous).
-
-### Pas encore fait (idées v1.9+)
-- [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) et toute dépendance WebView restante.
-- [ ] Affiner les taux TVA par catégorie dans `FraisTva.RATES` si besoin (tout à 20 % aujourd'hui).
-- [ ] Champs obligatoires (astérisques) sur GSM SEUL / GESTE CO / FRAIS / COMPTEUR.
-- [ ] Total € live dans la tuile 05 RÉCAP (données live = 0 actuellement).
-- [ ] Heures cumulées du cycle dans la tuile 01 CLÔTURE.
+### Pas encore fait (idées v2.x)
+- [ ] Nettoyer `app/src/main/assets/bon_retour/` (orphelin) + WebView restante.
+- [ ] Corriger le commentaire périmé `// 6 TUILES` dans `HomeScreen.kt` (→ 7).
+- [ ] Supprimer le code mort `GsmSeulScreen`/`GesteCoScreen`/`CompteurScreen`.
+- [ ] Affiner les taux TVA par catégorie (`FraisTva.RATES`, tout à 20 % aujourd'hui).
+- [ ] Total € live dans la tuile 05 RÉCAP ; heures cumulées dans la tuile 01 CLÔTURE.
 - [ ] Tests UI Compose.
 
 ---
@@ -436,23 +361,22 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 ## 10. Pièges à éviter
 
 1. **Ne pas regénérer `keystore/debug.keystore`** → casse les MAJ et les données.
-2. **Apache POI / log4j (corrigé en v0.22.1)** : POI charge `log4j-api` au
-   chargement de `IOUtils` (`LogManager.getLogger`). Il faut **CONSERVER
-   `log4j-api` 2.21.1** et exclure **uniquement** `log4j-core`
-   (`configurations.all { exclude(module = "log4j-core") }`). Exclure tout
-   le groupe log4j → `NoClassDefFoundError` au remplissage Excel.
+2. **Apache POI / log4j** : CONSERVER `log4j-api` 2.21.1, exclure **uniquement**
+   `log4j-core` (`configurations.all { exclude(module = "log4j-core") }`).
+   Tout exclure → `NoClassDefFoundError` au remplissage Excel.
 3. **Pièces jointes mail** : sans `ClipData` + `FLAG_GRANT_READ_URI_PERMISSION`
    sur l'intent ET le chooser, les PJ disparaissent après le sélecteur.
-   1 fichier = ACTION_SEND ; plusieurs = ACTION_SEND_MULTIPLE.
-4. **Ne pas modifier `OBSERVATION_LABELS` (ViberSender.kt)** sans valider le
+4. **Backup / dashboard** : le `TOKEN` doit être **identique** dans
+   `BackupConfig.TOKEN` (Kotlin) et `SHARED_TOKEN` (`Backup.gs`). Après édition du
+   script, **redéployer une nouvelle version** sinon le `/exec` sert l'ancienne.
+   Le POST suit un **302** (`instanceFollowRedirects = true` obligatoire).
+5. **Ne pas modifier `OBSERVATION_LABELS` (ViberSender.kt)** sans valider le
    format reçu côté groupe Viber (Cedric a un format précis attendu).
-5. **Période partagée** : `Temps`, `Frais` et `EnvoiMensuel` lisent le même
-   `periodStart/periodEnd` remonté dans `MainActivity`. Si tu touches l'un,
-   garde la propagation `onPeriodChange` cohérente.
-6. **`gh` indisponible** sur le poste → utiliser l'API REST via `curl`.
-7. **CI** : minSdk = **26** obligatoire (POI dépend de MethodHandle Android O+).
-8. **BON RETOUR supprimé** : ne pas réintroduire de références ; les assets
-   `assets/bon_retour/` restent à nettoyer.
+6. **Période partagée** : `Temps`, `Frais`, `EnvoiMensuel` lisent le même
+   `periodStart/periodEnd` ; garder `onPeriodChange` cohérent.
+7. **`gh` indisponible** → API REST via `curl`.
+8. **CI** : minSdk = **26** obligatoire (POI dépend de MethodHandle Android O+).
+9. **BON RETOUR supprimé** : ne pas réintroduire de références.
 
 ---
 
@@ -460,11 +384,11 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 - **Dev/utilisateur principal** : Cedric (morpheus45 GitHub)
 - **Société** : G-Systems FR (sécurité électronique / alarme)
-- **Code tech Cedric** : ISTGS54 — c'est un **code technicien** (propre à chaque
-  tech, pas un code de site), saisi dans Réglages, préfixe des sujets d'email
-  GSM SEUL / GESTE CO. Champ `siteCodeFixe` (nom JSON historique conservé).
-  Utiliser ISTGSXXX comme exemple en doc.
-- L'app est utilisée quotidiennement par Cedric, en cours d'extension à l'équipe.
+- **Code tech Cedric** : ISTGS54 — **code technicien** (propre à chaque tech),
+  saisi dans Réglages, préfixe des sujets d'email. Champ `siteCodeFixe` (nom JSON
+  historique). Utiliser `ISTGSXXX` comme exemple en doc.
+- L'app est utilisée quotidiennement par Cedric, en cours d'extension à l'équipe
+  (d'où la supervision Drive : voir les chiffres de chaque tech).
 
 ---
 
@@ -472,16 +396,17 @@ identité chromatique par catégorie, typo XL (Tektur), animations subtiles, dat
 
 - L'utilisateur veut du résultat **rapide et visuel** ; il ne touche pas au code,
   teste sur son téléphone et donne des retours en français parlé (souvent courts /
-  en majuscules). « c'est moche » / « limit mieux avant » = **pivot complet**.
+  en majuscules). « c'est moche » = **pivot complet**.
 - **Toujours montrer le `git diff` et attendre validation (« go »)** avant tout
   commit/push sur les repos morpheus45.
 - Respecter le keystore stable et la rétention des données : le passage d'une
   version à l'autre doit être **invisible pour les données**.
+- **Ne pas commiter `.claude/`**.
 
 ---
 
-*Document mis à jour pour v1.8.8 (clôture unifiée GSM/GESTE CO, compteur dans
-Envoi Mensuel, restyle « écran réel » des formulaires, typo sur une ligne, récaps
-GESTE CO et mensuel en PDF avec camembert + mail mensuel épuré, icônes des tuiles,
-dialogue « Envois EPS » avec statut ✓/✗, suppression en cascade des entrées liées).
-Bon courage pour la suite.*
+*Document mis à jour pour v1.9.9 (versionCode 88) : écosystème sauvegarde Drive +
+supervision (Apps Script, StatsUploader, dashboard admin global/par-tech avec
+période, camembert, primes, frais nature/TVA, clôtures + notes, ZIP), bouton
+« Synchroniser tout sur le Drive », nouvelle tuile DEMANDE CAMÉRA, page comptable
+dédiée, N° de site conditionnel à la clôture. Bon courage pour la suite.*
