@@ -8,7 +8,7 @@ package com.morpheus45.gsystem.backup
 object BackupConfig {
     /** URL « /exec » du déploiement Apps Script (cf. apps-script/Backup.gs). */
     const val ENDPOINT =
-        "https://script.google.com/macros/s/AKfycbxDcIknvw4bq_V201Almlu7HaCowEpk7-zcfEttGIKosnKdOvBIcghxUBeRay3W0rjJ/exec"
+        "https://script.google.com/macros/s/AKfycbxJDvoGwgrtlZH5AVrBlHLJy8sYGW7laIKU_AH880C1BRi79_JthDYp2nHgplCP_w9t/exec"
 
     /** Doit être IDENTIQUE à SHARED_TOKEN dans le script Apps Script. */
     const val TOKEN = "gsys-backup-2026-7Kq2vR"
