@@ -102,7 +102,6 @@ fun HomeScreen(
     }.getOrDefault(false)
 
     val countTemps = store.temps.count { isThisCycle(it.date) }
-    val countGsm   = store.gsmSeul.count { isThisCycle(it.date) }
     val countGeste = store.gesteCo.count { isThisCycle(it.date) }
     val countFrais = store.frais.count { isThisCycle(it.date) }
     val sumFrais   = store.frais.filter { isThisCycle(it.date) }.sumOf { it.montantEur }
