@@ -11,7 +11,7 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Stockage local des entrées (TEMPS, GSM SEUL, GESTE CO) sous forme d'un
+ * Stockage local des entrées (TEMPS, GESTE CO) sous forme d'un
  * unique fichier JSON dans le filesDir de l'app. Simple et robuste pour
  * la volumétrie attendue (quelques centaines d'entrées par mois).
  */
@@ -41,7 +41,6 @@ class EntriesRepository private constructor(context: Context) {
     }
 
     suspend fun addTemps(e: TempsEntry) = persist(_store.value.copy(temps = _store.value.temps + e))
-    suspend fun addGsmSeul(e: GsmSeulEntry) = persist(_store.value.copy(gsmSeul = _store.value.gsmSeul + e))
     suspend fun addGesteCo(e: GesteCoEntry) = persist(_store.value.copy(gesteCo = _store.value.gesteCo + e))
     suspend fun addFrais(e: FraisTicket) = persist(_store.value.copy(frais = _store.value.frais + e))
     suspend fun addCompteur(e: CompteurEntry) = persist(_store.value.copy(compteur = _store.value.compteur + e))
@@ -62,15 +61,13 @@ class EntriesRepository private constructor(context: Context) {
     suspend fun removeTemps(id: String) = persist(_store.value.copy(temps = _store.value.temps.filterNot { it.id == id }))
 
     /**
-     * Supprime une intervention TEMPS ET les entrées GESTE CO / GSM SEUL qui en
-     * sont issues (clôture d'installation). Évite les orphelins dans le RÉCAP.
+     * Supprime une intervention TEMPS ET les entrées GESTE CO qui en sont issues
+     * (clôture d'installation). Évite les orphelins dans le RÉCAP.
      */
     suspend fun removeTempsCascade(id: String) = persist(_store.value.copy(
         temps = _store.value.temps.filterNot { it.id == id },
-        gesteCo = _store.value.gesteCo.filterNot { it.tempsId == id },
-        gsmSeul = _store.value.gsmSeul.filterNot { it.tempsId == id }
+        gesteCo = _store.value.gesteCo.filterNot { it.tempsId == id }
     ))
-    suspend fun removeGsmSeul(id: String) = persist(_store.value.copy(gsmSeul = _store.value.gsmSeul.filterNot { it.id == id }))
     suspend fun removeGesteCo(id: String) = persist(_store.value.copy(gesteCo = _store.value.gesteCo.filterNot { it.id == id }))
     suspend fun removeFrais(id: String) = persist(_store.value.copy(frais = _store.value.frais.filterNot { it.id == id }))
     suspend fun removeCompteur(id: String) = persist(_store.value.copy(compteur = _store.value.compteur.filterNot { it.id == id }))

@@ -3,7 +3,6 @@ package com.morpheus45.gsystem.export
 import android.content.Context
 import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
-import com.morpheus45.gsystem.data.GsmSeulEntry
 import com.morpheus45.gsystem.data.TempsEntry
 import com.morpheus45.gsystem.util.HoursCalculator
 import java.io.File
@@ -66,29 +65,6 @@ object CsvExporter {
                 e.ville, e.numeroIntervention, hoursCell, obsLabel, e.observations))
         }
         val out = File(ensureExportDir(context), "TEMPS_${start}_${end}.csv")
-        out.writeText(CSV_PREFIX + sb.toString(), Charsets.UTF_8)
-        return out
-    }
-
-    fun exportGsmSeul(
-        context: Context, entries: List<GsmSeulEntry>,
-        start: LocalDate, end: LocalDate
-    ): File {
-        val filtered = entries.filter { it.date in start.toString()..end.toString() }
-            .sortedBy { it.date }
-        val sb = StringBuilder()
-        sb.appendLine(row("Date", "Site", "Pas de MEDIAS", "Câbles laissés", "Client", "Observations"))
-        for (e in filtered) {
-            sb.appendLine(row(
-                e.date, e.siteNumber,
-                if (e.pasMediasExploitables) "OUI" else "NON",
-                if (e.cablesLaissesSurSite) "OUI" else "NON",
-                e.nomClient, e.observations
-            ))
-        }
-        sb.appendLine()
-        sb.appendLine(row("TOTAL installations GSM SEUL", filtered.size))
-        val out = File(ensureExportDir(context), "GSM_SEUL_${start}_${end}.csv")
         out.writeText(CSV_PREFIX + sb.toString(), Charsets.UTF_8)
         return out
     }

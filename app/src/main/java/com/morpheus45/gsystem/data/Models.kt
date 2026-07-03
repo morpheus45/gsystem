@@ -29,28 +29,6 @@ data class TempsEntry(
 )
 
 /**
- * Une installation GSM SEUL = 1 site = 1 email envoyé.
- * `siteNumber` est obligatoire et apparaît dans le sujet du mail.
- */
-@Serializable
-data class GsmSeulEntry(
-    val id: String,
-    val date: String,
-    val siteNumber: String,
-    val nomClient: String = "",
-    val observations: String = "",
-    /** Si vrai, ajoute "Pas de MEDIAS exploitables." dans le corps. */
-    val pasMediasExploitables: Boolean = true,
-    /** OUI/NON dans le corps : "Câbles laissés sur site : OUI/NON". */
-    val cablesLaissesSurSite: Boolean = false,
-    /** OUI/NON dans le corps : "CPL déjà présent : OUI/NON". */
-    val cplDejaPresent: Boolean = false,
-    /** Id de l'intervention TEMPS dont cette entrée est issue (clôture). Permet
-     *  de cascader la suppression. Vide pour les entrées historiques. */
-    val tempsId: String = ""
-)
-
-/**
  * Une intervention GESTE CO = 1 site avec :
  *   - extensions INSTALLÉES (toutes — comptent pour la prime)
  *   - extensions OFFERTES en cadeau (sous-ensemble — apparaît dans le mail)
@@ -363,7 +341,6 @@ data class CompteurEntry(
 @Serializable
 data class EntriesStore(
     val temps: List<TempsEntry> = emptyList(),
-    val gsmSeul: List<GsmSeulEntry> = emptyList(),
     val gesteCo: List<GesteCoEntry> = emptyList(),
     val frais: List<FraisTicket> = emptyList(),
     val compteur: List<CompteurEntry> = emptyList()

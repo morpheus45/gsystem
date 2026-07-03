@@ -6,7 +6,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -16,20 +15,17 @@ import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.GesteCoClientGifts
 import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.GesteCoPrices
-import com.morpheus45.gsystem.data.GsmSeulEntry
 import com.morpheus45.gsystem.ui.theme.ColorGesteCo
-import com.morpheus45.gsystem.ui.theme.ColorGsmSeul
 import com.morpheus45.gsystem.ui.theme.Error
 
 /**
- * État + UI des sections optionnelles ajoutées à la clôture d'une INSTALLATION :
+ * État + UI de la section optionnelle ajoutée à la clôture d'une INSTALLATION :
  *   - GESTE CO : tableau complet 12 types (Installé / GESTE CO) + dérogation EPS + prime
- *   - GSM seul : 3 toggles
  *
- * Réutilise ExtRow et MAX_GIFT_EUR (GesteCoScreen, même package). Les entrées
- * construites (buildGeste / buildGsm) alimentent RÉCAP + ENVOI MENSUEL et sont
- * envoyées via les mêmes générateurs (sendGesteCoEmail / sendGsmEmail) → contenu
- * strictement identique aux écrans GESTE CO / GSM SEUL historiques.
+ * Réutilise ExtRow et MAX_GIFT_EUR (GesteCoScreen, même package). L'entrée
+ * construite (buildGeste) alimente RÉCAP + ENVOI MENSUEL et est envoyée via le
+ * même générateur (sendGesteCoEmail) → contenu strictement identique à l'écran
+ * GESTE CO historique.
  */
 internal class InstallExtrasState {
     // --- GESTE CO ---
@@ -43,12 +39,6 @@ internal class InstallExtrasState {
     var oSe by mutableStateOf(""); var oTc by mutableStateOf(""); var oSi by mutableStateOf("")
     var oCam by mutableStateOf(""); var oDacco by mutableStateOf(""); var oBa by mutableStateOf("")
     var oCl by mutableStateOf(""); var oDf by mutableStateOf(""); var oSondeIn by mutableStateOf("")
-
-    // --- GSM seul ---
-    var gsmOn by mutableStateOf(false)
-    var pasMedias by mutableStateOf(true)
-    var cables by mutableStateOf(false)
-    var cpl by mutableStateOf(false)
 
     private fun n(s: String) = s.toIntOrNull() ?: 0
     private fun installedList() = listOf(iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn)
@@ -99,26 +89,12 @@ internal class InstallExtrasState {
         )
     }
 
-    /** Crée l'entrée GSM seul si le toggle est actif, sinon null. */
-    fun buildGsm(date: String, site: String, nom: String, obs: String, tempsId: String): GsmSeulEntry? {
-        if (!gsmOn) return null
-        return GsmSeulEntry(
-            id = EntriesRepository.newId(),
-            tempsId = tempsId,
-            date = date.trim(), siteNumber = site.trim(),
-            nomClient = nom.trim(), observations = obs.trim(),
-            pasMediasExploitables = pasMedias,
-            cablesLaissesSurSite = cables,
-            cplDejaPresent = cpl
-        )
-    }
-
     /**
      * N° de site obligatoire UNIQUEMENT si un mail va partir : GESTE CO offert
-     * (offeredAll > 0) ou GSM seul actif. Sinon (juste des installées pour la
-     * prime, rien d'offert, pas de GSM) → le N° de site reste facultatif.
+     * (offeredAll > 0). Sinon (juste des installées pour la prime, rien d'offert)
+     * → le N° de site reste facultatif.
      */
-    fun needsSite(): Boolean = (gesteOn && offeredAll() > 0) || gsmOn
+    fun needsSite(): Boolean = gesteOn && offeredAll() > 0
 }
 
 @Composable
@@ -199,37 +175,5 @@ internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettin
                 }
             }
         }
-    }
-
-    Spacer(Modifier.height(10.dp))
-
-    // ===== GSM seul =====
-    AccentCard(ColorGsmSeul) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()) {
-                Text("GSM seul sur ce site",
-                    fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ColorGsmSeul,
-                    modifier = Modifier.weight(1f))
-                Switch(checked = state.gsmOn, onCheckedChange = { state.gsmOn = it })
-            }
-            if (state.gsmOn) {
-                Spacer(Modifier.height(4.dp))
-                ToggleLine("Pas de MEDIAS exploitables", state.pasMedias) { state.pasMedias = it }
-                ToggleLine("Câbles laissés sur site", state.cables) { state.cables = it }
-                ToggleLine("CPL déjà présent", state.cpl) { state.cpl = it }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToggleLine(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

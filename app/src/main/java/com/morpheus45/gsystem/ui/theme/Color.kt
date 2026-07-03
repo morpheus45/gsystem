@@ -100,5 +100,4 @@ val Error          = Signal
 // --- COMPAT HERITAGE ---
 // Les anciens noms pointent vers les couleurs des tuiles
 val ColorTemps     = TempsStart
-val ColorGsmSeul   = GsmStart
 val ColorGesteCo   = GesteStart
