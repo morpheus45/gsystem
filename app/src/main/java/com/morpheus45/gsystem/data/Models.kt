@@ -322,9 +322,12 @@ data class FraisTicket(
     val date: String,           // ISO yyyy-MM-dd
     val timestamp: Long,        // pour tri précis
     val fileName: String,       // nom du fichier dans filesDir/photos/
-    val categorie: String = "", // Carburant / Péage / Repas / Parking / Autre
+    val categorie: String = "", // PARKING / DIVERS / MOBILE
     val montantEur: Double = 0.0,
-    val observations: String = ""
+    val observations: String = "",
+    /** PARKING uniquement : certaines plateformes (ex. PayByPhone) ne facturent
+     *  pas de TVA. true = ticket sans TVA (TVA 0, HT = TTC). */
+    val sansTva: Boolean = false
 )
 
 /** Photo mensuelle du compteur de la voiture. */
