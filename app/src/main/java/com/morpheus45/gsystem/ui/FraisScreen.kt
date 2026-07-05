@@ -406,9 +406,9 @@ private fun EditFraisDialog(
                 // Règle entreprise forfait mobile : 50 % remboursés, plafond 20 €.
                 if (categorie == "MOBILE") {
                     val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
+                    val r = "%.2f".format(FraisTva.remboursable(m, "MOBILE"))
                     Text(
-                        "Forfait mobile : remboursé à 50 %, plafonné à 20 € → %.2f €"
-                            .format(FraisTva.remboursable(m, "MOBILE")),
+                        "Forfait mobile : remboursé à 50 %, plafonné à 20 € → $r €",
                         fontSize = 11.sp,
                         color = FraisColor,
                         modifier = Modifier.padding(top = 4.dp))
