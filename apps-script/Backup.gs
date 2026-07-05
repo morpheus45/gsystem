@@ -187,6 +187,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 var DATA=[];var OPEN={};var SEC={};
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
+function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
 function init(){
@@ -213,7 +214,7 @@ function computeTech(T,f,t){
   for(var k in pri){var u=(T.prices&&T.prices[k])||0;var tt=pri[k]*u;totP+=tt;totE+=pri[k];ppt.push({type:k,qty:pri[k],total:tt});}
   ppt.sort(function(a,b){return b.total-a.total;});
   return {tech:T.tech,interventions:clo.length,tickets:fr.length,
-    frais:fr.reduce(function(s,x){return s+(Number(x.m)||0);},0),primes:totP,extensions:totE,fraisList:fr,
+    frais:fr.reduce(function(s,x){return s+remb(x);},0),primes:totP,extensions:totE,fraisList:fr,
     repartition:Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;}),
     primesParType:ppt,clotures:clo};
 }
@@ -252,9 +253,13 @@ function chip(l,v){return '<div class="chip"><div class="cl">'+l+'</div><div cla
 function fraisTable(list){
   if(!list||!list.length)return '<div class="empty2">Aucun frais</div>';
   var l=list.slice().sort(function(a,b){return (a.d<b.d)?1:(a.d>b.d)?-1:0;});
-  var tt=0,tv=0,th=0;
-  var body=l.map(function(f){tt+=(f.m||0);tv+=(f.tva||0);th+=(f.ht||0);return '<tr><td>'+esc(f.d)+'</td><td>'+esc(f.cat)+'</td><td>'+money(f.m)+'</td><td>'+money(f.tva)+'</td><td>'+money(f.ht)+'</td></tr>';}).join('');
-  return '<table class="pt"><thead><tr><th>Date</th><th>Nature</th><th>TTC</th><th>TVA</th><th>HT</th></tr></thead><tbody>'+body+'</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+money(tt)+'</td><td>'+money(tv)+'</td><td>'+money(th)+'</td></tr></tfoot></table>';}
+  var tt=0,tr=0,tv=0,th=0;
+  var body=l.map(function(f){
+    var m=Number(f.m)||0,r=remb(f),tva=r-r/1.2,ht=r/1.2;
+    tt+=m;tr+=r;tv+=tva;th+=ht;
+    var cat=esc(f.cat)+(((f.cat||'').toUpperCase()==='MOBILE')?' <span class="pct">(50 % · max 20 €)</span>':'');
+    return '<tr><td>'+esc(f.d)+'</td><td>'+cat+'</td><td>'+money(m)+'</td><td>'+money(r)+'</td><td>'+money(tva)+'</td><td>'+money(ht)+'</td></tr>';}).join('');
+  return '<table class="pt"><thead><tr><th>Date</th><th>Nature</th><th>TTC payé</th><th>Remboursé</th><th>TVA</th><th>HT</th></tr></thead><tbody>'+body+'</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+money(tt)+'</td><td>'+money(tr)+'</td><td>'+money(tv)+'</td><td>'+money(th)+'</td></tr></tfoot></table>';}
 function secRow(key,id,icon,title,summary,bodyHtml){
   var k=key+'|'+id;var open=!!SEC[k];
   return '<div class="sec'+(open?' open':'')+'">'+
@@ -268,10 +273,10 @@ function cardInner(s,glob){
   var key=glob?'GLOBAL':s.tech;
   var n=(s.clotures||[]).length;
   var topType=(s.repartition&&s.repartition.length)?s.repartition[0].type+' '+Math.round(s.repartition[0].count/Math.max(1,s.interventions)*100)+'%':'—';
-  return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Total frais',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
+  return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Frais remboursés',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
-    secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' TTC',fraisTable(s.fraisList))+
+    secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
     secRow(key,'clo','📋',glob?'Clôtures de tous les techs':'Clôtures',n+' clôture'+(n>1?'s':''),cloturesTable(s.clotures,glob));}
 function buildCard(s,glob){
   if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
