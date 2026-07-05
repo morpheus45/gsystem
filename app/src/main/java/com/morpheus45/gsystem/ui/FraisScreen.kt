@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
 
-private val CATEGORIES = listOf("PARKING", "DIVERS", "AUTRE")
+private val CATEGORIES = listOf("PARKING", "DIVERS", "MOBILE")
 private val FraisColor = Color(0xFF06B6D4) // cyan (couleur de la tuile FRAIS)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -327,6 +327,12 @@ private fun TicketCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text("%.2f €".format(ticket.montantEur),
                     fontWeight = FontWeight.Bold, fontSize = 15.sp, color = FraisColor)
+                if (ticket.categorie == "MOBILE") {
+                    Text("Remb. %.2f €".format(
+                        FraisTva.remboursable(ticket.montantEur, ticket.categorie)),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
                 Row {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Filled.Edit, "Modifier", tint = FraisColor)
@@ -348,8 +354,8 @@ private fun EditFraisDialog(
     onSave: (FraisTicket) -> Unit
 ) {
     // Si l'ancienne catégorie n'est pas dans la nouvelle liste (ex: anciens
-    // tickets REPAS), on retombe sur AUTRE (avec le libellé d'origine en note).
-    val initialCat = if (ticket.categorie in CATEGORIES) ticket.categorie else "AUTRE"
+    // tickets REPAS ou AUTRE), on retombe sur DIVERS (le libellé reste en note).
+    val initialCat = if (ticket.categorie in CATEGORIES) ticket.categorie else "DIVERS"
     var categorie by remember { mutableStateOf(initialCat) }
     var montant by remember {
         mutableStateOf(if (ticket.montantEur == 0.0) ""
@@ -391,28 +397,26 @@ private fun EditFraisDialog(
                 )
                 Spacer(Modifier.height(8.dp))
 
-                // Champ note adapté à la catégorie sélectionnée
-                val obsLabel = if (categorie == "AUTRE")
-                    "Précise le type de frais (obligatoire)"
-                else
-                    "Note (optionnel)"
                 OutlinedTextField(
                     value = obs,
                     onValueChange = { obs = it },
-                    label = { Text(obsLabel) },
-                    isError = categorie == "AUTRE" && obs.isBlank(),
+                    label = { Text("Note (optionnel)") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (categorie == "AUTRE" && obs.isBlank()) {
-                    Text("Décris brièvement la nature du frais (ex : Hôtel, Péage, Carburant…)",
+                // Règle entreprise forfait mobile : 50 % remboursés, plafond 20 €.
+                if (categorie == "MOBILE") {
+                    val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
+                    Text(
+                        "Forfait mobile : remboursé à 50 %, plafonné à 20 € → %.2f €"
+                            .format(FraisTva.remboursable(m, "MOBILE")),
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.error,
+                        color = FraisColor,
                         modifier = Modifier.padding(top = 4.dp))
                 }
             }
         },
         confirmButton = {
-            val canSave = categorie != "AUTRE" || obs.isNotBlank()
+            val canSave = true
             Button(
                 onClick = {
                     val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0

@@ -2,7 +2,9 @@ package com.morpheus45.gsystem.excel
 
 import android.content.Context
 import android.net.Uri
+import com.morpheus45.gsystem.data.FraisTicket
 import com.morpheus45.gsystem.data.TempsEntry
+import com.morpheus45.gsystem.util.FraisTva
 import com.morpheus45.gsystem.util.HoursCalculator
 import org.apache.poi.openxml4j.util.ZipSecureFile
 import org.apache.poi.ss.usermodel.WorkbookFactory
@@ -21,7 +23,8 @@ import java.time.format.DateTimeFormatter
  * Conventions :
  *   - 1 feuille par semaine ISO : "S.1" ... "S.53"
  *   - Lignes par jour : 4 par défaut (LUNDI..SAMEDI), col A merged 2x (label) + 2x (date)
- *   - Colonnes data : B=département, C=mission (merged C+D), E=heures, H=observations
+ *   - Colonnes data : B=département, C=mission (merged C+D), E=heures,
+ *     F=frais TTC remboursables, G=TVA des frais, H=observations
  *   - Ligne TOTAL en bas avec =SUM(E10:E33), etc.
  *
  * POI utilise des indices 0-based : ligne 10 d'openpyxl == row 9 ici.
@@ -40,8 +43,8 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
     )
 
     /** Point d'entrée principal. Lance toute la procédure de remplissage. */
-    fun fill(entries: List<TempsEntry>): FillReport {
-        if (entries.isEmpty()) return FillReport(0, 0, 0, emptyList(), emptyList())
+    fun fill(entries: List<TempsEntry>, frais: List<FraisTicket> = emptyList()): FillReport {
+        if (entries.isEmpty() && frais.isEmpty()) return FillReport(0, 0, 0, emptyList(), emptyList())
 
         // Garde-fous POI (gros classeurs .xlsm avec macros = ratio de
         // décompression élevé). Sans ça POI lève une "Zip bomb detected"
@@ -66,14 +69,16 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
         try {
             // 2. Regrouper les entrées par feuille S.X puis par jour
             val byWeek = entries.groupBy { weekSheetFor(LocalDate.parse(it.date, ISO)) }
-            for ((sheetName, weekEntries) in byWeek) {
+            val fraisByWeek = frais.groupBy { weekSheetFor(LocalDate.parse(it.date, ISO)) }
+            for (sheetName in (byWeek.keys + fraisByWeek.keys)) {
                 val sheet = wb.getSheet(sheetName)
                 if (sheet == null) {
                     warnings.add("Feuille $sheetName introuvable dans le classeur")
                     skipped.add(sheetName)
                     continue
                 }
-                val byDay = weekEntries.groupBy { dayIndexFor(LocalDate.parse(it.date, ISO)) }
+                val byDay = byWeek[sheetName].orEmpty()
+                    .groupBy { dayIndexFor(LocalDate.parse(it.date, ISO)) }
                 // Remplir dans l'ordre INVERSE pour que les insertions du jour N
                 // ne décalent pas les jours 0..N-1
                 for (dayIdx in byDay.keys.sortedDescending()) {
@@ -85,6 +90,27 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
                     val (n, ins) = fillDay(sheet, dayIdx, items)
                     written += n
                     inserted += ins
+                }
+                // Frais du jour APRÈS les insertions temps (les blocs sont relus
+                // à jour) : F = TTC remboursable cumulé, G = TVA correspondante,
+                // écrits sur la 1re ligne du bloc du jour (comme les heures).
+                val fraisDay = fraisByWeek[sheetName].orEmpty()
+                    .groupBy { dayIndexFor(LocalDate.parse(it.date, ISO)) }
+                for ((dayIdx, dayFrais) in fraisDay) {
+                    if (dayIdx < 0) {
+                        skipped.add("$sheetName-DIMANCHE-frais")
+                        continue
+                    }
+                    val blocks = findDayBlocks(sheet)
+                    if (dayIdx >= blocks.size) continue
+                    val r = blocks[dayIdx].first
+                    val row = sheet.getRow(r) ?: sheet.createRow(r)
+                    val ttc = dayFrais.sumOf { FraisTva.remboursable(it.montantEur, it.categorie) }
+                    val tva = dayFrais.sumOf {
+                        FraisTva.tvaFromTtc(FraisTva.remboursable(it.montantEur, it.categorie), it.categorie)
+                    }
+                    cellOf(row, 5).setCellValue(Math.round(ttc * 100) / 100.0)
+                    cellOf(row, 6).setCellValue(Math.round(tva * 100) / 100.0)
                 }
             }
 

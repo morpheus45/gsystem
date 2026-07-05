@@ -2,7 +2,8 @@
  * G-Systems — réception des sauvegardes + tableau de bord administratif.
  * POST (app) : range dans Sauvegardes G-Systems / <tech> / <mois> / <fichier>.
  * GET (navigateur) : page siglée G-Systems — global + tech par tech, sur
- * période choisie (Du/Au), KPIs + camembert + primes + clôtures.
+ * période choisie (Du/Au), sections dépliables (répartition, primes, frais,
+ * clôtures) façon SaaS.
  *
  * Déployer -> Gérer les déploiements -> Modifier -> Nouvelle version.
  * Exécuter en tant que : MOI · Qui a accès : « Tout le monde ».
@@ -121,14 +122,12 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .techcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0}
 .techcard.glob{border-color:var(--blue);box-shadow:0 0 0 1px rgba(79,163,255,.25)}
 .th{font-size:17px;font-weight:800;margin-bottom:12px}
-.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:14px}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:12px}
 .chip{background:var(--card2);border-radius:11px;padding:10px 12px}
 .chip .cl{font-size:11px;color:var(--mid)}
 .chip .cv{font-size:20px;font-weight:700;color:var(--blue);margin-top:2px}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-@media(max-width:620px){.cols{grid-template-columns:1fr}}
 .ct{font-size:12.5px;color:var(--mid);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
-.pieWrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.pieWrap{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding-top:8px}
 .pie{width:128px;height:128px;border-radius:50%;flex:none}
 .legend{flex:1;min-width:130px}
 .leg{font-size:13px;margin:3px 0;display:flex;align-items:center;gap:7px}
@@ -150,12 +149,18 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .thh{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .thh .tn{font-size:16px;font-weight:800}
 .thh .sm{font-size:12.5px;color:var(--mid);display:flex;align-items:center;gap:8px;white-space:nowrap}
-.chev{display:inline-block;transition:transform .15s;color:var(--low)}
+.chev{display:inline-block;transition:transform .18s;color:var(--low);flex:none}
 .thh.open .chev{transform:rotate(90deg)}
 .cardbody{margin-top:14px}
-.chip.clik{cursor:pointer}
-.chip.clik:hover,.chip.clik.open{outline:1px solid var(--blue)}
-.fraisdet{margin:0 0 14px}
+.sec{border:1px solid var(--line);border-radius:12px;margin:8px 0;background:var(--card2);overflow:hidden}
+.sech{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;user-select:none}
+.sech:hover{background:rgba(79,163,255,.07)}
+.si{font-size:15px;flex:none}
+.st{font-weight:700;font-size:12.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--mid)}
+.sec.open .st{color:var(--hi)}
+.ss{margin-left:auto;font-size:13px;font-weight:700;color:var(--blue);white-space:nowrap}
+.sec.open .chev{transform:rotate(90deg)}
+.secb{padding:2px 14px 14px;border-top:1px solid var(--line);background:var(--card)}
 </style></head><body>
 <div class="head">
   <svg class="logo" viewBox="0 0 470 200" xmlns="http://www.w3.org/2000/svg" aria-label="gsystems">
@@ -179,7 +184,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};
+var DATA=[];var OPEN={};var SEC={};
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
@@ -223,7 +228,7 @@ function aggregate(techs){
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;g.fraisList=fl;return g;}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function obsCell(o){var cl=(o==='OK')?'ok':((o==='Annulé')?'an':'nr');return '<span class="'+cl+'">'+esc(o)+'</span>';}
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
@@ -250,13 +255,24 @@ function fraisTable(list){
   var tt=0,tv=0,th=0;
   var body=l.map(function(f){tt+=(f.m||0);tv+=(f.tva||0);th+=(f.ht||0);return '<tr><td>'+esc(f.d)+'</td><td>'+esc(f.cat)+'</td><td>'+money(f.m)+'</td><td>'+money(f.tva)+'</td><td>'+money(f.ht)+'</td></tr>';}).join('');
   return '<table class="pt"><thead><tr><th>Date</th><th>Nature</th><th>TTC</th><th>TVA</th><th>HT</th></tr></thead><tbody>'+body+'</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+money(tt)+'</td><td>'+money(tv)+'</td><td>'+money(th)+'</td></tr></tfoot></table>';}
-function chipF(s){return '<div class="chip clik" onclick="togF(this)"><div class="cl">Total frais ▸</div><div class="cv">'+money(s.frais)+'</div></div>';}
+function secRow(key,id,icon,title,summary,bodyHtml){
+  var k=key+'|'+id;var open=!!SEC[k];
+  return '<div class="sec'+(open?' open':'')+'">'+
+    '<div class="sech" data-k="'+esc(k)+'" onclick="togS(this)">'+
+    '<span class="si">'+icon+'</span><span class="st">'+title+'</span>'+
+    '<span class="ss">'+summary+'</span><span class="chev">▸</span></div>'+
+    (open?'<div class="secb">'+bodyHtml+'</div>':'')+
+    '</div>';}
+function togS(el){var k=el.getAttribute('data-k');SEC[k]=!SEC[k];apply();}
 function cardInner(s,glob){
-  return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chipF(s)+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
-    '<div class="fraisdet" style="display:none"><div class="ct">Détail des frais (nature · TVA)</div>'+fraisTable(s.fraisList)+'</div>'+
-    '<div class="cols"><div class="col"><div class="ct">Répartition interventions</div>'+pie(s.repartition)+'</div>'+
-    '<div class="col"><div class="ct">Primes par type</div>'+primesTable(s.primesParType)+'</div></div>'+
-    '<div class="ct" style="margin-top:14px">Clôtures ('+((s.clotures||[]).length)+')</div>'+cloturesTable(s.clotures,glob);}
+  var key=glob?'GLOBAL':s.tech;
+  var n=(s.clotures||[]).length;
+  var topType=(s.repartition&&s.repartition.length)?s.repartition[0].type+' '+Math.round(s.repartition[0].count/Math.max(1,s.interventions)*100)+'%':'—';
+  return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Total frais',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
+    secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
+    secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
+    secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' TTC',fraisTable(s.fraisList))+
+    secRow(key,'clo','📋',glob?'Clôtures de tous les techs':'Clôtures',n+' clôture'+(n>1?'s':''),cloturesTable(s.clotures,glob));}
 function buildCard(s,glob){
   if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
   var open=!!OPEN[s.tech];
@@ -264,8 +280,7 @@ function buildCard(s,glob){
   return '<div class="techcard"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
     '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+sm+' <span class="chev">▸</span></span></div>'+
     '<div class="cardbody" style="display:'+(open?'block':'none')+'">'+cardInner(s,false)+'</div></div>';}
-function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];el.nextElementSibling.style.display=OPEN[t]?'block':'none';el.classList.toggle('open',OPEN[t]);}
-function togF(el){var d=el.closest('.techcard').querySelector('.fraisdet');if(d){var o=d.style.display==='none';d.style.display=o?'block':'none';el.classList.toggle('open',o);}}
+function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];apply();}
 function apply(){
   var f=document.getElementById('from').value,t=document.getElementById('to').value;
   if(!DATA.length){document.getElementById('techs').innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';document.getElementById('global').innerHTML='';return;}

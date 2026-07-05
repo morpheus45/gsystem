@@ -346,11 +346,12 @@ fun EnvoiMensuelScreen(
                         errorMsg = null
                         status = "Remplissage du fichier Excel…"
                         runCatching {
-                            // 1. Remplir le .xlsm avec les TEMPS
-                            if (settings.excelFileUri.isNotBlank() && tempsPeriod.isNotEmpty()) {
+                            // 1. Remplir le .xlsm avec les TEMPS + les FRAIS (F=TTC remboursable, G=TVA)
+                            if (settings.excelFileUri.isNotBlank() &&
+                                (tempsPeriod.isNotEmpty() || fraisPeriod.isNotEmpty())) {
                                 val uri = Uri.parse(settings.excelFileUri)
                                 val report = withContext(Dispatchers.IO) {
-                                    ExcelFiller(context, uri).fill(tempsPeriod)
+                                    ExcelFiller(context, uri).fill(tempsPeriod, fraisPeriod)
                                 }
                                 status = "Excel rempli : ${report.writtenEntries} ligne(s) écrites" +
                                          (if (report.insertedRows > 0) " (+${report.insertedRows} ligne(s) ajoutée(s))" else "")
