@@ -107,7 +107,9 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
                     val row = sheet.getRow(r) ?: sheet.createRow(r)
                     val ttc = dayFrais.sumOf { FraisTva.remboursable(it.montantEur, it.categorie) }
                     val tva = dayFrais.sumOf {
-                        FraisTva.tvaFromTtc(FraisTva.remboursable(it.montantEur, it.categorie), it.categorie)
+                        FraisTva.tvaFromTtc(
+                            FraisTva.remboursable(it.montantEur, it.categorie),
+                            it.categorie, it.sansTva)
                     }
                     cellOf(row, 5).setCellValue(Math.round(ttc * 100) / 100.0)
                     cellOf(row, 6).setCellValue(Math.round(tva * 100) / 100.0)

@@ -68,7 +68,7 @@ fun FraisScreen(
         runCatching { DateUtil.parseIso(it.date) in periodStart..periodEnd }.getOrDefault(false)
     }.sortedByDescending { it.timestamp }
     val totalMontant = periodTickets.sumOf { it.montantEur }
-    val totalTva = periodTickets.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie) }
+    val totalTva = periodTickets.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie, it.sansTva) }
     val totalHt = totalMontant - totalTva
 
     var pendingFile by remember { mutableStateOf<File?>(null) }
@@ -314,7 +314,7 @@ private fun TicketCard(
                     ticket.categorie == "AUTRE" && ticket.observations.isNotBlank() ->
                         "AUTRE : ${ticket.observations}"
                     else -> ticket.categorie
-                }
+                } + if (ticket.sansTva) " · sans TVA" else ""
                 Text(catLine, fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     maxLines = 1)
@@ -362,6 +362,8 @@ private fun EditFraisDialog(
                        else "%.2f".format(ticket.montantEur).replace(',', '.'))
     }
     var obs by remember { mutableStateOf(ticket.observations) }
+    // PARKING : certaines plateformes (PayByPhone…) ne facturent pas de TVA.
+    var avecTva by remember { mutableStateOf(!ticket.sansTva) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -397,6 +399,26 @@ private fun EditFraisDialog(
                 )
                 Spacer(Modifier.height(8.dp))
 
+                // TVA OUI/NON, seulement pour PARKING (PayByPhone & co = sans TVA)
+                if (categorie == "PARKING") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("TVA sur ce ticket", fontSize = 14.sp)
+                            Text(
+                                if (avecTva) "OUI — TVA 20 % incluse"
+                                else "NON — plateforme sans TVA (ex : PayByPhone)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
+                        Switch(checked = avecTva, onCheckedChange = { avecTva = it })
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+
                 OutlinedTextField(
                     value = obs,
                     onValueChange = { obs = it },
@@ -423,7 +445,9 @@ private fun EditFraisDialog(
                     onSave(ticket.copy(
                         categorie = categorie,
                         montantEur = m,
-                        observations = obs.trim()
+                        observations = obs.trim(),
+                        // Le flag « sans TVA » n'a de sens que pour PARKING.
+                        sansTva = categorie == "PARKING" && !avecTva
                     ))
                 },
                 enabled = canSave,

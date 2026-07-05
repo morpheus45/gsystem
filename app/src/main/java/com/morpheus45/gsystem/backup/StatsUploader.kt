@@ -77,8 +77,8 @@ object StatsUploader {
                 val cat = f.categorie.ifBlank { "DIVERS" }
                 fraisArr.put(JSONObject()
                     .put("d", f.date).put("m", f.montantEur).put("cat", cat)
-                    .put("tva", FraisTva.tvaFromTtc(f.montantEur, cat))
-                    .put("ht", FraisTva.htFromTtc(f.montantEur, cat)))
+                    .put("tva", FraisTva.tvaFromTtc(f.montantEur, cat, f.sansTva))
+                    .put("ht", FraisTva.htFromTtc(f.montantEur, cat, f.sansTva)))
             }
             val gestesArr = JSONArray()
             geste.forEach { g ->

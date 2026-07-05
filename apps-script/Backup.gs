@@ -255,7 +255,9 @@ function fraisTable(list){
   var l=list.slice().sort(function(a,b){return (a.d<b.d)?1:(a.d>b.d)?-1:0;});
   var tt=0,tr=0,tv=0,th=0;
   var body=l.map(function(f){
-    var m=Number(f.m)||0,r=remb(f),tva=r-r/1.2,ht=r/1.2;
+    var m=Number(f.m)||0,r=remb(f);
+    var tvaFull=(f.tva==null)?(m-m/1.2):(Number(f.tva)||0);
+    var tva=(m>0)?tvaFull*(r/m):0;var ht=r-tva;
     tt+=m;tr+=r;tv+=tva;th+=ht;
     var cat=esc(f.cat)+(((f.cat||'').toUpperCase()==='MOBILE')?' <span class="pct">(50 % · max 20 €)</span>':'');
     return '<tr><td>'+esc(f.d)+'</td><td>'+cat+'</td><td>'+money(m)+'</td><td>'+money(r)+'</td><td>'+money(tva)+'</td><td>'+money(ht)+'</td></tr>';}).join('');

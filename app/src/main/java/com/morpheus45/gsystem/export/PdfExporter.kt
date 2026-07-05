@@ -210,15 +210,16 @@ object PdfExporter {
             b.hline(pLine)
             fraisPeriod.forEach { t ->
                 val cat = t.categorie.ifBlank { "DIVERS" }
+                val catLabel = if (t.sansTva) "$cat (sans TVA)" else cat
                 b.row(
-                    listOf(t.date, cat, eur(t.montantEur),
-                        eur(FraisTva.htFromTtc(t.montantEur, cat)),
-                        eur(FraisTva.tvaFromTtc(t.montantEur, cat))),
+                    listOf(t.date, catLabel, eur(t.montantEur),
+                        eur(FraisTva.htFromTtc(t.montantEur, cat, t.sansTva)),
+                        eur(FraisTva.tvaFromTtc(t.montantEur, cat, t.sansTva))),
                     cX, pCell, gapBefore = 4f
                 )
             }
-            val totalHt = fraisPeriod.sumOf { FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
-            val totalTva = fraisPeriod.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
+            val totalHt = fraisPeriod.sumOf { FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }, it.sansTva) }
+            val totalTva = fraisPeriod.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }, it.sansTva) }
             b.hline(pLine)
             b.row(listOf("TOTAL", "", eur(totalFraisMontant), eur(totalHt), eur(totalTva)), cX, pCellB, gapBefore = 4f)
             b.space(14f)

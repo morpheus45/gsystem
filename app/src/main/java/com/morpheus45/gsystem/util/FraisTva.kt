@@ -35,6 +35,14 @@ object FraisTva {
     fun tvaFromTtc(ttc: Double, categorie: String): Double =
         ttc - htFromTtc(ttc, categorie)
 
+    // Variantes par ticket : un ticket « sans TVA » (parking PayByPhone & co)
+    // n'a pas de TVA récupérable -> TVA 0, HT = TTC.
+    fun htFromTtc(ttc: Double, categorie: String, sansTva: Boolean): Double =
+        if (sansTva) ttc else htFromTtc(ttc, categorie)
+
+    fun tvaFromTtc(ttc: Double, categorie: String, sansTva: Boolean): Double =
+        if (sansTva) 0.0 else tvaFromTtc(ttc, categorie)
+
     /**
      * Montant remboursable d'un ticket : plein TTC, sauf MOBILE où s'applique
      * la règle entreprise « 50 % de la facture, plafonné à 20 € ».
