@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -261,6 +263,32 @@ fun FraisScreen(
 
 private val IMAGE_EXTS = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif")
 
+/** Ouvre le fichier d'un ticket (photo/PDF/…) dans une visionneuse externe. */
+private fun openTicketFile(context: android.content.Context, fileName: String) {
+    val file = PhotoStorage.fileFor(context, fileName)
+    if (!file.exists()) {
+        android.widget.Toast.makeText(context, "Fichier introuvable",
+            android.widget.Toast.LENGTH_SHORT).show()
+        return
+    }
+    val uri = PhotoStorage.uriFor(context, file)
+    val ext = fileName.substringAfterLast('.', "").lowercase()
+    val mime = when {
+        ext in IMAGE_EXTS -> "image/*"
+        ext == "pdf" -> "application/pdf"
+        else -> context.contentResolver.getType(uri) ?: "*/*"
+    }
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mime)
+        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    runCatching { context.startActivity(intent) }.onFailure {
+        android.widget.Toast.makeText(context, "Aucune application pour ouvrir ce fichier",
+            android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
+
 @Composable
 private fun TicketCard(
     context: android.content.Context,
@@ -280,14 +308,16 @@ private fun TicketCard(
             if (ext in IMAGE_EXTS) {
                 AsyncImage(
                     model = file,
-                    contentDescription = "Ticket",
-                    modifier = Modifier.size(64.dp),
+                    contentDescription = "Ouvrir le ticket",
+                    modifier = Modifier.size(64.dp)
+                        .clickable { openTicketFile(context, ticket.fileName) },
                     contentScale = ContentScale.Crop
                 )
             } else {
-                // Icône pour PDF / autre fichier
+                // Icône pour PDF / autre fichier — cliquable pour ouvrir
                 Box(
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(64.dp)
+                        .clickable { openTicketFile(context, ticket.fileName) },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -334,6 +364,9 @@ private fun TicketCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 Row {
+                    IconButton(onClick = { openTicketFile(context, ticket.fileName) }) {
+                        Icon(Icons.Filled.Visibility, "Ouvrir le fichier", tint = FraisColor)
+                    }
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Filled.Edit, "Modifier", tint = FraisColor)
                     }

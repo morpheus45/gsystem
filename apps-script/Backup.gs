@@ -225,17 +225,18 @@ function aggregate(techs){
     s.repartition.forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
     s.primesParType.forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
     (s.fraisList||[]).forEach(function(f){fl.push(f);});
-    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,note:c.note,tech:s.tech});});});
+    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;g.fraisList=fl;return g;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function obsCell(o){var cl=(o==='OK')?'ok':((o==='Annulé')?'an':'nr');return '<span class="'+cl+'">'+esc(o)+'</span>';}
+function dur(a,b){if(!a||!b)return '';var pa=a.split(':'),pb=b.split(':');if(pa.length<2||pb.length<2)return '';var m=(+pb[0]*60+ +pb[1])-(+pa[0]*60+ +pa[1]);if(isNaN(m))return '';if(m<0)m+=1440;var h=Math.floor(m/60),mm=m%60;return h>0?(h+'h'+('0'+mm).slice(-2)):(mm+' min');}
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
-  var head='<tr><th>Date</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
+  var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
+  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);

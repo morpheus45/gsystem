@@ -11,6 +11,14 @@ object DateUtil {
     fun parseIso(s: String): LocalDate = LocalDate.parse(s, ISO)
     fun fr(d: LocalDate): String = d.format(FR)
 
+    private val HM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    /** Heure locale "HH:mm" d'un horodatage ms (0 = chaîne vide). */
+    fun hm(ms: Long): String =
+        if (ms <= 0L) "" else java.time.Instant.ofEpochMilli(ms)
+            .atZone(java.time.ZoneId.systemDefault()).format(HM)
+    /** Heure locale "HH:mm" de maintenant. */
+    fun nowHm(): String = java.time.LocalTime.now().format(HM)
+
     /**
      * Calcule la période du cycle mensuel courant.
      *

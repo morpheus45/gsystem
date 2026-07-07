@@ -68,7 +68,8 @@ object StatsUploader {
                     .put("date", t.date).put("type", t.typeMission)
                     .put("client", t.nomClient).put("ville", t.ville)
                     .put("num", t.numeroIntervention).put("obs", obs)
-                    .put("note", t.observations))
+                    .put("note", t.observations)
+                    .put("hDebut", t.heureDebut).put("hFin", t.heureFin))
             }
 
             // Données granulaires datées : permettent de recalculer les stats

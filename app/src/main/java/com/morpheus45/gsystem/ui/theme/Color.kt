@@ -36,7 +36,12 @@ val SignalGhost    = Color(0x1AFF3D5A)
 // vers un noir teinte. Le titre reste blanc sur tous.
 // =============================================================
 
-// 01 TEMPS — violet electrique
+// 01 ARRIVÉE SUR SITE — magenta (mène dans le violet de CLÔTURE)
+val ArriveeStart   = Color(0xFFC026D3)
+val ArriveeEnd     = Color(0xFF3B0A3E)
+val ArriveeAccent  = Color(0xFFF5D0FE)
+
+// 02 CLÔTURE (TEMPS) — violet electrique
 val TempsStart     = Color(0xFF7C3AED)
 val TempsEnd       = Color(0xFF1A0B36)
 val TempsAccent    = Color(0xFFA78BFA)
