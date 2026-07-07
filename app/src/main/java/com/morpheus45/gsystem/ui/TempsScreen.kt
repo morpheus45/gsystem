@@ -319,6 +319,7 @@ private fun TempsCard(
                     "NR_CLIENT" -> "NR CLIENT"
                     "NR_TECHNIQUE" -> "NR TECHNIQUE"
                     "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                    "NR_AUTRES" -> "NR AUTRES"
                     "ANNULE" -> "ANNULÉ"
                     else -> ""
                 }

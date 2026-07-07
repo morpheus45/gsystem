@@ -60,6 +60,7 @@ object StatsUploader {
                     "NR_CLIENT" -> "NR client"
                     "NR_TECHNIQUE" -> "NR technique"
                     "NR_CLIENT_ABS" -> "NR client absent"
+                    "NR_AUTRES" -> "NR autres"
                     "ANNULE" -> "Annulé"
                     else -> "OK"
                 }

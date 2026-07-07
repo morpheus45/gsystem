@@ -20,6 +20,7 @@ object ViberSender {
         "NR_CLIENT" to "NR client",
         "NR_TECHNIQUE" to "NR technique",
         "NR_CLIENT_ABS" to "NR client absent",
+        "NR_AUTRES" to "NR autres",
         "ANNULE" to "Annulé",
     )
 
@@ -37,10 +38,14 @@ object ViberSender {
             "NR_CLIENT" -> "NR CLIENT"
             "NR_TECHNIQUE" -> "NR TECHNIQUE"
             "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+            "NR_AUTRES" -> "NR AUTRES"
             "ANNULE" -> "ANNULE"
             else -> "ok"
         }
-        return "$base $suffix"
+        // La note libre est jointe au message pour toutes les NR (précision).
+        val note = entry.observations.trim()
+        val isNr = entry.observationType.startsWith("NR_")
+        return if (isNr && note.isNotEmpty()) "$base $suffix - $note" else "$base $suffix"
     }
 
     /**
