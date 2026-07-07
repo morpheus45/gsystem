@@ -181,7 +181,8 @@ fun AppNav() {
     ) { granted ->
         if (granted) placeCall(context, ARRIVAL_PHONE) else dialNumber(context, ARRIVAL_PHONE)
     }
-    val onArrivee = {
+    // Pointe l'arrivée : note l'heure + appelle la techline.
+    val recordArrival = {
         val now = System.currentTimeMillis()
         scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
         android.widget.Toast.makeText(
@@ -194,6 +195,11 @@ fun AppNav() {
         } else {
             callPermLauncher.launch(Manifest.permission.CALL_PHONE)
         }
+    }
+    // 1er appui = pointer ; 2e appui (arrivée déjà en attente) = popup annuler/repointer.
+    var showArrivalDialog by remember { mutableStateOf(false) }
+    val onArrivee = {
+        if (settings.pendingArrivalMs > 0L) showArrivalDialog = true else recordArrival()
     }
 
     // Renvoi automatique des stats du cycle en cours à chaque ouverture (1×/session).
@@ -322,6 +328,39 @@ fun AppNav() {
     // Dialogue de mise à jour, affiché par-dessus n'importe quel écran
     pendingUpdate?.let { update ->
         UpdateDialog(update = update, onDismiss = { pendingUpdate = null })
+    }
+
+    // Popup 2e appui sur ARRIVÉE : annuler l'arrivée en attente ou repointer.
+    if (showArrivalDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showArrivalDialog = false },
+            title = { androidx.compose.material3.Text("Arrivée en attente") },
+            text = {
+                androidx.compose.material3.Text(
+                    "Une arrivée est déjà pointée à ${DateUtil.hm(settings.pendingArrivalMs)} " +
+                    "(pas encore rattachée à une clôture)."
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    showArrivalDialog = false
+                    android.widget.Toast.makeText(
+                        context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }) {
+                    androidx.compose.material3.Text(
+                        "Annuler l'arrivée",
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showArrivalDialog = false; recordArrival()
+                }) { androidx.compose.material3.Text("Repointer") }
+            }
+        )
     }
 
         // Splash par-dessus tout, retiré à la fin de l'animation
