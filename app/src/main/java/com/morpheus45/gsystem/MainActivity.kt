@@ -170,6 +170,18 @@ fun AppNav() {
         }
     }
 
+    // Renvoi automatique des stats du cycle en cours à chaque ouverture (1×/session).
+    // Auto-répare une clôture dont l'envoi a raté sur le moment (réseau faible) :
+    // elle repart toute seule dès que le téléphone a du réseau, sans « Synchroniser ».
+    var statsSyncedThisSession by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.isReady) {
+        if (statsSyncedThisSession) return@LaunchedEffect
+        if (!BackupConfig.isConfigured || !settings.isReady ||
+            settings.nomUtilisateur.isBlank()) return@LaunchedEffect
+        statsSyncedThisSession = true
+        runCatching { StatsUploader.push(settings, repo.store.value, cycleStart, cycleEnd) }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
