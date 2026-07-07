@@ -192,11 +192,12 @@
   <!-- ============ ACCUEIL ============ -->
   <h2><span class="ico">🏠</span>Ton écran d'accueil</h2>
 
-  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">7 tuiles, une couleur par fonction. Chaque tuile affiche un compteur en direct.</p>
+  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">8 tuiles, une couleur par fonction. Chaque tuile affiche un compteur en direct.</p>
 
   <div class="center-img">
-    <svg viewBox="0 0 340 712" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems avec ses 7 tuiles">
+    <svg viewBox="0 0 340 812" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems avec ses 8 tuiles">
       <defs>
+        <linearGradient id="tArrivee" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C026D3"/><stop offset="1" stop-color="#4a0e4e"/></linearGradient>
         <linearGradient id="tCloture" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#2c1854"/></linearGradient>
         <linearGradient id="tCamera" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9168F0"/><stop offset="1" stop-color="#3a2a6e"/></linearGradient>
         <linearGradient id="tAttente" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A5CF6"/><stop offset="1" stop-color="#312160"/></linearGradient>
@@ -205,59 +206,65 @@
         <linearGradient id="tFrais" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06B6D4"/><stop offset="1" stop-color="#073a45"/></linearGradient>
         <linearGradient id="tEnvoi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22C55E"/><stop offset="1" stop-color="#0c3d22"/></linearGradient>
       </defs>
-      <rect x="2" y="2" width="336" height="708" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
+      <rect x="2" y="2" width="336" height="808" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
       <text x="24" y="52" fill="#f4f4f0" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800"><tspan fill="#ee2322">g</tspan>systems</text>
       <g font-family="Segoe UI, Arial, sans-serif">
-        <rect x="22" y="76" width="296" height="82" rx="18" fill="url(#tCloture)"/>
+        <rect x="22" y="76" width="296" height="82" rx="18" fill="url(#tArrivee)"/>
         <circle cx="64" cy="117" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="125" text-anchor="middle" font-size="21">📋</text>
-        <text x="100" y="111" fill="#fff" font-size="17" font-weight="800">CLÔTURE</text>
-        <text x="100" y="132" fill="#ffffff" fill-opacity="0.82" font-size="11">Intervention + Viber</text>
-        <text x="302" y="122" text-anchor="end" fill="#fff" font-size="15" font-weight="700">12</text>
-        <rect x="22" y="166" width="296" height="82" rx="18" fill="url(#tCamera)"/>
+        <text x="64" y="125" text-anchor="middle" font-size="21">📍</text>
+        <text x="100" y="111" fill="#fff" font-size="17" font-weight="800">ARRIVÉE SUR SITE</text>
+        <text x="100" y="132" fill="#ffffff" fill-opacity="0.82" font-size="11">Heure + appel techline</text>
+        <rect x="22" y="166" width="296" height="82" rx="18" fill="url(#tCloture)"/>
         <circle cx="64" cy="207" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="215" text-anchor="middle" font-size="21">🎥</text>
-        <text x="100" y="201" fill="#fff" font-size="17" font-weight="800">DEMANDE CAMÉRA</text>
-        <text x="100" y="222" fill="#ffffff" fill-opacity="0.82" font-size="11">Demande de rappel caméra(s)</text>
-        <rect x="22" y="256" width="296" height="82" rx="18" fill="url(#tAttente)"/>
+        <text x="64" y="215" text-anchor="middle" font-size="21">📋</text>
+        <text x="100" y="201" fill="#fff" font-size="17" font-weight="800">CLÔTURE</text>
+        <text x="100" y="222" fill="#ffffff" fill-opacity="0.82" font-size="11">Intervention + Viber</text>
+        <text x="302" y="212" text-anchor="end" fill="#fff" font-size="15" font-weight="700">12</text>
+        <rect x="22" y="256" width="296" height="82" rx="18" fill="url(#tCamera)"/>
         <circle cx="64" cy="297" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="305" text-anchor="middle" font-size="21">⏱️</text>
-        <text x="100" y="291" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
-        <text x="100" y="312" fill="#ffffff" fill-opacity="0.82" font-size="11">Procédure + heure de début</text>
-        <rect x="22" y="346" width="296" height="82" rx="18" fill="url(#tCourrier)"/>
+        <text x="64" y="305" text-anchor="middle" font-size="21">🎥</text>
+        <text x="100" y="291" fill="#fff" font-size="17" font-weight="800">DEMANDE CAMÉRA</text>
+        <text x="100" y="312" fill="#ffffff" fill-opacity="0.82" font-size="11">Demande de rappel caméra(s)</text>
+        <rect x="22" y="346" width="296" height="82" rx="18" fill="url(#tAttente)"/>
         <circle cx="64" cy="387" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="395" text-anchor="middle" font-size="21">✉️</text>
-        <text x="100" y="381" fill="#fff" font-size="17" font-weight="800">COURRIER</text>
-        <text x="100" y="402" fill="#ffffff" fill-opacity="0.82" font-size="11">« courrier ok »</text>
-        <rect x="22" y="436" width="296" height="82" rx="18" fill="url(#tRecap)"/>
+        <text x="64" y="395" text-anchor="middle" font-size="21">⏱️</text>
+        <text x="100" y="381" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
+        <text x="100" y="402" fill="#ffffff" fill-opacity="0.82" font-size="11">Procédure + heure de début</text>
+        <rect x="22" y="436" width="296" height="82" rx="18" fill="url(#tCourrier)"/>
         <circle cx="64" cy="477" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="485" text-anchor="middle" font-size="21">📊</text>
-        <text x="100" y="471" fill="#fff" font-size="17" font-weight="800">RÉCAP GESTE CO</text>
-        <text x="100" y="492" fill="#ffffff" fill-opacity="0.82" font-size="11">Primes du cycle · PDF</text>
-        <rect x="22" y="526" width="296" height="82" rx="18" fill="url(#tFrais)"/>
+        <text x="64" y="485" text-anchor="middle" font-size="21">✉️</text>
+        <text x="100" y="471" fill="#fff" font-size="17" font-weight="800">COURRIER</text>
+        <text x="100" y="492" fill="#ffffff" fill-opacity="0.82" font-size="11">« courrier ok »</text>
+        <rect x="22" y="526" width="296" height="82" rx="18" fill="url(#tRecap)"/>
         <circle cx="64" cy="567" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="575" text-anchor="middle" font-size="21">🧾</text>
-        <text x="100" y="561" fill="#fff" font-size="17" font-weight="800">TICKETS DE FRAIS</text>
-        <text x="100" y="582" fill="#ffffff" fill-opacity="0.82" font-size="11">Photos + TVA auto</text>
-        <text x="302" y="572" text-anchor="end" fill="#fff" font-size="15" font-weight="700">4</text>
-        <rect x="22" y="616" width="296" height="82" rx="18" fill="url(#tEnvoi)"/>
+        <text x="64" y="575" text-anchor="middle" font-size="21">📊</text>
+        <text x="100" y="561" fill="#fff" font-size="17" font-weight="800">RÉCAP GESTE CO</text>
+        <text x="100" y="582" fill="#ffffff" fill-opacity="0.82" font-size="11">Primes du cycle · PDF</text>
+        <rect x="22" y="616" width="296" height="82" rx="18" fill="url(#tFrais)"/>
         <circle cx="64" cy="657" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="665" text-anchor="middle" font-size="21">📤</text>
-        <text x="100" y="651" fill="#fff" font-size="17" font-weight="800">ENVOI MENSUEL</text>
-        <text x="100" y="672" fill="#ffffff" fill-opacity="0.82" font-size="11">Excel + PDF + photos</text>
-        <circle cx="300" cy="634" r="5" fill="#ff5da2"/>
+        <text x="64" y="665" text-anchor="middle" font-size="21">🧾</text>
+        <text x="100" y="651" fill="#fff" font-size="17" font-weight="800">TICKETS DE FRAIS</text>
+        <text x="100" y="672" fill="#ffffff" fill-opacity="0.82" font-size="11">Photos + TVA auto</text>
+        <text x="302" y="662" text-anchor="end" fill="#fff" font-size="15" font-weight="700">4</text>
+        <rect x="22" y="706" width="296" height="82" rx="18" fill="url(#tEnvoi)"/>
+        <circle cx="64" cy="747" r="21" fill="#ffffff" fill-opacity="0.18"/>
+        <text x="64" y="755" text-anchor="middle" font-size="21">📤</text>
+        <text x="100" y="741" fill="#fff" font-size="17" font-weight="800">ENVOI MENSUEL</text>
+        <text x="100" y="762" fill="#ffffff" fill-opacity="0.82" font-size="11">Excel + PDF + photos</text>
+        <circle cx="300" cy="724" r="5" fill="#ff5da2"/>
       </g>
     </svg>
     <div class="cap">Le pip rose sur ENVOI MENSUEL = fin de cycle proche.</div>
   </div>
 
   <div class="tiles">
-    <div class="tile-row"><div class="dot" style="background:#ede9fe">📋</div><div class="tx"><b>CLÔTURE</b><span>Saisir une intervention (date, client, ville, <b>N° d'intervention</b>…) → Viber pré-rempli. Pour une <b>installation</b> : en plus le N° de site + GESTE CO + GSM, tout au même endroit.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#fbe2fe">📍</div><div class="tx"><b>ARRIVÉE SUR SITE</b><span>En arrivant chez le client : un appui <b>note ton heure d'arrivée</b> et <b>appelle la techline</b>. Cette heure devient le <b>début</b> de ta prochaine clôture. Appui par erreur ? Ré-appuie → <b>Annuler l'arrivée</b> ou <b>Repointer</b>.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#ede9fe">📋</div><div class="tx"><b>CLÔTURE</b><span>Saisir une intervention (date, client, ville, <b>N° d'intervention</b>, observation OK/NR…) → Viber pré-rempli. Pour une <b>installation</b> : en plus le N° de site + <b>GESTE CO</b> (extensions), au même endroit. L'<b>heure de fin</b> se note toute seule à l'enregistrement.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#ede7fd">🎥</div><div class="tx"><b>DEMANDE CAMÉRA</b><span>N° de site + nombre de caméras → envoie direct un mail à EPS pour demander un rappel d'installation caméra(s).</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#eee9fe">⏱️</div><div class="tx"><b>ATTENTE CLIENT</b><span>Viber « procédure + heure de début ». Rappel perso : rappeler toutes les 15 min jusqu'au feu vert de la techline.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#e7e9fd">✉️</div><div class="tx"><b>COURRIER</b><span>Un appui → Viber « courrier ok », pour dire que le courrier est déposé.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#e4effd">📊</div><div class="tx"><b>RÉCAP GESTE CO</b><span>Tes primes du cycle. Bouton « Envoyer le récap <b>PDF</b> ».</span></div></div>
-    <div class="tile-row"><div class="dot" style="background:#e0f5fb">🧾</div><div class="tx"><b>TICKETS DE FRAIS</b><span>Photo + montant TTC → TVA/HT calculés tout seuls. « Envoyer le lot » = tout part en un mail.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#e0f5fb">🧾</div><div class="tx"><b>TICKETS DE FRAIS</b><span>Photo + montant TTC → TVA/HT calculés tout seuls. Catégories <b>PARKING · DIVERS · MOBILE</b>. Tape une vignette pour <b>rouvrir</b> la photo/PDF. « Envoyer le lot » = tout part en un mail.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#dcfce7">📤</div><div class="tx"><b>ENVOI MENSUEL</b><span>Le gros bouton de fin de cycle. La <b>photo du compteur</b> se prend ici (obligatoire).</span></div></div>
   </div>
 
@@ -265,11 +272,12 @@
   <h2><span class="ico">📋</span>Clôturer une intervention</h2>
 
   <div class="steps">
-    <div class="step"><div class="n">1</div><div class="t"><p style="margin:0">Accueil → <b>CLÔTURE</b> → <b>« Nouvelle intervention »</b>.</p></div></div>
-    <div class="step"><div class="n">2</div><div class="t"><p style="margin:0">Remplis le formulaire. <b>Tout champ avec un astérisque <span style="color:#d33">*</span> rouge est obligatoire</b> (date, type, client, ville, n°, observation OK/NR…).</p></div></div>
-    <div class="step"><div class="n">3</div><div class="t"><p style="margin:0"><b>Installation ?</b> Le N° de site apparaît, plus les sections <b>GESTE CO</b> (extensions) et <b>GSM seul</b>. Remplis selon le chantier.</p></div></div>
-    <div class="step"><div class="n">4</div><div class="t"><p style="margin:0">Tape <b>Enregistrer</b> → Viber s'ouvre avec le message prêt → choisis le <b>groupe</b> → <b>Envoyer</b>.</p></div></div>
-    <div class="step"><div class="n">5</div><div class="t"><p style="margin:0">Pour une installation, le dialogue <b>« Envois EPS »</b> s'affiche pour les mails (voir plus bas).</p></div></div>
+    <div class="step"><div class="n">1</div><div class="t"><p style="margin:0">En arrivant, appuie sur <b>ARRIVÉE SUR SITE</b> (note ton heure + appelle la techline). Optionnel, mais ça remplit ton heure de <b>début</b>.</p></div></div>
+    <div class="step"><div class="n">2</div><div class="t"><p style="margin:0">Accueil → <b>CLÔTURE</b> → <b>« Nouvelle intervention »</b>.</p></div></div>
+    <div class="step"><div class="n">3</div><div class="t"><p style="margin:0">Remplis le formulaire. <b>Tout champ avec un astérisque <span style="color:#d33">*</span> rouge est obligatoire</b>. Observation <b>OK</b> ou <b>NR</b> (client, technique, client absent, <b>autres</b>) — pour toute NR, ta <b>note libre part dans le Viber</b>.</p></div></div>
+    <div class="step"><div class="n">4</div><div class="t"><p style="margin:0"><b>Installation ?</b> Le N° de site apparaît, plus la section <b>GESTE CO</b> (extensions). Remplis selon le chantier.</p></div></div>
+    <div class="step"><div class="n">5</div><div class="t"><p style="margin:0">Tape <b>Enregistrer</b> → l'<b>heure de fin</b> se note toute seule → Viber s'ouvre avec le message prêt → choisis le <b>groupe</b> → <b>Envoyer</b>.</p></div></div>
+    <div class="step"><div class="n">6</div><div class="t"><p style="margin:0">Pour une installation <b>avec un geste offert</b>, le dialogue <b>« Envois EPS »</b> s'affiche pour le mail GESTE CO (voir plus bas).</p></div></div>
   </div>
 
   <div class="center-img">
@@ -284,13 +292,10 @@
           <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">Date</div><div style="font-size:12px;">2026-06-20</div></div>
           <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">N° interv. *</div><div style="font-size:12px;">43001714</div></div>
         </div>
-        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (commun GESTE CO / GSM)</div><div style="font-size:12px;">12345</div></div>
-        <div style="background:#13251f; border:1px solid #10B981; border-radius:10px; padding:9px; margin-bottom:8px;">
+        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (GESTE CO)</div><div style="font-size:12px;">12345</div></div>
+        <div style="background:#13251f; border:1px solid #10B981; border-radius:10px; padding:9px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#5eead4;">Extensions installées (GESTE CO)</span><span style="width:30px; height:16px; background:#10B981; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
           <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Tableau Installé / GESTE CO · prime calculée</div>
-        </div>
-        <div style="background:#0f2025; border:1px solid #06B6D4; border-radius:10px; padding:9px; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#22d3ee;">GSM seul sur ce site</span><span style="width:30px; height:16px; background:#06B6D4; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
         </div>
         <div style="background:#7C3AED; color:#fff; text-align:center; font-size:14px; font-weight:700; padding:11px; border-radius:11px;">Enregistrer</div>
       </div>
@@ -302,15 +307,10 @@
     <p style="margin:0 0 8px"><b>📧 Le dialogue « Envois EPS »</b> — après une installation, tu vois d'un coup d'œil ce qui est <b>envoyé</b> (✓ vert) et ce qui reste <b>à faire</b> (✗ ambre). Tape « Envoyer », ça passe au vert.</p>
     <div style="background:#2a1a20; border-radius:14px; max-width:300px; margin:6px auto 0; padding:14px; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
       <div style="color:#fff; font-weight:700; font-size:14px;">Envois EPS à faire</div>
-      <div style="color:#b8becc; font-size:11px; margin:2px 0 10px;">1 / 2 envoyé</div>
-      <div style="display:flex; align-items:center; gap:10px; background:rgba(74,222,128,.1); border:1px solid rgba(74,222,128,.5); border-radius:11px; padding:9px 11px; margin-bottom:8px;">
-        <span style="width:22px;height:22px;border-radius:50%;background:#4ADE80;color:#0c2a16;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;">✓</span>
-        <div style="flex:1;color:#fff;font-size:12px;line-height:1.35;">Mail GESTE CO<br><span style="color:#4ADE80;font-size:10px;">Envoyé</span></div>
-        <span style="font-size:10px;color:#b8becc;border:1px solid rgba(255,255,255,.25);padding:4px 9px;border-radius:7px;">Renvoyer</span>
-      </div>
+      <div style="color:#b8becc; font-size:11px; margin:2px 0 10px;">0 / 1 envoyé</div>
       <div style="display:flex; align-items:center; gap:10px; background:rgba(255,179,71,.08); border:1px solid rgba(255,179,71,.5); border-radius:11px; padding:9px 11px;">
         <span style="width:22px;height:22px;border-radius:50%;border:2px solid #FFB347;color:#FFB347;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none;">✕</span>
-        <div style="flex:1;color:#fff;font-size:12px;line-height:1.35;">Mail GSM SEUL<br><span style="color:#FFB347;font-size:10px;">À faire</span></div>
+        <div style="flex:1;color:#fff;font-size:12px;line-height:1.35;">Mail GESTE CO<br><span style="color:#FFB347;font-size:10px;">À faire</span></div>
         <span style="font-size:11px;color:#fff;background:#FF3D5A;padding:5px 12px;border-radius:8px;font-weight:600;">Envoyer</span>
       </div>
     </div>
@@ -332,12 +332,22 @@
     <p style="margin:0 0 6px"><b>⏰ Tes heures se calculent toutes seules</b></p>
     <p style="margin:0 0 6px">Tu ne saisis plus tes heures. L'appli les déduit de tes interventions du jour :</p>
     <ul style="margin:0">
-      <li>Matin <b>et</b> après-midi avec du réalisé → <b>8h</b></li>
-      <li>Une seule demi-journée → <b>4h</b></li>
-      <li>2 demi-journées mais que des NR (rien réalisé) → <b>6h</b></li>
+      <li>Matin <b>et</b> après-midi, les <b>deux en OK</b> → <b>8h</b></li>
+      <li>Matin <b>et</b> après-midi mais <b>au moins une NR</b> (1 OK + 1 NR, ou 2 NR) → <b>6h</b></li>
+      <li>Une seule demi-journée (OK ou NR) → <b>4h</b></li>
       <li>Aucune intervention → <b>0h</b></li>
     </ul>
     <p style="margin:8px 0 0; font-size:13px; color:var(--muted)">L'écran TEMPS affiche le total du jour en direct. À l'ENVOI MENSUEL, les heures partent toutes seules dans ton Excel.</p>
+  </div>
+
+  <div class="card" style="border-left:4px solid #06B6D4">
+    <p style="margin:0 0 6px"><b>🧾 Tickets de frais — bon à savoir</b></p>
+    <ul style="margin:0">
+      <li><b>MOBILE</b> (forfait téléphone) : remboursé à <b>50 %</b>, plafonné à <b>20 €</b>. L'appli calcule le montant remboursé.</li>
+      <li><b>PARKING</b> : un interrupteur <b>TVA OUI / NON</b> apparaît — mets <b>NON</b> pour les plateformes sans TVA (ex : PayByPhone).</li>
+      <li>Tape la <b>vignette</b> d'un ticket (ou l'icône 👁) pour <b>rouvrir</b> la photo ou le PDF.</li>
+      <li>À l'<b>ENVOI MENSUEL</b>, tes frais (TTC + TVA) se posent aussi dans ton Excel.</li>
+    </ul>
   </div>
 
   <!-- ============ MAJ ============ -->
