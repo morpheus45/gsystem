@@ -188,6 +188,7 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             "NR_CLIENT" -> "NR CLIENT"
             "NR_TECHNIQUE" -> "NR TECHNIQUE"
             "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+            "NR_AUTRES" -> "NR AUTRES"
             else -> ""
         }
         return listOf(codeLabel, e.observations).filter { it.isNotBlank() }.joinToString(" - ")

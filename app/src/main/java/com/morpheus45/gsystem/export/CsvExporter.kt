@@ -55,6 +55,7 @@ object CsvExporter {
                 "NR_CLIENT" -> "NR CLIENT"
                 "NR_TECHNIQUE" -> "NR TECHNIQUE"
                 "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                "NR_AUTRES" -> "NR AUTRES"
                 else -> ""
             }
             // Heures auto seulement sur la 1ère ligne du jour
