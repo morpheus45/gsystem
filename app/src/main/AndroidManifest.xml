@@ -9,6 +9,8 @@
     <!-- Appareil photo pour tickets de frais et compteur voiture -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Appel direct de la techline depuis la tuile ARRIVÉE SUR SITE -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
 
     <application
         android:allowBackup="true"

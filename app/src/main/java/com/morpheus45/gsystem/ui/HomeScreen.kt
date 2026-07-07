@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Outbox
@@ -68,6 +69,9 @@ import com.morpheus45.gsystem.ui.theme.Signal
 import com.morpheus45.gsystem.ui.theme.TempsAccent
 import com.morpheus45.gsystem.ui.theme.TempsEnd
 import com.morpheus45.gsystem.ui.theme.TempsStart
+import com.morpheus45.gsystem.ui.theme.ArriveeStart
+import com.morpheus45.gsystem.ui.theme.ArriveeEnd
+import com.morpheus45.gsystem.ui.theme.ArriveeAccent
 import com.morpheus45.gsystem.ui.theme.TextHi
 import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.TextMid
@@ -78,6 +82,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
+    onArrivee: () -> Unit,
     onTemps: () -> Unit,
     onDemandeCamera: () -> Unit,
     onGesteCoRecap: () -> Unit,
@@ -175,6 +180,21 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "01",
+                    label = "ARRIVÉE SUR SITE",
+                    sub = "Note l'heure + appelle la techline",
+                    icon = Icons.Outlined.PinDrop,
+                    gradientStart = ArriveeStart,
+                    gradientEnd = ArriveeEnd,
+                    accent = ArriveeAccent,
+                    liveValue = if (settings.pendingArrivalMs > 0L)
+                        com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
+                    liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
+                    onClick = onArrivee
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "02",
                     label = "CLÔTURE",
                     sub = "Clôture d'intervention",
                     icon = Icons.Outlined.Assignment,
@@ -188,7 +208,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "02",
+                    number = "03",
                     label = "DEMANDE CAMERA",
                     sub = "Demande de rappel installation caméra(s)",
                     icon = Icons.Outlined.Videocam,
@@ -200,7 +220,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "03",
+                    number = "04",
                     label = "ATTENTE CLIENT",
                     sub = "Viber heure début · rappel /15 min",
                     icon = Icons.Outlined.Timer,
@@ -212,7 +232,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
+                    number = "05",
                     label = "COURRIER",
                     sub = "Viber « courrier ok »",
                     icon = Icons.Outlined.Email,
@@ -224,7 +244,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -236,7 +256,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -252,7 +272,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "07",
+                    number = "08",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Outbox,

@@ -64,6 +64,7 @@ fun TempsScreen(
     periodEnd: LocalDate,
     onPeriodChange: (LocalDate, LocalDate) -> Unit,
     onResetPeriod: () -> Unit,
+    onArrivalConsumed: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -179,6 +180,8 @@ fun TempsScreen(
                     ViberSender.share(context, ViberSender.buildMessage(entry))
                 }
                 showAdd = false
+                // L'heure d'arrivée en attente a été rattachée à cette clôture : on l'efface.
+                onArrivalConsumed()
                 // Mail EPS à proposer : GESTE CO seulement s'il y a un cadeau offert.
                 mailGeste = geste?.takeIf { it.offeredList().isNotEmpty() }
                 gesteSent = false
@@ -309,7 +312,10 @@ private fun TempsCard(
                     .clickable(onClick = onEdit)
                     .padding(end = 8.dp)
             ) {
-                Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}",
+                val heuresTxt = if (entry.heureFin.isNotBlank())
+                    "  ·  ${if (entry.heureDebut.isNotBlank()) entry.heureDebut + "→" else ""}${entry.heureFin}"
+                else ""
+                Text("${DateUtil.fr(DateUtil.parseIso(entry.date))}  ·  Dept ${entry.departement}$heuresTxt",
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 val title = listOf(
                     entry.typeMission, entry.nomClient, entry.ville, entry.numeroIntervention
@@ -682,7 +688,12 @@ private fun AddTempsDialog(
                     observationType = obsType,
                     observations = obs.trim(),
                     slotMidi = slot,
-                    heures = 0.0
+                    heures = 0.0,
+                    // Nouvelle clôture : début = arrivée pointée (si présente), fin = maintenant.
+                    // En édition : on conserve les heures existantes.
+                    heureDebut = existing?.heureDebut
+                        ?: (if (settings.pendingArrivalMs > 0L) DateUtil.hm(settings.pendingArrivalMs) else ""),
+                    heureFin = existing?.heureFin ?: DateUtil.nowHm()
                 )
                 Column(
                     modifier = Modifier.fillMaxWidth()

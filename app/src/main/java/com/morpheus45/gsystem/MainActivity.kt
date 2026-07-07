@@ -1,8 +1,16 @@
 package com.morpheus45.gsystem
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -170,6 +178,28 @@ fun AppNav() {
         }
     }
 
+    // Tuile ARRIVÉE SUR SITE : note l'heure d'arrivée + appelle la techline.
+    // Appel direct (permission CALL_PHONE) ; repli sur le numéroteur si refusée.
+    val callPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) placeCall(context, ARRIVAL_PHONE) else dialNumber(context, ARRIVAL_PHONE)
+    }
+    val onArrivee = {
+        val now = System.currentTimeMillis()
+        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+        android.widget.Toast.makeText(
+            context, "Arrivée notée : ${DateUtil.hm(now)}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+            == PackageManager.PERMISSION_GRANTED) {
+            placeCall(context, ARRIVAL_PHONE)
+        } else {
+            callPermLauncher.launch(Manifest.permission.CALL_PHONE)
+        }
+    }
+
     // Renvoi automatique des stats du cycle en cours à chaque ouverture (1×/session).
     // Auto-répare une clôture dont l'envoi a raté sur le moment (réseau faible) :
     // elle repart toute seule dès que le téléphone a du réseau, sans « Synchroniser ».
@@ -188,6 +218,7 @@ fun AppNav() {
             HomeScreen(
                 settings = settings,
                 store = store,
+                onArrivee = onArrivee,
                 onTemps = { navController.navigate("temps") },
                 onDemandeCamera = { navController.navigate("demande_camera") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
@@ -255,6 +286,9 @@ fun AppNav() {
                 settings = settings, store = store, repo = repo,
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
+                onArrivalConsumed = {
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -298,5 +332,28 @@ fun AppNav() {
         if (showSplash) {
             SplashScreen(onFinished = { showSplash = false })
         }
+    }
+}
+
+/** Numéro techline appelé par la tuile ARRIVÉE SUR SITE. */
+private const val ARRIVAL_PHONE = "0388398894"
+
+/** Lance directement l'appel (permission CALL_PHONE requise) ; repli numéroteur en cas d'échec. */
+private fun placeCall(context: Context, number: String) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_CALL, Uri.parse("tel:$number"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }.onFailure { dialNumber(context, number) }
+}
+
+/** Ouvre le numéroteur pré-rempli (aucune permission requise). */
+private fun dialNumber(context: Context, number: String) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
     }
 }

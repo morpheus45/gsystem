@@ -25,7 +25,11 @@ data class TempsEntry(
     val observations: String = "",
     /** "MATIN" ou "APREM" — utilisé pour le calcul auto des heures. "" pour les entrées historiques. */
     val slotMidi: String = "",
-    val heures: Double = 8.0
+    val heures: Double = 8.0,
+    /** Heure d'arrivée sur site (tuile ARRIVÉE), format "HH:mm". "" si non pointée. */
+    val heureDebut: String = "",
+    /** Heure d'enregistrement de la clôture, format "HH:mm". */
+    val heureFin: String = ""
 )
 
 /**
@@ -281,6 +285,8 @@ data class AppSettings(
     val excelFileName: String = "",
     /** Horodatage (ms) de la dernière sauvegarde complète envoyée sur le Drive. */
     val lastDriveBackup: Long = 0L,
+    /** Heure (ms) d'arrivée sur site en attente d'être rattachée à la prochaine clôture. 0 = aucune. */
+    val pendingArrivalMs: Long = 0L,
     val firstRunDone: Boolean = false
 ) {
     // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis
