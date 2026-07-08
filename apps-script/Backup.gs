@@ -248,7 +248,7 @@ function globalCloturesBody(list){
   var shown=GJOUR?(list||[]).filter(function(c){return c.date===todayIso;}):(list||[]);
   var tg='<div style="margin-bottom:6px">'+
     '<span class="dtog'+(!GJOUR?' on':'')+'" onclick="setGJour(false)">Toute la période</span> '+
-    '<span class="dtog'+(GJOUR?' on':'')+'" onclick="setGJour(true)">Aujourd\'hui</span></div>';
+    '<span class="dtog'+(GJOUR?' on':'')+'" onclick="setGJour(true)">Aujourd&#39;hui</span></div>';
   if(!shown.length) return tg+'<div class="empty2">Aucune clôture'+(GJOUR?" aujourd'hui":' sur la période')+'</div>';
   var byTech={};shown.forEach(function(c){var t=c.tech||'—';(byTech[t]=byTech[t]||[]).push(c);});
   var techs=Object.keys(byTech).sort(function(a,b){return String(a).localeCompare(String(b));});
