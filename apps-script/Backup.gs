@@ -116,6 +116,9 @@ body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;backg
 .bar{position:sticky;top:0;z-index:5;background:rgba(7,8,13,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 8px;margin:0 -8px 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
 input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--hi);font-size:14px;color-scheme:dark}
 .seg{background:var(--card2);color:var(--mid);border:1px solid var(--line);padding:8px 12px;border-radius:9px;font-size:13px;cursor:pointer}
+.dtog{display:inline-block;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid var(--line);color:var(--mid);background:var(--card2)}
+.dtog.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.gtech{font-size:12.5px;font-weight:700;color:var(--hi);margin:12px 0 4px}
 .seg:hover{color:var(--hi)}
 .btn{background:var(--red);color:#fff;border:none;padding:9px 16px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.55}
@@ -184,7 +187,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};var SEC={};
+var DATA=[];var OPEN={};var SEC={};var GJOUR=false;
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
@@ -238,6 +241,20 @@ function cloturesTable(list,withTech){
   var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
   var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
+function setGJour(v){GJOUR=v;apply();}
+// Vue globale : toggle Période / Aujourd'hui + clôtures REGROUPÉES par technicien.
+function globalCloturesBody(list){
+  var todayIso=iso(new Date());
+  var shown=GJOUR?(list||[]).filter(function(c){return c.date===todayIso;}):(list||[]);
+  var tg='<div style="margin-bottom:6px">'+
+    '<span class="dtog'+(!GJOUR?' on':'')+'" onclick="setGJour(false)">Toute la période</span> '+
+    '<span class="dtog'+(GJOUR?' on':'')+'" onclick="setGJour(true)">Aujourd\'hui</span></div>';
+  if(!shown.length) return tg+'<div class="empty2">Aucune clôture'+(GJOUR?" aujourd'hui":' sur la période')+'</div>';
+  var byTech={};shown.forEach(function(c){var t=c.tech||'—';(byTech[t]=byTech[t]||[]).push(c);});
+  var techs=Object.keys(byTech).sort(function(a,b){return String(a).localeCompare(String(b));});
+  return tg+techs.map(function(t){
+    return '<div class="gtech">👤 '+esc(t)+' ('+byTech[t].length+')</div>'+cloturesTable(byTech[t],false);
+  }).join('');}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);
   if(!total)return '<div class="empty2">Aucune intervention</div>';
@@ -280,7 +297,7 @@ function cardInner(s,glob){
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
     secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
-    secRow(key,'clo','📋',glob?'Clôtures de tous les techs':'Clôtures',n+' clôture'+(n>1?'s':''),cloturesTable(s.clotures,glob));}
+    secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){
   if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
   var open=!!OPEN[s.tech];
