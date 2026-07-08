@@ -11,6 +11,20 @@
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
 const SHARED_TOKEN = 'gsys-backup-2026-7Kq2vR';
+const RETENTION_YEARS = 3;               // au-delà : purge (corbeille) des dossiers-mois
+const PROP = PropertiesService.getScriptProperties();
+
+/** Liste des techniciens désactivés (archivés). */
+function getInactiveTechs() {
+  try { return JSON.parse(PROP.getProperty('INACTIVE_TECHS') || '[]'); } catch (e) { return []; }
+}
+/** Active/désactive un technicien depuis le dashboard. Renvoie la liste à jour des inactifs. */
+function setTechActive(tech, active) {
+  const list = getInactiveTechs().filter(function (n) { return n !== tech; });
+  if (!active) list.push(tech);
+  PROP.setProperty('INACTIVE_TECHS', JSON.stringify(list));
+  return list;
+}
 
 function doPost(e) {
   try {
@@ -90,6 +104,33 @@ function makeZip(from, to) {
   } catch (err) { return { ok: false, error: String(err) }; }
 }
 
+/** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
+function purgeOldData() {
+  const cut = new Date(); cut.setFullYear(cut.getFullYear() - RETENTION_YEARS);
+  const cutM = cut.getFullYear() + '-' + ('0' + (cut.getMonth() + 1)).slice(-2);
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const trashed = []; const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next(); const tn = u.getName();
+    if (tn === '_telechargements') continue;
+    const months = u.getFolders();
+    while (months.hasNext()) {
+      const mf = months.next(); const mn = mf.getName();
+      if (!/^\d{4}-\d{2}/.test(mn)) continue;           // on ne touche qu'aux dossiers datés AAAA-MM
+      if (mn.slice(0, 7) < cutM) { mf.setTrashed(true); trashed.push(tn + '/' + mn); }
+    }
+  }
+  if (trashed.length) console.log('Purge >' + RETENTION_YEARS + ' ans (corbeille) : ' + trashed.join(', '));
+  return { ok: true, cutoff: cutM, trashed: trashed };
+}
+/** À EXÉCUTER UNE FOIS : installe le déclencheur mensuel de purge. */
+function installPurgeTrigger() {
+  const exists = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'purgeOldData'; });
+  if (exists) return 'Déclencheur déjà présent.';
+  ScriptApp.newTrigger('purgeOldData').timeBased().onMonthDay(1).atHour(3).create();
+  return 'Déclencheur mensuel installé (purge le 1er de chaque mois, ~3 h).';
+}
+
 function getOrCreateFolder(parent, name) {
   const it = parent.getFoldersByName(name);
   return it.hasNext() ? it.next() : parent.createFolder(name);
@@ -124,6 +165,10 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .btn:disabled{opacity:.55}
 .techcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0}
 .techcard.glob{border-color:var(--blue);box-shadow:0 0 0 1px rgba(79,163,255,.25)}
+.techcard.arch{opacity:.82}
+.miniBtn{background:var(--card2);border:1px solid var(--line);color:var(--mid);font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.miniBtn.deact:hover{border-color:var(--red);color:var(--red)}
+.miniBtn.react{border-color:#4ADE80;color:#4ADE80}
 .th{font-size:17px;font-weight:800;margin-bottom:12px}
 .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:12px}
 .chip{background:var(--card2);border-radius:11px;padding:10px 12px}
@@ -175,6 +220,8 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 </div>
 <div class="wrap">
   <div class="bar">
+    <span class="dtog on" id="tabAct" onclick="setView('actifs')">Actifs</span>
+    <span class="dtog" id="tabArc" onclick="setView('archives')">Archivés</span>
     <span class="sub">Du</span><input type="date" id="from" onchange="apply()">
     <span class="sub">au</span><input type="date" id="to" onchange="apply()">
     <button class="seg" onclick="preset(7)">7 j</button>
@@ -187,19 +234,27 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};var SEC={};var GJOUR=false;
+var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
 function init(){
-  google.script.run.withSuccessHandler(function(data){
-    DATA=data||[];
-    var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
-    setR(iso(f),iso(t));apply();
-  }).getAllData();
+  google.script.run.withSuccessHandler(function(inact){
+    INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
+    google.script.run.withSuccessHandler(function(data){
+      DATA=data||[];
+      var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
+      setR(iso(f),iso(t));apply();
+    }).getAllData();
+  }).getInactiveTechs();
 }
+function setView(v){VIEW=v;apply();}
+function setActive(ev,el){ev.stopPropagation();
+  var name=el.getAttribute('data-tech'),active=el.getAttribute('data-act')==='1';
+  if(active)delete INACTIVE[name];else INACTIVE[name]=true;apply();
+  google.script.run.withFailureHandler(function(e){alert('Erreur : '+e);if(active)INACTIVE[name]=true;else delete INACTIVE[name];apply();}).setTechActive(name,active);}
 function preset(p){var t=new Date();
   if(p===7){var f=new Date();f.setDate(f.getDate()-7);setR(iso(f),iso(t));}
   else if(p===30){var f=new Date();f.setDate(f.getDate()-30);setR(iso(f),iso(t));}
@@ -300,24 +355,40 @@ function cardInner(s,glob){
     secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){
   if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
-  var open=!!OPEN[s.tech];
+  var open=!!OPEN[s.tech];var inactive=!!INACTIVE[s.tech];
   var sm=(s.interventions||0)+' interv · '+((s.clotures||[]).length)+' clôt · '+money(s.primes);
-  return '<div class="techcard"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
-    '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+sm+' <span class="chev">▸</span></span></div>'+
+  var btn='<button class="miniBtn'+(inactive?' react':' deact')+'" data-tech="'+esc(s.tech)+'" data-act="'+(inactive?1:0)+'" onclick="setActive(event,this)">'+(inactive?'↩ Réactiver':'🗄 Désactiver')+'</button>';
+  return '<div class="techcard'+(inactive?' arch':'')+'"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
+    '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+btn+' '+sm+' <span class="chev">▸</span></span></div>'+
     '<div class="cardbody" style="display:'+(open?'block':'none')+'">'+cardInner(s,false)+'</div></div>';}
 function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];apply();}
 function apply(){
   var f=document.getElementById('from').value,t=document.getElementById('to').value;
-  if(!DATA.length){document.getElementById('techs').innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';document.getElementById('global').innerHTML='';return;}
-  var techs=DATA.map(function(T){return computeTech(T,f,t);});
-  document.getElementById('global').innerHTML=buildCard(aggregate(techs),true);
-  document.getElementById('techs').innerHTML=techs.map(function(s){return buildCard(s,false);}).join('');
+  var g=document.getElementById('global'),tc=document.getElementById('techs');
+  if(!DATA.length){tc.innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';g.innerHTML='';return;}
+  var all=DATA.map(function(T){return computeTech(T,f,t);});
+  var active=all.filter(function(s){return !INACTIVE[s.tech];});
+  var arch=all.filter(function(s){return INACTIVE[s.tech];});
+  var aTab=document.getElementById('tabAct'),rTab=document.getElementById('tabArc');
+  rTab.textContent='Archivés ('+arch.length+')';
+  aTab.className='dtog'+(VIEW==='actifs'?' on':'');rTab.className='dtog'+(VIEW==='archives'?' on':'');
+  if(VIEW==='archives'){
+    g.innerHTML='';
+    tc.innerHTML=arch.length?arch.map(function(s){return buildCard(s,false);}).join(''):'<div class="empty">Aucun technicien archivé.</div>';
+  }else{
+    g.innerHTML=buildCard(aggregate(active),true);
+    tc.innerHTML=active.length?active.map(function(s){return buildCard(s,false);}).join(''):'<div class="empty">Aucun technicien actif.</div>';
+  }
 }
 function download(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
   var b=document.getElementById('dl');b.disabled=true;b.textContent='Préparation…';
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='⬇ Télécharger';
     if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(f,t);}
 init();
-setInterval(function(){google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();},60000);
+setInterval(function(){
+  google.script.run.withSuccessHandler(function(inact){INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
+    google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();
+  }).getInactiveTechs();
+},60000);
 </script></body></html>
 `;
