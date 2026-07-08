@@ -80,20 +80,27 @@ function getAllData() {
 function makeZip(from, to) {
   try {
     const fM = (from || '').slice(0, 7), tM = (to || '').slice(0, 7);
+    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const blobs = []; const users = root.getFolders();
     while (users.hasNext()) {
       const u = users.next(); const tname = u.getName();
       if (tname === '_telechargements') continue;
+      if (inactive[tname]) continue;                     // techs actifs uniquement
       const months = u.getFolders();
       while (months.hasNext()) {
         const mf = months.next(); const mn = mf.getName();
         if (fM && mn < fM) continue;
         if (tM && mn > tM) continue;
         const files = mf.getFiles();
-        while (files.hasNext()) { const f = files.next(); const b = f.getBlob().copyBlob(); b.setName(tname + '/' + mn + '/' + f.getName()); blobs.push(b); }
+        while (files.hasNext()) {
+          const f = files.next(); const nm = f.getName();
+          if (!keepForDossier_(nm)) continue;            // garde xlsm/pdf/images, jette json/zip/txt
+          const b = f.getBlob().copyBlob(); b.setName(tname + '/' + mn + '/' + nm); blobs.push(b);
+        }
       }
     }
+    try { blobs.push(fraisRecapBlob_(from, to)); } catch (e) {}   // récap « global des frais calculées »
     if (!blobs.length) return { ok: false, error: 'Aucun fichier sur la période' };
     const zip = Utilities.zip(blobs, 'G-Systems_' + (fM || 'debut') + '_' + (tM || 'fin') + '.zip');
     const dl = getOrCreateFolder(root, '_telechargements');
@@ -102,6 +109,107 @@ function makeZip(from, to) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
   } catch (err) { return { ok: false, error: String(err) }; }
+}
+
+/** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
+function makeCloturesExcel(from, to) {
+  try {
+    const fromD = from || '', toD = to || '';
+    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+    const data = getAllData();
+    const ss = SpreadsheetApp.create('G-Systems_clotures_' + (fromD || 'debut') + '_' + (toD || 'fin'));
+    const def = ss.getSheets()[0];
+    const header = ['Date', 'Début', 'Fin', 'Durée', 'Type', 'Client', 'Ville', 'N°', 'Obs', 'Note'];
+    const used = {}; let added = 0;
+    data.forEach(function (T) {
+      if (inactive[T.tech]) return;
+      const clo = (T.clotures || []).filter(function (c) { return (!fromD || c.date >= fromD) && (!toD || c.date <= toD); });
+      if (!clo.length) return;
+      clo.sort(function (a, b) { return (a.date < b.date) ? 1 : (a.date > b.date) ? -1 : 0; });
+      let name = (String(T.tech).replace(/[\[\]\*\?\/\\:]/g, ' ').trim() || 'Tech').slice(0, 95);
+      const base = name; let k = 2; while (used[name]) { name = base.slice(0, 92) + ' ' + k; k++; } used[name] = true;
+      const sh = ss.insertSheet(name);
+      const rows = clo.map(function (c) {
+        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', c.num || '', c.obs || '', c.note || ''];
+      });
+      sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+      sh.getRange(2, 1, rows.length, header.length).setValues(rows);
+      sh.setFrozenRows(1);
+      sh.autoResizeColumns(1, header.length);
+      added++;
+    });
+    if (!added) { DriveApp.getFileById(ss.getId()).setTrashed(true); return { ok: false, error: 'Aucune clôture sur la période' }; }
+    ss.deleteSheet(def);
+    const blob = ssToXlsxBlob_(ss, ss.getName() + '.xlsx');
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const dl = getOrCreateFolder(root, '_telechargements');
+    const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
+    const file = dl.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
+  } catch (err) { return { ok: false, error: String(err) }; }
+}
+
+/** Fichiers gardés dans le dossier période : xlsm/pdf/images. On jette json, zip, txt (backup, stats, mail). */
+function keepForDossier_(name) {
+  const n = String(name).toLowerCase();
+  if (n.slice(-5) === '.json' || n.slice(-4) === '.zip' || n.slice(-4) === '.txt') return false;
+  return n.slice(-5) === '.xlsm' || n.slice(-5) === '.xlsx' || n.slice(-4) === '.xls' ||
+    n.slice(-4) === '.pdf' || n.slice(-4) === '.jpg' || n.slice(-5) === '.jpeg' ||
+    n.slice(-4) === '.png' || n.slice(-5) === '.heic' || n.slice(-5) === '.webp';
+}
+/** Somme remboursable d'un frais (règle MOBILE 50 % plafond 20 €). */
+function fraisRemb_(f) { const m = Number(f.m) || 0; return (String(f.cat || '').toUpperCase() === 'MOBILE') ? Math.min(m * 0.5, 20) : m; }
+function round2_(x) { return Math.round((Number(x) || 0) * 100) / 100; }
+/** Exporte un Spreadsheet en blob .xlsx puis supprime le fichier temporaire. */
+function ssToXlsxBlob_(ss, fileName) {
+  SpreadsheetApp.flush();
+  const id = ss.getId();
+  const blob = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + id + '/export?format=xlsx',
+    { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob().setName(fileName);
+  DriveApp.getFileById(id).setTrashed(true);
+  return blob;
+}
+/** Récap « global des frais calculées » par technicien actif, filtré sur [from, to] (blob .xlsx). */
+function fraisRecapBlob_(from, to) {
+  const fromD = from || '', toD = to || '';
+  const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+  const data = getAllData();
+  const ss = SpreadsheetApp.create('FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin'));
+  const sh = ss.getSheets()[0]; sh.setName('Frais');
+  const header = ['Technicien', 'Nb tickets', 'TTC payé (€)', 'Remboursé (€)', 'TVA (€)', 'HT (€)'];
+  const rows = []; let tN = 0, tTTC = 0, tR = 0, tV = 0, tH = 0;
+  data.forEach(function (T) {
+    if (inactive[T.tech]) return;
+    const fr = (T.frais || []).filter(function (x) { return (!fromD || x.d >= fromD) && (!toD || x.d <= toD); });
+    if (!fr.length) return;
+    let n = 0, ttc = 0, r = 0, v = 0, h = 0;
+    fr.forEach(function (f) {
+      const m = Number(f.m) || 0, rr = fraisRemb_(f);
+      const tvaFull = (f.tva == null) ? (m - m / 1.2) : (Number(f.tva) || 0);
+      const tva = (m > 0) ? tvaFull * (rr / m) : 0;
+      n++; ttc += m; r += rr; v += tva; h += (rr - tva);
+    });
+    rows.push([T.tech, n, round2_(ttc), round2_(r), round2_(v), round2_(h)]);
+    tN += n; tTTC += ttc; tR += r; tV += v; tH += h;
+  });
+  sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+  if (rows.length) sh.getRange(2, 1, rows.length, header.length).setValues(rows);
+  sh.getRange(rows.length + 2, 1, 1, header.length)
+    .setValues([['TOTAL', tN, round2_(tTTC), round2_(tR), round2_(tV), round2_(tH)]]).setFontWeight('bold');
+  sh.setFrozenRows(1); sh.autoResizeColumns(1, header.length);
+  return ssToXlsxBlob_(ss, 'FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin') + '.xlsx');
+}
+/** Durée hh:mm -> "1h05" / "45 min" (miroir serveur de dur()). */
+function durHM(a, b) {
+  if (!a || !b) return '';
+  const pa = String(a).split(':'), pb = String(b).split(':');
+  if (pa.length < 2 || pb.length < 2) return '';
+  let m = (+pb[0] * 60 + +pb[1]) - (+pa[0] * 60 + +pa[1]);
+  if (isNaN(m)) return '';
+  if (m < 0) m += 1440;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return h > 0 ? (h + 'h' + ('0' + mm).slice(-2)) : (mm + ' min');
 }
 
 /** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
@@ -229,6 +337,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
     <button class="seg" onclick="preset('m')">Ce mois</button>
     <button class="seg" onclick="preset('all')">Tout</button>
     <button class="btn" id="dl" onclick="download()">⬇ Télécharger</button>
+    <button class="btn" id="dlx" onclick="downloadExcel()">📊 Excel clôtures</button>
   </div>
   <div id="global"></div>
   <div id="techs"><div class="empty">Chargement…</div></div>
@@ -384,6 +493,10 @@ function download(){var f=document.getElementById('from').value,t=document.getEl
   var b=document.getElementById('dl');b.disabled=true;b.textContent='Préparation…';
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='⬇ Télécharger';
     if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(f,t);}
+function downloadExcel(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
+  var b=document.getElementById('dlx');b.disabled=true;b.textContent='Préparation…';
+  google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='📊 Excel clôtures';
+    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeCloturesExcel(f,t);}
 init();
 setInterval(function(){
   google.script.run.withSuccessHandler(function(inact){INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
