@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Email
@@ -85,6 +86,7 @@ fun HomeScreen(
     onArrivee: () -> Unit,
     onTemps: () -> Unit,
     onDemandeCamera: () -> Unit,
+    onPvCameras: () -> Unit,
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
     onCourrier: () -> Unit,
@@ -169,7 +171,7 @@ fun HomeScreen(
             }
         }
 
-        // ============ 6 TUILES
+        // ============ TUILES
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -195,6 +197,18 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "02",
+                    label = "ATTENTE CLIENT",
+                    sub = "Viber heure début · rappel /15 min",
+                    icon = Icons.Outlined.Timer,
+                    gradientStart = AttenteStart,
+                    gradientEnd = AttenteEnd,
+                    accent = AttenteAccent,
+                    onClick = onAttenteClient
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "03",
                     label = "CLÔTURE",
                     sub = "Clôture d'intervention",
                     icon = Icons.Outlined.Assignment,
@@ -208,7 +222,19 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "03",
+                    number = "04",
+                    label = "PV CAMÉRAS",
+                    sub = "Procès-verbal signé + envoi client",
+                    icon = Icons.Outlined.FactCheck,
+                    gradientStart = CameraStart,
+                    gradientEnd = CameraEnd,
+                    accent = CameraAccent,
+                    onClick = onPvCameras
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "05",
                     label = "DEMANDE CAMERA",
                     sub = "Demande de rappel installation caméra(s)",
                     icon = Icons.Outlined.Videocam,
@@ -220,19 +246,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
-                    label = "ATTENTE CLIENT",
-                    sub = "Viber heure début · rappel /15 min",
-                    icon = Icons.Outlined.Timer,
-                    gradientStart = AttenteStart,
-                    gradientEnd = AttenteEnd,
-                    accent = AttenteAccent,
-                    onClick = onAttenteClient
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "COURRIER",
                     sub = "Viber « courrier ok »",
                     icon = Icons.Outlined.Email,
@@ -244,7 +258,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -256,7 +270,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "07",
+                    number = "08",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -272,7 +286,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "08",
+                    number = "09",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Outbox,

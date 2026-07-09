@@ -36,26 +36,49 @@
 
   <div class="badge">ESPACE ADMINISTRATIF</div>
   <h1>📊 Suivi des techniciens en temps réel</h1>
-  <p class="sub">Chaque clôture remonte automatiquement sur le Drive. Le tableau de bord affiche les <b>stats par technicien</b> et une <b>vue globale</b> (interventions, frais, primes, répartition), et permet de <b>tout télécharger</b> en un clic.</p>
+  <p class="sub">Chaque clôture remonte automatiquement sur le Drive. Le tableau de bord affiche, sur la <b>période de ton choix (Du / Au)</b>, une <b>vue globale</b> et les <b>stats par technicien</b> (interventions, frais remboursés, primes, répartition). Clique un tech pour <b>déplier sa fiche</b> ; ses <b>clôtures s'affichent en direct</b> avec heure de début, de fin et durée. Et <b>tout se télécharge</b> en un clic.</p>
 
   <div style="text-align:center;margin:6px 0 20px">
     <a href="https://script.google.com/macros/s/AKfycbxJDvoGwgrtlZH5AVrBlHLJy8sYGW7laIKU_AH880C1BRi79_JthDYp2nHgplCP_w9t/exec"
        style="display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;font-size:17px;padding:15px 26px;border-radius:14px;box-shadow:0 3px 10px rgba(29,158,117,.3)">📊 Ouvrir le tableau de bord</a>
-    <div style="font-size:12.5px;color:var(--muted);margin-top:8px">Stats par tech + vue globale + téléchargement du mois en un clic.</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-top:8px">Période Du/Au · actifs / archivés · dossier ZIP + export Excel.</div>
   </div>
 
   <div class="card warn">
     <p style="margin:0">📨 <b>Un récap mensuel par mail est conservé en parallèle</b> (envoyé par chaque technicien). Le tableau de bord est le suivi temps réel ; le mail reste la trace officielle, pratique en cas de correction à faire.</p>
   </div>
 
+  <div class="card">
+    <p style="margin:0 0 6px"><b>Ce que montre chaque fiche</b> (globale et par tech) : les compteurs en haut (interventions, tickets, frais remboursés, primes, extensions), puis <b>4 sections à déplier</b> :</p>
+    <ul style="margin:0">
+      <li><b>Répartition des interventions</b> (camembert par type)</li>
+      <li><b>Primes par type</b> (détail + total)</li>
+      <li><b>Détail des frais</b> : TTC payé · <b>Remboursé</b> · TVA · HT (le forfait <b>MOBILE</b> est compté à 50 %, plafond 20 €)</li>
+      <li><b>Clôtures</b> : date, <b>début / fin / durée</b>, client, ville, n°, observation et note</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <p style="margin:0 0 6px"><b>Techniciens actifs / archivés</b> — deux onglets en haut du tableau :</p>
+    <ul style="margin:0">
+      <li><b>Actifs</b> : les techniciens en activité. La vue globale ne compte qu'eux.</li>
+      <li><b>Archivés</b> : un technicien qui n'est plus là. Le bouton <b>« 🗄 Désactiver »</b> sur sa carte le bascule ici — ses données restent consultables ; <b>« ↩ Réactiver »</b> le remet dans les actifs.</li>
+    </ul>
+    <p class="small" style="margin:6px 0 0">Les sauvegardes sont conservées 3 ans, puis purgées automatiquement.</p>
+  </div>
+
   <div class="card green">
     <p style="margin:0"><b>Comment c'est rangé :</b> le dossier partagé contient <b>un dossier par technicien</b>, et dans chacun <b>un sous-dossier par mois</b> (ex <code>2026-06</code>) avec son Excel, ses photos, son récap PDF, le mail mensuel et la sauvegarde.</p>
   </div>
 
-  <h2><span>📥</span>Télécharger un mois (1 zip, par tech)</h2>
+  <h2><span>📥</span>Télécharger une période</h2>
   <div class="card">
-    <p style="margin:0 0 6px">Le plus simple : le <b>tableau de bord</b> (bouton vert ci-dessus). Tu choisis le mois, tu vois les stats par tech, puis <b>« Télécharger tout le mois »</b> → tu obtiens <b>un seul ZIP</b> avec <b>un sous-dossier par technicien</b> (Excel, photos, récap PDF, sauvegarde).</p>
-    <p class="small" style="margin:6px 0 0">Tu peux aussi parcourir le Drive à la main : un dossier par technicien, puis par mois.</p>
+    <p style="margin:0 0 8px">Tu choisis la <b>période (Du / Au)</b> — ou un raccourci (7 j, 30 j, ce mois, tout) — puis un des deux boutons :</p>
+    <ul style="margin:0">
+      <li><b>⬇ Télécharger</b> : un <b>ZIP</b>, un sous-dossier par technicien, avec l'essentiel pour le contrôle des heures et la facturation — la <b>feuille Excel</b>, les <b>photos du compteur</b>, les <b>photos des frais</b> et le <b>récap PDF</b>, plus un fichier <b>FRAIS</b> qui récapitule le <b>total des frais remboursés</b> par technicien.</li>
+      <li><b>📊 Excel clôtures</b> : un classeur avec <b>une feuille par technicien</b> listant ses clôtures de la période (date, début, fin, durée, client, ville, n°, observation, note) — comme à l'écran.</li>
+    </ul>
+    <p class="small" style="margin:8px 0 0">Tu peux aussi parcourir le Drive à la main : un dossier par technicien, puis par mois.</p>
   </div>
 
   <div class="card warn">
@@ -70,7 +93,7 @@
       <li>Sur <a href="https://drive.google.com">drive.google.com</a> → <b>Partagés avec moi</b> → clic droit sur le dossier → <b>« Ajouter un raccourci vers Drive »</b> → <b>Mon Drive</b>.</li>
       <li>Le dossier apparaît alors dans le lecteur monté (<code>G:\Mon Drive\…</code>), navigable comme un dossier réseau.</li>
     </ol>
-    <p class="small" style="margin:8px 0 0">Le téléchargement d'un mois en un zip se fait via le tableau de bord (bouton vert en haut).</p>
+    <p class="small" style="margin:8px 0 0">Le téléchargement de la période en un zip se fait via le tableau de bord (bouton vert en haut).</p>
   </div>
 
   <footer>

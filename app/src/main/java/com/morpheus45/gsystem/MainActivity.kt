@@ -39,6 +39,7 @@ import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
+import com.morpheus45.gsystem.ui.PvCameraScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
 import com.morpheus45.gsystem.ui.GesteCoRecapScreen
@@ -227,6 +228,7 @@ fun AppNav() {
                 onArrivee = onArrivee,
                 onTemps = { navController.navigate("temps") },
                 onDemandeCamera = { navController.navigate("demande_camera") },
+                onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
                 onCourrier = { ViberSender.share(context, "courrier ok") },
@@ -306,6 +308,12 @@ fun AppNav() {
         }
         composable("demande_camera") {
             DemandeCameraScreen(
+                settings = settings,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("pv_cameras") {
+            PvCameraScreen(
                 settings = settings,
                 onBack = { navController.popBackStack() }
             )

@@ -11,6 +11,20 @@
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
 const SHARED_TOKEN = 'gsys-backup-2026-7Kq2vR';
+const RETENTION_YEARS = 3;               // au-delà : purge (corbeille) des dossiers-mois
+const PROP = PropertiesService.getScriptProperties();
+
+/** Liste des techniciens désactivés (archivés). */
+function getInactiveTechs() {
+  try { return JSON.parse(PROP.getProperty('INACTIVE_TECHS') || '[]'); } catch (e) { return []; }
+}
+/** Active/désactive un technicien depuis le dashboard. Renvoie la liste à jour des inactifs. */
+function setTechActive(tech, active) {
+  const list = getInactiveTechs().filter(function (n) { return n !== tech; });
+  if (!active) list.push(tech);
+  PROP.setProperty('INACTIVE_TECHS', JSON.stringify(list));
+  return list;
+}
 
 function doPost(e) {
   try {
@@ -66,20 +80,27 @@ function getAllData() {
 function makeZip(from, to) {
   try {
     const fM = (from || '').slice(0, 7), tM = (to || '').slice(0, 7);
+    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const blobs = []; const users = root.getFolders();
     while (users.hasNext()) {
       const u = users.next(); const tname = u.getName();
       if (tname === '_telechargements') continue;
+      if (inactive[tname]) continue;                     // techs actifs uniquement
       const months = u.getFolders();
       while (months.hasNext()) {
         const mf = months.next(); const mn = mf.getName();
         if (fM && mn < fM) continue;
         if (tM && mn > tM) continue;
         const files = mf.getFiles();
-        while (files.hasNext()) { const f = files.next(); const b = f.getBlob().copyBlob(); b.setName(tname + '/' + mn + '/' + f.getName()); blobs.push(b); }
+        while (files.hasNext()) {
+          const f = files.next(); const nm = f.getName();
+          if (!keepForDossier_(nm)) continue;            // garde xlsm/pdf/images, jette json/zip/txt
+          const b = f.getBlob().copyBlob(); b.setName(tname + '/' + mn + '/' + nm); blobs.push(b);
+        }
       }
     }
+    try { blobs.push(fraisRecapBlob_(from, to)); } catch (e) {}   // récap « global des frais calculées »
     if (!blobs.length) return { ok: false, error: 'Aucun fichier sur la période' };
     const zip = Utilities.zip(blobs, 'G-Systems_' + (fM || 'debut') + '_' + (tM || 'fin') + '.zip');
     const dl = getOrCreateFolder(root, '_telechargements');
@@ -88,6 +109,135 @@ function makeZip(from, to) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
   } catch (err) { return { ok: false, error: String(err) }; }
+}
+
+/** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
+function makeCloturesExcel(from, to) {
+  try {
+    const fromD = from || '', toD = to || '';
+    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+    const data = getAllData();
+    const ss = SpreadsheetApp.create('G-Systems_clotures_' + (fromD || 'debut') + '_' + (toD || 'fin'));
+    const def = ss.getSheets()[0];
+    const header = ['Date', 'Début', 'Fin', 'Durée', 'Type', 'Client', 'Ville', 'Dép.', 'N°', 'Obs', 'Note'];
+    const used = {}; let added = 0;
+    data.forEach(function (T) {
+      if (inactive[T.tech]) return;
+      const clo = (T.clotures || []).filter(function (c) { return (!fromD || c.date >= fromD) && (!toD || c.date <= toD); });
+      if (!clo.length) return;
+      clo.sort(function (a, b) { return (a.date < b.date) ? 1 : (a.date > b.date) ? -1 : 0; });
+      let name = (String(T.tech).replace(/[\[\]\*\?\/\\:]/g, ' ').trim() || 'Tech').slice(0, 95);
+      const base = name; let k = 2; while (used[name]) { name = base.slice(0, 92) + ' ' + k; k++; } used[name] = true;
+      const sh = ss.insertSheet(name);
+      const rows = clo.map(function (c) {
+        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.dept || ''), String(c.num || ''), c.obs || '', c.note || ''];
+      });
+      sh.getRange(1, 1, rows.length + 1, header.length).setNumberFormat('@');   // tout en texte : dates, heures et N° lisibles (pas de notation scientifique)
+      sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+      sh.getRange(2, 1, rows.length, header.length).setValues(rows);
+      sh.setFrozenRows(1);
+      [92, 56, 56, 60, 54, 160, 150, 55, 100, 90, 320].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+      added++;
+    });
+    if (!added) { DriveApp.getFileById(ss.getId()).setTrashed(true); return { ok: false, error: 'Aucune clôture sur la période' }; }
+    ss.deleteSheet(def);
+    const blob = ssToXlsxBlob_(ss, ss.getName() + '.xlsx');
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const dl = getOrCreateFolder(root, '_telechargements');
+    const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
+    const file = dl.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
+  } catch (err) { return { ok: false, error: String(err) }; }
+}
+
+/** Fichiers gardés dans le dossier période : xlsm/pdf/images. On jette json, zip, txt (backup, stats, mail). */
+function keepForDossier_(name) {
+  const n = String(name).toLowerCase();
+  if (n.slice(-5) === '.json' || n.slice(-4) === '.zip' || n.slice(-4) === '.txt') return false;
+  return n.slice(-5) === '.xlsm' || n.slice(-5) === '.xlsx' || n.slice(-4) === '.xls' ||
+    n.slice(-4) === '.pdf' || n.slice(-4) === '.jpg' || n.slice(-5) === '.jpeg' ||
+    n.slice(-4) === '.png' || n.slice(-5) === '.heic' || n.slice(-5) === '.webp';
+}
+/** Somme remboursable d'un frais (règle MOBILE 50 % plafond 20 €). */
+function fraisRemb_(f) { const m = Number(f.m) || 0; return (String(f.cat || '').toUpperCase() === 'MOBILE') ? Math.min(m * 0.5, 20) : m; }
+function round2_(x) { return Math.round((Number(x) || 0) * 100) / 100; }
+/** Exporte un Spreadsheet en blob .xlsx puis supprime le fichier temporaire. */
+function ssToXlsxBlob_(ss, fileName) {
+  SpreadsheetApp.flush();
+  const id = ss.getId();
+  const blob = UrlFetchApp.fetch('https://docs.google.com/spreadsheets/d/' + id + '/export?format=xlsx',
+    { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } }).getBlob().setName(fileName);
+  DriveApp.getFileById(id).setTrashed(true);
+  return blob;
+}
+/** Récap « global des frais calculées » par technicien actif, filtré sur [from, to] (blob .xlsx). */
+function fraisRecapBlob_(from, to) {
+  const fromD = from || '', toD = to || '';
+  const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+  const data = getAllData();
+  const ss = SpreadsheetApp.create('FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin'));
+  const sh = ss.getSheets()[0]; sh.setName('Frais');
+  const header = ['Technicien', 'Nb tickets', 'TTC payé (€)', 'Remboursé (€)', 'TVA (€)', 'HT (€)'];
+  const rows = []; let tN = 0, tTTC = 0, tR = 0, tV = 0, tH = 0;
+  data.forEach(function (T) {
+    if (inactive[T.tech]) return;
+    const fr = (T.frais || []).filter(function (x) { return (!fromD || x.d >= fromD) && (!toD || x.d <= toD); });
+    if (!fr.length) return;
+    let n = 0, ttc = 0, r = 0, v = 0, h = 0;
+    fr.forEach(function (f) {
+      const m = Number(f.m) || 0, rr = fraisRemb_(f);
+      const tvaFull = (f.tva == null) ? (m - m / 1.2) : (Number(f.tva) || 0);
+      const tva = (m > 0) ? tvaFull * (rr / m) : 0;
+      n++; ttc += m; r += rr; v += tva; h += (rr - tva);
+    });
+    rows.push([T.tech, n, round2_(ttc), round2_(r), round2_(v), round2_(h)]);
+    tN += n; tTTC += ttc; tR += r; tV += v; tH += h;
+  });
+  sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+  if (rows.length) sh.getRange(2, 1, rows.length, header.length).setValues(rows);
+  sh.getRange(rows.length + 2, 1, 1, header.length)
+    .setValues([['TOTAL', tN, round2_(tTTC), round2_(tR), round2_(tV), round2_(tH)]]).setFontWeight('bold');
+  sh.setFrozenRows(1); sh.autoResizeColumns(1, header.length);
+  return ssToXlsxBlob_(ss, 'FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin') + '.xlsx');
+}
+/** Durée hh:mm -> "1h05" / "45 min" (miroir serveur de dur()). */
+function durHM(a, b) {
+  if (!a || !b) return '';
+  const pa = String(a).split(':'), pb = String(b).split(':');
+  if (pa.length < 2 || pb.length < 2) return '';
+  let m = (+pb[0] * 60 + +pb[1]) - (+pa[0] * 60 + +pa[1]);
+  if (isNaN(m)) return '';
+  if (m < 0) m += 1440;
+  const h = Math.floor(m / 60), mm = m % 60;
+  return h > 0 ? (h + 'h' + ('0' + mm).slice(-2)) : (mm + ' min');
+}
+
+/** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
+function purgeOldData() {
+  const cut = new Date(); cut.setFullYear(cut.getFullYear() - RETENTION_YEARS);
+  const cutM = cut.getFullYear() + '-' + ('0' + (cut.getMonth() + 1)).slice(-2);
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const trashed = []; const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next(); const tn = u.getName();
+    if (tn === '_telechargements') continue;
+    const months = u.getFolders();
+    while (months.hasNext()) {
+      const mf = months.next(); const mn = mf.getName();
+      if (!/^\d{4}-\d{2}/.test(mn)) continue;           // on ne touche qu'aux dossiers datés AAAA-MM
+      if (mn.slice(0, 7) < cutM) { mf.setTrashed(true); trashed.push(tn + '/' + mn); }
+    }
+  }
+  if (trashed.length) console.log('Purge >' + RETENTION_YEARS + ' ans (corbeille) : ' + trashed.join(', '));
+  return { ok: true, cutoff: cutM, trashed: trashed };
+}
+/** À EXÉCUTER UNE FOIS : installe le déclencheur mensuel de purge. */
+function installPurgeTrigger() {
+  const exists = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'purgeOldData'; });
+  if (exists) return 'Déclencheur déjà présent.';
+  ScriptApp.newTrigger('purgeOldData').timeBased().onMonthDay(1).atHour(3).create();
+  return 'Déclencheur mensuel installé (purge le 1er de chaque mois, ~3 h).';
 }
 
 function getOrCreateFolder(parent, name) {
@@ -116,11 +266,18 @@ body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;backg
 .bar{position:sticky;top:0;z-index:5;background:rgba(7,8,13,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 8px;margin:0 -8px 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center}
 input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--hi);font-size:14px;color-scheme:dark}
 .seg{background:var(--card2);color:var(--mid);border:1px solid var(--line);padding:8px 12px;border-radius:9px;font-size:13px;cursor:pointer}
+.dtog{display:inline-block;padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid var(--line);color:var(--mid);background:var(--card2)}
+.dtog.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.gtech{font-size:12.5px;font-weight:700;color:var(--hi);margin:12px 0 4px}
 .seg:hover{color:var(--hi)}
 .btn{background:var(--red);color:#fff;border:none;padding:9px 16px;border-radius:9px;font-size:13.5px;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.55}
 .techcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:14px 0}
 .techcard.glob{border-color:var(--blue);box-shadow:0 0 0 1px rgba(79,163,255,.25)}
+.techcard.arch{opacity:.82}
+.miniBtn{background:var(--card2);border:1px solid var(--line);color:var(--mid);font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.miniBtn.deact:hover{border-color:var(--red);color:var(--red)}
+.miniBtn.react{border-color:#4ADE80;color:#4ADE80}
 .th{font-size:17px;font-weight:800;margin-bottom:12px}
 .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-bottom:12px}
 .chip{background:var(--card2);border-radius:11px;padding:10px 12px}
@@ -172,31 +329,41 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 </div>
 <div class="wrap">
   <div class="bar">
+    <span class="dtog on" id="tabAct" onclick="setView('actifs')">Actifs</span>
+    <span class="dtog" id="tabArc" onclick="setView('archives')">Archivés</span>
     <span class="sub">Du</span><input type="date" id="from" onchange="apply()">
     <span class="sub">au</span><input type="date" id="to" onchange="apply()">
     <button class="seg" onclick="preset(7)">7 j</button>
     <button class="seg" onclick="preset(30)">30 j</button>
     <button class="seg" onclick="preset('m')">Ce mois</button>
     <button class="seg" onclick="preset('all')">Tout</button>
-    <button class="btn" id="dl" onclick="download()">⬇ Télécharger</button>
+    <button class="btn" id="dlx" onclick="downloadExcel()">📊 Excel clôtures</button>
   </div>
   <div id="global"></div>
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};var SEC={};
+var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
 function init(){
-  google.script.run.withSuccessHandler(function(data){
-    DATA=data||[];
-    var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
-    setR(iso(f),iso(t));apply();
-  }).getAllData();
+  google.script.run.withSuccessHandler(function(inact){
+    INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
+    google.script.run.withSuccessHandler(function(data){
+      DATA=data||[];
+      var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
+      setR(iso(f),iso(t));apply();
+    }).getAllData();
+  }).getInactiveTechs();
 }
+function setView(v){VIEW=v;apply();}
+function setActive(ev,el){ev.stopPropagation();
+  var name=el.getAttribute('data-tech'),active=el.getAttribute('data-act')==='1';
+  if(active)delete INACTIVE[name];else INACTIVE[name]=true;apply();
+  google.script.run.withFailureHandler(function(e){alert('Erreur : '+e);if(active)INACTIVE[name]=true;else delete INACTIVE[name];apply();}).setTechActive(name,active);}
 function preset(p){var t=new Date();
   if(p===7){var f=new Date();f.setDate(f.getDate()-7);setR(iso(f),iso(t));}
   else if(p===30){var f=new Date();f.setDate(f.getDate()-30);setR(iso(f),iso(t));}
@@ -225,7 +392,7 @@ function aggregate(techs){
     s.repartition.forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
     s.primesParType.forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
     (s.fraisList||[]).forEach(function(f){fl.push(f);});
-    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
+    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,dept:c.dept,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;g.fraisList=fl;return g;}
@@ -235,9 +402,23 @@ function dur(a,b){if(!a||!b)return '';var pa=a.split(':'),pb=b.split(':');if(pa.
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
-  var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
+  var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
+  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
+function setGJour(v){GJOUR=v;apply();}
+// Vue globale : toggle Période / Aujourd'hui + clôtures REGROUPÉES par technicien.
+function globalCloturesBody(list){
+  var todayIso=iso(new Date());
+  var shown=GJOUR?(list||[]).filter(function(c){return c.date===todayIso;}):(list||[]);
+  var tg='<div style="margin-bottom:6px">'+
+    '<span class="dtog'+(!GJOUR?' on':'')+'" onclick="setGJour(false)">Toute la période</span> '+
+    '<span class="dtog'+(GJOUR?' on':'')+'" onclick="setGJour(true)">Aujourd&#39;hui</span></div>';
+  if(!shown.length) return tg+'<div class="empty2">Aucune clôture'+(GJOUR?" aujourd'hui":' sur la période')+'</div>';
+  var byTech={};shown.forEach(function(c){var t=c.tech||'—';(byTech[t]=byTech[t]||[]).push(c);});
+  var techs=Object.keys(byTech).sort(function(a,b){return String(a).localeCompare(String(b));});
+  return tg+techs.map(function(t){
+    return '<div class="gtech">👤 '+esc(t)+' ('+byTech[t].length+')</div>'+cloturesTable(byTech[t],false);
+  }).join('');}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);
   if(!total)return '<div class="empty2">Aucune intervention</div>';
@@ -280,27 +461,47 @@ function cardInner(s,glob){
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
     secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
-    secRow(key,'clo','📋',glob?'Clôtures de tous les techs':'Clôtures',n+' clôture'+(n>1?'s':''),cloturesTable(s.clotures,glob));}
+    secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){
   if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
-  var open=!!OPEN[s.tech];
+  var open=!!OPEN[s.tech];var inactive=!!INACTIVE[s.tech];
   var sm=(s.interventions||0)+' interv · '+((s.clotures||[]).length)+' clôt · '+money(s.primes);
-  return '<div class="techcard"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
-    '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+sm+' <span class="chev">▸</span></span></div>'+
+  var btn='<button class="miniBtn'+(inactive?' react':' deact')+'" data-tech="'+esc(s.tech)+'" data-act="'+(inactive?1:0)+'" onclick="setActive(event,this)">'+(inactive?'↩ Réactiver':'🗄 Désactiver')+'</button>';
+  return '<div class="techcard'+(inactive?' arch':'')+'"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
+    '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+btn+' '+sm+' <span class="chev">▸</span></span></div>'+
     '<div class="cardbody" style="display:'+(open?'block':'none')+'">'+cardInner(s,false)+'</div></div>';}
 function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];apply();}
 function apply(){
   var f=document.getElementById('from').value,t=document.getElementById('to').value;
-  if(!DATA.length){document.getElementById('techs').innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';document.getElementById('global').innerHTML='';return;}
-  var techs=DATA.map(function(T){return computeTech(T,f,t);});
-  document.getElementById('global').innerHTML=buildCard(aggregate(techs),true);
-  document.getElementById('techs').innerHTML=techs.map(function(s){return buildCard(s,false);}).join('');
+  var g=document.getElementById('global'),tc=document.getElementById('techs');
+  if(!DATA.length){tc.innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';g.innerHTML='';return;}
+  var all=DATA.map(function(T){return computeTech(T,f,t);});
+  var active=all.filter(function(s){return !INACTIVE[s.tech];});
+  var arch=all.filter(function(s){return INACTIVE[s.tech];});
+  var aTab=document.getElementById('tabAct'),rTab=document.getElementById('tabArc');
+  rTab.textContent='Archivés ('+arch.length+')';
+  aTab.className='dtog'+(VIEW==='actifs'?' on':'');rTab.className='dtog'+(VIEW==='archives'?' on':'');
+  if(VIEW==='archives'){
+    g.innerHTML='';
+    tc.innerHTML=arch.length?arch.map(function(s){return buildCard(s,false);}).join(''):'<div class="empty">Aucun technicien archivé.</div>';
+  }else{
+    g.innerHTML=buildCard(aggregate(active),true);
+    tc.innerHTML=active.length?active.map(function(s){return buildCard(s,false);}).join(''):'<div class="empty">Aucun technicien actif.</div>';
+  }
 }
 function download(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
   var b=document.getElementById('dl');b.disabled=true;b.textContent='Préparation…';
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='⬇ Télécharger';
     if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(f,t);}
+function downloadExcel(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
+  var b=document.getElementById('dlx');b.disabled=true;b.textContent='Préparation…';
+  google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='📊 Excel clôtures';
+    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeCloturesExcel(f,t);}
 init();
-setInterval(function(){google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();},60000);
+setInterval(function(){
+  google.script.run.withSuccessHandler(function(inact){INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
+    google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();
+  }).getInactiveTechs();
+},60000);
 </script></body></html>
 `;
