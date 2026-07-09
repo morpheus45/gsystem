@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -155,6 +158,18 @@ fun PvCameraScreen(
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
 
+    var camTotal by remember { mutableStateOf("") }
+    var sdNb by remember { mutableStateOf("") }
+    var sdTotal by remember { mutableStateOf("") }
+    var abo by remember { mutableStateOf("") }
+    var frais by remember { mutableStateOf("") }
+    var observations by remember { mutableStateOf("") }
+    var adressePrec by remember { mutableStateOf("") }
+    var installInit by remember { mutableStateOf(true) }
+    var miseServ by remember { mutableStateOf(false) }
+    var repose by remember { mutableStateOf(false) }
+    var camSupp by remember { mutableStateOf(false) }
+
     val sigAbonne = remember { SignatureController() }
     val sigTech = remember { SignatureController() }
 
@@ -191,6 +206,23 @@ fun PvCameraScreen(
             Field("Nom et prénom de l'Abonné", nomAbonne) { nomAbonne = it }
             Field("Adresse du lieu protégé", adresse) { adresse = it }
 
+            SectionTitle("Prestation")
+            CheckRow("Installation initiale", installInit) { installInit = it }
+            CheckRow("Mise en service anticipée (avant fin de rétractation)", miseServ) { miseServ = it }
+            CheckRow("Repose (déménagement)", repose) { repose = it }
+            if (repose) Field("Adresse du site précédent", adressePrec) { adressePrec = it }
+            CheckRow("Installation d'une caméra supplémentaire", camSupp) { camSupp = it }
+
+            SectionTitle("Tarifs")
+            Field("Total caméras (€)", camTotal, KeyboardType.Number) { camTotal = it }
+            Field("Nb cartes SD", sdNb, KeyboardType.Number) { sdNb = it }
+            Field("Total cartes SD (€)", sdTotal, KeyboardType.Number) { sdTotal = it }
+            Field("Abonnement mensuel (€)", abo, KeyboardType.Number) { abo = it }
+            Field("Frais d'accès au service (€)", frais, KeyboardType.Number) { frais = it }
+
+            SectionTitle("Observations")
+            FieldMulti("Observations du technicien-conseil", observations) { observations = it }
+
             SectionTitle("Validation")
             Field("Fait le", faitLe) { faitLe = it }
             Field("Nom du technicien-conseil", nomTech) { nomTech = it }
@@ -224,8 +256,15 @@ fun PvCameraScreen(
                                 PvPdfGenerator.generate(
                                     context,
                                     PvPdfGenerator.PvData(
-                                        convention.trim(), site.trim(), dateSous.trim(),
-                                        nomAbonne.trim(), adresse.trim(), faitLe.trim(), nomTech.trim()
+                                        conv = convention.trim(), site = site.trim(),
+                                        dateSous = dateSous.trim(), nom = nomAbonne.trim(),
+                                        adr = adresse.trim(),
+                                        camTotal = camTotal.trim(), sdNb = sdNb.trim(),
+                                        sdTotal = sdTotal.trim(), abo = abo.trim(), frais = frais.trim(),
+                                        observations = observations.trim(), adressePrec = adressePrec.trim(),
+                                        faitLe = faitLe.trim(), nomTech = nomTech.trim(),
+                                        installInit = installInit, miseServ = miseServ,
+                                        repose = repose, camSupp = camSupp
                                     ),
                                     bmpAb, bmpTe
                                 )
@@ -280,6 +319,34 @@ private fun Field(
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FieldMulti(label: String, value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = false,
+        minLines = 3,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun CheckRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onToggle(!checked) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onToggle,
+            colors = CheckboxDefaults.colors(checkedColor = CameraEnd, uncheckedColor = TextLow)
+        )
+        Text(label, color = TextMid, fontSize = 13.sp)
+    }
 }
 
 @Composable
