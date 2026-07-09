@@ -130,12 +130,13 @@ function makeCloturesExcel(from, to) {
       const base = name; let k = 2; while (used[name]) { name = base.slice(0, 92) + ' ' + k; k++; } used[name] = true;
       const sh = ss.insertSheet(name);
       const rows = clo.map(function (c) {
-        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', c.num || '', c.obs || '', c.note || ''];
+        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.num || ''), c.obs || '', c.note || ''];
       });
+      sh.getRange(1, 1, rows.length + 1, header.length).setNumberFormat('@');   // tout en texte : dates, heures et N° lisibles (pas de notation scientifique)
       sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
       sh.getRange(2, 1, rows.length, header.length).setValues(rows);
       sh.setFrozenRows(1);
-      sh.autoResizeColumns(1, header.length);
+      [92, 56, 56, 60, 54, 160, 150, 100, 90, 320].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
       added++;
     });
     if (!added) { DriveApp.getFileById(ss.getId()).setTrashed(true); return { ok: false, error: 'Aucune clôture sur la période' }; }
@@ -336,7 +337,6 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
     <button class="seg" onclick="preset(30)">30 j</button>
     <button class="seg" onclick="preset('m')">Ce mois</button>
     <button class="seg" onclick="preset('all')">Tout</button>
-    <button class="btn" id="dl" onclick="download()">⬇ Télécharger</button>
     <button class="btn" id="dlx" onclick="downloadExcel()">📊 Excel clôtures</button>
   </div>
   <div id="global"></div>
