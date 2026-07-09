@@ -119,7 +119,7 @@ function makeCloturesExcel(from, to) {
     const data = getAllData();
     const ss = SpreadsheetApp.create('G-Systems_clotures_' + (fromD || 'debut') + '_' + (toD || 'fin'));
     const def = ss.getSheets()[0];
-    const header = ['Date', 'Début', 'Fin', 'Durée', 'Type', 'Client', 'Ville', 'N°', 'Obs', 'Note'];
+    const header = ['Date', 'Début', 'Fin', 'Durée', 'Type', 'Client', 'Ville', 'Dép.', 'N°', 'Obs', 'Note'];
     const used = {}; let added = 0;
     data.forEach(function (T) {
       if (inactive[T.tech]) return;
@@ -130,13 +130,13 @@ function makeCloturesExcel(from, to) {
       const base = name; let k = 2; while (used[name]) { name = base.slice(0, 92) + ' ' + k; k++; } used[name] = true;
       const sh = ss.insertSheet(name);
       const rows = clo.map(function (c) {
-        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.num || ''), c.obs || '', c.note || ''];
+        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.dept || ''), String(c.num || ''), c.obs || '', c.note || ''];
       });
       sh.getRange(1, 1, rows.length + 1, header.length).setNumberFormat('@');   // tout en texte : dates, heures et N° lisibles (pas de notation scientifique)
       sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
       sh.getRange(2, 1, rows.length, header.length).setValues(rows);
       sh.setFrozenRows(1);
-      [92, 56, 56, 60, 54, 160, 150, 100, 90, 320].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+      [92, 56, 56, 60, 54, 160, 150, 55, 100, 90, 320].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
       added++;
     });
     if (!added) { DriveApp.getFileById(ss.getId()).setTrashed(true); return { ok: false, error: 'Aucune clôture sur la période' }; }
@@ -392,7 +392,7 @@ function aggregate(techs){
     s.repartition.forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
     s.primesParType.forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
     (s.fraisList||[]).forEach(function(f){fl.push(f);});
-    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
+    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,dept:c.dept,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;g.fraisList=fl;return g;}
@@ -402,8 +402,8 @@ function dur(a,b){if(!a||!b)return '';var pa=a.split(':'),pb=b.split(':');if(pa.
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
-  var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
+  var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
+  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function setGJour(v){GJOUR=v;apply();}
 // Vue globale : toggle Période / Aujourd'hui + clôtures REGROUPÉES par technicien.

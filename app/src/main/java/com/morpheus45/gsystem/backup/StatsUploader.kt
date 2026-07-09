@@ -67,6 +67,7 @@ object StatsUploader {
                 clotures.put(JSONObject()
                     .put("date", t.date).put("type", t.typeMission)
                     .put("client", t.nomClient).put("ville", t.ville)
+                    .put("dept", t.departement)
                     .put("num", t.numeroIntervention).put("obs", obs)
                     .put("note", t.observations)
                     .put("hDebut", t.heureDebut).put("hFin", t.heureFin))
