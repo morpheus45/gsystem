@@ -70,9 +70,10 @@ object PvPdfGenerator {
             val c = Canvas(bmp)
             fun mask(x0: Float, y0: Float, x1: Float, y1: Float) =
                 c.drawRect(x0 * S, y0 * S, x1 * S, y1 * S, white)
-            fun str(s: String, x: Float, y: Float, size: Float = 9f) {
+            fun str(s: String, x: Float, y: Float, size: Float = 9f, bold: Boolean = false) {
                 if (s.isBlank()) return
                 txtPaint.textSize = size * S
+                txtPaint.isFakeBoldText = bold
                 c.drawText(s, x * S, y * S, txtPaint)
             }
             fun cross(cx: Float, cy: Float, r: Float = 5f) {
@@ -88,15 +89,17 @@ object PvPdfGenerator {
             mask(120f, 56f, 480f, 69f); str(d.adr, 122f, 66f, 8.5f)
 
             if (i == 0) {
-                // Montants (dans les espaces libres du tableau TARIF)
-                str(d.camTotal, 420f, 154f, 8f)   // total caméras (après "total de €TTC")
-                str(d.sdNb, 356f, 171f, 8f)        // nb cartes SD (avant "micro-SD")
-                str(d.sdTotal, 418f, 181f, 8f)     // total SD (dans le blanc)
-                str(d.abo, 506f, 225f, 8f)         // abonnement mensuel (après "€ TTC (*)")
-                str(d.frais, 462f, 404f, 8f)       // frais d'accès (après "€ TTC")
-                // Observations (multi-ligne sur les pointillés)
-                var oy = 329f
-                for (line in wrap(d.observations, 95).take(4)) { str(line, 205f, oy, 8f); oy += 9f }
+                // Montants : PLUS GROS + GRAS, dans les espaces libres du tableau TARIF
+                str(d.camTotal, 420f, 155f, 11f, bold = true)   // total caméras
+                str(d.sdNb, 353f, 172f, 11f, bold = true)       // nb cartes SD
+                str(d.sdTotal, 422f, 182f, 11f, bold = true)    // total SD (dans le blanc)
+                str(d.abo, 505f, 227f, 11f, bold = true)        // abonnement mensuel
+                str(d.frais, 460f, 406f, 11f, bold = true)      // frais d'accès
+                // Observations : 1re ligne après le label (x=205), suite pleine largeur (x=10)
+                var oy = 330f
+                wrapObs(d.observations).take(4).forEachIndexed { idx, line ->
+                    str(line, if (idx == 0) 205f else 10f, oy, 9f); oy += 10f
+                }
                 // Cases à cocher
                 if (d.installInit) cross(13f, 378f)
                 if (d.miseServ) cross(14f, 675f)
@@ -130,14 +133,17 @@ object PvPdfGenerator {
         return out
     }
 
-    /** Découpe simple en lignes de ~maxChars caractères (respecte les mots). */
-    private fun wrap(s: String, maxChars: Int): List<String> {
+    /**
+     * Découpe les observations : 1re ligne courte (~88 car., placée après le
+     * label OBSERVATIONS), lignes suivantes pleine largeur (~140 car.).
+     */
+    private fun wrapObs(s: String): List<String> {
         if (s.isBlank()) return emptyList()
-        val out = ArrayList<String>(); val cur = StringBuilder()
+        val out = ArrayList<String>(); val cur = StringBuilder(); var lim = 88
         for (word in s.trim().split(Regex("\\s+"))) {
-            if (cur.isEmpty()) cur.append(word)
-            else if (cur.length + 1 + word.length <= maxChars) cur.append(' ').append(word)
-            else { out.add(cur.toString()); cur.setLength(0); cur.append(word) }
+            val t = if (cur.isEmpty()) word else "$cur $word"
+            if (t.length <= lim) { cur.setLength(0); cur.append(t) }
+            else { out.add(cur.toString()); cur.setLength(0); cur.append(word); lim = 140 }
         }
         if (cur.isNotEmpty()) out.add(cur.toString())
         return out
