@@ -46,7 +46,8 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
   return HtmlService.createHtmlOutput(DASHBOARD_HTML)
     .setTitle('G-Systems · Espace administratif')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // autorise l'embed via docs/backoffice.html
 }
 
 /** Données granulaires de tous les techs (tous mois fusionnés) pour filtrage par date. */
