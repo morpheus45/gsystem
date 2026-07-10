@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
@@ -32,7 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
@@ -84,6 +88,7 @@ fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
     onArrivee: () -> Unit,
+    onAppelTechline: () -> Unit,
     onTemps: () -> Unit,
     onDemandeCamera: () -> Unit,
     onPvCameras: () -> Unit,
@@ -114,6 +119,19 @@ fun HomeScreen(
     val sumFrais   = store.frais.filter { isThisCycle(it.date) }.sumOf { it.montantEur }
     val countCompt = store.compteur.count { isThisCycle(it.date) }
 
+    // Taux de NR sur les INSTALLATIONS du cycle (comme le back-office).
+    //  - périmètre tech = NR CLIENT + NR TECHNIQUE / total installations (attendu <= 8%)
+    //  - brut = toutes non réalisées (NR + annulé) / total installations
+    val instCycle = store.temps.filter {
+        isThisCycle(it.date) && it.typeMission.equals("INST", ignoreCase = true)
+    }
+    val instTot = instCycle.size
+    val nrTechPct: Double? = if (instTot > 0)
+        instCycle.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / instTot
+    else null
+    val nrBrutPct: Double = if (instTot > 0)
+        instCycle.count { it.observationType.isNotBlank() } * 100.0 / instTot else 0.0
+
     // Pip ambre ENVOI MENSUEL : on s'allume dans les 3 derniers jours du cycle
     // (au lieu du seuil fixe day >= 18 — plus precis et coherent avec cycleEnd)
     val daysUntilCycleEnd = java.time.temporal.ChronoUnit.DAYS.between(today, cycleEnd)
@@ -137,6 +155,34 @@ fun HomeScreen(
                 statusText = "OPERATIONNEL"
             )
             HairlineSettingsIcon(onClick = onSettings)
+        }
+
+        // ============ TAUX NR (installations du cycle) — vert si <= 8%, rouge sinon
+        if (nrTechPct != null) {
+            val ok = nrTechPct <= 8.0
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (ok) Color(0xFF123524) else Color(0xFF3A1414),
+                            RoundedCornerShape(9.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "NR TECH ${"%.1f".format(nrTechPct)} %  " + (if (ok) "✓" else "✗") +
+                            "   ·   BRUT ${"%.1f".format(nrBrutPct)} %   ·   $instTot INST",
+                        color = if (ok) Color(0xFF4ADE80) else Color(0xFFFF6B6B),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
 
         HairlineDivider()
@@ -209,6 +255,18 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "03",
+                    label = "APPEL TECHLINE",
+                    sub = "Appel direct de la techline",
+                    icon = Icons.Outlined.Call,
+                    gradientStart = CompteurStart,
+                    gradientEnd = CompteurEnd,
+                    accent = CompteurAccent,
+                    onClick = onAppelTechline
+                )
+            }
+            item {
+                CategoryTile(
+                    number = "04",
                     label = "CLÔTURE",
                     sub = "Clôture d'intervention",
                     icon = Icons.Outlined.Assignment,
@@ -222,7 +280,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "04",
+                    number = "05",
                     label = "PV CAMÉRAS",
                     sub = "Procès-verbal signé + envoi client",
                     icon = Icons.Outlined.FactCheck,
@@ -234,7 +292,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "05",
+                    number = "06",
                     label = "DEMANDE CAMERA",
                     sub = "Demande de rappel installation caméra(s)",
                     icon = Icons.Outlined.Videocam,
@@ -246,7 +304,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "06",
+                    number = "07",
                     label = "COURRIER",
                     sub = "Viber « courrier ok »",
                     icon = Icons.Outlined.Email,
@@ -258,7 +316,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "07",
+                    number = "08",
                     label = "RECAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
@@ -270,7 +328,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "08",
+                    number = "09",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
                         "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
@@ -286,7 +344,7 @@ fun HomeScreen(
             }
             item {
                 CategoryTile(
-                    number = "09",
+                    number = "10",
                     label = "ENVOI MENSUEL",
                     sub = "Excel + tickets + compteur",
                     icon = Icons.Outlined.Outbox,

@@ -54,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -225,13 +226,13 @@ fun PvCameraScreen(
 
             SectionTitle("Validation")
             Field("Fait le", faitLe) { faitLe = it }
-            Field("Nom du technicien-conseil", nomTech) { nomTech = it }
+            Field("Nom du technicien-conseil", nomTech, caps = false) { nomTech = it }
 
             SigBlock("Signature de l'Abonné", sigAbonne)
             SigBlock("Signature du technicien-conseil", sigTech)
 
             SectionTitle("Envoi")
-            Field("E-mail du client", emailClient, KeyboardType.Email) { emailClient = it }
+            Field("E-mail du client", emailClient, KeyboardType.Email, caps = false) { emailClient = it }
 
             status?.let {
                 Text(it, color = CameraAccent, fontSize = 13.sp,
@@ -309,14 +310,18 @@ private fun Field(
     label: String,
     value: String,
     keyboard: KeyboardType = KeyboardType.Text,
+    caps: Boolean = true,
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = onChange,
+        onValueChange = { onChange(if (caps) it.uppercase() else it) },
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboard,
+            capitalization = if (caps) KeyboardCapitalization.Characters else KeyboardCapitalization.None
+        ),
         modifier = Modifier.fillMaxWidth()
     )
 }
@@ -326,10 +331,11 @@ private fun Field(
 private fun FieldMulti(label: String, value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
-        onValueChange = onChange,
+        onValueChange = { onChange(it.uppercase()) },
         label = { Text(label) },
         singleLine = false,
         minLines = 3,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
         modifier = Modifier.fillMaxWidth()
     )
 }

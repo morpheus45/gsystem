@@ -202,6 +202,15 @@ fun AppNav() {
     val onArrivee = {
         if (settings.pendingArrivalMs > 0L) showArrivalDialog = true else recordArrival()
     }
+    // Tuile APPEL TECHLINE : appel direct, sans pointer l'heure ni Viber.
+    val onAppelTechline = {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+            == PackageManager.PERMISSION_GRANTED) {
+            placeCall(context, ARRIVAL_PHONE)
+        } else {
+            callPermLauncher.launch(Manifest.permission.CALL_PHONE)
+        }
+    }
 
     // Renvoi automatique des stats du cycle en cours à chaque ouverture (1×/session).
     // Auto-répare une clôture dont l'envoi a raté sur le moment (réseau faible) :
@@ -222,6 +231,7 @@ fun AppNav() {
                 settings = settings,
                 store = store,
                 onArrivee = onArrivee,
+                onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
                 onDemandeCamera = { navController.navigate("demande_camera") },
                 onPvCameras = { navController.navigate("pv_cameras") },
