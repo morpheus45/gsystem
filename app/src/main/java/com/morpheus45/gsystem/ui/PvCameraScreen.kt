@@ -173,6 +173,7 @@ fun PvCameraScreen(
 
     val sigAbonne = remember { SignatureController() }
     val sigTech = remember { SignatureController() }
+    val sigParaphe = remember { SignatureController() }
 
     Scaffold(
         containerColor = Obsidian,
@@ -230,6 +231,7 @@ fun PvCameraScreen(
 
             SigBlock("Signature de l'Abonné", sigAbonne)
             SigBlock("Signature du technicien-conseil", sigTech)
+            SigBlock("Paraphe (page 1) — optionnel", sigParaphe)
 
             SectionTitle("Envoi")
             Field("E-mail du client", emailClient, KeyboardType.Email, caps = false) { emailClient = it }
@@ -251,6 +253,7 @@ fun PvCameraScreen(
                     working = true; status = "Génération du PV…"
                     val bmpAb = sigAbonne.toBitmap()
                     val bmpTe = sigTech.toBitmap()
+                    val bmpPa = sigParaphe.toBitmap()
                     scope.launch {
                         runCatching {
                             val file = withContext(Dispatchers.Default) {
@@ -267,7 +270,7 @@ fun PvCameraScreen(
                                         installInit = installInit, miseServ = miseServ,
                                         repose = repose, camSupp = camSupp
                                     ),
-                                    bmpAb, bmpTe
+                                    bmpAb, bmpTe, bmpPa
                                 )
                             }
                             EmailSender.send(

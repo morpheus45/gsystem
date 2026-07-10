@@ -44,7 +44,7 @@ object PvPdfGenerator {
         val repose: Boolean, val camSupp: Boolean
     )
 
-    fun generate(context: Context, d: PvData, sigAbonne: Bitmap?, sigTech: Bitmap?): File {
+    fun generate(context: Context, d: PvData, sigAbonne: Bitmap?, sigTech: Bitmap?, sigParaphe: Bitmap?): File {
         val src = File(context.cacheDir, "pv_src.pdf")
         context.assets.open("pv_cameras.pdf").use { input ->
             src.outputStream().use { input.copyTo(it) }
@@ -103,6 +103,9 @@ object PvPdfGenerator {
                 // Cases à cocher
                 if (d.installInit) cross(13f, 378f)
                 if (d.miseServ) cross(14f, 675f)
+                // Numéro de page 6/9 -> 1/2  + paraphe (après « Paraphes : »)
+                mask(553f, 789f, 575f, 799f); str("1/2", 555f, 797f, 8f)
+                sigParaphe?.let { drawFit(c, it, 545f, 819f, 593f, 839f) }
             }
 
             if (i == 1) {
@@ -113,6 +116,8 @@ object PvPdfGenerator {
                 str(d.nomTech, 498f, 498f, 8f)
                 sigAbonne?.let { drawFit(c, it, 12f, 502f, 290f, 553f) }
                 sigTech?.let { drawFit(c, it, 310f, 502f, 585f, 553f) }
+                // Numéro de page 9/9 -> 2/2
+                mask(551f, 540f, 572f, 551f); str("2/2", 552f, 549f, 8f)
             }
 
             val info = PdfDocument.PageInfo.Builder(wPt, hPt, i + 1).create()
