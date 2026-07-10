@@ -43,7 +43,9 @@ object ViberSender {
             else -> "ok"
         }
         // La note libre est jointe au message pour toutes les NR (précision).
-        val note = entry.observations.trim()
+        // En minuscules comme le reste du message Viber (les champs sont saisis
+        // en MAJUSCULES dans l'appli, mais Viber reste en minuscules).
+        val note = entry.observations.trim().lowercase()
         val isNr = entry.observationType.startsWith("NR_")
         return if (isNr && note.isNotEmpty()) "$base $suffix - $note" else "$base $suffix"
     }

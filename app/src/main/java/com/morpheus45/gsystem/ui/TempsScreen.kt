@@ -503,7 +503,7 @@ private fun AddTempsDialog(
                     // Champ libre quand le type est "AUTRE".
                     if (type == "AUTRE") {
                         OutlinedTextField(
-                            value = autreText, onValueChange = { autreText = it },
+                            value = autreText, onValueChange = { autreText = it.uppercase() },
                             label = { Text("Préciser le type") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -558,7 +558,7 @@ private fun AddTempsDialog(
 
                     if (!isWholeDay) {
                         OutlinedTextField(
-                            value = nom, onValueChange = { nom = it },
+                            value = nom, onValueChange = { nom = it.uppercase() },
                             label = reqLabel("Nom client", true),
                             singleLine = true,
                             isError = tried && !nomOk,
@@ -570,7 +570,7 @@ private fun AddTempsDialog(
                         Spacer(Modifier.height(8.dp))
 
                         OutlinedTextField(
-                            value = ville, onValueChange = { ville = it },
+                            value = ville, onValueChange = { ville = it.uppercase() },
                             label = reqLabel("Ville", true),
                             singleLine = true,
                             isError = tried && !villeOk,
@@ -620,14 +620,14 @@ private fun AddTempsDialog(
                         Spacer(Modifier.height(8.dp))
 
                         OutlinedTextField(
-                            value = obs, onValueChange = { obs = it },
+                            value = obs, onValueChange = { obs = it.uppercase() },
                             label = { Text("Note libre (optionnel)") },
                             singleLine = false,
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
                         OutlinedTextField(
-                            value = obs, onValueChange = { obs = it },
+                            value = obs, onValueChange = { obs = it.uppercase() },
                             label = {
                                 Text(
                                     if (type == "VACANCES") "Note (optionnel — ex: congés payés)"
