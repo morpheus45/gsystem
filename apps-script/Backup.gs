@@ -488,7 +488,7 @@ function buildCard(s,glob){
   var sm=(s.interventions||0)+' interv · '+((s.clotures||[]).length)+' clôt · '+money(s.primes);
   var btn='<button class="miniBtn'+(inactive?' react':' deact')+'" data-tech="'+esc(s.tech)+'" data-act="'+(inactive?1:0)+'" onclick="setActive(event,this)">'+(inactive?'↩ Réactiver':'🗄 Désactiver')+'</button>';
   return '<div class="techcard'+(inactive?' arch':'')+'"><div class="thh'+(open?' open':'')+'" data-tech="'+esc(s.tech)+'" onclick="tog(this)">'+
-    '<span class="tn">👤 '+esc(s.tech)+'</span><span class="sm">'+btn+' '+sm+' <span class="chev">▸</span></span></div>'+
+    '<span class="tn">👤 '+esc(s.tech)+'</span>'+nrBadge(s.clotures)+'<span class="sm">'+btn+' '+sm+' <span class="chev">▸</span></span></div>'+
     '<div class="cardbody" style="display:'+(open?'block':'none')+'">'+cardInner(s,false)+'</div></div>';}
 function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];apply();}
 function apply(){
