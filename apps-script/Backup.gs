@@ -407,6 +407,25 @@ function cloturesTable(list,withTech){
   var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function setGJour(v){GJOUR=v;apply();}
+// Taux de NR sur les INSTALLATIONS uniquement (type INST).
+//  - NR brut       = installations non réalisées (obs != OK) / total installations
+//  - NR périm. tech = NR client + NR technique / total installations (attendu <= 8%)
+function nrRates(list){
+  var inst=(list||[]).filter(function(c){return String(c.type||'').toUpperCase()==='INST';});
+  var tot=inst.length; if(!tot) return null;
+  var brut=inst.filter(function(c){return (c.obs||'OK')!=='OK';}).length;
+  var tech=inst.filter(function(c){var o=c.obs||'';return o==='NR client'||o==='NR technique';}).length;
+  return {tot:tot, brut:Math.round(brut/tot*1000)/10, tech:Math.round(tech/tot*1000)/10};
+}
+function nrBadge(list){
+  var r=nrRates(list); if(!r) return '';
+  var ok=r.tech<=8;
+  var col=ok?'#4ADE80':'#FF6B6B', bg=ok?'rgba(74,222,128,.14)':'rgba(255,107,107,.16)';
+  return '<span title="Taux de NR sur les installations (INST). Périmètre tech = NR client + NR technique, attendu <= 8%." '+
+    'style="margin-left:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;color:'+col+';background:'+bg+'">'+
+    'NR tech '+r.tech+'% '+(ok?'✓':'✗')+
+    ' <span style="opacity:.65;font-weight:400">· brut '+r.brut+'% · '+r.tot+' inst.</span></span>';
+}
 // Vue globale : toggle Période / Aujourd'hui + clôtures REGROUPÉES par technicien.
 function globalCloturesBody(list){
   var todayIso=iso(new Date());
@@ -418,7 +437,7 @@ function globalCloturesBody(list){
   var byTech={};shown.forEach(function(c){var t=c.tech||'—';(byTech[t]=byTech[t]||[]).push(c);});
   var techs=Object.keys(byTech).sort(function(a,b){return String(a).localeCompare(String(b));});
   return tg+techs.map(function(t){
-    return '<div class="gtech">👤 '+esc(t)+' ('+byTech[t].length+')</div>'+cloturesTable(byTech[t],false);
+    return '<div class="gtech">👤 '+esc(t)+' ('+byTech[t].length+')'+nrBadge(byTech[t])+'</div>'+cloturesTable(byTech[t],false);
   }).join('');}
 function pie(rep){
   var total=(rep||[]).reduce(function(s,x){return s+x.count;},0);
