@@ -293,7 +293,7 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "06",
-                    label = "DEMANDE CAMERA",
+                    label = "DEMANDE CAMÉRA",
                     sub = "Demande de rappel installation caméra(s)",
                     icon = Icons.Outlined.Videocam,
                     gradientStart = CameraStart,
@@ -317,7 +317,7 @@ fun HomeScreen(
             item {
                 CategoryTile(
                     number = "08",
-                    label = "RECAP",
+                    label = "RÉCAP",
                     sub = "Cumul du cycle · total euros",
                     icon = Icons.Outlined.BarChart,
                     gradientStart = RecapStart,
@@ -331,8 +331,8 @@ fun HomeScreen(
                     number = "09",
                     label = "FRAIS",
                     sub = if (sumFrais > 0)
-                        "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
-                    else "Tickets · photos · envoi groupe",
+                        "Tickets · ${"%.2f".format(sumFrais)} EUR ce cycle"
+                    else "Tickets · photos · envoi groupé",
                     icon = Icons.Outlined.Receipt,
                     gradientStart = FraisStart,
                     gradientEnd = FraisEnd,
