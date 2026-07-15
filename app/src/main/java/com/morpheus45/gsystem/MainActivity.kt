@@ -54,6 +54,8 @@ import com.morpheus45.gsystem.update.checkForUpdateSilently
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -125,7 +127,9 @@ fun AppNav() {
     // Période partagée (Temps + Frais + Envoi). Par défaut = cycle calculé ;
     // le tech peut l'ajuster car le jour de coupure varie de 2-3 jours/mois.
     // null = pas d'override -> on suit le cycle automatique.
-    val (cycleStart, cycleEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    val (cycleStart, cycleEnd) = DateUtil.currentCycle(
+        DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
+    )
     var periodStartOverride by remember { mutableStateOf<LocalDate?>(null) }
     var periodEndOverride by remember { mutableStateOf<LocalDate?>(null) }
     val periodStart = periodStartOverride ?: cycleStart
@@ -212,16 +216,24 @@ fun AppNav() {
         }
     }
 
-    // Renvoi automatique des stats du cycle en cours à chaque ouverture (1×/session).
-    // Auto-répare une clôture dont l'envoi a raté sur le moment (réseau faible) :
-    // elle repart toute seule dès que le téléphone a du réseau, sans « Synchroniser ».
-    var statsSyncedThisSession by remember { mutableStateOf(false) }
-    LaunchedEffect(settings.isReady) {
-        if (statsSyncedThisSession) return@LaunchedEffect
+    // Synchro Drive TEMPS RÉEL : à chaque changement de données (clôture, frais,
+    // geste, compteur), on repousse les stats du cycle. Le point + « OPÉRATIONNEL »
+    // de l'accueil passent au vert quand la remontée a réussi, rouge tant qu'il
+    // reste des données en attente (réseau faible, non configuré, etc.).
+    var driveSynced by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.isReady, settings.nomUtilisateur, settings.lastEnvoiDateIso) {
         if (!BackupConfig.isConfigured || !settings.isReady ||
-            settings.nomUtilisateur.isBlank()) return@LaunchedEffect
-        statsSyncedThisSession = true
-        runCatching { StatsUploader.push(settings, repo.store.value, cycleStart, cycleEnd) }
+            settings.nomUtilisateur.isBlank()) {
+            driveSynced = false
+            return@LaunchedEffect
+        }
+        repo.store.debounce(1200L).collect { snapshot ->
+            driveSynced = false
+            val (cs, ce) = DateUtil.currentCycle(
+                DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
+            )
+            driveSynced = StatsUploader.push(settings, snapshot, cs, ce)
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -230,6 +242,7 @@ fun AppNav() {
             HomeScreen(
                 settings = settings,
                 store = store,
+                synced = driveSynced,
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
@@ -239,6 +252,12 @@ fun AppNav() {
                 onFrais = { navController.navigate("frais") },
                 onCourrier = { ViberSender.share(context, "courrier ok") },
                 onAttenteClient = {
+                    // Note l'heure d'arrivée comme la tuile 01, si aucune arrivée
+                    // n'est déjà en attente (ne jamais écraser un pointage existant).
+                    if (settings.pendingArrivalMs <= 0L) {
+                        val now = System.currentTimeMillis()
+                        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+                    }
                     android.widget.Toast.makeText(
                         context, ViberSender.ATTENTE_RAPPEL_TECH,
                         android.widget.Toast.LENGTH_LONG

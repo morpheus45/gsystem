@@ -84,6 +84,7 @@ import com.morpheus45.gsystem.ui.theme.RecapAccent
 import com.morpheus45.gsystem.ui.theme.RecapEnd
 import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.ui.theme.Signal
+import com.morpheus45.gsystem.ui.theme.Success
 import com.morpheus45.gsystem.ui.theme.TempsAccent
 import com.morpheus45.gsystem.ui.theme.TempsEnd
 import com.morpheus45.gsystem.ui.theme.TempsStart
@@ -100,6 +101,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
+    synced: Boolean = false,
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
     onTemps: () -> Unit,
@@ -120,7 +122,7 @@ fun HomeScreen(
     // Ainsi les chiffres affiches ici correspondent EXACTEMENT a ceux des ecrans
     // internes (TempsScreen, GesteCoScreen, FraisScreen, etc.).
     val (cycleStart, cycleEnd) = com.morpheus45.gsystem.util.DateUtil
-        .cyclePeriod(today, settings.cycleStartDay)
+        .currentCycle(today, settings.cycleStartDay, settings.lastEnvoiDateIso)
     fun isThisCycle(dateIso: String): Boolean = runCatching {
         val d = LocalDate.parse(dateIso)
         d in cycleStart..cycleEnd
@@ -165,7 +167,8 @@ fun HomeScreen(
         ) {
             LiveStatusBar(
                 reference = "G-S · FR / 054",
-                statusText = "OPERATIONNEL"
+                statusText = if (synced) "SYNCHRONISÉ" else "OPERATIONNEL",
+                color = if (synced) Success else Signal
             )
             HairlineSettingsIcon(onClick = onSettings)
         }
@@ -216,7 +219,7 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(Signal, RoundedCornerShape(50))
+                        .background(if (synced) Success else Signal, RoundedCornerShape(50))
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(

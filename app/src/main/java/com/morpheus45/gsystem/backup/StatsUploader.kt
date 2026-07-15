@@ -17,9 +17,9 @@ import java.time.LocalDate
  */
 object StatsUploader {
 
-    suspend fun push(settings: AppSettings, store: EntriesStore, start: LocalDate, end: LocalDate) {
-        if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return
-        runCatching {
+    suspend fun push(settings: AppSettings, store: EntriesStore, start: LocalDate, end: LocalDate): Boolean {
+        if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return false
+        return runCatching {
             val s = start.toString()
             val e = end.toString()
             fun inP(d: String) = d in s..e
@@ -115,7 +115,7 @@ object StatsUploader {
                 settings.nomUtilisateur, s.take(7), "_stats.json",
                 "application/json", json.toByteArray(Charsets.UTF_8)
             )
-        }
+        }.getOrDefault(false)
     }
 
     /**

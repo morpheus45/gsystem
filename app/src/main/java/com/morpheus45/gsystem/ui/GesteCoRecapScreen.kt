@@ -42,7 +42,7 @@ fun GesteCoRecapScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var toDelete by remember { mutableStateOf<GesteCoEntry?>(null) }
-    val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    val (start, end) = DateUtil.currentCycle(DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso)
     val periodEntries = store.gesteCo.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }.sortedBy { it.date }

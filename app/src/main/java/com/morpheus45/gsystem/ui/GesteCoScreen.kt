@@ -51,7 +51,7 @@ fun GesteCoScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val (start, end) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    val (start, end) = DateUtil.currentCycle(DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso)
     val periodEntries = store.gesteCo.filter {
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }.sortedByDescending { it.date }
