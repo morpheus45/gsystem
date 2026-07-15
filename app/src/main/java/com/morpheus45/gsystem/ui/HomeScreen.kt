@@ -51,9 +51,9 @@ import com.morpheus45.gsystem.ui.theme.AttenteStart
 import com.morpheus45.gsystem.ui.theme.CourrierAccent
 import com.morpheus45.gsystem.ui.theme.CourrierEnd
 import com.morpheus45.gsystem.ui.theme.CourrierStart
-import com.morpheus45.gsystem.ui.theme.CompteurAccent
-import com.morpheus45.gsystem.ui.theme.CompteurEnd
-import com.morpheus45.gsystem.ui.theme.CompteurStart
+import com.morpheus45.gsystem.ui.theme.TechlineAccent
+import com.morpheus45.gsystem.ui.theme.TechlineEnd
+import com.morpheus45.gsystem.ui.theme.TechlineStart
 import com.morpheus45.gsystem.ui.theme.EnvoiAccent
 import com.morpheus45.gsystem.ui.theme.EnvoiEnd
 import com.morpheus45.gsystem.ui.theme.EnvoiStart
@@ -258,9 +258,9 @@ fun HomeScreen(
                     label = "APPEL TECHLINE",
                     sub = "Appel direct de la techline",
                     icon = Icons.Outlined.Call,
-                    gradientStart = CompteurStart,
-                    gradientEnd = CompteurEnd,
-                    accent = CompteurAccent,
+                    gradientStart = TechlineStart,
+                    gradientEnd = TechlineEnd,
+                    accent = TechlineAccent,
                     onClick = onAppelTechline
                 )
             }

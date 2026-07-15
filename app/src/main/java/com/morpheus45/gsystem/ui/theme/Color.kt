@@ -72,6 +72,13 @@ val AttenteStart   = Color(0xFF8A5CF6)
 val AttenteEnd     = Color(0xFF6366F1)
 val AttenteAccent  = Color(0xFFDDD6FE)
 
+// APPEL TECHLINE — indigo -> violet : pont exact entre ATTENTE (fin #6366F1)
+// et CLÔTURE (départ #7C3AED). Rétablit la waterfall violette du haut de pile
+// (avant, cette tuile réutilisait le teal/vert de l'ancien COMPTEUR = rupture).
+val TechlineStart  = Color(0xFF6366F1)
+val TechlineEnd    = Color(0xFF7C3AED)
+val TechlineAccent = Color(0xFFC7D2FE)
+
 // 03 COURRIER — indigo
 val CourrierStart  = Color(0xFF6366F1)
 val CourrierEnd    = Color(0xFF3B82F6)
