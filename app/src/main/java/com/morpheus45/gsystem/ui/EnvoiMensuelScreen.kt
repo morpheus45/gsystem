@@ -332,7 +332,7 @@ fun EnvoiMensuelScreen(
             if (!hasCompteurPhoto) {
                 Text(
                     "⛔ Envoi bloqué : aucune photo compteur sur la période. " +
-                    "Prends la photo du compteur (tuile COMPTEUR) avant d'envoyer le mensuel.",
+                    "Prends-la avec le bouton « Photo du compteur » ci-dessus avant d'envoyer le mensuel.",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.error,
