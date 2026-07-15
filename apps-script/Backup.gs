@@ -462,8 +462,8 @@ function fraisTable(list){
     var tva=(m>0)?tvaFull*(r/m):0;var ht=r-tva;
     tt+=m;tr+=r;tv+=tva;th+=ht;
     var cat=esc(f.cat)+(((f.cat||'').toUpperCase()==='MOBILE')?' <span class="pct">(50 % · max 20 €)</span>':'');
-    return '<tr><td>'+esc(f.d)+'</td><td>'+cat+'</td><td>'+money(m)+'</td><td>'+money(r)+'</td><td>'+money(tva)+'</td><td>'+money(ht)+'</td></tr>';}).join('');
-  return '<table class="pt"><thead><tr><th>Date</th><th>Nature</th><th>TTC payé</th><th>Remboursé</th><th>TVA</th><th>HT</th></tr></thead><tbody>'+body+'</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+money(tt)+'</td><td>'+money(tr)+'</td><td>'+money(tv)+'</td><td>'+money(th)+'</td></tr></tfoot></table>';}
+    return '<tr><td>'+esc(f.d)+'</td><td>'+cat+'</td><td>'+money(m)+'</td><td>'+money(ht)+'</td><td>'+money(tva)+'</td><td>'+money(r)+'</td></tr>';}).join('');
+  return '<table class="pt"><thead><tr><th>Date</th><th>Nature</th><th>TTC payé</th><th>HT</th><th>TVA</th><th>Remboursé</th></tr></thead><tbody>'+body+'</tbody><tfoot><tr><td>TOTAL</td><td></td><td>'+money(tt)+'</td><td>'+money(th)+'</td><td>'+money(tv)+'</td><td>'+money(tr)+'</td></tr></tfoot></table>';}
 function secRow(key,id,icon,title,summary,bodyHtml){
   var k=key+'|'+id;var open=!!SEC[k];
   return '<div class="sec'+(open?' open':'')+'">'+

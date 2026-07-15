@@ -287,6 +287,13 @@ data class AppSettings(
     val lastDriveBackup: Long = 0L,
     /** Heure (ms) d'arrivée sur site en attente d'être rattachée à la prochaine clôture. 0 = aucune. */
     val pendingArrivalMs: Long = 0L,
+    /**
+     * Date ISO (yyyy-MM-dd) du dernier envoi mensuel effectué. Vide = jamais.
+     * Cycle glissant : le cycle courant démarre le LENDEMAIN de cette date
+     * (le jour de l'envoi appartient à l'ancien cycle). Tant que vide, on
+     * retombe sur le cycle fixe basé sur `cycleStartDay`.
+     */
+    val lastEnvoiDateIso: String = "",
     val firstRunDone: Boolean = false
 ) {
     // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis

@@ -34,4 +34,28 @@ object DateUtil {
         val end = start.plusMonths(1).minusDays(1)
         return start to end
     }
+
+    /**
+     * Cycle COURANT « glissant » : si un dernier envoi mensuel est connu
+     * (`lastEnvoiIso`), le cycle démarre le LENDEMAIN de cet envoi — le jour de
+     * l'envoi reste dans l'ancien cycle, donc aucun blanc ni chevauchement.
+     * La fin affichée est nominale (start + 1 mois - 1 jour), l'envoi réel
+     * pouvant tomber un peu avant ou après. Tant que `lastEnvoiIso` est vide,
+     * on retombe sur le cycle fixe basé sur `cycleStartDay`.
+     */
+    fun currentCycle(
+        reference: LocalDate,
+        cycleStartDay: Int,
+        lastEnvoiIso: String
+    ): Pair<LocalDate, LocalDate> {
+        val anchor = lastEnvoiIso.takeIf { it.isNotBlank() }
+            ?.let { runCatching { LocalDate.parse(it, ISO) }.getOrNull() }
+        if (anchor != null) {
+            val start = anchor.plusDays(1)
+            if (!reference.isBefore(start)) {
+                return start to start.plusMonths(1).minusDays(1)
+            }
+        }
+        return cyclePeriod(reference, cycleStartDay)
+    }
 }

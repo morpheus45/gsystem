@@ -37,6 +37,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
@@ -51,9 +64,9 @@ import com.morpheus45.gsystem.ui.theme.AttenteStart
 import com.morpheus45.gsystem.ui.theme.CourrierAccent
 import com.morpheus45.gsystem.ui.theme.CourrierEnd
 import com.morpheus45.gsystem.ui.theme.CourrierStart
-import com.morpheus45.gsystem.ui.theme.CompteurAccent
-import com.morpheus45.gsystem.ui.theme.CompteurEnd
-import com.morpheus45.gsystem.ui.theme.CompteurStart
+import com.morpheus45.gsystem.ui.theme.TechlineAccent
+import com.morpheus45.gsystem.ui.theme.TechlineEnd
+import com.morpheus45.gsystem.ui.theme.TechlineStart
 import com.morpheus45.gsystem.ui.theme.EnvoiAccent
 import com.morpheus45.gsystem.ui.theme.EnvoiEnd
 import com.morpheus45.gsystem.ui.theme.EnvoiStart
@@ -71,6 +84,7 @@ import com.morpheus45.gsystem.ui.theme.RecapAccent
 import com.morpheus45.gsystem.ui.theme.RecapEnd
 import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.ui.theme.Signal
+import com.morpheus45.gsystem.ui.theme.Success
 import com.morpheus45.gsystem.ui.theme.TempsAccent
 import com.morpheus45.gsystem.ui.theme.TempsEnd
 import com.morpheus45.gsystem.ui.theme.TempsStart
@@ -87,6 +101,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
+    synced: Boolean = false,
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
     onTemps: () -> Unit,
@@ -107,7 +122,7 @@ fun HomeScreen(
     // Ainsi les chiffres affiches ici correspondent EXACTEMENT a ceux des ecrans
     // internes (TempsScreen, GesteCoScreen, FraisScreen, etc.).
     val (cycleStart, cycleEnd) = com.morpheus45.gsystem.util.DateUtil
-        .cyclePeriod(today, settings.cycleStartDay)
+        .currentCycle(today, settings.cycleStartDay, settings.lastEnvoiDateIso)
     fun isThisCycle(dateIso: String): Boolean = runCatching {
         val d = LocalDate.parse(dateIso)
         d in cycleStart..cycleEnd
@@ -152,7 +167,8 @@ fun HomeScreen(
         ) {
             LiveStatusBar(
                 reference = "G-S · FR / 054",
-                statusText = "OPERATIONNEL"
+                statusText = if (synced) "SYNCHRONISÉ" else "OPERATIONNEL",
+                color = if (synced) Success else Signal
             )
             HairlineSettingsIcon(onClick = onSettings)
         }
@@ -187,23 +203,23 @@ fun HomeScreen(
 
         HairlineDivider()
 
-        // ============ HEADER WORDMARK + identite
+        // ============ HEADER LOGO + identite (logo compact = plus de place aux tuiles)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "G-SYSTEMS",
-                style = MaterialTheme.typography.displayLarge,
-                color = TextHi
+            BrandLogoMini(
+                modifier = Modifier
+                    .height(30.dp)
+                    .width(120.dp)
             )
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(Signal, RoundedCornerShape(50))
+                        .background(if (synced) Success else Signal, RoundedCornerShape(50))
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
@@ -217,7 +233,67 @@ fun HomeScreen(
             }
         }
 
-        // ============ TUILES
+        // ============ TUILES (regroupées par onglet, repli liste plate)
+        var selectedGroup by remember {
+            mutableStateOf(if (endOfCycleApproaching) HomeGroup.FIN else HomeGroup.SITE)
+        }
+
+        val fraisSub = if (sumFrais > 0)
+            "Tickets · ${"%.2f".format(sumFrais)} EUR ce cycle"
+        else "Tickets · photos · envoi groupé"
+
+        val tiles = listOf(
+            HomeTile("01", "ARRIVÉE SUR SITE", "Note l'heure + appelle la techline",
+                Icons.Outlined.PinDrop, ArriveeStart, ArriveeEnd, ArriveeAccent, HomeGroup.SITE,
+                liveValue = if (settings.pendingArrivalMs > 0L)
+                    com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
+                liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
+                onClick = onArrivee),
+            HomeTile("02", "ATTENTE CLIENT", "Viber heure début · rappel /15 min",
+                Icons.Outlined.Timer, AttenteStart, AttenteEnd, AttenteAccent, HomeGroup.SITE,
+                onClick = onAttenteClient),
+            HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
+                Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
+                onClick = onAppelTechline),
+            HomeTile("04", "CLÔTURE", "Clôture d'intervention",
+                Icons.Outlined.Assignment, TempsStart, TempsEnd, TempsAccent, HomeGroup.INTERV,
+                liveValue = if (countTemps > 0) countTemps.toString() else null,
+                liveLabel = if (countTemps > 0) "ce cycle" else null,
+                onClick = onTemps),
+            HomeTile("05", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
+                Icons.Outlined.FactCheck, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
+                onClick = onPvCameras),
+            HomeTile("06", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
+                Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
+                onClick = onDemandeCamera),
+            HomeTile("07", "COURRIER", "Viber « courrier ok »",
+                Icons.Outlined.Email, CourrierStart, CourrierEnd, CourrierAccent, HomeGroup.INTERV,
+                onClick = onCourrier),
+            HomeTile("08", "RÉCAP", "Cumul du cycle · total euros",
+                Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
+                onClick = onGesteCoRecap),
+            HomeTile("09", "FRAIS", fraisSub,
+                Icons.Outlined.Receipt, FraisStart, FraisEnd, FraisAccent, HomeGroup.FIN,
+                liveValue = if (countFrais > 0) countFrais.toString() else null,
+                liveLabel = if (countFrais > 0) "tickets" else null,
+                onClick = onFrais),
+            HomeTile("10", "ENVOI MENSUEL", "Excel + tickets + compteur",
+                Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
+                pulse = endOfCycleApproaching,
+                onClick = onEnvoiMensuel)
+        )
+
+        if (USE_TABBED_HOME) {
+            HomeTabs(selected = selectedGroup, onSelect = { selectedGroup = it })
+            SectionHeader(
+                group = selectedGroup,
+                count = tiles.count { it.group == selectedGroup }
+            )
+        }
+
+        val visibleTiles =
+            if (USE_TABBED_HOME) tiles.filter { it.group == selectedGroup } else tiles
+
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -225,134 +301,19 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(bottom = 20.dp, top = 4.dp)
         ) {
-            item {
+            items(visibleTiles) { t ->
                 CategoryTile(
-                    number = "01",
-                    label = "ARRIVÉE SUR SITE",
-                    sub = "Note l'heure + appelle la techline",
-                    icon = Icons.Outlined.PinDrop,
-                    gradientStart = ArriveeStart,
-                    gradientEnd = ArriveeEnd,
-                    accent = ArriveeAccent,
-                    liveValue = if (settings.pendingArrivalMs > 0L)
-                        com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
-                    liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
-                    onClick = onArrivee
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "02",
-                    label = "ATTENTE CLIENT",
-                    sub = "Viber heure début · rappel /15 min",
-                    icon = Icons.Outlined.Timer,
-                    gradientStart = AttenteStart,
-                    gradientEnd = AttenteEnd,
-                    accent = AttenteAccent,
-                    onClick = onAttenteClient
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "03",
-                    label = "APPEL TECHLINE",
-                    sub = "Appel direct de la techline",
-                    icon = Icons.Outlined.Call,
-                    gradientStart = CompteurStart,
-                    gradientEnd = CompteurEnd,
-                    accent = CompteurAccent,
-                    onClick = onAppelTechline
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "04",
-                    label = "CLÔTURE",
-                    sub = "Clôture d'intervention",
-                    icon = Icons.Outlined.Assignment,
-                    gradientStart = TempsStart,
-                    gradientEnd = TempsEnd,
-                    accent = TempsAccent,
-                    liveValue = if (countTemps > 0) countTemps.toString() else null,
-                    liveLabel = if (countTemps > 0) "ce cycle" else null,
-                    onClick = onTemps
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "05",
-                    label = "PV CAMÉRAS",
-                    sub = "Procès-verbal signé + envoi client",
-                    icon = Icons.Outlined.FactCheck,
-                    gradientStart = CameraStart,
-                    gradientEnd = CameraEnd,
-                    accent = CameraAccent,
-                    onClick = onPvCameras
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "06",
-                    label = "DEMANDE CAMERA",
-                    sub = "Demande de rappel installation caméra(s)",
-                    icon = Icons.Outlined.Videocam,
-                    gradientStart = CameraStart,
-                    gradientEnd = CameraEnd,
-                    accent = CameraAccent,
-                    onClick = onDemandeCamera
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "07",
-                    label = "COURRIER",
-                    sub = "Viber « courrier ok »",
-                    icon = Icons.Outlined.Email,
-                    gradientStart = CourrierStart,
-                    gradientEnd = CourrierEnd,
-                    accent = CourrierAccent,
-                    onClick = onCourrier
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "08",
-                    label = "RECAP",
-                    sub = "Cumul du cycle · total euros",
-                    icon = Icons.Outlined.BarChart,
-                    gradientStart = RecapStart,
-                    gradientEnd = RecapEnd,
-                    accent = RecapAccent,
-                    onClick = onGesteCoRecap
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "09",
-                    label = "FRAIS",
-                    sub = if (sumFrais > 0)
-                        "Tickets · ${"%.2f".format(sumFrais)} EUR ce mois"
-                    else "Tickets · photos · envoi groupe",
-                    icon = Icons.Outlined.Receipt,
-                    gradientStart = FraisStart,
-                    gradientEnd = FraisEnd,
-                    accent = FraisAccent,
-                    liveValue = if (countFrais > 0) countFrais.toString() else null,
-                    liveLabel = if (countFrais > 0) "tickets" else null,
-                    onClick = onFrais
-                )
-            }
-            item {
-                CategoryTile(
-                    number = "10",
-                    label = "ENVOI MENSUEL",
-                    sub = "Excel + tickets + compteur",
-                    icon = Icons.Outlined.Outbox,
-                    gradientStart = EnvoiStart,
-                    gradientEnd = EnvoiEnd,
-                    accent = EnvoiAccent,
-                    pulseAccent = endOfCycleApproaching,
-                    onClick = onEnvoiMensuel
+                    number = t.number,
+                    label = t.label,
+                    sub = t.sub,
+                    icon = t.icon,
+                    gradientStart = t.start,
+                    gradientEnd = t.end,
+                    accent = t.accent,
+                    liveValue = t.liveValue,
+                    liveLabel = t.liveLabel,
+                    pulseAccent = t.pulse,
+                    onClick = t.onClick
                 )
             }
         }
@@ -371,4 +332,146 @@ private fun currentQuarter(): String {
     val now = LocalDate.now()
     val q = (now.monthValue - 1) / 3 + 1
     return "${now.year} / Q$q"
+}
+
+// =============================================================
+// ACCUEIL PAR ONGLETS — regroupe les 10 tuiles en 3 sections.
+// SÉCURITÉ : passer USE_TABBED_HOME à false rétablit l'ancien
+// accueil (liste plate des 10 tuiles) en un seul changement.
+// =============================================================
+private const val USE_TABBED_HOME = true
+
+private enum class HomeGroup(val title: String, val desc: String) {
+    SITE("SUR SITE", "En arrivant chez le client"),
+    INTERV("INTERVENTION", "Le cœur du chantier"),
+    FIN("FIN DE CYCLE", "La paperasse mensuelle")
+}
+
+private data class HomeTile(
+    val number: String,
+    val label: String,
+    val sub: String,
+    val icon: ImageVector,
+    val start: Color,
+    val end: Color,
+    val accent: Color,
+    val group: HomeGroup,
+    val liveValue: String? = null,
+    val liveLabel: String? = null,
+    val pulse: Boolean = false,
+    val onClick: () -> Unit
+)
+
+// Couleur de remplissage (onglet actif / barre) et teinte claire (titre) par groupe.
+private fun groupFill(g: HomeGroup): Color = when (g) {
+    HomeGroup.SITE -> Color(0xFFC026D3)
+    HomeGroup.INTERV -> Color(0xFF7C3AED)
+    HomeGroup.FIN -> Color(0xFF15803D)
+}
+
+private fun groupTint(g: HomeGroup): Color = when (g) {
+    HomeGroup.SITE -> Color(0xFFEBA9F6)
+    HomeGroup.INTERV -> Color(0xFFCBB6FB)
+    HomeGroup.FIN -> Color(0xFF86EFAC)
+}
+
+// Couleur du pictogramme quand l'onglet est inactif (identité du groupe).
+private fun groupDot(g: HomeGroup): Color = when (g) {
+    HomeGroup.SITE -> Color(0xFFC026D3)
+    HomeGroup.INTERV -> Color(0xFF8B5CF6)
+    HomeGroup.FIN -> Color(0xFF22C55E)
+}
+
+@Composable
+private fun HomeTabs(
+    selected: HomeGroup,
+    onSelect: (HomeGroup) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF12141B))
+            .border(1.dp, Color(0xFF2A2F3C), RoundedCornerShape(14.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        HomeTabItem(Modifier.weight(1f), "Sur site", Icons.Outlined.PinDrop,
+            HomeGroup.SITE, selected == HomeGroup.SITE) { onSelect(HomeGroup.SITE) }
+        HomeTabItem(Modifier.weight(1f), "Intervention", Icons.Outlined.Build,
+            HomeGroup.INTERV, selected == HomeGroup.INTERV) { onSelect(HomeGroup.INTERV) }
+        HomeTabItem(Modifier.weight(1f), "Fin de cycle", Icons.Outlined.EventAvailable,
+            HomeGroup.FIN, selected == HomeGroup.FIN) { onSelect(HomeGroup.FIN) }
+    }
+}
+
+@Composable
+private fun HomeTabItem(
+    modifier: Modifier,
+    label: String,
+    icon: ImageVector,
+    group: HomeGroup,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (active) groupFill(group) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (active) Color.White else groupDot(group),
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(group: HomeGroup, count: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(5.dp)
+                .height(34.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(groupFill(group))
+        )
+        Spacer(Modifier.width(11.dp))
+        Column {
+            Text(
+                text = group.title,
+                color = groupTint(group),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = "${group.desc} · $count actions",
+                color = TextMid,
+                fontSize = 11.sp
+            )
+        }
+    }
 }

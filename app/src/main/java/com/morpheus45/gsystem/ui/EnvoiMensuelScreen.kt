@@ -101,7 +101,9 @@ fun EnvoiMensuelScreen(
         }
     }
 
-    val (defaultStart, defaultEnd) = DateUtil.cyclePeriod(DateUtil.today(), settings.cycleStartDay)
+    val (defaultStart, defaultEnd) = DateUtil.currentCycle(
+        DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
+    )
 
     // Dates Du / Au : initialisées sur la période partagée (Temps/Frais), modifiables
     // ici aussi. Toute saisie valide est propagée aux autres écrans via onPeriodChange.
@@ -332,7 +334,7 @@ fun EnvoiMensuelScreen(
             if (!hasCompteurPhoto) {
                 Text(
                     "⛔ Envoi bloqué : aucune photo compteur sur la période. " +
-                    "Prends la photo du compteur (tuile COMPTEUR) avant d'envoyer le mensuel.",
+                    "Prends-la avec le bouton « Photo du compteur » ci-dessus avant d'envoyer le mensuel.",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.error,
@@ -447,6 +449,10 @@ fun EnvoiMensuelScreen(
                                 mimeType = "*/*"
                             )
                             status = "Email préparé avec ${attachments.size} pièce(s) jointe(s). Choisis ton app email et envoie."
+
+                            // Cycle glissant : mémorise la date de cet envoi. Le prochain
+                            // cycle démarrera le LENDEMAIN (aucun blanc, aucun chevauchement).
+                            settingsStore.update { it.copy(lastEnvoiDateIso = DateUtil.today().toString()) }
 
                             // Copie du mail (corps + pièces jointes) sur le Drive partagé,
                             // dans Sauvegardes G-Systems / <nom> / <AAAA-MM>/. Non bloquant.
