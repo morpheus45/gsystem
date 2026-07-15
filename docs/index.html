@@ -192,86 +192,62 @@
   <!-- ============ ACCUEIL ============ -->
   <h2><span class="ico">🏠</span>Ton écran d'accueil</h2>
 
-  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">10 tuiles, une couleur par fonction. Chaque tuile affiche un compteur en direct.</p>
+  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">Les 10 tuiles sont rangées en <b>3 onglets</b> selon le moment de la journée. En haut, ton <b>taux de NR</b> et l'état de <b>synchro Drive</b> en direct.</p>
 
   <div class="center-img">
-    <svg viewBox="0 0 340 992" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems avec ses 10 tuiles">
+    <svg viewBox="0 0 340 536" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems : badge NR, onglets et les tuiles de la section Sur site">
       <defs>
         <linearGradient id="tArrivee" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C026D3"/><stop offset="1" stop-color="#4a0e4e"/></linearGradient>
         <linearGradient id="tAttente" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A5CF6"/><stop offset="1" stop-color="#312160"/></linearGradient>
-        <linearGradient id="tTechline" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#26235c"/></linearGradient>
-        <linearGradient id="tCloture" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#2c1854"/></linearGradient>
-        <linearGradient id="tPv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14B8A6"/><stop offset="1" stop-color="#0b4a44"/></linearGradient>
-        <linearGradient id="tCamera" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9168F0"/><stop offset="1" stop-color="#3a2a6e"/></linearGradient>
-        <linearGradient id="tCourrier" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#23265c"/></linearGradient>
-        <linearGradient id="tRecap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B82F6"/><stop offset="1" stop-color="#143257"/></linearGradient>
-        <linearGradient id="tFrais" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06B6D4"/><stop offset="1" stop-color="#073a45"/></linearGradient>
-        <linearGradient id="tEnvoi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22C55E"/><stop offset="1" stop-color="#0c3d22"/></linearGradient>
+        <linearGradient id="tTechline" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#3a2170"/></linearGradient>
       </defs>
-      <rect x="2" y="2" width="336" height="988" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
-      <text x="24" y="52" fill="#f4f4f0" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800"><tspan fill="#ee2322">g</tspan>systems</text>
+      <rect x="2" y="2" width="336" height="532" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
       <g font-family="Segoe UI, Arial, sans-serif">
-        <rect x="22" y="76" width="296" height="82" rx="18" fill="url(#tArrivee)"/>
-        <circle cx="64" cy="117" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="125" text-anchor="middle" font-size="21">📍</text>
-        <text x="100" y="111" fill="#fff" font-size="17" font-weight="800">ARRIVÉE SUR SITE</text>
-        <text x="100" y="132" fill="#ffffff" fill-opacity="0.82" font-size="11">Heure + appel techline</text>
-        <rect x="22" y="166" width="296" height="82" rx="18" fill="url(#tAttente)"/>
-        <circle cx="64" cy="207" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="215" text-anchor="middle" font-size="21">⏱️</text>
-        <text x="100" y="201" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
-        <text x="100" y="222" fill="#ffffff" fill-opacity="0.82" font-size="11">Procédure + heure de début</text>
-        <rect x="22" y="256" width="296" height="82" rx="18" fill="url(#tTechline)"/>
-        <circle cx="64" cy="297" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="305" text-anchor="middle" font-size="21">📞</text>
-        <text x="100" y="291" fill="#fff" font-size="17" font-weight="800">APPEL TECHLINE</text>
-        <text x="100" y="312" fill="#ffffff" fill-opacity="0.82" font-size="11">Rappeler sans repointer</text>
-        <rect x="22" y="346" width="296" height="82" rx="18" fill="url(#tCloture)"/>
-        <circle cx="64" cy="387" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="395" text-anchor="middle" font-size="21">📋</text>
-        <text x="100" y="381" fill="#fff" font-size="17" font-weight="800">CLÔTURE</text>
-        <text x="100" y="402" fill="#ffffff" fill-opacity="0.82" font-size="11">Intervention + Viber</text>
-        <text x="302" y="392" text-anchor="end" fill="#fff" font-size="15" font-weight="700">12</text>
-        <rect x="22" y="436" width="296" height="82" rx="18" fill="url(#tPv)"/>
-        <circle cx="64" cy="477" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="485" text-anchor="middle" font-size="21">📝</text>
-        <text x="100" y="471" fill="#fff" font-size="17" font-weight="800">PV CAMÉRAS</text>
-        <text x="100" y="492" fill="#ffffff" fill-opacity="0.82" font-size="11">Procès-verbal signé + mail client</text>
-        <rect x="22" y="526" width="296" height="82" rx="18" fill="url(#tCamera)"/>
-        <circle cx="64" cy="567" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="575" text-anchor="middle" font-size="21">🎥</text>
-        <text x="100" y="561" fill="#fff" font-size="17" font-weight="800">DEMANDE CAMÉRA</text>
-        <text x="100" y="582" fill="#ffffff" fill-opacity="0.82" font-size="11">Demande de rappel caméra(s)</text>
-        <rect x="22" y="616" width="296" height="82" rx="18" fill="url(#tCourrier)"/>
-        <circle cx="64" cy="657" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="665" text-anchor="middle" font-size="21">✉️</text>
-        <text x="100" y="651" fill="#fff" font-size="17" font-weight="800">COURRIER</text>
-        <text x="100" y="672" fill="#ffffff" fill-opacity="0.82" font-size="11">« courrier ok »</text>
-        <rect x="22" y="706" width="296" height="82" rx="18" fill="url(#tRecap)"/>
-        <circle cx="64" cy="747" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="755" text-anchor="middle" font-size="21">📊</text>
-        <text x="100" y="741" fill="#fff" font-size="17" font-weight="800">RÉCAP GESTE CO</text>
-        <text x="100" y="762" fill="#ffffff" fill-opacity="0.82" font-size="11">Primes du cycle · PDF</text>
-        <rect x="22" y="796" width="296" height="82" rx="18" fill="url(#tFrais)"/>
-        <circle cx="64" cy="837" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="845" text-anchor="middle" font-size="21">🧾</text>
-        <text x="100" y="831" fill="#fff" font-size="17" font-weight="800">TICKETS DE FRAIS</text>
-        <text x="100" y="852" fill="#ffffff" fill-opacity="0.82" font-size="11">Photos + TVA auto</text>
-        <text x="302" y="842" text-anchor="end" fill="#fff" font-size="15" font-weight="700">4</text>
-        <rect x="22" y="886" width="296" height="82" rx="18" fill="url(#tEnvoi)"/>
-        <circle cx="64" cy="927" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="935" text-anchor="middle" font-size="21">📤</text>
-        <text x="100" y="921" fill="#fff" font-size="17" font-weight="800">ENVOI MENSUEL</text>
-        <text x="100" y="942" fill="#ffffff" fill-opacity="0.82" font-size="11">Excel + PDF + photos</text>
-        <circle cx="300" cy="904" r="5" fill="#ff5da2"/>
+        <rect x="296" y="16" width="28" height="28" rx="9" fill="#16171e" stroke="#23232c" stroke-width="1"/>
+        <text x="310" y="37" text-anchor="middle" font-size="15">⚙️</text>
+        <text x="22" y="33" fill="#7A8094" font-size="10" letter-spacing="1">G-S · FR / 054</text>
+        <circle cx="196" cy="29.5" r="3" fill="#4ADE80"/>
+        <text x="204" y="33" fill="#4ADE80" font-size="9" font-weight="700" letter-spacing="1">SYNCHRONISÉ</text>
+        <rect x="22" y="46" width="294" height="34" rx="9" fill="#123524"/>
+        <text x="34" y="68" fill="#4ADE80" font-size="10.5" font-weight="700">NR TECH 4,8 % ✓ · BRUT 23,8 % · 21 INST</text>
+        <line x1="22" y1="96" x2="316" y2="96" stroke="#23232c" stroke-width="1"/>
+        <text x="22" y="121" font-size="18" font-weight="800"><tspan fill="#ee2322">g</tspan><tspan fill="#f4f4f0">systems</tspan></text>
+        <circle cx="25" cy="136" r="3" fill="#4ADE80"/>
+        <text x="35" y="140" fill="#B8BECC" font-size="10" letter-spacing="0.5">MOREL · CYCLE 21/06 → 20/07</text>
+        <rect x="22" y="154" width="294" height="48" rx="13" fill="#12141b" stroke="#2a2f3c" stroke-width="1"/>
+        <rect x="25" y="157" width="92" height="42" rx="10" fill="#C026D3"/>
+        <text x="71" y="180" text-anchor="middle" font-size="15">📍</text>
+        <text x="71" y="195" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">Sur site</text>
+        <text x="167" y="180" text-anchor="middle" font-size="15">🔧</text>
+        <text x="167" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Intervention</text>
+        <text x="263" y="180" text-anchor="middle" font-size="15">📅</text>
+        <text x="263" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Fin de cycle</text>
+        <rect x="22" y="214" width="5" height="30" rx="3" fill="#C026D3"/>
+        <text x="36" y="227" font-size="15" font-weight="800" fill="#EBA9F6" letter-spacing="1">SUR SITE</text>
+        <text x="36" y="241" font-size="10" fill="#9AA0B0">En arrivant chez le client · 3 actions</text>
+        <rect x="22" y="252" width="294" height="82" rx="18" fill="url(#tArrivee)"/>
+        <circle cx="64" cy="293" r="21" fill="#ffffff" fill-opacity="0.18"/>
+        <text x="64" y="301" text-anchor="middle" font-size="21">📍</text>
+        <text x="100" y="287" fill="#fff" font-size="17" font-weight="800">ARRIVÉE SUR SITE</text>
+        <text x="100" y="308" fill="#ffffff" fill-opacity="0.82" font-size="11">Note l'heure + appelle la techline</text>
+        <rect x="22" y="342" width="294" height="82" rx="18" fill="url(#tAttente)"/>
+        <circle cx="64" cy="383" r="21" fill="#ffffff" fill-opacity="0.18"/>
+        <text x="64" y="391" text-anchor="middle" font-size="21">⏱️</text>
+        <text x="100" y="377" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
+        <text x="100" y="398" fill="#ffffff" fill-opacity="0.82" font-size="11">Heure début + note l'arrivée</text>
+        <rect x="22" y="432" width="294" height="82" rx="18" fill="url(#tTechline)"/>
+        <circle cx="64" cy="473" r="21" fill="#ffffff" fill-opacity="0.18"/>
+        <text x="64" y="481" text-anchor="middle" font-size="21">📞</text>
+        <text x="100" y="467" fill="#fff" font-size="17" font-weight="800">APPEL TECHLINE</text>
+        <text x="100" y="488" fill="#ffffff" fill-opacity="0.82" font-size="11">Appel direct de la techline</text>
       </g>
     </svg>
-    <div class="cap">Le pip rose sur ENVOI MENSUEL = fin de cycle proche.</div>
+    <div class="cap">Les 10 tuiles sont rangées en <b>3 onglets</b> (Sur site · Intervention · Fin de cycle). En haut : ton taux de NR et le voyant de synchro Drive — <b style="color:#4ADE80">vert quand tout est remonté</b>.</div>
   </div>
 
   <div class="tiles">
     <div class="tile-row"><div class="dot" style="background:#fbe2fe">📍</div><div class="tx"><b>ARRIVÉE SUR SITE</b><span>En arrivant chez le client : un appui <b>note ton heure d'arrivée</b> et <b>appelle la techline</b>. Cette heure devient le <b>début</b> de ta prochaine clôture. Appui par erreur ? Ré-appuie → <b>Annuler l'arrivée</b> ou <b>Repointer</b>.</span></div></div>
-    <div class="tile-row"><div class="dot" style="background:#eee9fe">⏱️</div><div class="tx"><b>ATTENTE CLIENT</b><span>Viber « procédure + heure de début ». Rappel perso : rappeler toutes les 15 min jusqu'au feu vert de la techline.</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#eee9fe">⏱️</div><div class="tx"><b>ATTENTE CLIENT</b><span>Viber « procédure + heure de début », et <b>note aussi ton heure d'arrivée</b> (comme « Arrivée sur site ») si tu n'as pas déjà pointé. Rappel perso : rappeler toutes les 15 min jusqu'au feu vert de la techline.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#dbeffb">📞</div><div class="tx"><b>APPEL TECHLINE</b><span>Un appui = <b>appel direct de la techline</b>, comme sur « Arrivée sur site » — mais <b>sans repointer ton heure ni envoyer de Viber</b>. Sert à <b>rappeler la techline</b> quand tu es déjà sur place (relance, complément d'info) sans modifier ton pointage.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#ede9fe">📋</div><div class="tx"><b>CLÔTURE</b><span>Saisir une intervention (date, client, ville, <b>N° d'intervention</b>, observation OK/NR…) → Viber pré-rempli. Pour une <b>installation</b> : en plus le N° de site + <b>GESTE CO</b> (extensions), au même endroit. L'<b>heure de fin</b> se note toute seule à l'enregistrement.</span></div></div>
     <div class="tile-row"><div class="dot" style="background:#d7f5f0">📝</div><div class="tx"><b>PV CAMÉRAS</b><span>Remplis le <b>procès-verbal d'installation caméras</b> : infos client, montants, cases à cocher. Fais <b>signer le client ET le technicien à l'écran</b>. À la validation, le <b>PDF signé part par mail au client</b> (adresse pré-remplie). Ensuite, va dans tes <b>mails envoyés</b>, <b>imprime le PDF pour l'envoyer immédiatement à EPS</b>, puis <b>efface le mail</b>.</span></div></div>
