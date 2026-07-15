@@ -200,16 +200,16 @@ fun HomeScreen(
 
         HairlineDivider()
 
-        // ============ HEADER WORDMARK + identite
+        // ============ HEADER LOGO + identite (logo compact = plus de place aux tuiles)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "G-SYSTEMS",
-                style = MaterialTheme.typography.displayLarge,
-                color = TextHi
+            BrandLogoMini(
+                modifier = Modifier
+                    .height(30.dp)
+                    .width(120.dp)
             )
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

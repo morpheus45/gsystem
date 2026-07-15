@@ -57,6 +57,50 @@ private fun shootDx(ms: Float): Float {
     }
 }
 
+// =============================================================
+// BrandLogoMini — version STATIQUE et compacte du logo (G rouge +
+// « systems » blanc), pour les en-têtes. Aligné à gauche, le
+// contenu se dimensionne sur la hauteur du Canvas fourni.
+// =============================================================
+@Composable
+fun BrandLogoMini(modifier: Modifier = Modifier) {
+    val textPaint = remember {
+        Paint().apply {
+            isAntiAlias = true
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        }
+    }
+    Canvas(modifier = modifier) {
+        val vh = 200f
+        val scale = size.height / vh
+        fun px(x: Float) = x * scale
+        fun py(y: Float) = y * scale
+        val g = Path().apply {
+            moveTo(px(158f), py(58f))
+            quadraticBezierTo(px(158f), py(38f), px(138f), py(38f))
+            lineTo(px(62f), py(38f))
+            quadraticBezierTo(px(38f), py(38f), px(38f), py(62f))
+            lineTo(px(38f), py(138f))
+            quadraticBezierTo(px(38f), py(162f), px(62f), py(162f))
+            lineTo(px(138f), py(162f))
+            quadraticBezierTo(px(162f), py(162f), px(162f), py(138f))
+            lineTo(px(162f), py(108f))
+            lineTo(px(112f), py(108f))
+        }
+        drawPath(
+            g, RED,
+            style = Stroke(
+                width = 30f * scale,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round
+            )
+        )
+        textPaint.textSize = 62f * scale
+        textPaint.color = WHITE.toArgb()
+        drawIntoCanvas { it.nativeCanvas.drawText("systems", px(178f), py(128f), textPaint) }
+    }
+}
+
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     val progress = remember { Animatable(0f) }
