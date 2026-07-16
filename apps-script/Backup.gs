@@ -30,6 +30,12 @@ function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
     if (p.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
+
+    // --- Chat tech <-> bureau (pas d'upload de fichier) ---
+    if (p.action === 'chat_send')     return chatSend_(p.tech, 'tech', p.text);
+    if (p.action === 'chat_fetch')    return chatFetch_(p.tech);
+    if (p.action === 'chat_markRead') return chatMarkRead_(p.tech, 'tech', Number(p.upTo) || 0);
+
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
     const monthFolder = getOrCreateFolder(userFolder, sanitize(p.month || 'sans-date'));
@@ -247,6 +253,101 @@ function getOrCreateFolder(parent, name) {
 }
 function sanitize(s) { return String(s).replace(/[\/\\:*?"<>|]/g, '_').trim().slice(0, 80) || 'x'; }
 function json(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
+
+// ============ CHAT tech <-> bureau ============
+// Stockage : une feuille Google Sheet « _gsystem_chat » (onglet "messages")
+// rangée dans le dossier des sauvegardes. Colonnes : id, tech, from, text, ts,
+// readTech, readBureau.
+const CHAT_SHEET_NAME = '_gsystem_chat';
+
+function getChatSheet_() {
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  let ss;
+  const it = root.getFilesByName(CHAT_SHEET_NAME);
+  if (it.hasNext()) {
+    ss = SpreadsheetApp.openById(it.next().getId());
+  } else {
+    ss = SpreadsheetApp.create(CHAT_SHEET_NAME);
+    const f = DriveApp.getFileById(ss.getId());
+    root.addFile(f); DriveApp.getRootFolder().removeFile(f);
+  }
+  let sh = ss.getSheetByName('messages');
+  if (!sh) {
+    sh = ss.getSheets()[0];
+    sh.setName('messages');
+    sh.getRange(1, 1, 1, 7).setValues([['id', 'tech', 'from', 'text', 'ts', 'readTech', 'readBureau']]);
+  }
+  return sh;
+}
+
+function chatSend_(tech, from, text) {
+  tech = sanitize(tech); text = String(text || '').slice(0, 4000);
+  if (!tech || !text) return json({ ok: false, error: 'empty' });
+  const sh = getChatSheet_();
+  const now = Date.now();
+  const last = sh.getLastRow() > 1 ? Number(sh.getRange(sh.getLastRow(), 1).getValue()) : 0;
+  const id = Math.max(now, last + 1);   // id strictement croissant
+  const who = (from === 'bureau') ? 'bureau' : 'tech';
+  sh.appendRow([id, tech, who, text, now, who === 'tech', who === 'bureau']);
+  return json({ ok: true, id: id });
+}
+
+function chatFetch_(tech) {
+  tech = sanitize(tech);
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  const out = [];
+  if (n > 1) {
+    const rows = sh.getRange(2, 1, n - 1, 5).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][1]) === tech) {
+        out.push({ id: Number(rows[i][0]), from: String(rows[i][2]), text: String(rows[i][3]), ts: Number(rows[i][4]) });
+      }
+    }
+  }
+  return json({ ok: true, messages: out });
+}
+
+function chatMarkRead_(tech, who, upTo) {
+  tech = sanitize(tech);
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  if (n > 1) {
+    const rows = sh.getRange(2, 1, n - 1, 7).getValues();
+    const col = (who === 'bureau') ? 7 : 6;        // readBureau / readTech
+    const other = (who === 'bureau') ? 'tech' : 'bureau';
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i][1]) === tech && String(rows[i][2]) === other && Number(rows[i][0]) <= upTo) {
+        sh.getRange(i + 2, col).setValue(true);
+      }
+    }
+  }
+  return json({ ok: true });
+}
+
+// --- Fonctions appelées par le tableau de bord (google.script.run) ---
+function boChatList() {
+  // Retourne, par tech, le dernier message + le nombre de non-lus côté bureau.
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  const map = {};
+  if (n > 1) {
+    const rows = sh.getRange(2, 1, n - 1, 7).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      const tech = String(rows[i][1]);
+      if (!map[tech]) map[tech] = { tech: tech, lastText: '', lastTs: 0, unread: 0 };
+      map[tech].lastText = String(rows[i][3]); map[tech].lastTs = Number(rows[i][4]);
+      if (String(rows[i][2]) === 'tech' && rows[i][6] !== true) map[tech].unread++;
+    }
+  }
+  return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.lastTs - a.lastTs; });
+}
+function boChatFetch(tech) {
+  const r = chatFetch_(tech);
+  return JSON.parse(r.getContent());
+}
+function boChatSend(tech, text) { chatSend_(tech, 'bureau', text); return { ok: true }; }
+function boChatMarkRead(tech, upTo) { chatMarkRead_(tech, 'bureau', Number(upTo) || 0); return { ok: true }; }
 
 const DASHBOARD_HTML = `
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
@@ -523,5 +624,35 @@ setInterval(function(){
     google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();
   }).getInactiveTechs();
 },60000);
-</script></body></html>
+</script>
+<button id="chatFab" onclick="chatToggle()" style="position:fixed;right:18px;bottom:18px;z-index:30;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#062036;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)">&#128172;<span id="chatFabBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;line-height:20px"></span></button>
+<div id="chatPanel" style="display:none;position:fixed;right:18px;bottom:84px;z-index:30;width:340px;max-width:calc(100vw - 24px);height:460px;max-height:calc(100vh - 120px);background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.6)">
+  <div style="background:var(--blue);color:#062036;padding:11px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center">Messagerie techniciens<span onclick="chatToggle()" style="cursor:pointer;font-size:18px">&#10005;</span></div>
+  <div id="chatTechs" style="display:flex;gap:6px;padding:9px 10px;overflow-x:auto;border-bottom:1px solid var(--line);background:#0f1117"></div>
+  <div id="chatThread" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+  <div id="chatReply" style="display:none;gap:8px;padding:9px 10px;border-top:1px solid var(--line);background:var(--card2)">
+    <input id="chatInput" type="text" placeholder="Répondre…" onkeydown="if(event.key==='Enter')chatSend()" style="flex:1;background:#14161d;border:1px solid var(--line);border-radius:9px;padding:8px 11px;color:var(--hi);font-size:13px">
+    <button onclick="chatSend()" style="background:var(--blue);color:#062036;border:none;border-radius:9px;padding:0 14px;font-weight:700;font-size:13px;cursor:pointer">Envoyer</button>
+  </div>
+</div>
+<script>
+var CHAT={tech:null,list:[]};
+function chatToggle(){var p=document.getElementById('chatPanel');var open=p.style.display==='none';p.style.display=open?'flex':'none';if(open)chatLoadList();}
+function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function chatHm(ts){var d=new Date(Number(ts||0));function z(n){return(n<10?'0':'')+n;}return z(d.getHours())+':'+z(d.getMinutes());}
+function chatLoadList(){google.script.run.withSuccessHandler(chatRenderList).boChatList();}
+function chatRenderList(list){CHAT.list=list||[];var tot=0,h='';for(var i=0;i<CHAT.list.length;i++){var t=CHAT.list[i];tot+=t.unread;var sel=(t.tech===CHAT.tech);h+='<span onclick="chatOpenIdx('+i+')" style="cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:16px;border:1px solid var(--line);'+(sel?'background:var(--blue);color:#062036':'background:var(--card2);color:var(--mid)')+'">'+esc2(t.tech)+(t.unread>0?' <b style="background:var(--red);color:#fff;font-size:9px;border-radius:8px;padding:1px 5px">'+t.unread+'</b>':'')+'</span>';}
+document.getElementById('chatTechs').innerHTML=h||'<span style="color:var(--low);font-size:12px">Aucun message</span>';
+var b=document.getElementById('chatFabBadge');if(tot>0){b.style.display='block';b.textContent=tot>9?'9+':tot;}else{b.style.display='none';}
+if(CHAT.tech)chatLoadThread();}
+function chatOpenIdx(i){var t=CHAT.list[i];if(t){CHAT.tech=t.tech;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}}
+function chatLoadThread(){if(CHAT.tech)google.script.run.withSuccessHandler(chatRenderThread).boChatFetch(CHAT.tech);}
+function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(function(a,b){return a.id-b.id;});var h='',maxId=0;for(var i=0;i<msgs.length;i++){var m=msgs[i];maxId=Math.max(maxId,Number(m.id));var mine=(m.from==='bureau');h+='<div style="align-self:'+(mine?'flex-end':'flex-start')+';max-width:80%;padding:8px 11px;font-size:12.5px;border-radius:14px;'+(mine?'background:var(--blue);color:#062036;border-bottom-right-radius:4px':'background:var(--card2);color:#E6E8EE;border-bottom-left-radius:4px')+'">'+esc2(m.text)+'<div style="font-size:9px;margin-top:3px;opacity:.7">'+esc2(mine?'Bureau':CHAT.tech)+' &middot; '+chatHm(m.ts)+'</div></div>';}
+var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien</div>';th.scrollTop=th.scrollHeight;
+if(maxId>0)google.script.run.boChatMarkRead(CHAT.tech,maxId);}
+function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CHAT.tech,t);}
+setInterval(function(){var p=document.getElementById('chatPanel');if(p&&p.style.display!=='none')chatLoadList();},12000);
+chatLoadList();
+</script>
+</body></html>
 `;
