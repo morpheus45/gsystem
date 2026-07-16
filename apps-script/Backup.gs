@@ -528,9 +528,11 @@ function setGJour(v){GJOUR=v;apply();}
 //  - NR périm. tech = NR client + NR technique / total installations (attendu <= 8%)
 function nrRates(list){
   var inst=(list||[]).filter(function(c){return String(c.type||'').toUpperCase()==='INST';});
-  var tot=inst.length; if(!tot) return null;
-  var brut=inst.filter(function(c){return (c.obs||'OK')!=='OK';}).length;
-  var tech=inst.filter(function(c){var o=c.obs||'';return o==='NR client'||o==='NR technique';}).length;
+  // « Réalisées » = installations hors annulées.
+  var real=inst.filter(function(c){return (c.obs||'')!=='Annulé';});
+  var tot=real.length; if(!tot) return null;
+  var brut=real.filter(function(c){return (c.obs||'OK')!=='OK';}).length;
+  var tech=real.filter(function(c){var o=c.obs||'';return o==='NR client'||o==='NR technique';}).length;
   return {tot:tot, brut:Math.round(brut/tot*1000)/10, tech:Math.round(tech/tot*1000)/10};
 }
 function nrBadge(list){
