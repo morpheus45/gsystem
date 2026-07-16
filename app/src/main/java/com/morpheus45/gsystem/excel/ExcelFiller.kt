@@ -191,7 +191,13 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             "NR_AUTRES" -> "NR AUTRES"
             else -> ""
         }
-        return listOf(codeLabel, e.observations).filter { it.isNotBlank() }.joinToString(" - ")
+        val retardLabel = when (e.motifRetard) {
+            "ADRESSE" -> "RETARD : PROBLÈME ADRESSE"
+            "ATTENTE" -> "RETARD : ATTENTE CLIENT"
+            "AUTRE" -> "RETARD : " + e.retardTexte.ifBlank { "AUTRE" }
+            else -> ""
+        }
+        return listOf(codeLabel, retardLabel, e.observations).filter { it.isNotBlank() }.joinToString(" - ")
     }
 
     private fun cellOf(row: org.apache.poi.ss.usermodel.Row, col: Int) =
