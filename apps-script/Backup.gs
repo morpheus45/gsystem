@@ -528,12 +528,15 @@ function setGJour(v){GJOUR=v;apply();}
 //  - NR périm. tech = NR client + NR technique / total installations (attendu <= 8%)
 function nrRates(list){
   var inst=(list||[]).filter(function(c){return String(c.type||'').toUpperCase()==='INST';});
-  // « Réalisées » = installations hors annulées.
-  var real=inst.filter(function(c){return (c.obs||'')!=='Annulé';});
+  // Base « réalisées » = OK + NR client + NR technique (hors annulées + clients absents).
+  var real=inst.filter(function(c){var o=c.obs||'OK';return o==='OK'||o==='NR client'||o==='NR technique';});
   var tot=real.length; if(!tot) return null;
-  var brut=real.filter(function(c){return (c.obs||'OK')!=='OK';}).length;
   var tech=real.filter(function(c){var o=c.obs||'';return o==='NR client'||o==='NR technique';}).length;
-  return {tot:tot, brut:Math.round(brut/tot*1000)/10, tech:Math.round(tech/tot*1000)/10};
+  // Brut : tous incidents (hors annulées) / installations tentées.
+  var tented=inst.filter(function(c){return (c.obs||'')!=='Annulé';});
+  var brutN=tented.filter(function(c){return (c.obs||'OK')!=='OK';}).length;
+  var brut=tented.length?Math.round(brutN/tented.length*1000)/10:0;
+  return {tot:tot, brut:brut, tech:Math.round(tech/tot*1000)/10};
 }
 function nrBadge(list){
   var r=nrRates(list); if(!r) return '';

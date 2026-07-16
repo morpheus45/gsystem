@@ -139,20 +139,29 @@ fun HomeScreen(
     val sumFrais   = store.frais.filter { isThisCycle(it.date) }.sumOf { it.montantEur }
     val countCompt = store.compteur.count { isThisCycle(it.date) }
 
-    // Taux de NR sur les INSTALLATIONS RÉALISÉES du cycle (hors annulées).
-    //  - périmètre tech = (NR client + NR technique) / installations réalisées (attendu <= 8%)
-    //  - brut = toutes les non réalisées (tous NR) / installations réalisées
-    val instCycle = store.temps.filter {
-        isThisCycle(it.date) && it.typeMission.equals("INST", ignoreCase = true)
+    // Taux de NR évalué sur le MOIS CIVIL (1 → fin de mois), comme le responsable
+    // (et non sur le cycle).
+    //  - base « réalisées » = OK + NR client + NR technique (on retire annulées + clients absents)
+    //  - taux tech = (NR client + NR technique) / réalisées (attendu <= 8%)
+    //  - brut = tous incidents (hors annulées) / installations tentées
+    fun isThisMonth(dateIso: String): Boolean = runCatching {
+        val d = LocalDate.parse(dateIso)
+        d.year == today.year && d.monthValue == today.monthValue
+    }.getOrDefault(false)
+    val monthInst = store.temps.filter {
+        isThisMonth(it.date) && it.typeMission.equals("INST", ignoreCase = true)
     }
-    // « Réalisées » = installations qui ont bien eu lieu → on retire les annulées.
-    val instReal = instCycle.filter { it.observationType != "ANNULE" }
+    val instReal = monthInst.filter {
+        it.observationType.isBlank() ||
+            it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE"
+    }
     val instTot = instReal.size
     val nrTechPct: Double? = if (instTot > 0)
         instReal.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / instTot
     else null
-    val nrBrutPct: Double = if (instTot > 0)
-        instReal.count { it.observationType.isNotBlank() } * 100.0 / instTot else 0.0
+    val monthTented = monthInst.filter { it.observationType != "ANNULE" }
+    val nrBrutPct: Double = if (monthTented.isNotEmpty())
+        monthTented.count { it.observationType.isNotBlank() } * 100.0 / monthTented.size else 0.0
 
     // Pip ambre ENVOI MENSUEL : on s'allume dans les 3 derniers jours du cycle
     // (au lieu du seuil fixe day >= 18 — plus precis et coherent avec cycleEnd)
