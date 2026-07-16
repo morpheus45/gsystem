@@ -65,9 +65,9 @@ object StatsUploader {
                     else -> "OK"
                 }
                 val motif = when (t.motifRetard) {
-                    "PERSO" -> "Retard perso"
-                    "ATTENTE" -> "Attente client"
-                    "ADRESSE" -> "Adresse difficile"
+                    "ADRESSE" -> "Retard : problème adresse"
+                    "ATTENTE" -> "Retard : attente client"
+                    "AUTRE" -> "Retard : " + t.retardTexte.ifBlank { "autre" }
                     else -> ""
                 }
                 clotures.put(JSONObject()

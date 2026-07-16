@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.Switch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -170,6 +171,7 @@ fun TempsScreen(
         AddTempsDialog(
             settings = settings,
             existing = null,
+            otherCloturesDates = store.temps.map { it.date }.toSet(),
             onDismiss = { showAdd = false },
             onSave = { entry, geste, alsoShareViber ->
                 scope.launch {
@@ -195,6 +197,7 @@ fun TempsScreen(
         AddTempsDialog(
             settings = settings,
             existing = e,
+            otherCloturesDates = store.temps.filter { it.id != e.id }.map { it.date }.toSet(),
             onDismiss = { editingEntry = null },
             onSave = { updated, _, alsoShareViber ->
                 scope.launch { repo.updateTemps(updated) }
@@ -331,9 +334,9 @@ private fun TempsCard(
                     else -> ""
                 }
                 val motifTxt = when (entry.motifRetard) {
-                    "PERSO" -> "Retard perso"
-                    "ATTENTE" -> "Attente client"
-                    "ADRESSE" -> "Adresse difficile"
+                    "ADRESSE" -> "Retard : problème adresse"
+                    "ATTENTE" -> "Retard : attente client"
+                    "AUTRE" -> "Retard : " + entry.retardTexte.ifBlank { "autre" }
                     else -> ""
                 }
                 val fullObs = listOf(obsTxt, motifTxt, entry.observations).filter { it.isNotBlank() }.joinToString(" · ")
@@ -374,6 +377,7 @@ private fun reqLabel(text: String, required: Boolean): @Composable () -> Unit = 
 private fun AddTempsDialog(
     settings: AppSettings,
     existing: TempsEntry?,
+    otherCloturesDates: Set<String> = emptySet(),
     onDismiss: () -> Unit,
     onSave: (entry: TempsEntry, geste: GesteCoEntry?, alsoShareViber: Boolean) -> Unit
 ) {
@@ -398,6 +402,8 @@ private fun AddTempsDialog(
     var obsType by remember { mutableStateOf(existing?.observationType ?: "") }
     var obs by remember { mutableStateOf(existing?.observations ?: "") }
     var motifRetard by remember { mutableStateOf(existing?.motifRetard ?: "") }
+    var retardTexte by remember { mutableStateOf(existing?.retardTexte ?: "") }
+    var retardOn by remember { mutableStateOf(existing?.motifRetard?.isNotBlank() == true) }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
     val defaultSlot = existing?.slotMidi?.takeIf { it.isNotBlank() }
@@ -410,6 +416,8 @@ private fun AddTempsDialog(
     val extras = rememberInstallExtrasState()
 
     val isWholeDay = type in WHOLE_DAY_TYPES
+    // Retard : proposé UNIQUEMENT sur la 1ère clôture du jour (aucune autre à cette date).
+    val isFirstOfDay = date !in otherCloturesDates
 
     // Validation des champs obligatoires
     val dateOk = date.isNotBlank()
@@ -432,7 +440,8 @@ private fun AddTempsDialog(
     val tempEntry = TempsEntry(
         id = "", date = date, departement = dept, typeMission = effectiveType,
         nomClient = nom, ville = ville, numeroIntervention = numero,
-        observationType = obsType, observations = obs, motifRetard = motifRetard,
+        observationType = obsType, observations = obs,
+        motifRetard = motifRetard, retardTexte = retardTexte,
         heures = 0.0
     )
     val preview = ViberSender.buildMessage(tempEntry)
@@ -633,33 +642,63 @@ private fun AddTempsDialog(
                             singleLine = false,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            "Motif du retard (optionnel)",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF9AA0B0)
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(
-                                "PERSO" to "Perso",
-                                "ATTENTE" to "Attente client",
-                                "ADRESSE" to "Adresse"
-                            ).forEach { (code, lbl) ->
-                                val sel = motifRetard == code
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            if (sel) ColorTemps else ColorTemps.copy(alpha = 0.12f),
-                                            RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { motifRetard = if (sel) "" else code }
-                                        .padding(horizontal = 10.dp, vertical = 7.dp)
-                                ) {
-                                    Text(
-                                        lbl, fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (sel) Color.White else ColorTemps
+                        // Retard : uniquement sur la 1ère clôture du jour.
+                        if (isFirstOfDay) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "Retard sur la 1ère intervention ?",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Switch(
+                                    checked = retardOn,
+                                    onCheckedChange = {
+                                        retardOn = it
+                                        if (!it) { motifRetard = ""; retardTexte = "" }
+                                    }
+                                )
+                            }
+                            if (retardOn) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "Cause du retard",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color(0xFF9AA0B0)
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    listOf(
+                                        "ADRESSE" to "Problème adresse",
+                                        "ATTENTE" to "Attente client",
+                                        "AUTRE" to "Autre"
+                                    ).forEach { (code, lbl) ->
+                                        val sel = motifRetard == code
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    if (sel) ColorTemps else ColorTemps.copy(alpha = 0.12f),
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { motifRetard = code }
+                                                .padding(horizontal = 10.dp, vertical = 7.dp)
+                                        ) {
+                                            Text(
+                                                lbl, fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = if (sel) Color.White else ColorTemps
+                                            )
+                                        }
+                                    }
+                                }
+                                if (motifRetard == "AUTRE") {
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedTextField(
+                                        value = retardTexte,
+                                        onValueChange = { retardTexte = it.uppercase() },
+                                        label = { Text("Explication du retard") },
+                                        singleLine = false,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
@@ -727,6 +766,7 @@ private fun AddTempsDialog(
                     observationType = obsType,
                     observations = obs.trim(),
                     motifRetard = motifRetard,
+                    retardTexte = retardTexte.trim(),
                     slotMidi = slot,
                     heures = 0.0,
                     // Nouvelle clôture : début = arrivée pointée (si présente), fin = maintenant.
