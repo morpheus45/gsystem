@@ -20,6 +20,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -73,6 +76,7 @@ fun ChatScreen(
     val messages by ChatStore.messages.collectAsState()
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val tech = settings.nomUtilisateur
 
@@ -122,6 +126,13 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour", tint = Color.White)
+                    }
+                },
+                actions = {
+                    if (messages.isNotEmpty()) {
+                        IconButton(onClick = { confirmDelete = true }) {
+                            Icon(Icons.Outlined.DeleteOutline, "Supprimer la conversation", tint = Color.White)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -203,6 +214,25 @@ fun ChatScreen(
                 items(messages, key = { it.id }) { m -> Bubble(m) }
             }
         }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Supprimer la conversation ?") },
+            text = { Text("Tout le fil avec le bureau sera effacé des deux côtés. Action irréversible.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    scope.launch {
+                        if (ChatApi.deleteConversation(tech)) ChatStore.refresh(tech)
+                    }
+                }) { Text("Supprimer", color = Color(0xFFFF6B6B)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Annuler") }
+            }
+        )
     }
 }
 

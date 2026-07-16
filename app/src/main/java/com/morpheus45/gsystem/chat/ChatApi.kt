@@ -69,6 +69,16 @@ object ChatApi {
         }.getOrDefault(emptyList())
     }
 
+    /** Supprime toute la conversation du technicien (des deux côtés). */
+    suspend fun deleteConversation(tech: String): Boolean {
+        if (tech.isBlank()) return false
+        val p = JSONObject()
+            .put("token", BackupConfig.TOKEN)
+            .put("action", "chat_delete")
+            .put("tech", tech)
+        return post(p)?.contains("\"ok\":true") == true
+    }
+
     /** Marque comme lus (côté tech) les messages jusqu'à `upToId` inclus. */
     suspend fun markRead(tech: String, upToId: Long): Boolean {
         if (tech.isBlank() || upToId <= 0L) return false

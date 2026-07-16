@@ -64,12 +64,18 @@ object StatsUploader {
                     "ANNULE" -> "Annulé"
                     else -> "OK"
                 }
+                val motif = when (t.motifRetard) {
+                    "PERSO" -> "Retard perso"
+                    "ATTENTE" -> "Attente client"
+                    "ADRESSE" -> "Adresse difficile"
+                    else -> ""
+                }
                 clotures.put(JSONObject()
                     .put("date", t.date).put("type", t.typeMission)
                     .put("client", t.nomClient).put("ville", t.ville)
                     .put("dept", t.departement)
                     .put("num", t.numeroIntervention).put("obs", obs)
-                    .put("note", t.observations)
+                    .put("note", t.observations).put("motif", motif)
                     .put("hDebut", t.heureDebut).put("hFin", t.heureFin))
             }
 

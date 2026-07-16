@@ -139,18 +139,20 @@ fun HomeScreen(
     val sumFrais   = store.frais.filter { isThisCycle(it.date) }.sumOf { it.montantEur }
     val countCompt = store.compteur.count { isThisCycle(it.date) }
 
-    // Taux de NR sur les INSTALLATIONS du cycle (comme le back-office).
-    //  - périmètre tech = NR CLIENT + NR TECHNIQUE / total installations (attendu <= 8%)
-    //  - brut = toutes non réalisées (NR + annulé) / total installations
+    // Taux de NR sur les INSTALLATIONS RÉALISÉES du cycle (hors annulées).
+    //  - périmètre tech = (NR client + NR technique) / installations réalisées (attendu <= 8%)
+    //  - brut = toutes les non réalisées (tous NR) / installations réalisées
     val instCycle = store.temps.filter {
         isThisCycle(it.date) && it.typeMission.equals("INST", ignoreCase = true)
     }
-    val instTot = instCycle.size
+    // « Réalisées » = installations qui ont bien eu lieu → on retire les annulées.
+    val instReal = instCycle.filter { it.observationType != "ANNULE" }
+    val instTot = instReal.size
     val nrTechPct: Double? = if (instTot > 0)
-        instCycle.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / instTot
+        instReal.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / instTot
     else null
     val nrBrutPct: Double = if (instTot > 0)
-        instCycle.count { it.observationType.isNotBlank() } * 100.0 / instTot else 0.0
+        instReal.count { it.observationType.isNotBlank() } * 100.0 / instTot else 0.0
 
     // Pip ambre ENVOI MENSUEL : on s'allume dans les 3 derniers jours du cycle
     // (au lieu du seuil fixe day >= 18 — plus precis et coherent avec cycleEnd)
@@ -258,7 +260,7 @@ fun HomeScreen(
                     com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
                 liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
                 onClick = onArrivee),
-            HomeTile("02", "ATTENTE CLIENT", "Viber heure début · rappel /15 min",
+            HomeTile("02", "ATTENTE CLIENT", "Note l'arrivée · motif à la clôture",
                 Icons.Outlined.Timer, AttenteStart, AttenteEnd, AttenteAccent, HomeGroup.SITE,
                 onClick = onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
