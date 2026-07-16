@@ -38,6 +38,7 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
+import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
 import com.morpheus45.gsystem.ui.PvCameraScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
@@ -240,6 +241,19 @@ fun AppNav() {
         }
     }
 
+    // Chat tech ↔ bureau : poll léger du fil pendant que l'app est ouverte,
+    // pour alimenter le badge « non-lu » de l'accueil (l'écran Chat poll plus vite).
+    val chatMessages by com.morpheus45.gsystem.chat.ChatStore.messages.collectAsState()
+    val chatUnread = chatMessages.count { it.from == "bureau" && it.id > settings.chatLastReadId }
+    LaunchedEffect(settings.isReady, settings.nomUtilisateur) {
+        if (!BackupConfig.isConfigured || !settings.isReady ||
+            settings.nomUtilisateur.isBlank()) return@LaunchedEffect
+        while (true) {
+            com.morpheus45.gsystem.chat.ChatStore.refresh(settings.nomUtilisateur)
+            kotlinx.coroutines.delay(20_000)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
@@ -247,6 +261,8 @@ fun AppNav() {
                 settings = settings,
                 store = store,
                 synced = driveSynced,
+                chatUnread = chatUnread,
+                onChat = { navController.navigate("chat") },
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
@@ -361,6 +377,13 @@ fun AppNav() {
                 settingsStore = settingsStore,
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("chat") {
+            ChatScreen(
+                settings = settings,
+                settingsStore = settingsStore,
                 onBack = { navController.popBackStack() }
             )
         }

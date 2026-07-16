@@ -294,6 +294,8 @@ data class AppSettings(
      * retombe sur le cycle fixe basé sur `cycleStartDay`.
      */
     val lastEnvoiDateIso: String = "",
+    /** Plus grand id de message chat déjà lu par le tech (pour le badge non-lu). */
+    val chatLastReadId: Long = 0L,
     val firstRunDone: Boolean = false
 ) {
     // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis

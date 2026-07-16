@@ -50,6 +50,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
@@ -102,6 +105,8 @@ fun HomeScreen(
     settings: AppSettings,
     store: EntriesStore,
     synced: Boolean = false,
+    chatUnread: Int = 0,
+    onChat: () -> Unit = {},
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
     onTemps: () -> Unit,
@@ -170,7 +175,11 @@ fun HomeScreen(
                 statusText = if (synced) "SYNCHRONISÉ" else "OPERATIONNEL",
                 color = if (synced) Success else Signal
             )
-            HairlineSettingsIcon(onClick = onSettings)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ChatBell(unread = chatUnread, onClick = onChat)
+                Spacer(Modifier.width(10.dp))
+                HairlineSettingsIcon(onClick = onSettings)
+            }
         }
 
         // ============ TAUX NR (installations du cycle) — vert si <= 8%, rouge sinon
@@ -380,6 +389,47 @@ private fun groupDot(g: HomeGroup): Color = when (g) {
     HomeGroup.SITE -> Color(0xFFC026D3)
     HomeGroup.INTERV -> Color(0xFF8B5CF6)
     HomeGroup.FIN -> Color(0xFF22C55E)
+}
+
+// Icône messagerie dans l'en-tête + pastille rouge du nombre de non-lus.
+@Composable
+private fun ChatBell(unread: Int, onClick: () -> Unit) {
+    Box {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF12141B))
+                .border(1.dp, Color(0xFF2F3340), RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ChatBubbleOutline,
+                contentDescription = "Messages",
+                tint = TextMid,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+        if (unread > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 5.dp, y = (-5).dp)
+                    .size(17.dp)
+                    .clip(CircleShape)
+                    .background(Signal),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (unread > 9) "9+" else unread.toString(),
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
 }
 
 @Composable
