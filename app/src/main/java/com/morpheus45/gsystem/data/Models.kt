@@ -23,6 +23,8 @@ data class TempsEntry(
     /** "" | "NR_CLIENT" | "NR_TECHNIQUE" | "NR_CLIENT_ABS" | "NR_AUTRES". Vide = "ok" en Viber. */
     val observationType: String = "",
     val observations: String = "",
+    /** Motif d'un retard éventuel (petite note) : "" | "PERSO" | "ATTENTE" | "ADRESSE". */
+    val motifRetard: String = "",
     /** "MATIN" ou "APREM" — utilisé pour le calcul auto des heures. "" pour les entrées historiques. */
     val slotMidi: String = "",
     val heures: Double = 8.0,

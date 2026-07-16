@@ -35,6 +35,7 @@ function doPost(e) {
     if (p.action === 'chat_send')     return chatSend_(p.tech, 'tech', p.text);
     if (p.action === 'chat_fetch')    return chatFetch_(p.tech);
     if (p.action === 'chat_markRead') return chatMarkRead_(p.tech, 'tech', Number(p.upTo) || 0);
+    if (p.action === 'chat_delete')   return chatDelete_(p.tech);
 
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
@@ -137,7 +138,7 @@ function makeCloturesExcel(from, to) {
       const base = name; let k = 2; while (used[name]) { name = base.slice(0, 92) + ' ' + k; k++; } used[name] = true;
       const sh = ss.insertSheet(name);
       const rows = clo.map(function (c) {
-        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.dept || ''), String(c.num || ''), c.obs || '', c.note || ''];
+        return [c.date || '', c.hDebut || '', c.hFin || '', durHM(c.hDebut, c.hFin), c.type || '', c.client || '', c.ville || '', String(c.dept || ''), String(c.num || ''), c.obs || '', (c.motif ? '[' + c.motif + '] ' : '') + (c.note || '')];
       });
       sh.getRange(1, 1, rows.length + 1, header.length).setNumberFormat('@');   // tout en texte : dates, heures et N° lisibles (pas de notation scientifique)
       sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
@@ -325,6 +326,19 @@ function chatMarkRead_(tech, who, upTo) {
   return json({ ok: true });
 }
 
+function chatDelete_(tech) {
+  tech = sanitize(tech);
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  if (n > 1) {
+    const col = sh.getRange(2, 2, n - 1, 1).getValues();   // colonne B = tech
+    for (let i = col.length - 1; i >= 0; i--) {
+      if (String(col[i][0]) === tech) sh.deleteRow(i + 2);
+    }
+  }
+  return json({ ok: true });
+}
+
 // --- Fonctions appelées par le tableau de bord (google.script.run) ---
 function boChatList() {
   // Retourne, par tech, le dernier message + le nombre de non-lus côté bureau.
@@ -348,6 +362,7 @@ function boChatFetch(tech) {
 }
 function boChatSend(tech, text) { chatSend_(tech, 'bureau', text); return { ok: true }; }
 function boChatMarkRead(tech, upTo) { chatMarkRead_(tech, 'bureau', Number(upTo) || 0); return { ok: true }; }
+function boChatDelete(tech) { chatDelete_(tech); return { ok: true }; }
 
 const DASHBOARD_HTML = `
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
@@ -494,7 +509,7 @@ function aggregate(techs){
     s.repartition.forEach(function(x){rep[x.type]=(rep[x.type]||0)+x.count;});
     s.primesParType.forEach(function(x){if(!pri[x.type])pri[x.type]={type:x.type,qty:0,total:0};pri[x.type].qty+=x.qty;pri[x.type].total+=x.total;});
     (s.fraisList||[]).forEach(function(f){fl.push(f);});
-    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,dept:c.dept,num:c.num,obs:c.obs,note:c.note,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
+    s.clotures.forEach(function(c){clo.push({date:c.date,type:c.type,client:c.client,ville:c.ville,dept:c.dept,num:c.num,obs:c.obs,note:c.note,motif:c.motif,hDebut:c.hDebut,hFin:c.hFin,tech:s.tech});});});
   g.repartition=Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;});
   g.primesParType=Object.keys(pri).map(function(k){return pri[k];}).sort(function(a,b){return b.total-a.total;});
   g.clotures=clo;g.fraisList=fl;return g;}
@@ -505,7 +520,7 @@ function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
   var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+esc(c.note)+'</td></tr>';}).join('');
+  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
   return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
 function setGJour(v){GJOUR=v;apply();}
 // Taux de NR sur les INSTALLATIONS uniquement (type INST).
@@ -627,7 +642,7 @@ setInterval(function(){
 </script>
 <button id="chatFab" onclick="chatToggle()" style="position:fixed;right:18px;bottom:18px;z-index:30;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#062036;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)">&#128172;<span id="chatFabBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;line-height:20px"></span></button>
 <div id="chatPanel" style="display:none;position:fixed;right:18px;bottom:84px;z-index:30;width:340px;max-width:calc(100vw - 24px);height:460px;max-height:calc(100vh - 120px);background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.6)">
-  <div style="background:var(--blue);color:#062036;padding:11px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center">Messagerie techniciens<span onclick="chatToggle()" style="cursor:pointer;font-size:18px">&#10005;</span></div>
+  <div style="background:var(--blue);color:#062036;padding:11px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center">Messagerie techniciens<span style="display:flex;gap:12px;align-items:center"><span onclick="chatDelete()" title="Supprimer la conversation" style="cursor:pointer;font-size:15px">&#128465;</span><span onclick="chatToggle()" style="cursor:pointer;font-size:18px">&#10005;</span></span></div>
   <div id="chatTechs" style="display:flex;gap:6px;padding:9px 10px;overflow-x:auto;border-bottom:1px solid var(--line);background:#0f1117"></div>
   <div id="chatThread" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
   <div id="chatReply" style="display:none;gap:8px;padding:9px 10px;border-top:1px solid var(--line);background:var(--card2)">
@@ -651,6 +666,7 @@ function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(func
 var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien</div>';th.scrollTop=th.scrollHeight;
 if(maxId>0)google.script.run.boChatMarkRead(CHAT.tech,maxId);}
 function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CHAT.tech,t);}
+function chatDelete(){var t=CHAT.tech;if(!t)return;if(!confirm('Supprimer toute la conversation avec '+t+' ? Action irreversible.'))return;google.script.run.withSuccessHandler(function(){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();}).boChatDelete(t);}
 setInterval(function(){var p=document.getElementById('chatPanel');if(p&&p.style.display!=='none')chatLoadList();},12000);
 chatLoadList();
 </script>

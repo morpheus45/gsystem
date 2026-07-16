@@ -258,7 +258,7 @@ fun HomeScreen(
                     com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
                 liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
                 onClick = onArrivee),
-            HomeTile("02", "ATTENTE CLIENT", "Viber heure début · rappel /15 min",
+            HomeTile("02", "ATTENTE CLIENT", "Note l'arrivée · motif à la clôture",
                 Icons.Outlined.Timer, AttenteStart, AttenteEnd, AttenteAccent, HomeGroup.SITE,
                 onClick = onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",

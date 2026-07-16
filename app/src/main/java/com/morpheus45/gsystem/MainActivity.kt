@@ -270,15 +270,22 @@ fun AppNav() {
                 onAttenteClient = {
                     // Note l'heure d'arrivée comme la tuile 01, si aucune arrivée
                     // n'est déjà en attente (ne jamais écraser un pointage existant).
+                    // N'envoie plus de Viber : note seulement l'heure d'arrivée (si
+                    // aucune n'est déjà pointée). Le motif du retard se renseigne à
+                    // la clôture (Perso / Attente client / Adresse).
                     if (settings.pendingArrivalMs <= 0L) {
                         val now = System.currentTimeMillis()
                         scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+                        android.widget.Toast.makeText(
+                            context, "Arrivée notée : ${DateUtil.hm(now)}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        android.widget.Toast.makeText(
+                            context, "Arrivée déjà notée à ${DateUtil.hm(settings.pendingArrivalMs)}",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
-                    android.widget.Toast.makeText(
-                        context, ViberSender.ATTENTE_RAPPEL_TECH,
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                    ViberSender.share(context, ViberSender.attenteClientMessage())
                 },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onSettings = { navController.navigate("settings") }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
@@ -329,7 +330,13 @@ private fun TempsCard(
                     "ANNULE" -> "ANNULÉ"
                     else -> ""
                 }
-                val fullObs = listOf(obsTxt, entry.observations).filter { it.isNotBlank() }.joinToString(" · ")
+                val motifTxt = when (entry.motifRetard) {
+                    "PERSO" -> "Retard perso"
+                    "ATTENTE" -> "Attente client"
+                    "ADRESSE" -> "Adresse difficile"
+                    else -> ""
+                }
+                val fullObs = listOf(obsTxt, motifTxt, entry.observations).filter { it.isNotBlank() }.joinToString(" · ")
                 if (fullObs.isNotBlank()) {
                     Text(fullObs, fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error)
@@ -390,6 +397,7 @@ private fun AddTempsDialog(
     var numero by remember { mutableStateOf(existing?.numeroIntervention ?: "") }
     var obsType by remember { mutableStateOf(existing?.observationType ?: "") }
     var obs by remember { mutableStateOf(existing?.observations ?: "") }
+    var motifRetard by remember { mutableStateOf(existing?.motifRetard ?: "") }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
     val defaultSlot = existing?.slotMidi?.takeIf { it.isNotBlank() }
@@ -424,7 +432,7 @@ private fun AddTempsDialog(
     val tempEntry = TempsEntry(
         id = "", date = date, departement = dept, typeMission = effectiveType,
         nomClient = nom, ville = ville, numeroIntervention = numero,
-        observationType = obsType, observations = obs,
+        observationType = obsType, observations = obs, motifRetard = motifRetard,
         heures = 0.0
     )
     val preview = ViberSender.buildMessage(tempEntry)
@@ -625,6 +633,37 @@ private fun AddTempsDialog(
                             singleLine = false,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Motif du retard (optionnel)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFF9AA0B0)
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(
+                                "PERSO" to "Perso",
+                                "ATTENTE" to "Attente client",
+                                "ADRESSE" to "Adresse"
+                            ).forEach { (code, lbl) ->
+                                val sel = motifRetard == code
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            if (sel) ColorTemps else ColorTemps.copy(alpha = 0.12f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { motifRetard = if (sel) "" else code }
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                ) {
+                                    Text(
+                                        lbl, fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (sel) Color.White else ColorTemps
+                                    )
+                                }
+                            }
+                        }
                     } else {
                         OutlinedTextField(
                             value = obs, onValueChange = { obs = it.uppercase() },
@@ -687,6 +726,7 @@ private fun AddTempsDialog(
                     numeroIntervention = numero.trim(),
                     observationType = obsType,
                     observations = obs.trim(),
+                    motifRetard = motifRetard,
                     slotMidi = slot,
                     heures = 0.0,
                     // Nouvelle clôture : début = arrivée pointée (si présente), fin = maintenant.
