@@ -172,7 +172,7 @@ fun AppNav() {
                 runCatching { zip.delete() }
                 bytes
             }
-            val month = DateUtil.today().toString().take(7)
+            val month = cycleEnd.toString().take(7)
             // Nom FIXE : chaque sauvegarde écrase la précédente (pas d'accumulation).
             val ok = BackupUploader.uploadBytes(
                 settings.nomUtilisateur, month, "sauvegarde-complete.zip",
@@ -327,7 +327,7 @@ fun AppNav() {
                             runCatching { zip.delete() }
                             bytes
                         }
-                        val month = DateUtil.today().toString().take(7)
+                        val month = cycleEnd.toString().take(7)
                         BackupUploader.uploadBytes(settings.nomUtilisateur, month,
                             "sauvegarde-complete.zip", "application/zip", zipBytes)
                     }
