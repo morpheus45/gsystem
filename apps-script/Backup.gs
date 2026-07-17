@@ -415,6 +415,9 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .empty,.empty2{color:var(--low);font-size:13px;padding:14px 0}
 .empty{text-align:center;padding:34px}
 .ctab{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
+.cflt{display:flex;gap:6px;margin:2px 0 0;flex-wrap:wrap}
+.cflt select,.cflt input{background:var(--card2);color:var(--hi);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
+.cflt input{flex:1;min-width:120px}
 .clt{width:100%;border-collapse:collapse;font-size:12.5px}
 .clt th,.clt td{padding:5px 9px;border-bottom:1px solid #1e212a;text-align:left;white-space:nowrap}
 .clt thead th{position:sticky;top:0;background:var(--card2);color:var(--mid);font-size:11px}
@@ -460,7 +463,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};
+var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};var CTID=0;
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
@@ -519,9 +522,14 @@ function dur(a,b){if(!a||!b)return '';var pa=a.split(':'),pb=b.split(':');if(pa.
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
+  var types={},obss={};
+  l.forEach(function(c){if(c.type)types[c.type]=1;obss[c.obs||'OK']=1;});
+  function opts(o,lbl){return '<option value="">'+lbl+'</option>'+Object.keys(o).sort().map(function(k){return '<option>'+esc(k)+'</option>';}).join('');}
+  var bar='<div class="cflt"><select data-k="t" onchange="cltFilter(this)">'+opts(types,'Type : tous')+'</select><select data-k="o" onchange="cltFilter(this)">'+opts(obss,'Obs : toutes')+'</select><input data-k="n" oninput="cltFilter(this)" placeholder="Rechercher un N°…"></div>';
   var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
-  return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
+  var body=l.map(function(c){return '<tr data-t="'+esc(c.type||'')+'" data-o="'+esc(c.obs||'OK')+'" data-n="'+esc(String(c.num||''))+'"><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
+  return '<div class="cbox">'+bar+'<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';}
+function cltFilter(el){var root=el.closest('.cbox');if(!root)return;var t=root.querySelector('[data-k=t]').value;var o=root.querySelector('[data-k=o]').value;var n=(root.querySelector('[data-k=n]').value||'').trim().toLowerCase();var trs=root.querySelectorAll('tbody tr');for(var i=0;i<trs.length;i++){var tr=trs[i];var okT=!t||tr.getAttribute('data-t')===t;var okO=!o||tr.getAttribute('data-o')===o;var okN=!n||(tr.getAttribute('data-n')||'').toLowerCase().indexOf(n)>=0;tr.style.display=(okT&&okO&&okN)?'':'none';}}
 function setGJour(v){GJOUR=v;apply();}
 // Taux de NR sur les INSTALLATIONS uniquement (type INST).
 //  - NR brut       = installations non réalisées (obs != OK) / total installations
