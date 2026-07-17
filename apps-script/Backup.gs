@@ -415,6 +415,9 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .empty,.empty2{color:var(--low);font-size:13px;padding:14px 0}
 .empty{text-align:center;padding:34px}
 .ctab{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:6px}
+.cflt{display:flex;gap:6px;margin:2px 0 0;flex-wrap:wrap}
+.cflt select,.cflt input{background:var(--card2);color:var(--hi);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px}
+.cflt input{flex:1;min-width:120px}
 .clt{width:100%;border-collapse:collapse;font-size:12.5px}
 .clt th,.clt td{padding:5px 9px;border-bottom:1px solid #1e212a;text-align:left;white-space:nowrap}
 .clt thead th{position:sticky;top:0;background:var(--card2);color:var(--mid);font-size:11px}
@@ -460,7 +463,7 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
   <div id="techs"><div class="empty">Chargement…</div></div>
 </div>
 <script>
-var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};
+var DATA=[];var OPEN={};var SEC={};var GJOUR=false;var VIEW='actifs';var INACTIVE={};var CTID=0;
 var COLORS=['#4FA3FF','#26A69A','#EF5350','#FFA726','#AB47BC','#66BB6A','#5C6BC0','#EC407A','#8D6E63','#42A5F5','#FFCA28','#78909C'];
 function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
@@ -500,7 +503,24 @@ function computeTech(T,f,t){
   return {tech:T.tech,interventions:clo.length,tickets:fr.length,
     frais:fr.reduce(function(s,x){return s+remb(x);},0),primes:totP,extensions:totE,fraisList:fr,
     repartition:Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;}),
-    primesParType:ppt,clotures:clo};
+    primesParType:ppt,clotures:clo,allGestes:T.gestes,prices:T.prices};
+}
+function moisNom(m){return ['','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][m]||(''+m);}
+function primesHistorique(s){
+  var ge=s.allGestes||[],pr=s.prices||{};
+  var byMonth={};
+  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var tot=0;for(var k in g.t){tot+=(g.t[k]||0)*((pr[k])||0);}byMonth[m]=(byMonth[m]||0)+tot;});
+  var months=Object.keys(byMonth).filter(function(m){return byMonth[m]>0;}).sort().reverse();
+  if(!months.length)return '<div class="empty2">Aucune prime</div>';
+  var now=new Date(),nowM=now.getFullYear()*12+now.getMonth();
+  var rows=months.map(function(m){
+    var y=parseInt(m.slice(0,4),10),mo=parseInt(m.slice(5,7),10);
+    var payAbs=(y*12+(mo-1))+2,py=Math.floor(payAbs/12),pmo=(payAbs%12)+1;
+    var statut=payAbs<nowM?'Reçue':(payAbs===nowM?'Ce mois':'À recevoir');
+    var col=payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347');
+    return '<tr><td>'+moisNom(mo)+' '+y+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700">'+statut+'</td></tr>';
+  }).join('');
+  return '<div class="ctab"><table class="clt"><thead><tr><th>Mois travaillé</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function aggregate(techs){
   var g={tech:'VUE GLOBALE — tous les techniciens',interventions:0,tickets:0,frais:0,primes:0,extensions:0,repartition:[],primesParType:[],clotures:[]};
@@ -519,9 +539,14 @@ function dur(a,b){if(!a||!b)return '';var pa=a.split(':'),pb=b.split(':');if(pa.
 function cloturesTable(list,withTech){
   if(!list||!list.length)return '<div class="empty2">Aucune clôture sur la période</div>';
   var l=list.slice().sort(function(a,b){return (a.date<b.date)?1:(a.date>b.date)?-1:0;});
+  var types={},obss={};
+  l.forEach(function(c){if(c.type)types[c.type]=1;obss[c.obs||'OK']=1;});
+  function opts(o,lbl){return '<option value="">'+lbl+'</option>'+Object.keys(o).sort().map(function(k){return '<option>'+esc(k)+'</option>';}).join('');}
+  var bar='<div class="cflt"><select data-k="t" onchange="cltFilter(this)">'+opts(types,'Type : tous')+'</select><select data-k="o" onchange="cltFilter(this)">'+opts(obss,'Obs : toutes')+'</select><input data-k="n" oninput="cltFilter(this)" placeholder="Rechercher un N°…"></div>';
   var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
-  return '<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';}
+  var body=l.map(function(c){return '<tr data-t="'+esc(c.type||'')+'" data-o="'+esc(c.obs||'OK')+'" data-n="'+esc(String(c.num||''))+'"><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
+  return '<div class="cbox">'+bar+'<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';}
+function cltFilter(el){var root=el.closest('.cbox');if(!root)return;var t=root.querySelector('[data-k=t]').value;var o=root.querySelector('[data-k=o]').value;var n=(root.querySelector('[data-k=n]').value||'').trim().toLowerCase();var trs=root.querySelectorAll('tbody tr');for(var i=0;i<trs.length;i++){var tr=trs[i];var okT=!t||tr.getAttribute('data-t')===t;var okO=!o||tr.getAttribute('data-o')===o;var okN=!n||(tr.getAttribute('data-n')||'').toLowerCase().indexOf(n)>=0;tr.style.display=(okT&&okO&&okN)?'':'none';}}
 function setGJour(v){GJOUR=v;apply();}
 // Taux de NR sur les INSTALLATIONS uniquement (type INST).
 //  - NR brut       = installations non réalisées (obs != OK) / total installations
@@ -601,6 +626,7 @@ function cardInner(s,glob){
   return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Frais remboursés',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
+    (glob?'':secRow(key,'pav','⏳','Primes à venir (versement +2 mois)','',primesHistorique(s)))+
     secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
     secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){

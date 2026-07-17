@@ -40,6 +40,7 @@ import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
+import com.morpheus45.gsystem.ui.PrimeAVenirScreen
 import com.morpheus45.gsystem.ui.PvCameraScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
 import com.morpheus45.gsystem.ui.FraisScreen
@@ -292,6 +293,7 @@ fun AppNav() {
                     }
                 },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
+                onPrimeAVenir = { navController.navigate("prime_a_venir") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -391,6 +393,13 @@ fun AppNav() {
             ChatScreen(
                 settings = settings,
                 settingsStore = settingsStore,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("prime_a_venir") {
+            PrimeAVenirScreen(
+                settings = settings,
+                store = store,
                 onBack = { navController.popBackStack() }
             )
         }
