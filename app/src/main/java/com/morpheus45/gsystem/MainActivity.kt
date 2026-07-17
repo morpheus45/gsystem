@@ -291,6 +291,13 @@ fun AppNav() {
                             android.widget.Toast.LENGTH_SHORT
                         ).show()
                     }
+                    // Déclenche aussi l'appel de la techline (comme ARRIVÉE / APPEL TECHLINE).
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+                        == PackageManager.PERMISSION_GRANTED) {
+                        placeCall(context, ARRIVAL_PHONE)
+                    } else {
+                        callPermLauncher.launch(Manifest.permission.CALL_PHONE)
+                    }
                 },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onPrimeAVenir = { navController.navigate("prime_a_venir") },
