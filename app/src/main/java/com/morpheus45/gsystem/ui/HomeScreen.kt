@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Savings
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
@@ -117,6 +118,7 @@ fun HomeScreen(
     onCourrier: () -> Unit,
     onAttenteClient: () -> Unit,
     onEnvoiMensuel: () -> Unit,
+    onPrimeAVenir: () -> Unit = {},
     onSettings: () -> Unit
 ) {
     val today = LocalDate.now()
@@ -300,7 +302,10 @@ fun HomeScreen(
             HomeTile("10", "ENVOI MENSUEL", "Excel + tickets + compteur",
                 Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
                 pulse = endOfCycleApproaching,
-                onClick = onEnvoiMensuel)
+                onClick = onEnvoiMensuel),
+            HomeTile("11", "PRIME À VENIR", "Historique · versement à +2 mois",
+                Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
+                onClick = onPrimeAVenir)
         )
 
         if (USE_TABBED_HOME) {

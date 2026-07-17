@@ -503,7 +503,24 @@ function computeTech(T,f,t){
   return {tech:T.tech,interventions:clo.length,tickets:fr.length,
     frais:fr.reduce(function(s,x){return s+remb(x);},0),primes:totP,extensions:totE,fraisList:fr,
     repartition:Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;}),
-    primesParType:ppt,clotures:clo};
+    primesParType:ppt,clotures:clo,allGestes:T.gestes,prices:T.prices};
+}
+function moisNom(m){return ['','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][m]||(''+m);}
+function primesHistorique(s){
+  var ge=s.allGestes||[],pr=s.prices||{};
+  var byMonth={};
+  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var tot=0;for(var k in g.t){tot+=(g.t[k]||0)*((pr[k])||0);}byMonth[m]=(byMonth[m]||0)+tot;});
+  var months=Object.keys(byMonth).filter(function(m){return byMonth[m]>0;}).sort().reverse();
+  if(!months.length)return '<div class="empty2">Aucune prime</div>';
+  var now=new Date(),nowM=now.getFullYear()*12+now.getMonth();
+  var rows=months.map(function(m){
+    var y=parseInt(m.slice(0,4),10),mo=parseInt(m.slice(5,7),10);
+    var payAbs=(y*12+(mo-1))+2,py=Math.floor(payAbs/12),pmo=(payAbs%12)+1;
+    var statut=payAbs<nowM?'Reçue':(payAbs===nowM?'Ce mois':'À recevoir');
+    var col=payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347');
+    return '<tr><td>'+moisNom(mo)+' '+y+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700">'+statut+'</td></tr>';
+  }).join('');
+  return '<div class="ctab"><table class="clt"><thead><tr><th>Mois travaillé</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function aggregate(techs){
   var g={tech:'VUE GLOBALE — tous les techniciens',interventions:0,tickets:0,frais:0,primes:0,extensions:0,repartition:[],primesParType:[],clotures:[]};
@@ -609,6 +626,7 @@ function cardInner(s,glob){
   return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Frais remboursés',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
+    (glob?'':secRow(key,'pav','⏳','Primes à venir (versement +2 mois)','',primesHistorique(s)))+
     secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
     secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){
