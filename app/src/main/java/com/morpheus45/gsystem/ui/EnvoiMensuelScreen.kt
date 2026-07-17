@@ -424,12 +424,30 @@ fun EnvoiMensuelScreen(
                             // (en-tête, répartition TEMPS, tableaux frais + primes), ouvrable
                             // directement sans navigateur — remplace l'ancien fichier .html.
                             runCatching {
+                                // Taux de NR du MOIS CIVIL de fin de cycle (périmètre tech :
+                                // NR client + NR technique / installations réalisées).
+                                val nrMonthInst = store.temps.filter {
+                                    it.typeMission.equals("INST", ignoreCase = true) &&
+                                        runCatching {
+                                            LocalDate.parse(it.date).let { d -> d.year == end.year && d.monthValue == end.monthValue }
+                                        }.getOrDefault(false)
+                                }
+                                val nrReal = nrMonthInst.filter {
+                                    it.observationType.isBlank() ||
+                                        it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE"
+                                }
+                                val nrBase = nrReal.size
+                                val nrPct: Double? = if (nrBase > 0)
+                                    nrReal.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / nrBase
+                                else null
+                                val nrLabel = "${DateUtil.fr(end.withDayOfMonth(1))} → ${DateUtil.fr(end.withDayOfMonth(end.lengthOfMonth()))}"
                                 val recapPdf = PdfExporter.exportMonthlyRecap(
                                     context, settings, start, end,
                                     tempsPeriod.size, tempsByType,
                                     fraisPeriod, totalFraisMontant,
                                     compteurPeriod.size,
-                                    primesByType, totalPrimes, totalExtensions
+                                    primesByType, totalPrimes, totalExtensions,
+                                    nrPct, nrBase, nrLabel
                                 )
                                 attachments.add(recapPdf)
                             }

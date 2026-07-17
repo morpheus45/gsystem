@@ -156,7 +156,10 @@ object PdfExporter {
         compteurCount: Int,
         primesByType: List<Triple<String, Int, Double>>,
         totalPrimes: Double,
-        totalExtensions: Int
+        totalExtensions: Int,
+        nrTechPct: Double?,
+        nrInstReal: Int,
+        nrPeriodLabel: String
     ): File {
         val green = Color.rgb(0x16, 0xA3, 0x4A)  // vert ENVOI lisible sur blanc
         val doc = PdfDocument()
@@ -202,11 +205,25 @@ object PdfExporter {
             b.space(14f)
         }
 
-        // Frais (TTC / HT / TVA)
+        // Taux de NR du MOIS CIVIL (périmètre tech : NR client + NR technique
+        // / installations réalisées). Vert si ≤ 8 %, rouge sinon.
+        if (nrTechPct != null) {
+            val nrOk = nrTechPct <= 8.0
+            val pNr = paint(if (nrOk) green else Color.rgb(0xDC, 0x26, 0x26), 12f, bold = true)
+            b.text(
+                "Taux de NR ($nrPeriodLabel) : ${"%.1f".format(nrTechPct)} %  " +
+                    (if (nrOk) "✓ conforme (≤ 8 %)" else "✗ hors seuil (> 8 %)") +
+                    "  ·  $nrInstReal install. réalisées",
+                pNr, gapBefore = 2f
+            )
+            b.space(14f)
+        }
+
+        // Frais (TTC / HT / TVA / à rembourser)
         if (fraisPeriod.isNotEmpty()) {
             b.text("FRAIS (TVA calculée auto)", pSection, gapBefore = 2f)
-            val cX = floatArrayOf(MARGIN, 130f, 290f, 380f, 470f)
-            b.row(listOf("Date", "Type", "TTC", "HT", "TVA"), cX, pHead, gapBefore = 6f)
+            val cX = floatArrayOf(MARGIN, 115f, 240f, 320f, 400f, 480f)
+            b.row(listOf("Date", "Type", "TTC", "HT", "TVA", "Remb."), cX, pHead, gapBefore = 6f)
             b.hline(pLine)
             fraisPeriod.forEach { t ->
                 val cat = t.categorie.ifBlank { "DIVERS" }
@@ -214,14 +231,18 @@ object PdfExporter {
                 b.row(
                     listOf(t.date, catLabel, eur(t.montantEur),
                         eur(FraisTva.htFromTtc(t.montantEur, cat, t.sansTva)),
-                        eur(FraisTva.tvaFromTtc(t.montantEur, cat, t.sansTva))),
+                        eur(FraisTva.tvaFromTtc(t.montantEur, cat, t.sansTva)),
+                        eur(FraisTva.remboursable(t.montantEur, cat))),
                     cX, pCell, gapBefore = 4f
                 )
             }
             val totalHt = fraisPeriod.sumOf { FraisTva.htFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }, it.sansTva) }
             val totalTva = fraisPeriod.sumOf { FraisTva.tvaFromTtc(it.montantEur, it.categorie.ifBlank { "DIVERS" }, it.sansTva) }
+            val totalRemb = fraisPeriod.sumOf { FraisTva.remboursable(it.montantEur, it.categorie.ifBlank { "DIVERS" }) }
             b.hline(pLine)
-            b.row(listOf("TOTAL", "", eur(totalFraisMontant), eur(totalHt), eur(totalTva)), cX, pCellB, gapBefore = 4f)
+            b.row(listOf("TOTAL", "", eur(totalFraisMontant), eur(totalHt), eur(totalTva), eur(totalRemb)), cX, pCellB, gapBefore = 4f)
+            val pRemb = paint(green, 12f, bold = true)
+            b.text("À REMBOURSER : ${eur(totalRemb)}   (forfait MOBILE : 50 %, plafond 20 €)", pRemb, gapBefore = 6f)
             b.space(14f)
         }
 

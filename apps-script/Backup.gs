@@ -567,10 +567,10 @@ function nrBadge(list){
   var r=nrRates(list); if(!r) return '';
   var ok=r.tech<=8;
   var col=ok?'#4ADE80':'#FF6B6B', bg=ok?'rgba(74,222,128,.14)':'rgba(255,107,107,.16)';
-  return '<span title="Taux de NR sur les installations (INST). Périmètre tech = NR client + NR technique, attendu <= 8%." '+
+  return '<span title="Taux de NR calculé sur la PÉRIODE choisie (Du/Au) — pour un mois civil : Du 1 → Au fin de mois. Base = installations réalisées (OK + NR client + NR technique) ; périmètre tech = NR client + NR technique, attendu <= 8%." '+
     'style="margin-left:8px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;color:'+col+';background:'+bg+'">'+
     'NR tech '+r.tech+'% '+(ok?'✓':'✗')+
-    ' <span style="opacity:.65;font-weight:400">· brut '+r.brut+'% · '+r.tot+' inst.</span></span>';
+    ' <span style="opacity:.65;font-weight:400">· brut '+r.brut+'% · '+r.tot+' réal. · période Du/Au</span></span>';
 }
 // Vue globale : toggle Période / Aujourd'hui + clôtures REGROUPÉES par technicien.
 function globalCloturesBody(list){

@@ -213,8 +213,10 @@ fun HomeScreen(
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "NR TECH ${"%.1f".format(nrTechPct)} %  " + (if (ok) "✓" else "✗") +
-                            "   ·   BRUT ${"%.1f".format(nrBrutPct)} %   ·   $instTot INST",
+                        text = "NR " +
+                            today.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.FRENCH).uppercase() +
+                            " · TECH ${"%.1f".format(nrTechPct)} % " + (if (ok) "✓" else "✗") +
+                            " · BRUT ${"%.1f".format(nrBrutPct)} % · $instTot INST",
                         color = if (ok) Color(0xFF4ADE80) else Color(0xFFFF6B6B),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
