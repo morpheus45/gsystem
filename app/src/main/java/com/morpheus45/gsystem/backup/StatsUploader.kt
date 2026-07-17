@@ -100,7 +100,7 @@ object StatsUploader {
 
             val json = JSONObject().apply {
                 put("tech", settings.nomUtilisateur)
-                put("month", s.take(7))
+                put("month", e.take(7))
                 put("periode", "$s → $e")
                 put("interventions", temps.size)
                 put("tickets", frais.size)
@@ -118,7 +118,7 @@ object StatsUploader {
             }.toString()
 
             BackupUploader.uploadBytes(
-                settings.nomUtilisateur, s.take(7), "_stats.json",
+                settings.nomUtilisateur, e.take(7), "_stats.json",
                 "application/json", json.toByteArray(Charsets.UTF_8)
             )
         }.getOrDefault(false)

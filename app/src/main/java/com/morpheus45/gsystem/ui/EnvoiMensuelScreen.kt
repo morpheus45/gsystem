@@ -454,11 +454,25 @@ fun EnvoiMensuelScreen(
                             // cycle démarrera le LENDEMAIN (aucun blanc, aucun chevauchement).
                             settingsStore.update { it.copy(lastEnvoiDateIso = DateUtil.today().toString()) }
 
-                            // Copie du mail (corps + pièces jointes) sur le Drive partagé,
-                            // dans Sauvegardes G-Systems / <nom> / <AAAA-MM>/. Non bloquant.
+                            // Déclenche la création du dossier Drive du NOUVEAU cycle : on
+                            // dépose un _stats.json (vide) dans le mois de FIN du prochain cycle
+                            // (ex : clôture aujourd'hui → crée le dossier du mois d'après).
                             if (BackupConfig.isConfigured && settings.nomUtilisateur.isNotBlank()) {
                                 runCatching {
-                                    val month = start.toString().take(7)
+                                    val todayIso = DateUtil.today().toString()
+                                    val (ncS, ncE) = DateUtil.currentCycle(
+                                        DateUtil.today().plusDays(1), settings.cycleStartDay, todayIso
+                                    )
+                                    StatsUploader.push(settings, store, ncS, ncE)
+                                }
+                            }
+
+                            // Copie du mail (corps + pièces jointes) sur le Drive partagé,
+                            // dans Sauvegardes G-Systems / <nom> / <AAAA-MM>/ — le dossier
+                            // porte le mois de FIN du cycle (le mois où on clôture). Non bloquant.
+                            if (BackupConfig.isConfigured && settings.nomUtilisateur.isNotBlank()) {
+                                runCatching {
+                                    val month = end.toString().take(7)
                                     BackupUploader.uploadBytes(
                                         settings.nomUtilisateur, month,
                                         "mail-mensuel_${start}.txt", "text/plain",
