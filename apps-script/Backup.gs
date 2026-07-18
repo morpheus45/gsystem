@@ -720,7 +720,7 @@ function buildCard(s,glob){
   if(glob){
     var gopen=!!OPEN['__GLOBAL__'];
     return '<div class="techcard glob"><div class="thh'+(gopen?' open':'')+'" data-tech="__GLOBAL__" onclick="tog(this)">'+
-      '<span class="tn">🌐 '+esc(s.tech)+'</span>'+nrBadge(s.clotures)+'<span class="sm"><span class="chev">▸</span></span></div>'+
+      '<span class="tn">🌐 '+esc(s.tech)+'</span><span class="sm"><span class="chev">▸</span></span></div>'+
       '<div class="cardbody" style="display:'+(gopen?'block':'none')+'">'+cardInner(s,true)+'</div></div>';
   }
   var open=!!OPEN[s.tech];var inactive=!!INACTIVE[s.tech];
