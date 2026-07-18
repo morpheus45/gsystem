@@ -65,6 +65,35 @@ object EmailSender {
         context.startActivity(chooser)
     }
 
+    /** Envoi à PLUSIEURS destinataires principaux (To) + CC, avec une pièce jointe (PDF). */
+    fun sendPdf(
+        context: Context,
+        toList: List<String>,
+        cc: List<String> = emptyList(),
+        subject: String,
+        body: String,
+        attachment: File,
+        chooserTitle: String = "Envoyer via…"
+    ) {
+        val toClean = toList.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+        val ccClean = cc.map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", attachment)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            putExtra(Intent.EXTRA_EMAIL, toClean)
+            if (ccClean.isNotEmpty()) putExtra(Intent.EXTRA_CC, ccClean)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        val chooser = Intent.createChooser(intent, chooserTitle).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(chooser)
+    }
+
     fun send(
         context: Context,
         to: String,

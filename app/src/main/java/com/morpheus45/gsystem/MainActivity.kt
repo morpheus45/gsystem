@@ -40,6 +40,7 @@ import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
+import com.morpheus45.gsystem.ui.CongeScreen
 import com.morpheus45.gsystem.ui.PrimeAVenirScreen
 import com.morpheus45.gsystem.ui.PvCameraScreen
 import com.morpheus45.gsystem.ui.EnvoiMensuelScreen
@@ -301,6 +302,7 @@ fun AppNav() {
                 },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onPrimeAVenir = { navController.navigate("prime_a_venir") },
+                onConge = { navController.navigate("conge") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -407,6 +409,12 @@ fun AppNav() {
             PrimeAVenirScreen(
                 settings = settings,
                 store = store,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("conge") {
+            CongeScreen(
+                settings = settings,
                 onBack = { navController.popBackStack() }
             )
         }

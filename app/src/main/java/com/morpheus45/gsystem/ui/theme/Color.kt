@@ -56,6 +56,11 @@ val GesteStart     = Color(0xFF10B981)
 val GesteEnd       = Color(0xFF0A3025)
 val GesteAccent    = Color(0xFF6EE7B7)
 
+// 12 DEMANDE DE CONGÉ — ambre (repos / soleil), distinct du vert des primes
+val CongeStart     = Color(0xFFF59E0B)
+val CongeEnd       = Color(0xFF3A2606)
+val CongeAccent    = Color(0xFFFCD34D)
+
 // PALETTE CONTINUE violet -> vert : chaque tuile démarre là où la précédente
 // finit (effet « waterfall » sur la pile d'accueil). CLÔTURE reste l'ancrage violet.
 // Ordre accueil : 01 CLÔTURE · 02 DEMANDE CAMERA · 03 ATTENTE · 04 COURRIER ·

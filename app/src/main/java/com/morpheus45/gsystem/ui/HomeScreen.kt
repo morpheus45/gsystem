@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Outbox
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
@@ -68,6 +69,9 @@ import com.morpheus45.gsystem.ui.theme.AttenteStart
 import com.morpheus45.gsystem.ui.theme.CourrierAccent
 import com.morpheus45.gsystem.ui.theme.CourrierEnd
 import com.morpheus45.gsystem.ui.theme.CourrierStart
+import com.morpheus45.gsystem.ui.theme.CongeAccent
+import com.morpheus45.gsystem.ui.theme.CongeEnd
+import com.morpheus45.gsystem.ui.theme.CongeStart
 import com.morpheus45.gsystem.ui.theme.TechlineAccent
 import com.morpheus45.gsystem.ui.theme.TechlineEnd
 import com.morpheus45.gsystem.ui.theme.TechlineStart
@@ -119,6 +123,7 @@ fun HomeScreen(
     onAttenteClient: () -> Unit,
     onEnvoiMensuel: () -> Unit,
     onPrimeAVenir: () -> Unit = {},
+    onConge: () -> Unit = {},
     onSettings: () -> Unit
 ) {
     val today = LocalDate.now()
@@ -307,7 +312,10 @@ fun HomeScreen(
                 onClick = onEnvoiMensuel),
             HomeTile("11", "PRIME À VENIR", "Historique · versement à +2 mois",
                 Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
-                onClick = onPrimeAVenir)
+                onClick = onPrimeAVenir),
+            HomeTile("12", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
+                Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
+                onClick = onConge)
         )
 
         if (USE_TABBED_HOME) {

@@ -110,7 +110,7 @@ class SignatureController {
 }
 
 @Composable
-private fun SignaturePad(controller: SignatureController, modifier: Modifier = Modifier) {
+internal fun SignaturePad(controller: SignatureController, modifier: Modifier = Modifier) {
     Canvas(
         modifier = modifier
             .onSizeChanged { controller.size = it }
