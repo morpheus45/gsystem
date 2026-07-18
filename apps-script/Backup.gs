@@ -503,7 +503,28 @@ function computeTech(T,f,t){
   return {tech:T.tech,interventions:clo.length,tickets:fr.length,
     frais:fr.reduce(function(s,x){return s+remb(x);},0),primes:totP,extensions:totE,fraisList:fr,
     repartition:Object.keys(rep).map(function(k){return{type:k,count:rep[k]};}).sort(function(a,b){return b.count-a.count;}),
-    primesParType:ppt,clotures:clo,allGestes:T.gestes,prices:T.prices};
+    primesParType:ppt,clotures:clo,allGestes:T.gestes,prices:T.prices,allClotures:T.clotures};
+}
+// Taux de NR tech (NR client + NR technique / réalisées) d'un mois "yyyy-MM".
+function nrMonth_(clotures, ym){
+  var inst=(clotures||[]).filter(function(c){return String(c.type||'').toUpperCase()==='INST' && (c.date||'').slice(0,7)===ym;});
+  var real=inst.filter(function(c){var o=c.obs||'OK';return o==='OK'||o==='NR client'||o==='NR technique';});
+  if(!real.length) return null;
+  var tech=real.filter(function(c){var o=c.obs||'';return o==='NR client'||o==='NR technique';}).length;
+  return {tot:real.length, pct:Math.round(tech/real.length*1000)/10};
+}
+// 3 mois civils glissants (mois courant + 2 précédents), du plus ancien au plus récent.
+function nr3moisBody(clotures){
+  var now=new Date(),rows='';
+  for(var i=2;i>=0;i--){
+    var d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    var ym=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);
+    var label=moisNom(d.getMonth()+1)+' '+d.getFullYear();
+    var r=nrMonth_(clotures, ym);
+    if(!r){ rows+='<tr><td>'+label+'</td><td style="color:var(--low)">—</td><td style="color:var(--low)">aucune install.</td></tr>'; }
+    else { var ok=r.pct<=8,col=ok?'#4ADE80':'#FF6B6B'; rows+='<tr><td>'+label+'</td><td style="color:'+col+';font-weight:700">'+r.pct+'% '+(ok?'✓':'✗')+'</td><td>'+r.tot+' réal.</td></tr>'; }
+  }
+  return '<div class="ctab"><table class="clt"><thead><tr><th>Mois</th><th>Taux NR tech</th><th>Base</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function moisNom(m){return ['','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][m]||(''+m);}
 function primesHistorique(s){
@@ -624,13 +645,19 @@ function cardInner(s,glob){
   var n=(s.clotures||[]).length;
   var topType=(s.repartition&&s.repartition.length)?s.repartition[0].type+' '+Math.round(s.repartition[0].count/Math.max(1,s.interventions)*100)+'%':'—';
   return '<div class="chips">'+chip('Interventions',s.interventions||0)+chip('Tickets frais',s.tickets||0)+chip('Frais remboursés',money(s.frais))+chip('Total primes',money(s.primes))+chip('Extensions',s.extensions||0)+'</div>'+
+    (glob?'':secRow(key,'nr3','📉','Évolution NR (3 mois glissants)','',nr3moisBody(s.allClotures)))+
     secRow(key,'rep','📊','Répartition interventions',topType,pie(s.repartition))+
     secRow(key,'pri','💶','Primes par type',money(s.primes),primesTable(s.primesParType))+
     (glob?'':secRow(key,'pav','⏳','Primes à venir (versement +2 mois)','',primesHistorique(s)))+
     secRow(key,'fra','🧾','Détail des frais',money(s.frais)+' remb.',fraisTable(s.fraisList))+
     secRow(key,'clo','📋',glob?'Clôtures par technicien':'Clôtures',n+' clôture'+(n>1?'s':''),glob?globalCloturesBody(s.clotures):cloturesTable(s.clotures,false));}
 function buildCard(s,glob){
-  if(glob){return '<div class="techcard glob"><div class="th">🌐 '+esc(s.tech)+'</div>'+cardInner(s,true)+'</div>';}
+  if(glob){
+    var gopen=!!OPEN['__GLOBAL__'];
+    return '<div class="techcard glob"><div class="thh'+(gopen?' open':'')+'" data-tech="__GLOBAL__" onclick="tog(this)">'+
+      '<span class="tn">🌐 '+esc(s.tech)+'</span>'+nrBadge(s.clotures)+'<span class="sm"><span class="chev">▸</span></span></div>'+
+      '<div class="cardbody" style="display:'+(gopen?'block':'none')+'">'+cardInner(s,true)+'</div></div>';
+  }
   var open=!!OPEN[s.tech];var inactive=!!INACTIVE[s.tech];
   var sm=(s.interventions||0)+' interv · '+((s.clotures||[]).length)+' clôt · '+money(s.primes);
   var btn='<button class="miniBtn'+(inactive?' react':' deact')+'" data-tech="'+esc(s.tech)+'" data-act="'+(inactive?1:0)+'" onclick="setActive(event,this)">'+(inactive?'↩ Réactiver':'🗄 Désactiver')+'</button>';
