@@ -75,6 +75,11 @@ function getAllData() {
   while (users.hasNext()) {
     const u = users.next(); const tname = u.getName();
     if (tname === '_telechargements') continue;
+    // DÉDUP par cycle : un même cycle a pu être écrit dans DEUX dossiers-mois
+    // (décalage historique start/end) -> sans ça tout est compté 2 fois.
+    // On garde, par « periode » (= "s → e", unique par cycle), la version la
+    // plus récente (maj max = snapshot le plus complet).
+    const byPeriode = {};
     const months = u.getFolders();
     while (months.hasNext()) {
       const mf = months.next();
@@ -82,14 +87,20 @@ function getAllData() {
       if (!sIt.hasNext()) continue;
       try {
         const s = JSON.parse(sIt.next().getBlob().getDataAsString('UTF-8'));
-        if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
-        const T = techs[tname];
-        (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
-        (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
-        (s.gestes || []).forEach(function (g) { T.gestes.push(g); });
-        if (s.prices) T.prices = s.prices;
+        const key = s.periode || s.month || mf.getName();
+        const prev = byPeriode[key];
+        if (!prev || (Number(s.maj) || 0) >= (Number(prev.maj) || 0)) byPeriode[key] = s;
       } catch (err) {}
     }
+    Object.keys(byPeriode).forEach(function (key) {
+      const s = byPeriode[key];
+      if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
+      const T = techs[tname];
+      (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
+      (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
+      (s.gestes || []).forEach(function (g) { T.gestes.push(g); });
+      if (s.prices) T.prices = s.prices;
+    });
   }
   return Object.keys(techs).map(function (k) { return techs[k]; })
     .sort(function (a, b) { return String(a.tech).localeCompare(String(b.tech)); });
