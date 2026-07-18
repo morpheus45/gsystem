@@ -153,6 +153,46 @@ function getAllData() {
  */
 function getAllDataStr() { return JSON.stringify(getAllData()); }
 
+/**
+ * Nettoyage : met à la corbeille les vieilles sauvegardes complètes par mois
+ * (sauvegarde-complete.zip), devenues inutiles avec la synchro incrémentale
+ * (donnees.json + photos/). SÉCURITÉ : pour un tech, on ne supprime rien tant
+ * que donnees.json n'existe pas à la racine (preuve que la nouvelle sauvegarde
+ * est en place). À lancer depuis l'éditeur (Exécuter) ; voir le journal.
+ * Récupérable ~30 j via la corbeille Drive.
+ */
+function cleanupOldBackups() {
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const report = [];
+  const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next();
+    if (u.getName() === '_telechargements') continue;
+    const hasNew = u.getFilesByName('donnees.json').hasNext();
+    const photos = u.getFoldersByName('photos');
+    const nbPhotos = photos.hasNext() ? countFiles_(photos.next()) : 0;
+    if (!hasNew) {
+      report.push('⛔ ' + u.getName() + ' : PAS de donnees.json -> on ne touche à RIEN (sync incrémentale pas encore faite).');
+      continue;
+    }
+    let trashed = 0, freed = 0;
+    const months = u.getFolders();
+    while (months.hasNext()) {
+      const mf = months.next();
+      if (mf.getName() === 'photos') continue;
+      const it = mf.getFilesByName('sauvegarde-complete.zip');
+      while (it.hasNext()) { const f = it.next(); freed += f.getSize(); f.setTrashed(true); trashed++; }
+    }
+    report.push('✅ ' + u.getName() + ' : donnees.json OK (' + nbPhotos + ' photos) · ' +
+      trashed + ' zip(s) obsolète(s) corbeille · ~' + Math.round(freed / 1048576) + ' Mo libérés');
+  }
+  const txt = report.join('\n');
+  Logger.log(txt);
+  return txt;
+}
+
+function countFiles_(folder) { let n = 0; const it = folder.getFiles(); while (it.hasNext()) { it.next(); n++; } return n; }
+
 /** ZIP de tous les fichiers dont le mois est dans [from, to] (un sous-dossier par tech/mois). */
 function makeZip(from, to) {
   try {
