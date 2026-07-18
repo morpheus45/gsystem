@@ -43,7 +43,8 @@ fun SettingsScreen(
     onSave: (AppSettings) -> Unit,
     onBack: () -> Unit,
     onCheckUpdate: () -> Unit = {},
-    onSync: suspend () -> String = { "" }
+    onSync: suspend () -> String = { "" },
+    onRestore: suspend () -> String = { "" }
 ) {
     // Destinataires fixes (GS To, EPS To, EPS Cc 1) codés en dur dans AppSettings
     // et masqués ici. Seul le responsable secteur (EPS Cc 2) reste éditable.
@@ -296,7 +297,35 @@ fun SettingsScreen(
                     Text("  Synchroniser tout sur le Drive")
                 }
             }
-            Text("Pousse sur le Drive partagé les stats de TOUS les mois déjà saisis + une sauvegarde complète. Utile une fois pour rattraper l'historique.",
+            Text("Complète la sauvegarde sur le Drive : données fusionnées et photos envoyées une seule fois (rien n'est recréé à chaque fois).",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
+
+            Spacer(Modifier.height(10.dp))
+            var restoring by remember { mutableStateOf(false) }
+            OutlinedButton(
+                onClick = {
+                    if (restoring) return@OutlinedButton
+                    restoring = true
+                    syncScope.launch {
+                        val msg = onRestore()
+                        restoring = false
+                        Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                    }
+                },
+                enabled = !restoring,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (restoring) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Text("  Restauration…")
+                } else {
+                    Icon(Icons.Filled.CloudDownload, contentDescription = null)
+                    Text("  Restaurer depuis le Drive")
+                }
+            }
+            Text("Après une réinstallation : renseigne le même nom qu'avant, puis récupère tes données et photos depuis le Drive (elles complètent le local, sans rien écraser).",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 4.dp))

@@ -37,15 +37,53 @@ function doPost(e) {
     if (p.action === 'chat_markRead') return chatMarkRead_(p.tech, 'tech', Number(p.upTo) || 0);
     if (p.action === 'chat_delete')   return chatDelete_(p.tech);
 
+    // --- Synchro incrémentale (donnees.json + photos) ---
+    if (p.action === 'sync_pull')  return syncPull_(p.user);
+    if (p.action === 'photo_pull') return photoPull_(p.user, p.fileName);
+
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
-    const monthFolder = getOrCreateFolder(userFolder, sanitize(p.month || 'sans-date'));
+    // month '__root__' (ou vide) -> racine du dossier tech ; 'photos' -> sous-dossier photos.
+    const target = (!p.month || p.month === '__root__') ? userFolder
+      : getOrCreateFolder(userFolder, sanitize(p.month));
     const bytes = Utilities.base64Decode(p.dataBase64);
     const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream', p.fileName || 'fichier');
-    const same = monthFolder.getFilesByName(p.fileName || 'fichier');
+    const same = target.getFilesByName(p.fileName || 'fichier');
     while (same.hasNext()) same.next().setTrashed(true);
-    const file = monthFolder.createFile(blob);
+    const file = target.createFile(blob);
     return json({ ok: true, id: file.getId(), name: file.getName() });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/** Restauration : renvoie donnees.json + reglages.json + la liste des photos du tech. */
+function syncPull_(user) {
+  try {
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    function readTxt(folder, name) {
+      const it = folder.getFilesByName(name);
+      return it.hasNext() ? it.next().getBlob().getDataAsString('UTF-8') : '';
+    }
+    const photos = [];
+    const pit = uf.getFoldersByName('photos');
+    if (pit.hasNext()) {
+      const files = pit.next().getFiles();
+      while (files.hasNext()) photos.push(files.next().getName());
+    }
+    return json({ ok: true, entries: readTxt(uf, 'donnees.json'), settings: readTxt(uf, 'reglages.json'), photos: photos });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/** Restauration : renvoie une photo (base64) depuis <tech>/photos/. */
+function photoPull_(user, fileName) {
+  try {
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    const pit = uf.getFoldersByName('photos');
+    if (!pit.hasNext()) return json({ ok: false, error: 'no photos folder' });
+    const files = pit.next().getFilesByName(fileName || '');
+    if (!files.hasNext()) return json({ ok: false, error: 'not found' });
+    return json({ ok: true, dataBase64: Utilities.base64Encode(files.next().getBlob().getBytes()) });
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 
@@ -75,6 +113,11 @@ function getAllData() {
   while (users.hasNext()) {
     const u = users.next(); const tname = u.getName();
     if (tname === '_telechargements') continue;
+    // DÉDUP par cycle : un même cycle a pu être écrit dans DEUX dossiers-mois
+    // (décalage historique start/end) -> sans ça tout est compté 2 fois.
+    // On garde, par « periode » (= "s → e", unique par cycle), la version la
+    // plus récente (maj max = snapshot le plus complet).
+    const byPeriode = {};
     const months = u.getFolders();
     while (months.hasNext()) {
       const mf = months.next();
@@ -82,14 +125,20 @@ function getAllData() {
       if (!sIt.hasNext()) continue;
       try {
         const s = JSON.parse(sIt.next().getBlob().getDataAsString('UTF-8'));
-        if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
-        const T = techs[tname];
-        (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
-        (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
-        (s.gestes || []).forEach(function (g) { T.gestes.push(g); });
-        if (s.prices) T.prices = s.prices;
+        const key = s.periode || s.month || mf.getName();
+        const prev = byPeriode[key];
+        if (!prev || (Number(s.maj) || 0) >= (Number(prev.maj) || 0)) byPeriode[key] = s;
       } catch (err) {}
     }
+    Object.keys(byPeriode).forEach(function (key) {
+      const s = byPeriode[key];
+      if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
+      const T = techs[tname];
+      (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
+      (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
+      (s.gestes || []).forEach(function (g) { T.gestes.push(g); });
+      if (s.prices) T.prices = s.prices;
+    });
   }
   return Object.keys(techs).map(function (k) { return techs[k]; })
     .sort(function (a, b) { return String(a.tech).localeCompare(String(b.tech)); });
@@ -709,7 +758,7 @@ function buildCard(s,glob){
   if(glob){
     var gopen=!!OPEN['__GLOBAL__'];
     return '<div class="techcard glob"><div class="thh'+(gopen?' open':'')+'" data-tech="__GLOBAL__" onclick="tog(this)">'+
-      '<span class="tn">🌐 '+esc(s.tech)+'</span>'+nrBadge(s.clotures)+'<span class="sm"><span class="chev">▸</span></span></div>'+
+      '<span class="tn">🌐 '+esc(s.tech)+'</span><span class="sm"><span class="chev">▸</span></span></div>'+
       '<div class="cardbody" style="display:'+(gopen?'block':'none')+'">'+cardInner(s,true)+'</div></div>';
   }
   var open=!!OPEN[s.tech];var inactive=!!INACTIVE[s.tech];
