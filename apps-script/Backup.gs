@@ -51,6 +51,17 @@ function doPost(e) {
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
+  if (e && e.parameter && e.parameter.debug === 'data') {
+    var t0 = Date.now();
+    try { var d = getAllData(); var s = JSON.stringify(d);
+      return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
+        noms: d.map(function (x) { return x.tech + ':' + (x.clotures || []).length + 'c/' + (x.gestes || []).length + 'g'; }) });
+    } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
+  }
+  if (e && e.parameter && e.parameter.debug === 'full') {
+    try { return json({ ok: true, data: getAllData() }); }
+    catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
+  }
   return HtmlService.createHtmlOutput(DASHBOARD_HTML)
     .setTitle('G-Systems · Espace administratif')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -83,6 +94,15 @@ function getAllData() {
   return Object.keys(techs).map(function (k) { return techs[k]; })
     .sort(function (a, b) { return String(a.tech).localeCompare(String(b.tech)); });
 }
+
+/**
+ * Même données que getAllData(), mais renvoyées en CHAÎNE JSON.
+ * Le sérialiseur natif de google.script.run échoue (« Une erreur inconnue s'est
+ * produite ») sur des graphes d'objets volumineux ou contenant certains
+ * caractères ; renvoyer une string (via JSON.stringify, bien formé) contourne
+ * le bug. Le client fait JSON.parse. À utiliser pour tout appel client.
+ */
+function getAllDataStr() { return JSON.stringify(getAllData()); }
 
 /** ZIP de tous les fichiers dont le mois est dans [from, to] (un sous-dossier par tech/mois). */
 function makeZip(from, to) {
@@ -478,15 +498,16 @@ function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
+function loadErr(e){var tc=document.getElementById('techs');if(tc)tc.innerHTML='<div class="empty">⚠ Erreur de chargement des données :<br><b>'+esc(String((e&&e.message)||e))+'</b><br><small>Réessaie de recharger. Si ça persiste, préviens.</small></div>';}
 function init(){
   google.script.run.withSuccessHandler(function(p){PAID=p||{};if(DATA.length)apply();}).boPrimeGetPaid();
-  google.script.run.withSuccessHandler(function(inact){
+  google.script.run.withFailureHandler(loadErr).withSuccessHandler(function(inact){
     INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
-    google.script.run.withSuccessHandler(function(data){
-      DATA=data||[];
+    google.script.run.withFailureHandler(loadErr).withSuccessHandler(function(data){
+      try{DATA=data?JSON.parse(data):[];}catch(e){return loadErr(e);}
       var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
       setR(iso(f),iso(t));apply();
-    }).getAllData();
+    }).getAllDataStr();
   }).getInactiveTechs();
 }
 function setView(v){VIEW=v;apply();}
@@ -553,7 +574,7 @@ function primesHistorique(s){
     var paid=!!PAID[tech+'|'+m];
     var statut=paid?'Payée ✓':(payAbs<nowM?'Payée':(payAbs===nowM?'À payer ce mois':'À payer'));
     var col=paid?'#4ADE80':(payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347'));
-    var btn='<button class="miniBtn" style="margin-left:8px" onclick="primePaid(\''+tech+'\',\''+m+'\','+(paid?'false':'true')+')">'+(paid?'↩ annuler':'✓ payée')+'</button>';
+    var btn='<button class="miniBtn" style="margin-left:8px" onclick="primePaid(\\''+tech+'\\',\\''+m+'\\','+(paid?'false':'true')+')">'+(paid?'↩ annuler':'✓ payée')+'</button>';
     return '<tr><td>'+perio+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700;white-space:nowrap">'+statut+btn+'</td></tr>';
   }).join('');
   return '<div class="ctab"><table class="clt"><thead><tr><th>Période travaillée</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
@@ -698,7 +719,8 @@ function buildCard(s,glob){
     '<span class="tn">👤 '+esc(s.tech)+'</span>'+nrBadgeApp(s.allClotures)+'<span class="sm">'+btn+' '+sm+' <span class="chev">▸</span></span></div>'+
     '<div class="cardbody" style="display:'+(open?'block':'none')+'">'+cardInner(s,false)+'</div></div>';}
 function tog(el){var t=el.getAttribute('data-tech');OPEN[t]=!OPEN[t];apply();}
-function apply(){
+function apply(){try{applyInner();}catch(err){var tc=document.getElementById('techs');if(tc)tc.innerHTML='<div class="empty">⚠ Erreur d\\'affichage :<br><b>'+esc(String((err&&err.stack)||(err&&err.message)||err))+'</b></div>';}}
+function applyInner(){
   var f=document.getElementById('from').value,t=document.getElementById('to').value;
   var g=document.getElementById('global'),tc=document.getElementById('techs');
   if(!DATA.length){tc.innerHTML='<div class="empty">Aucune donnée pour le moment.</div>';g.innerHTML='';return;}
@@ -727,7 +749,7 @@ function downloadExcel(){var f=document.getElementById('from').value,t=document.
 init();
 setInterval(function(){
   google.script.run.withSuccessHandler(function(inact){INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
-    google.script.run.withSuccessHandler(function(d){DATA=d||[];apply();}).getAllData();
+    google.script.run.withSuccessHandler(function(d){try{DATA=d?JSON.parse(d):[];}catch(e){return;}apply();}).getAllDataStr();
   }).getInactiveTechs();
 },60000);
 </script>
