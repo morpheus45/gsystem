@@ -534,14 +534,17 @@ function primesHistorique(s){
   var months=Object.keys(byMonth).filter(function(m){return byMonth[m]>0;}).sort().reverse();
   if(!months.length)return '<div class="empty2">Aucune prime</div>';
   var now=new Date(),nowM=now.getFullYear()*12+now.getMonth();
+  var p2=function(n){return ('0'+n).slice(-2);};
   var rows=months.map(function(m){
     var y=parseInt(m.slice(0,4),10),mo=parseInt(m.slice(5,7),10);
+    var last=new Date(y,mo,0).getDate();
+    var perio=p2(1)+'/'+p2(mo)+' → '+p2(last)+'/'+p2(mo)+'/'+y;
     var payAbs=(y*12+(mo-1))+2,py=Math.floor(payAbs/12),pmo=(payAbs%12)+1;
-    var statut=payAbs<nowM?'Reçue':(payAbs===nowM?'Ce mois':'À recevoir');
+    var statut=payAbs<nowM?'Payée':(payAbs===nowM?'À payer ce mois':'À payer');
     var col=payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347');
-    return '<tr><td>'+moisNom(mo)+' '+y+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700">'+statut+'</td></tr>';
+    return '<tr><td>'+perio+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700">'+statut+'</td></tr>';
   }).join('');
-  return '<div class="ctab"><table class="clt"><thead><tr><th>Mois travaillé</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return '<div class="ctab"><table class="clt"><thead><tr><th>Période travaillée</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 function aggregate(techs){
   var g={tech:'VUE GLOBALE — tous les techniciens',interventions:0,tickets:0,frais:0,primes:0,extensions:0,repartition:[],primesParType:[],clotures:[]};
