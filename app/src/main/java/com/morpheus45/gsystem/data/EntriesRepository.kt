@@ -74,6 +74,25 @@ class EntriesRepository private constructor(context: Context) {
 
     suspend fun clearAll() = persist(EntriesStore())
 
+    /**
+     * Fusionne des entrées d'une sauvegarde (restauration) dans le local, par id.
+     * En cas d'id identique, l'entrée LOCALE est conservée (pas d'écrasement) ;
+     * les entrées absentes en local sont ajoutées. Retourne le nombre ajouté.
+     */
+    suspend fun mergeIn(other: EntriesStore): Int {
+        val cur = _store.value
+        val merged = EntriesStore(
+            temps = (cur.temps + other.temps).distinctBy { it.id },
+            gesteCo = (cur.gesteCo + other.gesteCo).distinctBy { it.id },
+            frais = (cur.frais + other.frais).distinctBy { it.id },
+            compteur = (cur.compteur + other.compteur).distinctBy { it.id }
+        )
+        val added = (merged.temps.size - cur.temps.size) + (merged.gesteCo.size - cur.gesteCo.size) +
+            (merged.frais.size - cur.frais.size) + (merged.compteur.size - cur.compteur.size)
+        persist(merged)
+        return added
+    }
+
     companion object {
         @Volatile private var instance: EntriesRepository? = null
         fun get(context: Context): EntriesRepository =

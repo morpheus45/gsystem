@@ -31,8 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.backup.BackupConfig
-import com.morpheus45.gsystem.backup.BackupExporter
-import com.morpheus45.gsystem.backup.BackupUploader
+import com.morpheus45.gsystem.backup.DriveSync
 import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
@@ -166,19 +165,11 @@ fun AppNav() {
         val now = System.currentTimeMillis()
         if (now - settings.lastDriveBackup < BackupConfig.BACKUP_INTERVAL_MS) return@LaunchedEffect
         runCatching {
-            val zipBytes = withContext(Dispatchers.IO) {
-                val settingsJson = Json.encodeToString(AppSettings.serializer(), settings)
-                val zip = BackupExporter.createBackupZip(context, settingsJson)
-                val bytes = zip.readBytes()
-                runCatching { zip.delete() }
-                bytes
-            }
-            val month = cycleEnd.toString().take(7)
-            // Nom FIXE : chaque sauvegarde écrase la précédente (pas d'accumulation).
-            val ok = BackupUploader.uploadBytes(
-                settings.nomUtilisateur, month, "sauvegarde-complete.zip",
-                "application/zip", zipBytes)
-            if (ok) settingsStore.update { it.copy(lastDriveBackup = now) }
+            // Synchro INCRÉMENTALE (données fusionnées + photos une seule fois).
+            // Remplace l'ancien zip complet par mois qui saturait le Drive en Go.
+            val settingsJson = Json.encodeToString(AppSettings.serializer(), settings)
+            val msg = DriveSync.sync(context, settings, repo.store.value, settingsJson)
+            if (msg.startsWith("✅")) settingsStore.update { it.copy(lastDriveBackup = now) }
         }
     }
 
@@ -327,23 +318,26 @@ fun AppNav() {
                     }
                 },
                 onSync = {
-                    val n = StatsUploader.syncAll(settings, repo.store.value)
-                    runCatching {
-                        val zipBytes = withContext(Dispatchers.IO) {
-                            val zip = BackupExporter.createBackupZip(
-                                context, Json.encodeToString(AppSettings.serializer(), settings))
-                            val bytes = zip.readBytes()
-                            runCatching { zip.delete() }
-                            bytes
+                    // 1) Stats par cycle pour le dashboard back-office (inchangé).
+                    StatsUploader.syncAll(settings, repo.store.value)
+                    // 2) Synchro INCRÉMENTALE des données + photos (complète l'existant,
+                    //    n'envoie que les photos absentes -> fin de la surcharge Go).
+                    if (!BackupConfig.isConfigured) "Sauvegarde Drive non configurée"
+                    else DriveSync.sync(
+                        context, settings, repo.store.value,
+                        Json.encodeToString(AppSettings.serializer(), settings)
+                    )
+                },
+                onRestore = {
+                    if (!BackupConfig.isConfigured) "Sauvegarde Drive non configurée"
+                    else DriveSync.restore(context, settings, repo) { drive ->
+                        // Applique les réglages du Drive en gardant le nom saisi localement.
+                        settingsStore.update { local ->
+                            drive.copy(
+                                nomUtilisateur = local.nomUtilisateur.ifBlank { drive.nomUtilisateur },
+                                firstRunDone = true
+                            )
                         }
-                        val month = cycleEnd.toString().take(7)
-                        BackupUploader.uploadBytes(settings.nomUtilisateur, month,
-                            "sauvegarde-complete.zip", "application/zip", zipBytes)
-                    }
-                    when {
-                        !BackupConfig.isConfigured -> "Sauvegarde Drive non configurée"
-                        n == 0 -> "Aucune donnée à synchroniser"
-                        else -> "✅ $n mois synchronisés sur le Drive"
                     }
                 }
             )

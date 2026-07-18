@@ -37,15 +37,53 @@ function doPost(e) {
     if (p.action === 'chat_markRead') return chatMarkRead_(p.tech, 'tech', Number(p.upTo) || 0);
     if (p.action === 'chat_delete')   return chatDelete_(p.tech);
 
+    // --- Synchro incrémentale (donnees.json + photos) ---
+    if (p.action === 'sync_pull')  return syncPull_(p.user);
+    if (p.action === 'photo_pull') return photoPull_(p.user, p.fileName);
+
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
-    const monthFolder = getOrCreateFolder(userFolder, sanitize(p.month || 'sans-date'));
+    // month '__root__' (ou vide) -> racine du dossier tech ; 'photos' -> sous-dossier photos.
+    const target = (!p.month || p.month === '__root__') ? userFolder
+      : getOrCreateFolder(userFolder, sanitize(p.month));
     const bytes = Utilities.base64Decode(p.dataBase64);
     const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream', p.fileName || 'fichier');
-    const same = monthFolder.getFilesByName(p.fileName || 'fichier');
+    const same = target.getFilesByName(p.fileName || 'fichier');
     while (same.hasNext()) same.next().setTrashed(true);
-    const file = monthFolder.createFile(blob);
+    const file = target.createFile(blob);
     return json({ ok: true, id: file.getId(), name: file.getName() });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/** Restauration : renvoie donnees.json + reglages.json + la liste des photos du tech. */
+function syncPull_(user) {
+  try {
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    function readTxt(folder, name) {
+      const it = folder.getFilesByName(name);
+      return it.hasNext() ? it.next().getBlob().getDataAsString('UTF-8') : '';
+    }
+    const photos = [];
+    const pit = uf.getFoldersByName('photos');
+    if (pit.hasNext()) {
+      const files = pit.next().getFiles();
+      while (files.hasNext()) photos.push(files.next().getName());
+    }
+    return json({ ok: true, entries: readTxt(uf, 'donnees.json'), settings: readTxt(uf, 'reglages.json'), photos: photos });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/** Restauration : renvoie une photo (base64) depuis <tech>/photos/. */
+function photoPull_(user, fileName) {
+  try {
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    const pit = uf.getFoldersByName('photos');
+    if (!pit.hasNext()) return json({ ok: false, error: 'no photos folder' });
+    const files = pit.next().getFilesByName(fileName || '');
+    if (!files.hasNext()) return json({ ok: false, error: 'not found' });
+    return json({ ok: true, dataBase64: Utilities.base64Encode(files.next().getBlob().getBytes()) });
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 
