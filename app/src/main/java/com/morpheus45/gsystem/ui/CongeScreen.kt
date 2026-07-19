@@ -131,15 +131,15 @@ fun CongeScreen(
             }
 
             SectionTitle("Dates souhaitées")
-            CField("Du (jj/mm/aaaa)", du, KeyboardType.Number, caps = false) { du = it }
-            CField("Au (jj/mm/aaaa)", au, KeyboardType.Number, caps = false) { au = it }
+            CField("Du (jj/mm/aaaa)", du, KeyboardType.Number, caps = false) { du = maskDate(it) }
+            CField("Au (jj/mm/aaaa)", au, KeyboardType.Number, caps = false) { au = maskDate(it) }
             CCheckRow("Dernier jour (Au) inclus", inclus) { inclus = it }
 
             SectionTitle("Signature")
             CSigBlock("Signe avec le doigt", signature)
 
             SectionTitle("Date de la demande")
-            CField("Le", dateDemande, KeyboardType.Number, caps = false) { dateDemande = it }
+            CField("Le", dateDemande, KeyboardType.Number, caps = false) { dateDemande = maskDate(it) }
 
             Text(
                 "Envoi à : Johanna, Gilles Steckler, Cédric Gavend — copie à toi.",
@@ -212,6 +212,17 @@ fun CongeScreen(
 private fun SectionTitle(t: String) {
     Text(t.uppercase(), color = CongeAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(top = 8.dp))
+}
+
+/** Formate une saisie de date en JJ/MM/AAAA au fil de la frappe (ex: 02022026 -> 02/02/2026). */
+private fun maskDate(input: String): String {
+    val digits = input.filter { it.isDigit() }.take(8)
+    return buildString {
+        digits.forEachIndexed { i, c ->
+            if (i == 2 || i == 4) append('/')
+            append(c)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
