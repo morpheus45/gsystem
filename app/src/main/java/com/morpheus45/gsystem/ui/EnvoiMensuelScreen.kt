@@ -386,7 +386,9 @@ fun EnvoiMensuelScreen(
                             // Tickets de frais : renommés FRAIS-<CATÉGORIE>(.ext),
                             // suffixés d'un index si plusieurs de la même catégorie.
                             val fraisCatCount = mutableMapOf<String, Int>()
-                            fraisPeriod.forEach { ticket ->
+                            // Tri par date IDENTIQUE à la synchro temps réel (CycleSync) :
+                            // même ordre -> même index -> même nom -> écrasement, jamais de doublon.
+                            fraisPeriod.sortedBy { it.date }.forEach { ticket ->
                                 val src = PhotoStorage.fileFor(context, ticket.fileName)
                                 if (src.exists()) {
                                     val cat = ticket.categorie.ifBlank { "DIVERS" }
@@ -401,7 +403,8 @@ fun EnvoiMensuelScreen(
                                 }
                             }
                             // Photos compteur : renommées <PLAQUE>-<MM>-<AAAA>.jpg
-                            compteurPeriod.forEachIndexed { i, entry ->
+                            // (même tri par date que CycleSync -> même index -> même nom).
+                            compteurPeriod.sortedBy { it.date }.forEachIndexed { i, entry ->
                                 val src = PhotoStorage.fileFor(context, entry.fileName)
                                 if (src.exists()) {
                                     val renamed = java.io.File(exportDir,

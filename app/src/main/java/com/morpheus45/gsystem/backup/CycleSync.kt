@@ -104,7 +104,9 @@ object CycleSync {
                 store.gesteCo.map { it.date } + store.compteur.map { it.date })
                 .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
             if (dates.isEmpty()) return@withContext 0
-            val cycles = dates.map { DateUtil.cyclePeriod(it, settings.cycleStartDay) }.toSet()
+            // Même autorité de rangement que le temps réel et la clôture (cycle glissant,
+            // sans chevauchement) : une donnée n'atterrit QUE dans un seul dossier.
+            val cycles = DateUtil.cyclesFor(dates, settings.cycleStartDay, settings.lastEnvoiDateIso)
             cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
             cycles.size
         }

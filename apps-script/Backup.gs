@@ -256,6 +256,80 @@ function cleanupOldBackups() {
 }
 
 function countFiles_(folder) { let n = 0; const it = folder.getFiles(); while (it.hasNext()) { it.next(); n++; } return n; }
+function folderSize_(folder) { let s = 0; const it = folder.getFiles(); while (it.hasNext()) s += it.next().getSize(); return s; }
+
+/** Diagnostic : liste les fichiers au CONTENU identique présents à plusieurs endroits. */
+function findDuplicates() {
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const uf = getOrCreateFolder(root, sanitize('Cédric LAGO-GOMEZ'));
+  const byHash = {};
+  const scan = function (fld, label) {
+    const files = fld.getFiles();
+    while (files.hasNext()) {
+      const f = files.next(); const nm = f.getName();
+      if (nm === 'desktop.ini') continue;
+      const digest = Utilities.base64Encode(
+        Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, f.getBlob().getBytes()));
+      (byHash[digest] = byHash[digest] || []).push(label + '/' + nm + ' [' + Math.round(f.getSize() / 1024) + 'Ko]');
+    }
+  };
+  scan(uf, '(racine)');
+  const mit = uf.getFolders();
+  while (mit.hasNext()) { const mf = mit.next(); scan(mf, mf.getName()); }
+  const dups = [];
+  Object.keys(byHash).forEach(function (h) { if (byHash[h].length > 1) dups.push('• ' + byHash[h].join('   ==   ')); });
+  const txt = dups.length ? ('DOUBLONS (contenu identique) :\n' + dups.join('\n')) : 'Aucun doublon de contenu.';
+  Logger.log(txt); return txt;
+}
+
+/**
+ * Nettoyage APRÈS passage au rangement par cycle (1.9.37) : met à la corbeille
+ * l'ancien dossier photos/ racine (doublons plaqués), l'ancien donnees.json
+ * racine et les vieux zips. SÉCURITÉ : pour un tech, ne supprime RIEN tant qu'au
+ * moins un dossier-mois n'a pas de donnees.json (preuve que la synchro par cycle
+ * a bien tourné). Récupérable ~30 j via la corbeille Drive.
+ */
+function cleanupToPerCycle() {
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const report = [];
+  const users = root.getFolders();
+  while (users.hasNext()) {
+    const u = users.next();
+    if (u.getName() === '_telechargements') continue;
+    let hasCycleBackup = false;
+    const check = u.getFolders();
+    while (check.hasNext()) {
+      const mf = check.next();
+      if (mf.getName() === 'photos') continue;
+      if (mf.getFilesByName('donnees.json').hasNext()) { hasCycleBackup = true; break; }
+    }
+    if (!hasCycleBackup) {
+      report.push('⛔ ' + u.getName() + ' : aucun donnees.json par cycle -> on ne touche à RIEN (synchro 1.9.37 pas encore faite).');
+      continue;
+    }
+    let trashed = 0, freed = 0;
+    // Ancien dossier photos/ racine (doublons plaqués).
+    const pit = u.getFoldersByName('photos');
+    while (pit.hasNext()) { const pf = pit.next(); freed += folderSize_(pf); pf.setTrashed(true); trashed++; }
+    // Ancien donnees.json racine (remplacé par les donnees.json par cycle).
+    const dit = u.getFilesByName('donnees.json');
+    while (dit.hasNext()) { const f = dit.next(); freed += f.getSize(); f.setTrashed(true); trashed++; }
+    // Vieux zips dans les dossiers-mois.
+    const mit = u.getFolders();
+    while (mit.hasNext()) {
+      const mf = mit.next(); if (mf.getName() === 'photos') continue;
+      const files = mf.getFiles();
+      while (files.hasNext()) {
+        const f = files.next(); const nm = f.getName();
+        if (nm === 'sauvegarde-complete.zip' || (/^gsystem-sauvegarde_.*\.zip$/i).test(nm)) {
+          freed += f.getSize(); f.setTrashed(true); trashed++;
+        }
+      }
+    }
+    report.push('✅ ' + u.getName() + ' : ' + trashed + ' élément(s) obsolète(s) corbeille · ~' + Math.round(freed / 1048576) + ' Mo libérés');
+  }
+  const txt = report.join('\n'); Logger.log(txt); return txt;
+}
 
 /** Diagnostic : journalise toute la structure Drive d'un tech (racine, photos/, dossiers-mois). */
 function inspectDrive() {
