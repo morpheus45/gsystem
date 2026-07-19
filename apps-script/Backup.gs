@@ -38,8 +38,10 @@ function doPost(e) {
     if (p.action === 'chat_delete')   return chatDelete_(p.tech);
 
     // --- Synchro incrémentale (donnees.json + photos) ---
-    if (p.action === 'sync_pull')  return syncPull_(p.user);
-    if (p.action === 'photo_pull') return photoPull_(p.user, p.fileName);
+    if (p.action === 'sync_pull')    return syncPull_(p.user);
+    if (p.action === 'photo_pull')   return photoPull_(p.user, p.month, p.fileName);
+    if (p.action === 'restore_list') return restoreList_(p.user);
+    if (p.action === 'cycle_prune')  return cyclePrune_(p.user, p.month, p.keep);
 
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
@@ -74,16 +76,71 @@ function syncPull_(user) {
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 
-/** Restauration : renvoie une photo (base64) depuis <tech>/photos/. */
-function photoPull_(user, fileName) {
+/** Restauration : renvoie une photo (base64) depuis <tech>/<month>/. */
+function photoPull_(user, month, fileName) {
   try {
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
-    const pit = uf.getFoldersByName('photos');
-    if (!pit.hasNext()) return json({ ok: false, error: 'no photos folder' });
-    const files = pit.next().getFilesByName(fileName || '');
+    const folder = (!month || month === '__root__') ? uf
+      : (uf.getFoldersByName(sanitize(month)).hasNext() ? uf.getFoldersByName(sanitize(month)).next() : null);
+    if (!folder) return json({ ok: false, error: 'no folder' });
+    const files = folder.getFilesByName(fileName || '');
     if (!files.hasNext()) return json({ ok: false, error: 'not found' });
     return json({ ok: true, dataBase64: Utilities.base64Encode(files.next().getBlob().getBytes()) });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/**
+ * Restauration PAR CYCLE : pour chaque dossier de cycle contenant un donnees.json,
+ * renvoie { month, donnees } + les réglages globaux (reglages.json à la racine).
+ */
+function restoreList_(user) {
+  try {
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    function readTxt(folder, name) {
+      const it = folder.getFilesByName(name);
+      return it.hasNext() ? it.next().getBlob().getDataAsString('UTF-8') : '';
+    }
+    const cycles = [];
+    const mit = uf.getFolders();
+    while (mit.hasNext()) {
+      const mf = mit.next();
+      if (mf.getName() === 'photos') continue;
+      const d = readTxt(mf, 'donnees.json');
+      if (d) cycles.push({ month: mf.getName(), donnees: d });
+    }
+    return json({ ok: true, settings: readTxt(uf, 'reglages.json'), cycles: cycles });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/**
+ * Synchro par cycle : dans <tech>/<month>/, met à la corbeille les fichiers gérés
+ * par la synchro (frais/compteur/donnees) qui ne sont PLUS d'actualité (absents de
+ * `keep`). Ne touche JAMAIS aux livrables d'envoi (_stats.json, *.xlsm, Recap-*,
+ * mail-*) ni aux métadonnées (desktop.ini).
+ */
+function cyclePrune_(user, month, keep) {
+  try {
+    if (!month) return json({ ok: false, error: 'no month' });
+    const keepSet = {}; (keep || []).forEach(function (n) { keepSet[n] = true; });
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    const mit = uf.getFoldersByName(sanitize(month));
+    if (!mit.hasNext()) return json({ ok: true, trashed: 0 });
+    const mf = mit.next();
+    function protectedName(n) {
+      return n === '_stats.json' || n === 'desktop.ini' ||
+        (/\.xlsm$/i).test(n) || (/^Recap-/i).test(n) || (/^mail-/i).test(n);
+    }
+    let trashed = 0;
+    const files = mf.getFiles();
+    while (files.hasNext()) {
+      const f = files.next(); const nm = f.getName();
+      if (keepSet[nm] || protectedName(nm)) continue;
+      f.setTrashed(true); trashed++;
+    }
+    return json({ ok: true, trashed: trashed });
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 
@@ -180,8 +237,15 @@ function cleanupOldBackups() {
     while (months.hasNext()) {
       const mf = months.next();
       if (mf.getName() === 'photos') continue;
-      const it = mf.getFilesByName('sauvegarde-complete.zip');
-      while (it.hasNext()) { const f = it.next(); freed += f.getSize(); f.setTrashed(true); trashed++; }
+      // Vieilles sauvegardes complètes, devenues inutiles : le zip fixe par mois
+      // ET les zips manuels horodatés (gsystem-sauvegarde_AAAA-MM-JJ_hhmmss.zip).
+      const files = mf.getFiles();
+      while (files.hasNext()) {
+        const f = files.next(); const nm = f.getName();
+        if (nm === 'sauvegarde-complete.zip' || (/^gsystem-sauvegarde_.*\.zip$/i).test(nm)) {
+          freed += f.getSize(); f.setTrashed(true); trashed++;
+        }
+      }
     }
     report.push('✅ ' + u.getName() + ' : donnees.json OK (' + nbPhotos + ' photos) · ' +
       trashed + ' zip(s) obsolète(s) corbeille · ~' + Math.round(freed / 1048576) + ' Mo libérés');
@@ -192,6 +256,35 @@ function cleanupOldBackups() {
 }
 
 function countFiles_(folder) { let n = 0; const it = folder.getFiles(); while (it.hasNext()) { it.next(); n++; } return n; }
+
+/** Diagnostic : journalise toute la structure Drive d'un tech (racine, photos/, dossiers-mois). */
+function inspectDrive() {
+  const user = 'Cédric LAGO-GOMEZ';
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const uf = getOrCreateFolder(root, sanitize(user));
+  const out = ['=== ' + user + ' ==='];
+  const rf = uf.getFiles(); const rootFiles = [];
+  while (rf.hasNext()) { const f = rf.next(); rootFiles.push(f.getName() + ' [' + Math.round(f.getSize() / 1024) + ' Ko]'); }
+  out.push('RACINE (' + rootFiles.length + ') : ' + (rootFiles.join(' | ') || '(vide)'));
+  const pit = uf.getFoldersByName('photos');
+  if (pit.hasNext()) {
+    const pf = pit.next().getFiles(); const names = [];
+    while (pf.hasNext()) names.push(pf.next().getName());
+    const ext = {}; names.forEach(function (n) { const e = n.indexOf('.') >= 0 ? n.split('.').pop().toLowerCase() : '(sans)'; ext[e] = (ext[e] || 0) + 1; });
+    out.push('photos/ (' + names.length + ') exts=' + JSON.stringify(ext));
+    names.forEach(function (n) { out.push('   • ' + n); });
+  } else out.push('photos/ : (aucun)');
+  const mit = uf.getFolders();
+  while (mit.hasNext()) {
+    const mf = mit.next(); if (mf.getName() === 'photos') continue;
+    const files = mf.getFiles(); const names = [];
+    while (files.hasNext()) names.push(files.next().getName());
+    out.push('[' + mf.getName() + '] (' + names.length + ') : ' + names.join(' | '));
+  }
+  const txt = out.join('\n');
+  Logger.log(txt);
+  return txt;
+}
 
 /** ZIP de tous les fichiers dont le mois est dans [from, to] (un sous-dossier par tech/mois). */
 function makeZip(from, to) {
