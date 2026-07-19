@@ -15,25 +15,18 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Synchronisation INCRÉMENTALE avec le Drive (web app Apps Script).
+ * Pont HTTP avec le web app Apps Script pour la synchro PAR CYCLE et la
+ * restauration.
  *
- * But : ne jamais recréer une sauvegarde complète à chaque fois (surcharge Go),
- * mais COMPLÉTER l'existant. Structure sur le Drive, par technicien :
- *   - donnees.json  (racine du dossier tech) : toutes les entrées, fusionnées par id
- *   - reglages.json (racine)                 : réglages
- *   - photos/<nom>                           : chaque photo envoyée UNE seule fois
- *
- * Sens :
- *   - sync (local -> Drive)    : récupère l'état Drive, fusionne (union par id),
- *     repousse ; n'envoie que les photos ABSENTES du Drive.
- *   - restore (Drive -> local) : fusionne les entrées Drive dans le local sans
- *     écraser, télécharge les photos manquantes, applique les réglages Drive.
+ *   - sync (local -> Drive)    : régénère chaque dossier de cycle via [CycleSync]
+ *     (frais/compteur propres + donnees.json du cycle + _stats.json), écrase le
+ *     modifié et supprime l'obsolète. reglages.json (global) reste à la racine.
+ *   - restore (Drive -> local) : relit tous les dossiers de cycle (donnees.json +
+ *     photos propres) et fusionne dans le local sans écraser.
  */
 object DriveSync {
 
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
-
-    private data class Pulled(val entries: EntriesStore, val settings: String, val photos: List<String>)
 
     private fun postJson(payload: JSONObject): JSONObject? = runCatching {
         val conn = (URL(BackupConfig.ENDPOINT).openConnection() as HttpURLConnection).apply {
@@ -49,59 +42,31 @@ object DriveSync {
         if (code in 200..299) JSONObject(resp) else null
     }.getOrNull()
 
-    private fun pull(user: String): Pulled? {
-        val o = postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "sync_pull"); put("user", user)
-        }) ?: return null
-        if (!o.optBoolean("ok")) return null
-        val entriesTxt = o.optString("entries", "")
-        val store = if (entriesTxt.isBlank()) EntriesStore()
-        else runCatching { json.decodeFromString(EntriesStore.serializer(), entriesTxt) }.getOrDefault(EntriesStore())
-        val photos = ArrayList<String>()
-        val arr = o.optJSONArray("photos") ?: JSONArray()
-        for (i in 0 until arr.length()) arr.optString(i).takeIf { it.isNotBlank() }?.let { photos.add(it) }
-        return Pulled(store, o.optString("settings", ""), photos)
-    }
-
-    private fun union(a: EntriesStore, b: EntriesStore) = EntriesStore(
-        temps = (a.temps + b.temps).distinctBy { it.id },
-        gesteCo = (a.gesteCo + b.gesteCo).distinctBy { it.id },
-        frais = (a.frais + b.frais).distinctBy { it.id },
-        compteur = (a.compteur + b.compteur).distinctBy { it.id }
-    )
-
-    /** Synchronisation local -> Drive (fusion + photos une seule fois). Statut. */
+    /** Synchronisation local -> Drive : régénère tous les cycles. Statut. */
     suspend fun sync(
         context: Context, settings: AppSettings, store: EntriesStore, settingsJson: String
     ): String = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
             return@withContext "Renseigne ton nom dans les réglages d'abord."
-        val user = settings.nomUtilisateur
-        val remote = pull(user) ?: return@withContext "Drive injoignable. Réessaie plus tard."
-        val merged = union(store, remote.entries)
-        val ok = BackupUploader.uploadBytes(
-            user, "__root__", "donnees.json", "application/json",
-            json.encodeToString(EntriesStore.serializer(), merged).toByteArray(Charsets.UTF_8)
-        )
-        BackupUploader.uploadBytes(
-            user, "__root__", "reglages.json", "application/json",
-            settingsJson.toByteArray(Charsets.UTF_8)
-        )
-        // Photos : seulement celles absentes du Drive.
-        val already = remote.photos.toHashSet()
-        var sent = 0
-        File(context.filesDir, "photos").listFiles()?.forEach { p ->
-            if (p.isFile && p.name !in already) {
-                if (BackupUploader.uploadBytes(user, "photos", p.name, "application/octet-stream", p.readBytes())) sent++
-            }
-        }
-        if (!ok) "Échec de l'envoi des données." else "✅ Drive à jour · $sent photo(s) ajoutée(s)"
+        // Réglages globaux à la racine (tarifs, e-mails…) — léger, pour la restauration.
+        BackupUploader.uploadBytes(settings.nomUtilisateur, "__root__", "reglages.json",
+            "application/json", settingsJson.toByteArray(Charsets.UTF_8))
+        val n = CycleSync.syncAllCycles(context, settings, store)
+        if (n == 0) "Aucune donnée à synchroniser." else "✅ $n cycle(s) à jour sur le Drive"
+    }
+
+    /** Appelé par [CycleSync] : supprime les fichiers obsolètes d'un dossier de cycle. */
+    fun cyclePrune(user: String, month: String, keep: List<String>) {
+        postJson(JSONObject().apply {
+            put("token", BackupConfig.TOKEN); put("action", "cycle_prune")
+            put("user", user); put("month", month); put("keep", JSONArray(keep))
+        })
     }
 
     /**
-     * Restauration Drive -> local (fusion). Ajoute les entrées et photos manquantes
-     * sans écraser le local. `applyDriveSettings` reçoit les réglages du Drive (le
-     * mois de l'appelant garde la main sur le nom déjà saisi). Statut.
+     * Restauration Drive -> local (fusion), par cycle : ajoute les entrées et les
+     * photos manquantes sans écraser le local. `applyDriveSettings` reçoit les
+     * réglages du Drive (le nom déjà saisi garde la main).
      */
     suspend fun restore(
         context: Context,
@@ -112,29 +77,53 @@ object DriveSync {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
             return@withContext "Renseigne d'abord ton nom (identique à l'ancienne install) dans les réglages."
         val user = settings.nomUtilisateur
-        val remote = pull(user) ?: return@withContext "Drive injoignable. Réessaie plus tard."
-        val added = repo.mergeIn(remote.entries)
-        // Photos manquantes en local.
+        val list = postJson(JSONObject().apply {
+            put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
+        }) ?: return@withContext "Drive injoignable. Réessaie plus tard."
+        if (!list.optBoolean("ok")) return@withContext "Drive injoignable. Réessaie plus tard."
+
         val photosDir = File(context.filesDir, "photos").apply { mkdirs() }
         val localNames = (photosDir.listFiles()?.map { it.name } ?: emptyList()).toHashSet()
-        var got = 0
-        remote.photos.forEach { name ->
-            if (name !in localNames) {
+        var addedEntries = 0; var gotPhotos = 0
+
+        val cycles = list.optJSONArray("cycles") ?: JSONArray()
+        for (i in 0 until cycles.length()) {
+            val c = cycles.optJSONObject(i) ?: continue
+            val month = c.optString("month")
+            val donneesTxt = c.optString("donnees", "")
+            if (donneesTxt.isBlank()) continue
+            val payload = runCatching { JSONObject(donneesTxt) }.getOrNull() ?: continue
+            // Entrées
+            val entriesObj = payload.optJSONObject("entries")
+            if (entriesObj != null) {
+                val store = runCatching {
+                    json.decodeFromString(EntriesStore.serializer(), entriesObj.toString())
+                }.getOrNull()
+                if (store != null) addedEntries += repo.mergeIn(store)
+            }
+            // Photos : nom local -> nom propre sur le Drive.
+            val photos = payload.optJSONObject("photos") ?: JSONObject()
+            val it = photos.keys()
+            while (it.hasNext()) {
+                val localName = it.next()
+                if (localName in localNames) continue
+                val driveName = photos.optString(localName)
                 val o = postJson(JSONObject().apply {
                     put("token", BackupConfig.TOKEN); put("action", "photo_pull")
-                    put("user", user); put("fileName", name)
+                    put("user", user); put("month", month); put("fileName", driveName)
                 })
                 val b64 = o?.optString("dataBase64", "").orEmpty()
                 if (o?.optBoolean("ok") == true && b64.isNotBlank()) {
-                    runCatching { File(photosDir, name).writeBytes(Base64.decode(b64, Base64.DEFAULT)); got++ }
+                    runCatching { File(photosDir, localName).writeBytes(Base64.decode(b64, Base64.DEFAULT)); gotPhotos++ }
                 }
             }
         }
-        // Réglages (tarifs, e-mails…) : applique ceux du Drive s'ils existent.
-        if (remote.settings.isNotBlank()) {
-            runCatching { json.decodeFromString(AppSettings.serializer(), remote.settings) }
+        // Réglages (tarifs, e-mails…)
+        val settingsTxt = list.optString("settings", "")
+        if (settingsTxt.isNotBlank()) {
+            runCatching { json.decodeFromString(AppSettings.serializer(), settingsTxt) }
                 .getOrNull()?.let { applyDriveSettings(it) }
         }
-        "✅ Restauré · $added entrée(s) + $got photo(s) ajoutées"
+        "✅ Restauré · $addedEntries entrée(s) + $gotPhotos photo(s) ajoutées"
     }
 }

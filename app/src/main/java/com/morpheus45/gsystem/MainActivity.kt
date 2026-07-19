@@ -31,8 +31,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.CycleSync
 import com.morpheus45.gsystem.backup.DriveSync
-import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
@@ -230,7 +230,9 @@ fun AppNav() {
             val (cs, ce) = DateUtil.currentCycle(
                 DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
             )
-            driveSynced = StatsUploader.push(settings, snapshot, cs, ce)
+            // Synchro du cycle EN COURS : frais/compteur propres + donnees.json +
+            // _stats.json dans son dossier, obsolète supprimé (hors .xlsm/Recap).
+            driveSynced = CycleSync.pushCycle(context, settings, snapshot, cs, ce)
         }
     }
 
@@ -322,10 +324,9 @@ fun AppNav() {
                     }
                 },
                 onSync = {
-                    // 1) Stats par cycle pour le dashboard back-office (inchangé).
-                    StatsUploader.syncAll(settings, repo.store.value)
-                    // 2) Synchro INCRÉMENTALE des données + photos (complète l'existant,
-                    //    n'envoie que les photos absentes -> fin de la surcharge Go).
+                    // Régénère TOUS les cycles dans leur dossier (frais/compteur propres
+                    // + donnees.json + _stats.json), écrase le modifié et supprime
+                    // l'obsolète. Le .xlsm reste un livrable d'envoi.
                     if (!BackupConfig.isConfigured) "Sauvegarde Drive non configurée"
                     else DriveSync.sync(
                         context, settings, repo.store.value,
