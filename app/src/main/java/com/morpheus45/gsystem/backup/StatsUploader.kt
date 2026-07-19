@@ -134,7 +134,8 @@ object StatsUploader {
                 store.gesteCo.map { it.date } + store.compteur.map { it.date })
             .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
         if (dates.isEmpty()) return 0
-        val cycles = dates.map { DateUtil.cyclePeriod(it, settings.cycleStartDay) }.toSet()
+        // Même découpage glissant, non chevauchant, que CycleSync (une donnée = un dossier).
+        val cycles = DateUtil.cyclesFor(dates, settings.cycleStartDay, settings.lastEnvoiDateIso)
         cycles.forEach { (start, end) -> push(settings, store, start, end) }
         return cycles.size
     }

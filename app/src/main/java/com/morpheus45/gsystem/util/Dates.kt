@@ -58,4 +58,34 @@ object DateUtil {
         }
         return cyclePeriod(reference, cycleStartDay)
     }
+
+    /**
+     * Découpe une liste de dates en cycles NON CHEVAUCHANTS, avec EXACTEMENT la même
+     * règle que le cycle courant glissant ([currentCycle]) et que la clôture d'envoi.
+     * C'est la SEULE autorité de rangement par cycle : la synchro « tout » et les
+     * stats DOIVENT passer par ici, sinon une donnée de bordure (jours entre l'envoi
+     * réel et le 21) atterrit dans deux dossiers de mois → doublon de compteur/frais.
+     *
+     *  - toute date du cycle courant  -> le cycle courant (calé sur le dernier envoi) ;
+     *  - les dates passées            -> leur [cyclePeriod] fixe, mais bornée à la
+     *                                    veille du cycle courant pour ne JAMAIS déborder.
+     *
+     * Garantit qu'une même donnée n'appartient qu'à un seul dossier de mois.
+     */
+    fun cyclesFor(
+        dates: List<LocalDate>,
+        cycleStartDay: Int,
+        lastEnvoiIso: String,
+        reference: LocalDate = today()
+    ): Set<Pair<LocalDate, LocalDate>> {
+        val (curS, curE) = currentCycle(reference, cycleStartDay, lastEnvoiIso)
+        return dates.map { d ->
+            if (!d.isBefore(curS)) {
+                curS to curE
+            } else {
+                val (ps, pe) = cyclePeriod(d, cycleStartDay)
+                ps to if (pe.isBefore(curS)) pe else curS.minusDays(1)
+            }
+        }.toSet()
+    }
 }

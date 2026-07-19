@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
+import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.BackupUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.CongePdfGenerator
@@ -177,6 +179,21 @@ fun CongeScreen(
                                     sig
                                 )
                             }
+                            // Sauvegarde AUTO sur le Drive dès la génération, dans un dossier
+                            // dédié « Congés » (jamais purgé par le nettoyage de cycle). Nom
+                            // stable basé sur les dates -> re-génération = écrasement, pas de
+                            // doublon. Non bloquant : un échec réseau ne casse pas l'envoi.
+                            if (BackupConfig.isConfigured && settings.nomUtilisateur.isNotBlank()) {
+                                val slug = { s: String -> s.replace("/", "-").filter { it.isLetterOrDigit() || it == '-' } }
+                                val driveName = "Conge_${slug(du.trim())}_au_${slug(au.trim())}.pdf"
+                                runCatching {
+                                    BackupUploader.uploadBytes(
+                                        settings.nomUtilisateur, "Congés", driveName,
+                                        "application/pdf", file.readBytes()
+                                    )
+                                }
+                            }
+
                             val typeTxt = if (congesPayes) "congés payés" else "congés non payés"
                             EmailSender.sendPdf(
                                 context = context,
