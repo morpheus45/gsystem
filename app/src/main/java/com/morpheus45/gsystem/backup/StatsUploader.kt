@@ -22,6 +22,9 @@ object StatsUploader {
         return runCatching {
             val s = start.toString()
             val e = end.toString()
+            // Barème du cycle : celui figé pour son mois de fin s'il existe
+            // (l'historique regénéré garde les tarifs de l'époque).
+            val tarifs = settings.primeTarifsParMois[e.take(7)] ?: settings.prices
             fun inP(d: String) = d in s..e
             val temps = store.temps.filter { inP(it.date) }
             val frais = store.frais.filter { inP(it.date) }
@@ -47,7 +50,7 @@ object StatsUploader {
             GesteCoPrices.TYPES.forEach { t ->
                 val q = installedByType[t] ?: 0
                 if (q > 0) {
-                    val unit = settings.prices.priceFor(t)
+                    val unit = tarifs.priceFor(t)
                     primesParType.put(JSONObject()
                         .put("type", t).put("qty", q).put("unit", unit).put("total", q * unit))
                 }
@@ -96,7 +99,7 @@ object StatsUploader {
                 gestesArr.put(JSONObject().put("d", g.date).put("t", tMap))
             }
             val pricesObj = JSONObject()
-            GesteCoPrices.TYPES.forEach { t -> pricesObj.put(t, settings.prices.priceFor(t)) }
+            GesteCoPrices.TYPES.forEach { t -> pricesObj.put(t, tarifs.priceFor(t)) }
 
             val json = JSONObject().apply {
                 put("tech", settings.nomUtilisateur)
@@ -105,7 +108,7 @@ object StatsUploader {
                 put("interventions", temps.size)
                 put("tickets", frais.size)
                 put("frais", frais.sumOf { it.montantEur })
-                put("primes", geste.sumOf { it.totalPrime(settings.prices) })
+                put("primes", geste.sumOf { it.totalPrime(tarifs) })
                 put("extensions", geste.sumOf { it.totalInstalled() })
                 put("compteur", compteur.size)
                 put("repartition", repartition)

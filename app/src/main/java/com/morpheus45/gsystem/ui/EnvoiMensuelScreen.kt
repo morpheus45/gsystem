@@ -481,10 +481,20 @@ fun EnvoiMensuelScreen(
                             // clôturé (24 envois gardés = 2 ans).
                             settingsStore.update {
                                 val todayIso = DateUtil.today().toString()
+                                val moisCourant = todayIso.take(7)
+                                // Fige le barème des mois de prime révolus (jamais
+                                // encore figés) : leur valeur ne bougera plus même
+                                // si les tarifs changent dans les réglages.
+                                val aFiger = store.gesteCo.asSequence()
+                                    .mapNotNull { g -> g.date.takeIf { d -> d.length >= 7 }?.take(7) }
+                                    .distinct()
+                                    .filter { m -> m < moisCourant && m !in it.primeTarifsParMois }
+                                    .associateWith { _ -> it.prices }
                                 it.copy(
                                     lastEnvoiDateIso = todayIso,
                                     envoiHistoryIso = (it.envoiHistoryIso + todayIso)
-                                        .distinct().sorted().takeLast(24)
+                                        .distinct().sorted().takeLast(24),
+                                    primeTarifsParMois = it.primeTarifsParMois + aFiger
                                 )
                             }
                             // La période ajustée ne vaut QUE pour ce cycle : on

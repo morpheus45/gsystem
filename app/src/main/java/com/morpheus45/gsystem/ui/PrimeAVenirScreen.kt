@@ -94,11 +94,15 @@ fun PrimeAVenirScreen(
     onBack: () -> Unit
 ) {
     val prices = settings.prices
+    // Barème du mois : celui FIGÉ à la clôture s'il existe (l'historique garde
+    // les tarifs de l'époque), sinon le barème courant.
+    fun pricesFor(ym: YearMonth): GesteCoPrices =
+        settings.primeTarifsParMois[ym.toString()] ?: prices
     val liste = store.gesteCo
         .filter { it.date.length >= 7 }
         .mapNotNull { g -> runCatching { YearMonth.parse(it_ym(g.date)) }.getOrNull()?.let { it to g } }
         .groupBy({ it.first }, { it.second })
-        .map { (ym, l) -> MoisPrime(ym, l.sumOf { it.totalPrime(prices) }, l) }
+        .map { (ym, l) -> MoisPrime(ym, l.sumOf { it.totalPrime(pricesFor(ym)) }, l) }
         .filter { it.montant > 0.0 }
         .sortedByDescending { it.ym }
 
@@ -144,7 +148,7 @@ fun PrimeAVenirScreen(
             }
 
             prochaine?.let { p ->
-                item { ProchaineCard(p, prices) }
+                item { ProchaineCard(p, pricesFor(p.ym)) }
                 item {
                     Text(
                         "HISTORIQUE",
@@ -154,7 +158,7 @@ fun PrimeAVenirScreen(
                 }
             }
 
-            items(liste) { mp -> MoisCard(mp, nowYM, prices) }
+            items(liste) { mp -> MoisCard(mp, nowYM, pricesFor(mp.ym)) }
         }
     }
 }

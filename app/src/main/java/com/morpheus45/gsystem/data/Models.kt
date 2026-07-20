@@ -305,6 +305,13 @@ data class AppSettings(
      * fixes 21→20 et les pièces déjà mailées déplacées/supprimées.
      */
     val envoiHistoryIso: List<String> = emptyList(),
+    /**
+     * Barème des primes FIGÉ par mois civil ("yyyy-MM" -> tarifs). Renseigné à
+     * chaque clôture pour les mois révolus : l'historique des primes reste
+     * valorisé aux tarifs de l'époque même si le barème change ensuite.
+     * Mois absent = barème courant (mois en cours, anciens jamais clôturés).
+     */
+    val primeTarifsParMois: Map<String, GesteCoPrices> = emptyMap(),
     /** Plus grand id de message chat déjà lu par le tech (pour le badge non-lu). */
     val chatLastReadId: Long = 0L,
     val firstRunDone: Boolean = false

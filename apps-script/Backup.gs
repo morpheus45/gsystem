@@ -60,10 +60,16 @@ function doPost(e) {
       : getOrCreateFolder(userFolder, sanitize(p.month));
     const bytes = Utilities.base64Decode(p.dataBase64);
     const blob = Utilities.newBlob(bytes, p.mimeType || 'application/octet-stream', p.fileName || 'fichier');
-    const same = target.getFilesByName(p.fileName || 'fichier');
-    while (same.hasNext()) same.next().setTrashed(true);
-    const file = target.createFile(blob);
-    return json({ ok: true, id: file.getId(), name: file.getName() });
+    // Verrou : deux uploads simultanés du même nom créeraient DEUX fichiers
+    // homonymes (l'énumération précède la création). Sérialise trash+create.
+    const lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      const same = target.getFilesByName(p.fileName || 'fichier');
+      while (same.hasNext()) same.next().setTrashed(true);
+      const file = target.createFile(blob);
+      return json({ ok: true, id: file.getId(), name: file.getName() });
+    } finally { lock.releaseLock(); }
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 
@@ -223,7 +229,9 @@ function getAllData() {
       const T = techs[tname];
       (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
       (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
-      (s.gestes || []).forEach(function (g) { T.gestes.push(g); });
+      // Chaque geste garde le BARÈME de son cycle (g.pr) : l'historique des
+      // primes reste valorisé aux tarifs de l'époque même si le barème change.
+      (s.gestes || []).forEach(function (g) { if (s.prices && !g.pr) g.pr = s.prices; T.gestes.push(g); });
       if (s.prices) T.prices = s.prices;
     });
   }
@@ -823,9 +831,11 @@ function computeTech(T,f,t){
   var fr=(T.frais||[]).filter(function(x){return inR(x.d,f,t);});
   var ge=(T.gestes||[]).filter(function(x){return inR(x.d,f,t);});
   var rep={};clo.forEach(function(c){var k=c.type||'—';rep[k]=(rep[k]||0)+1;});
-  var pri={};ge.forEach(function(g){for(var k in g.t){pri[k]=(pri[k]||0)+g.t[k];}});
+  // Valorise chaque geste avec le barème de SON cycle (g.pr), pas le dernier.
+  var pri={};ge.forEach(function(g){var P=g.pr||T.prices||{};
+    for(var k in g.t){var q=g.t[k]||0;if(!pri[k])pri[k]={q:0,v:0};pri[k].q+=q;pri[k].v+=q*((P[k])||0);}});
   var ppt=[],totP=0,totE=0;
-  for(var k in pri){var u=(T.prices&&T.prices[k])||0;var tt=pri[k]*u;totP+=tt;totE+=pri[k];ppt.push({type:k,qty:pri[k],total:tt});}
+  for(var k in pri){totP+=pri[k].v;totE+=pri[k].q;ppt.push({type:k,qty:pri[k].q,total:pri[k].v});}
   ppt.sort(function(a,b){return b.total-a.total;});
   return {tech:T.tech,interventions:clo.length,tickets:fr.length,
     frais:fr.reduce(function(s,x){return s+remb(x);},0),primes:totP,extensions:totE,fraisList:fr,
@@ -857,8 +867,9 @@ function moisNom(m){return ['','janv.','févr.','mars','avr.','mai','juin','juil
 function primesHistorique(s){
   var ge=s.allGestes||[],pr=s.prices||{},tech=s.tech||'';
   var byMonth={},byMonthT={};
-  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var tot=0;byMonthT[m]=byMonthT[m]||{};
-    for(var k in g.t){var q=(g.t[k]||0);tot+=q*((pr[k])||0);byMonthT[m][k]=(byMonthT[m][k]||0)+q;}
+  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var P=g.pr||pr;var tot=0;byMonthT[m]=byMonthT[m]||{};
+    for(var k in g.t){var q=(g.t[k]||0);var v=q*((P[k])||0);tot+=v;
+      var e=byMonthT[m][k]=byMonthT[m][k]||{q:0,v:0};e.q+=q;e.v+=v;}
     byMonth[m]=(byMonth[m]||0)+tot;});
   var months=Object.keys(byMonth).filter(function(m){return byMonth[m]>0;}).sort().reverse();
   if(!months.length)return '<div class="empty2">Aucune prime</div>';
@@ -874,8 +885,8 @@ function primesHistorique(s){
     var col=paid?'#4ADE80':(payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347'));
     var btn='<button class="miniBtn" style="margin-left:8px" onclick="primePaid(\\''+tech+'\\',\\''+m+'\\','+(paid?'false':'true')+')">'+(paid?'↩ annuler':'✓ payée')+'</button>';
     // Détail par type comme dans l APK : qté × tarif = sous-total, par matériel posé.
-    var det=Object.keys(byMonthT[m]||{}).filter(function(k){return (byMonthT[m][k]||0)>0;})
-      .map(function(k){var q=byMonthT[m][k],u=(pr[k])||0;return k+' '+q+'×'+u.toFixed(2)+' = '+money(q*u);})
+    var det=Object.keys(byMonthT[m]||{}).filter(function(k){return (byMonthT[m][k].q||0)>0;})
+      .map(function(k){var e=byMonthT[m][k],u=e.q?e.v/e.q:0;return k+' '+e.q+'×'+u.toFixed(2)+' = '+money(e.v);})
       .join(' · ');
     var detRow=det?'<tr><td colspan="4" style="color:var(--low);font-size:11px;padding:0 8px 8px 14px">'+det+'</td></tr>':'';
     return '<tr><td>'+perio+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700;white-space:nowrap">'+statut+btn+'</td></tr>'+detRow;
