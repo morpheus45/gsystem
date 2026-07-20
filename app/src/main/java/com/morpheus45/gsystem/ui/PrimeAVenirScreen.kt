@@ -61,7 +61,7 @@ private data class MoisPrime(val ym: YearMonth, val montant: Double, val gestes:
 private data class PrimeLigne(val type: String, val qty: Int, val total: Double)
 
 /** Détail des primes d'un mois, agrégé par type de matériel (installés). */
-private fun breakdown(gestes: List<GesteCoEntry>, p: GesteCoPrices): List<PrimeLigne> {
+private fun breakdown(gestes: List<GesteCoEntry>, p: GesteCoPrices, instDates: Set<String>): List<PrimeLigne> {
     fun l(label: String, qty: Int, unit: Double) = if (qty > 0) PrimeLigne(label, qty, qty * unit) else null
     return listOfNotNull(
         l("GSM", gestes.sumOf { it.installedGsm }, p.gsm),
@@ -70,7 +70,8 @@ private fun breakdown(gestes: List<GesteCoEntry>, p: GesteCoPrices): List<PrimeL
         l("SE", gestes.sumOf { it.installedSe }, p.se),
         l("TC", gestes.sumOf { it.installedTc }, p.tc),
         l("SI", gestes.sumOf { it.installedSi }, p.si),
-        l("CAM", gestes.sumOf { it.installedCam }, p.cam),
+        // Règle CAM : ne compte que les caméras posées un jour de clôture INST.
+        l("CAM", gestes.filter { it.date in instDates }.sumOf { it.installedCam }, p.cam),
         l("DACCO", gestes.sumOf { it.installedDacco }, p.dacco),
         l("BA", gestes.sumOf { it.installedBa }, p.ba),
         l("CL", gestes.sumOf { it.installedCl }, p.cl),
@@ -98,11 +99,13 @@ fun PrimeAVenirScreen(
     // les tarifs de l'époque), sinon le barème courant.
     fun pricesFor(ym: YearMonth): GesteCoPrices =
         settings.primeTarifsParMois[ym.toString()] ?: prices
+    // Règle CAM : seules les caméras posées sur une INST comptent pour la prime.
+    val instDates = store.instDates()
     val liste = store.gesteCo
         .filter { it.date.length >= 7 }
         .mapNotNull { g -> runCatching { YearMonth.parse(it_ym(g.date)) }.getOrNull()?.let { it to g } }
         .groupBy({ it.first }, { it.second })
-        .map { (ym, l) -> MoisPrime(ym, l.sumOf { it.totalPrime(pricesFor(ym)) }, l) }
+        .map { (ym, l) -> MoisPrime(ym, l.sumOf { it.totalPrime(pricesFor(ym), instDates) }, l) }
         .filter { it.montant > 0.0 }
         .sortedByDescending { it.ym }
 
@@ -148,7 +151,7 @@ fun PrimeAVenirScreen(
             }
 
             prochaine?.let { p ->
-                item { ProchaineCard(p, pricesFor(p.ym)) }
+                item { ProchaineCard(p, pricesFor(p.ym), instDates) }
                 item {
                     Text(
                         "HISTORIQUE",
@@ -158,7 +161,7 @@ fun PrimeAVenirScreen(
                 }
             }
 
-            items(liste) { mp -> MoisCard(mp, nowYM, pricesFor(mp.ym)) }
+            items(liste) { mp -> MoisCard(mp, nowYM, pricesFor(mp.ym), instDates) }
         }
     }
 }
@@ -168,8 +171,8 @@ private fun it_ym(date: String): String = date.substring(0, 7)
 
 /** Tableau du détail : une ligne par type (qté × prix) + total en bas. */
 @Composable
-private fun BreakdownTable(gestes: List<GesteCoEntry>, prices: GesteCoPrices, total: Double, accent: Color) {
-    val lignes = breakdown(gestes, prices)
+private fun BreakdownTable(gestes: List<GesteCoEntry>, prices: GesteCoPrices, instDates: Set<String>, total: Double, accent: Color) {
+    val lignes = breakdown(gestes, prices, instDates)
     Spacer(Modifier.height(10.dp))
     HorizontalDivider(color = Line)
     Spacer(Modifier.height(8.dp))
@@ -200,7 +203,7 @@ private fun BreakdownTable(gestes: List<GesteCoEntry>, prices: GesteCoPrices, to
 }
 
 @Composable
-private fun ProchaineCard(p: MoisPrime, prices: GesteCoPrices) {
+private fun ProchaineCard(p: MoisPrime, prices: GesteCoPrices, instDates: Set<String>) {
     var expanded by remember { mutableStateOf(false) }
     val pm = moisPaie(p.ym)
     Column(
@@ -224,12 +227,12 @@ private fun ProchaineCard(p: MoisPrime, prices: GesteCoPrices) {
             "Prime de ${moisFr(p.ym)} → à recevoir sur le salaire de ${moisFr(pm)}",
             color = TextMid, fontSize = 13.sp
         )
-        if (expanded) BreakdownTable(p.gestes, prices, p.montant, Green)
+        if (expanded) BreakdownTable(p.gestes, prices, instDates, p.montant, Green)
     }
 }
 
 @Composable
-private fun MoisCard(mp: MoisPrime, nowYM: YearMonth, prices: GesteCoPrices) {
+private fun MoisCard(mp: MoisPrime, nowYM: YearMonth, prices: GesteCoPrices, instDates: Set<String>) {
     var expanded by remember { mutableStateOf(false) }
     val pm = moisPaie(mp.ym)
     val recue = pm.isBefore(nowYM)

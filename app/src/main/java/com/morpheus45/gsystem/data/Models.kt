@@ -116,6 +116,18 @@ data class GesteCoEntry(
         offeredDf * gifts.df +
         offeredSondeIn * gifts.sondeIn
 
+    /**
+     * Prime avec la règle CAMÉRAS : seules les caméras posées sur une
+     * INSTALLATION comptent. [instDates] = dates (yyyy-MM-dd) comportant au
+     * moins une clôture INST — une CAM posée un autre jour ne compte pas.
+     */
+    fun totalPrime(prices: GesteCoPrices, instDates: Set<String>): Double =
+        totalPrime(prices) - (if (date in instDates) 0.0 else installedCam * prices.cam)
+
+    /** Extensions INSTALLÉES comptant pour la PRIME (CAM exclue hors INST). */
+    fun primeInstalledList(instDates: Set<String>): List<Pair<String, Int>> =
+        installedList().filter { (t, _) -> t != "CAM" || date in instDates }
+
     /** Alias pour compat (= prime). */
     fun totalEur(prices: GesteCoPrices): Double = totalPrime(prices)
 
@@ -380,4 +392,9 @@ data class EntriesStore(
     val gesteCo: List<GesteCoEntry> = emptyList(),
     val frais: List<FraisTicket> = emptyList(),
     val compteur: List<CompteurEntry> = emptyList()
-)
+) {
+    /** Dates ayant au moins une clôture INSTALLATION (règle prime CAM). */
+    fun instDates(): Set<String> =
+        temps.filter { it.typeMission.equals("INST", ignoreCase = true) }
+            .map { it.date }.toSet()
+}
