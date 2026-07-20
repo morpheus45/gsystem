@@ -11,16 +11,26 @@
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
 const SHARED_TOKEN = 'gsys-backup-2026-7Kq2vR';
+// Code d'accès du TABLEAU DE BORD : exigé par toutes les fonctions appelées via
+// google.script.run et par les endpoints ?debug. Sans lui, l'URL /exec seule ne
+// donne accès à AUCUNE donnée.
+const DASHBOARD_CODE = 'Gsystems';
+function requireCode_(code) {
+  if (String(code) !== DASHBOARD_CODE) throw new Error('Acces refuse : code invalide');
+}
 const RETENTION_YEARS = 3;               // au-delà : purge (corbeille) des dossiers-mois
 const PROP = PropertiesService.getScriptProperties();
 
-/** Liste des techniciens désactivés (archivés). */
-function getInactiveTechs() {
+/** Liste des techniciens désactivés (archivés) — usage interne. */
+function inactiveTechs_() {
   try { return JSON.parse(PROP.getProperty('INACTIVE_TECHS') || '[]'); } catch (e) { return []; }
 }
+/** Idem, exposée au dashboard (code d'accès requis). */
+function getInactiveTechs(code) { requireCode_(code); return inactiveTechs_(); }
 /** Active/désactive un technicien depuis le dashboard. Renvoie la liste à jour des inactifs. */
-function setTechActive(tech, active) {
-  const list = getInactiveTechs().filter(function (n) { return n !== tech; });
+function setTechActive(code, tech, active) {
+  requireCode_(code);
+  const list = inactiveTechs_().filter(function (n) { return n !== tech; });
   if (!active) list.push(tech);
   PROP.setProperty('INACTIVE_TECHS', JSON.stringify(list));
   return list;
@@ -147,6 +157,7 @@ function cyclePrune_(user, month, keep) {
 function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
   if (e && e.parameter && e.parameter.debug === 'data') {
+    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
     var t0 = Date.now();
     try { var d = getAllData(); var s = JSON.stringify(d);
       return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
@@ -154,6 +165,7 @@ function doGet(e) {
     } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
   }
   if (e && e.parameter && e.parameter.debug === 'full') {
+    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
     try { return json({ ok: true, data: getAllData() }); }
     catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
   }
@@ -226,7 +238,7 @@ function getAllData() {
  * caractères ; renvoyer une string (via JSON.stringify, bien formé) contourne
  * le bug. Le client fait JSON.parse. À utiliser pour tout appel client.
  */
-function getAllDataStr() { return JSON.stringify(getAllData()); }
+function getAllDataStr(code) { requireCode_(code); return JSON.stringify(getAllData()); }
 
 /**
  * Nettoyage : met à la corbeille les vieilles sauvegardes complètes par mois
@@ -379,10 +391,11 @@ function inspectDrive() {
 }
 
 /** ZIP de tous les fichiers dont le mois est dans [from, to] (un sous-dossier par tech/mois). */
-function makeZip(from, to) {
+function makeZip(code, from, to) {
+  requireCode_(code);
   try {
     const fM = (from || '').slice(0, 7), tM = (to || '').slice(0, 7);
-    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+    const inactive = {}; inactiveTechs_().forEach(function (n) { inactive[n] = true; });
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const blobs = []; const users = root.getFolders();
     while (users.hasNext()) {
@@ -414,10 +427,11 @@ function makeZip(from, to) {
 }
 
 /** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
-function makeCloturesExcel(from, to) {
+function makeCloturesExcel(code, from, to) {
+  requireCode_(code);
   try {
     const fromD = from || '', toD = to || '';
-    const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+    const inactive = {}; inactiveTechs_().forEach(function (n) { inactive[n] = true; });
     const data = getAllData();
     const ss = SpreadsheetApp.create('G-Systems_clotures_' + (fromD || 'debut') + '_' + (toD || 'fin'));
     const def = ss.getSheets()[0];
@@ -476,7 +490,7 @@ function ssToXlsxBlob_(ss, fileName) {
 /** Récap « global des frais calculées » par technicien actif, filtré sur [from, to] (blob .xlsx). */
 function fraisRecapBlob_(from, to) {
   const fromD = from || '', toD = to || '';
-  const inactive = {}; getInactiveTechs().forEach(function (n) { inactive[n] = true; });
+  const inactive = {}; inactiveTechs_().forEach(function (n) { inactive[n] = true; });
   const data = getAllData();
   const ss = SpreadsheetApp.create('FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin'));
   const sh = ss.getSheets()[0]; sh.setName('Frais');
@@ -634,7 +648,8 @@ function chatDelete_(tech) {
 }
 
 // --- Fonctions appelées par le tableau de bord (google.script.run) ---
-function boChatList() {
+function boChatList(code) {
+  requireCode_(code);
   // Retourne, par tech, le dernier message + le nombre de non-lus côté bureau.
   const sh = getChatSheet_();
   const n = sh.getLastRow();
@@ -650,16 +665,18 @@ function boChatList() {
   }
   return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.lastTs - a.lastTs; });
 }
-function boChatFetch(tech) {
+function boChatFetch(code, tech) {
+  requireCode_(code);
   const r = chatFetch_(tech);
   return JSON.parse(r.getContent());
 }
-function boChatSend(tech, text) { chatSend_(tech, 'bureau', text); return { ok: true }; }
-function boChatMarkRead(tech, upTo) { chatMarkRead_(tech, 'bureau', Number(upTo) || 0); return { ok: true }; }
-function boChatDelete(tech) { chatDelete_(tech); return { ok: true }; }
+function boChatSend(code, tech, text) { requireCode_(code); chatSend_(tech, 'bureau', text); return { ok: true }; }
+function boChatMarkRead(code, tech, upTo) { requireCode_(code); chatMarkRead_(tech, 'bureau', Number(upTo) || 0); return { ok: true }; }
+function boChatDelete(code, tech) { requireCode_(code); chatDelete_(tech); return { ok: true }; }
 // Primes marquées « payées » manuellement (clé = "tech|yyyy-MM").
-function boPrimeGetPaid() { try { return JSON.parse(PROP.getProperty('PAID_PRIMES') || '{}'); } catch (e) { return {}; } }
-function boPrimeSetPaid(tech, ym, paid) {
+function boPrimeGetPaid(code) { requireCode_(code); try { return JSON.parse(PROP.getProperty('PAID_PRIMES') || '{}'); } catch (e) { return {}; } }
+function boPrimeSetPaid(code, tech, ym, paid) {
+  requireCode_(code);
   var m; try { m = JSON.parse(PROP.getProperty('PAID_PRIMES') || '{}'); } catch (e) { m = {}; }
   var k = tech + '|' + ym;
   if (paid) m[k] = true; else delete m[k];
@@ -772,23 +789,28 @@ function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
-function loadErr(e){var tc=document.getElementById('techs');if(tc)tc.innerHTML='<div class="empty">⚠ Erreur de chargement des données :<br><b>'+esc(String((e&&e.message)||e))+'</b><br><small>Réessaie de recharger. Si ça persiste, préviens.</small></div>';}
+var CODE=localStorage.getItem('gsysCode')||'';
+function askCode(){var c=prompt("Code d'accès du tableau de bord :");if(c===null)return false;CODE=(c||'').trim();localStorage.setItem('gsysCode',CODE);return true;}
+function loadErr(e){var m=String((e&&e.message)||e);
+  if(m.indexOf('refuse')>=0){localStorage.removeItem('gsysCode');CODE='';if(askCode()){location.reload();}return;}
+  var tc=document.getElementById('techs');if(tc)tc.innerHTML='<div class="empty">⚠ Erreur de chargement des données :<br><b>'+esc(String((e&&e.message)||e))+'</b><br><small>Réessaie de recharger. Si ça persiste, préviens.</small></div>';}
 function init(){
-  google.script.run.withSuccessHandler(function(p){PAID=p||{};if(DATA.length)apply();}).boPrimeGetPaid();
+  if(!CODE&&!askCode())return;
+  google.script.run.withSuccessHandler(function(p){PAID=p||{};if(DATA.length)apply();}).boPrimeGetPaid(CODE);
   google.script.run.withFailureHandler(loadErr).withSuccessHandler(function(inact){
     INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
     google.script.run.withFailureHandler(loadErr).withSuccessHandler(function(data){
       try{DATA=data?JSON.parse(data):[];}catch(e){return loadErr(e);}
       var t=new Date(),f=new Date();f.setDate(f.getDate()-30);
       setR(iso(f),iso(t));apply();
-    }).getAllDataStr();
-  }).getInactiveTechs();
+    }).getAllDataStr(CODE);
+  }).getInactiveTechs(CODE);
 }
 function setView(v){VIEW=v;apply();}
 function setActive(ev,el){ev.stopPropagation();
   var name=el.getAttribute('data-tech'),active=el.getAttribute('data-act')==='1';
   if(active)delete INACTIVE[name];else INACTIVE[name]=true;apply();
-  google.script.run.withFailureHandler(function(e){alert('Erreur : '+e);if(active)INACTIVE[name]=true;else delete INACTIVE[name];apply();}).setTechActive(name,active);}
+  google.script.run.withFailureHandler(function(e){alert('Erreur : '+e);if(active)INACTIVE[name]=true;else delete INACTIVE[name];apply();}).setTechActive(CODE,name,active);}
 function preset(p){var t=new Date();
   if(p===7){var f=new Date();f.setDate(f.getDate()-7);setR(iso(f),iso(t));}
   else if(p===30){var f=new Date();f.setDate(f.getDate()-30);setR(iso(f),iso(t));}
@@ -853,7 +875,7 @@ function primesHistorique(s){
   }).join('');
   return '<div class="ctab"><table class="clt"><thead><tr><th>Période travaillée</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
-function primePaid(tech,ym,paid){google.script.run.withSuccessHandler(function(){var k=tech+'|'+ym;if(paid)PAID[k]=true;else delete PAID[k];apply();}).boPrimeSetPaid(tech,ym,paid);}
+function primePaid(tech,ym,paid){google.script.run.withSuccessHandler(function(){var k=tech+'|'+ym;if(paid)PAID[k]=true;else delete PAID[k];apply();}).boPrimeSetPaid(CODE,tech,ym,paid);}
 function aggregate(techs){
   var g={tech:'VUE GLOBALE — tous les techniciens',interventions:0,tickets:0,frais:0,primes:0,extensions:0,repartition:[],primesParType:[],clotures:[]};
   var rep={},pri={},clo=[],fl=[];
@@ -1015,16 +1037,16 @@ function applyInner(){
 function download(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
   var b=document.getElementById('dl');b.disabled=true;b.textContent='Préparation…';
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='⬇ Télécharger';
-    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(f,t);}
+    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeZip(CODE,f,t);}
 function downloadExcel(){var f=document.getElementById('from').value,t=document.getElementById('to').value;
   var b=document.getElementById('dlx');b.disabled=true;b.textContent='Préparation…';
   google.script.run.withSuccessHandler(function(r){b.disabled=false;b.textContent='📊 Excel clôtures';
-    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeCloturesExcel(f,t);}
+    if(r&&r.ok){window.open(r.url,'_blank');}else{alert('Erreur : '+((r&&r.error)||'inconnue'));}}).makeCloturesExcel(CODE,f,t);}
 init();
 setInterval(function(){
   google.script.run.withSuccessHandler(function(inact){INACTIVE={};(inact||[]).forEach(function(n){INACTIVE[n]=true;});
-    google.script.run.withSuccessHandler(function(d){try{DATA=d?JSON.parse(d):[];}catch(e){return;}apply();}).getAllDataStr();
-  }).getInactiveTechs();
+    google.script.run.withSuccessHandler(function(d){try{DATA=d?JSON.parse(d):[];}catch(e){return;}apply();}).getAllDataStr(CODE);
+  }).getInactiveTechs(CODE);
 },60000);
 </script>
 <button id="chatFab" onclick="chatToggle()" style="position:fixed;right:18px;bottom:18px;z-index:30;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#062036;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)">&#128172;<span id="chatFabBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;line-height:20px"></span></button>
@@ -1042,18 +1064,18 @@ var CHAT={tech:null,list:[]};
 function chatToggle(){var p=document.getElementById('chatPanel');var open=p.style.display==='none';p.style.display=open?'flex':'none';if(open)chatLoadList();}
 function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function chatHm(ts){var d=new Date(Number(ts||0));function z(n){return(n<10?'0':'')+n;}return z(d.getHours())+':'+z(d.getMinutes());}
-function chatLoadList(){google.script.run.withSuccessHandler(chatRenderList).boChatList();}
+function chatLoadList(){if(!CODE)return;google.script.run.withSuccessHandler(chatRenderList).boChatList(CODE);}
 function chatRenderList(list){CHAT.list=list||[];var tot=0,h='';for(var i=0;i<CHAT.list.length;i++){var t=CHAT.list[i];tot+=t.unread;var sel=(t.tech===CHAT.tech);h+='<span onclick="chatOpenIdx('+i+')" style="cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:16px;border:1px solid var(--line);'+(sel?'background:var(--blue);color:#062036':'background:var(--card2);color:var(--mid)')+'">'+esc2(t.tech)+(t.unread>0?' <b style="background:var(--red);color:#fff;font-size:9px;border-radius:8px;padding:1px 5px">'+t.unread+'</b>':'')+'</span>';}
 document.getElementById('chatTechs').innerHTML=h||'<span style="color:var(--low);font-size:12px">Aucun message</span>';
 var b=document.getElementById('chatFabBadge');if(tot>0){b.style.display='block';b.textContent=tot>9?'9+':tot;}else{b.style.display='none';}
 if(CHAT.tech)chatLoadThread();}
 function chatOpenIdx(i){var t=CHAT.list[i];if(t){CHAT.tech=t.tech;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}}
-function chatLoadThread(){if(CHAT.tech)google.script.run.withSuccessHandler(chatRenderThread).boChatFetch(CHAT.tech);}
+function chatLoadThread(){if(CHAT.tech)google.script.run.withSuccessHandler(chatRenderThread).boChatFetch(CODE,CHAT.tech);}
 function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(function(a,b){return a.id-b.id;});var h='',maxId=0;for(var i=0;i<msgs.length;i++){var m=msgs[i];maxId=Math.max(maxId,Number(m.id));var mine=(m.from==='bureau');h+='<div style="align-self:'+(mine?'flex-end':'flex-start')+';max-width:80%;padding:8px 11px;font-size:12.5px;border-radius:14px;'+(mine?'background:var(--blue);color:#062036;border-bottom-right-radius:4px':'background:var(--card2);color:#E6E8EE;border-bottom-left-radius:4px')+'">'+esc2(m.text)+'<div style="font-size:9px;margin-top:3px;opacity:.7">'+esc2(mine?'Bureau':CHAT.tech)+' &middot; '+chatHm(m.ts)+'</div></div>';}
 var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien</div>';th.scrollTop=th.scrollHeight;
-if(maxId>0)google.script.run.boChatMarkRead(CHAT.tech,maxId);}
-function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CHAT.tech,t);}
-function chatDelete(){var t=CHAT.tech;if(!t)return;if(!confirm('Supprimer toute la conversation avec '+t+' ? Action irreversible.'))return;google.script.run.withSuccessHandler(function(){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();}).boChatDelete(t);}
+if(maxId>0)google.script.run.boChatMarkRead(CODE,CHAT.tech,maxId);}
+function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CODE,CHAT.tech,t);}
+function chatDelete(){var t=CHAT.tech;if(!t)return;if(!confirm('Supprimer toute la conversation avec '+t+' ? Action irreversible.'))return;google.script.run.withSuccessHandler(function(){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();}).boChatDelete(CODE,t);}
 setInterval(function(){var p=document.getElementById('chatPanel');if(p&&p.style.display!=='none')chatLoadList();},12000);
 chatLoadList();
 </script>
