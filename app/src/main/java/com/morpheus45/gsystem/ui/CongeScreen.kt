@@ -39,9 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
@@ -81,7 +85,9 @@ fun CongeScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+    // Les champs date stockent les CHIFFRES seuls (l'affichage JJ/MM/AAAA est
+    // fait par la VisualTransformation — voir CDateField).
+    val today = LocalDate.now().format(DateTimeFormatter.ofPattern("ddMMyyyy"))
 
     var nom by remember { mutableStateOf(settings.nomUtilisateur.uppercase()) }
     var congesPayes by remember { mutableStateOf(true) }
@@ -133,15 +139,15 @@ fun CongeScreen(
             }
 
             SectionTitle("Dates souhaitées")
-            CField("Du (jj/mm/aaaa)", du, KeyboardType.Number, caps = false) { du = maskDate(it) }
-            CField("Au (jj/mm/aaaa)", au, KeyboardType.Number, caps = false) { au = maskDate(it) }
+            CDateField("Du (jj/mm/aaaa)", du) { du = it }
+            CDateField("Au (jj/mm/aaaa)", au) { au = it }
             CCheckRow("Dernier jour (Au) inclus", inclus) { inclus = it }
 
             SectionTitle("Signature")
             CSigBlock("Signe avec le doigt", signature)
 
             SectionTitle("Date de la demande")
-            CField("Le", dateDemande, KeyboardType.Number, caps = false) { dateDemande = maskDate(it) }
+            CDateField("Le", dateDemande) { dateDemande = it }
 
             Text(
                 "Envoi à : Johanna, Gilles Steckler, Cédric Gavend — copie à toi.",
@@ -157,7 +163,7 @@ fun CongeScreen(
                     val err = when {
                         nom.isBlank() -> "Renseigne ton nom et prénom."
                         !congesPayes && !congesNonPayes -> "Coche le type de congés."
-                        du.isBlank() || au.isBlank() -> "Renseigne les dates Du et Au."
+                        du.length < 8 || au.length < 8 -> "Renseigne les dates Du et Au complètes (JJ/MM/AAAA)."
                         signature.isEmpty -> "La signature est manquante."
                         else -> null
                     }
@@ -173,8 +179,8 @@ fun CongeScreen(
                                         nom = nom.trim(),
                                         congesPayes = congesPayes,
                                         congesNonPayes = congesNonPayes,
-                                        du = du.trim(), au = au.trim(),
-                                        inclus = inclus, date = dateDemande.trim()
+                                        du = maskDate(du), au = maskDate(au),
+                                        inclus = inclus, date = maskDate(dateDemande)
                                     ),
                                     sig
                                 )
@@ -185,7 +191,7 @@ fun CongeScreen(
                             // doublon. Non bloquant : un échec réseau ne casse pas l'envoi.
                             if (BackupConfig.isConfigured && settings.nomUtilisateur.isNotBlank()) {
                                 val slug = { s: String -> s.replace("/", "-").filter { it.isLetterOrDigit() || it == '-' } }
-                                val driveName = "Conge_${slug(du.trim())}_au_${slug(au.trim())}.pdf"
+                                val driveName = "Conge_${slug(maskDate(du))}_au_${slug(maskDate(au))}.pdf"
                                 runCatching {
                                     BackupUploader.uploadBytes(
                                         settings.nomUtilisateur, "Congés", driveName,
@@ -201,7 +207,7 @@ fun CongeScreen(
                                 cc = listOf(CONGE_CC),
                                 subject = "Demande de congés — ${nom.trim()}",
                                 body = "Bonjour,\n\nVeuillez trouver ci-joint ma demande de $typeTxt " +
-                                    "du ${du.trim()} au ${au.trim()}" +
+                                    "du ${maskDate(du)} au ${maskDate(au)}" +
                                     (if (!inclus) " (dernier jour non inclus)" else "") + ".\n\n" +
                                     "Cordialement,\n${nom.trim()}",
                                 attachment = file
@@ -231,7 +237,7 @@ private fun SectionTitle(t: String) {
         modifier = Modifier.padding(top = 8.dp))
 }
 
-/** Formate une saisie de date en JJ/MM/AAAA au fil de la frappe (ex: 02022026 -> 02/02/2026). */
+/** Formate des chiffres en JJ/MM/AAAA (ex: 02022026 -> 02/02/2026). */
 private fun maskDate(input: String): String {
     val digits = input.filter { it.isDigit() }.take(8)
     return buildString {
@@ -240,6 +246,44 @@ private fun maskDate(input: String): String {
             append(c)
         }
     }
+}
+
+/**
+ * Champ date : l'état ne contient QUE les chiffres, les « / » sont ajoutés à
+ * l'AFFICHAGE par la VisualTransformation. Transformer le texte dans
+ * onValueChange décalait le curseur à chaque frappe et mélangeait les chiffres
+ * saisis (ex : 12102026 devenait 12/20/2621).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CDateField(label: String, digits: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = digits,
+        onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(8)) },
+        label = { Text(label) },
+        placeholder = { Text("JJ/MM/AAAA", color = TextLow) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        visualTransformation = DateVisualTransformation,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+private val DateVisualTransformation = VisualTransformation { text ->
+    val d = text.text
+    val out = buildString {
+        d.forEachIndexed { i, c ->
+            if (i == 2 || i == 4) append('/')
+            append(c)
+        }
+    }
+    TransformedText(AnnotatedString(out), object : OffsetMapping {
+        override fun originalToTransformed(offset: Int): Int =
+            offset + (if (offset > 2) 1 else 0) + (if (offset > 4) 1 else 0)
+        override fun transformedToOriginal(offset: Int): Int =
+            (offset - (if (offset > 2) 1 else 0) - (if (offset > 5) 1 else 0))
+                .coerceIn(0, d.length)
+    })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
