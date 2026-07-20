@@ -278,6 +278,6 @@ private fun MoisCard(mp: MoisPrime, nowYM: YearMonth, prices: GesteCoPrices, ins
                 )
             }
         }
-        if (expanded) BreakdownTable(mp.gestes, prices, mp.montant, couleur)
+        if (expanded) BreakdownTable(mp.gestes, prices, instDates, mp.montant, couleur)
     }
 }
