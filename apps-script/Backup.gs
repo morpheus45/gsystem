@@ -856,8 +856,10 @@ function nr3moisBody(clotures){
 function moisNom(m){return ['','janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'][m]||(''+m);}
 function primesHistorique(s){
   var ge=s.allGestes||[],pr=s.prices||{},tech=s.tech||'';
-  var byMonth={};
-  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var tot=0;for(var k in g.t){tot+=(g.t[k]||0)*((pr[k])||0);}byMonth[m]=(byMonth[m]||0)+tot;});
+  var byMonth={},byMonthT={};
+  ge.forEach(function(g){var m=(g.d||'').slice(0,7);if(!m)return;var tot=0;byMonthT[m]=byMonthT[m]||{};
+    for(var k in g.t){var q=(g.t[k]||0);tot+=q*((pr[k])||0);byMonthT[m][k]=(byMonthT[m][k]||0)+q;}
+    byMonth[m]=(byMonth[m]||0)+tot;});
   var months=Object.keys(byMonth).filter(function(m){return byMonth[m]>0;}).sort().reverse();
   if(!months.length)return '<div class="empty2">Aucune prime</div>';
   var now=new Date(),nowM=now.getFullYear()*12+now.getMonth();
@@ -871,7 +873,12 @@ function primesHistorique(s){
     var statut=paid?'Payée ✓':(payAbs<nowM?'Payée':(payAbs===nowM?'À payer ce mois':'À payer'));
     var col=paid?'#4ADE80':(payAbs<nowM?'var(--low)':(payAbs===nowM?'var(--blue)':'#FFB347'));
     var btn='<button class="miniBtn" style="margin-left:8px" onclick="primePaid(\\''+tech+'\\',\\''+m+'\\','+(paid?'false':'true')+')">'+(paid?'↩ annuler':'✓ payée')+'</button>';
-    return '<tr><td>'+perio+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700;white-space:nowrap">'+statut+btn+'</td></tr>';
+    // Détail par type comme dans l APK : qté × tarif = sous-total, par matériel posé.
+    var det=Object.keys(byMonthT[m]||{}).filter(function(k){return (byMonthT[m][k]||0)>0;})
+      .map(function(k){var q=byMonthT[m][k],u=(pr[k])||0;return k+' '+q+'×'+u.toFixed(2)+' = '+money(q*u);})
+      .join(' · ');
+    var detRow=det?'<tr><td colspan="4" style="color:var(--low);font-size:11px;padding:0 8px 8px 14px">'+det+'</td></tr>':'';
+    return '<tr><td>'+perio+'</td><td style="text-align:right">'+money(byMonth[m])+'</td><td>'+moisNom(pmo)+' '+py+'</td><td style="color:'+col+';font-weight:700;white-space:nowrap">'+statut+btn+'</td></tr>'+detRow;
   }).join('');
   return '<div class="ctab"><table class="clt"><thead><tr><th>Période travaillée</th><th>Prime</th><th>Versée sur salaire</th><th>Statut</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
