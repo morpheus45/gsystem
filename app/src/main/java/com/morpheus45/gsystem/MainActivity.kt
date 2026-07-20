@@ -339,6 +339,13 @@ fun AppNav() {
                         settingsStore.update { local ->
                             drive.copy(
                                 nomUtilisateur = local.nomUtilisateur.ifBlank { drive.nomUtilisateur },
+                                // Jamais de retour en arrière du cycle : reglages.json
+                                // sur le Drive peut être antérieur à la dernière clôture
+                                // (il n'est poussé qu'à la synchro/hebdo). On garde la
+                                // clôture la plus récente et l'union des historiques.
+                                lastEnvoiDateIso = maxOf(local.lastEnvoiDateIso, drive.lastEnvoiDateIso),
+                                envoiHistoryIso = (local.envoiHistoryIso + drive.envoiHistoryIso)
+                                    .distinct().sorted().takeLast(24),
                                 firstRunDone = true
                             )
                         }
@@ -388,7 +395,7 @@ fun AppNav() {
                 settings = settings, store = store,
                 settingsStore = settingsStore,
                 periodStart = periodStart, periodEnd = periodEnd,
-                onPeriodChange = onPeriodChange,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onBack = { navController.popBackStack() }
             )
         }

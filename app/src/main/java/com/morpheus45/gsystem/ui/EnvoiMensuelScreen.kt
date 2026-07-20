@@ -54,6 +54,7 @@ fun EnvoiMensuelScreen(
     periodStart: LocalDate,
     periodEnd: LocalDate,
     onPeriodChange: (LocalDate, LocalDate) -> Unit,
+    onResetPeriod: () -> Unit,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -258,9 +259,11 @@ fun EnvoiMensuelScreen(
                     Row(horizontalArrangement = Arrangement.End,
                         modifier = Modifier.fillMaxWidth()) {
                         TextButton(onClick = {
+                            // Efface l'override : on RE-SUIT le cycle automatique
+                            // (le figer sur le cycle du jour re-créait l'override).
                             startText = defaultStart.toString()
                             endText = defaultEnd.toString()
-                            onPeriodChange(defaultStart, defaultEnd)
+                            onResetPeriod()
                         }) { Text("↺ Cycle par défaut", fontSize = 12.sp) }
                     }
                 }
@@ -484,6 +487,10 @@ fun EnvoiMensuelScreen(
                                         .distinct().sorted().takeLast(24)
                                 )
                             }
+                            // La période ajustée ne vaut QUE pour ce cycle : on
+                            // re-suit le cycle automatique après l'envoi (sinon la
+                            // même période serait re-proposée le mois suivant).
+                            onResetPeriod()
 
                             // Déclenche la création du dossier Drive du NOUVEAU cycle : on
                             // dépose un _stats.json (vide) dans le mois de FIN du prochain cycle

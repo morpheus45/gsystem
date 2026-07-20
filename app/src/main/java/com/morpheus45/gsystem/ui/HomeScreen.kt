@@ -280,6 +280,9 @@ fun HomeScreen(
                 onClick = onArrivee),
             HomeTile("02", "ATTENTE CLIENT", "Note l'arrivée · motif à la clôture",
                 Icons.Outlined.Timer, AttenteStart, AttenteEnd, AttenteAccent, HomeGroup.SITE,
+                liveValue = if (settings.pendingArrivalMs > 0L)
+                    com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs) else null,
+                liveLabel = if (settings.pendingArrivalMs > 0L) "arrivée" else null,
                 onClick = onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
