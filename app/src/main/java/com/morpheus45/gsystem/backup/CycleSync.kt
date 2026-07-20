@@ -93,7 +93,12 @@ object CycleSync {
             // JAMAIS aux livrables d'envoi (_stats.json, *.xlsm, Recap-*, mail-*).
             DriveSync.cyclePrune(user, month, keep)
             true
-        }.getOrDefault(false)
+        }.getOrElse { e ->
+            // Ne jamais avaler l'annulation de la coroutine (sinon push partiel
+            // sans prune, silencieux).
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            false
+        }
     }
 
     /** Régénère TOUS les cycles présents dans les données. Retourne le nombre traité. */
@@ -106,7 +111,9 @@ object CycleSync {
             if (dates.isEmpty()) return@withContext 0
             // Même autorité de rangement que le temps réel et la clôture (cycle glissant,
             // sans chevauchement) : une donnée n'atterrit QUE dans un seul dossier.
-            val cycles = DateUtil.cyclesFor(dates, settings.cycleStartDay, settings.lastEnvoiDateIso)
+            val cycles = DateUtil.cyclesFor(
+                dates, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
+            )
             cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
             cycles.size
         }

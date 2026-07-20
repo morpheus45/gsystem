@@ -187,8 +187,26 @@ function getAllData() {
         if (!prev || (Number(s.maj) || 0) >= (Number(prev.maj) || 0)) byPeriode[key] = s;
       } catch (err) {}
     }
-    Object.keys(byPeriode).forEach(function (key) {
-      const s = byPeriode[key];
+    // ANTI-CHEVAUCHEMENT : avec les cycles glissants, deux snapshots peuvent
+    // avoir des chaînes `periode` différentes mais des DATES qui se recouvrent
+    // (ex. ancien cycle fixe "2026-06-21 → 2026-07-20" et nouveau glissant
+    // "2026-07-19 → 2026-08-18") -> les jours communs seraient comptés 2 fois.
+    // On garde du plus récent (maj max) au plus ancien, en écartant tout
+    // snapshot dont la période chevauche un snapshot déjà retenu.
+    function periodRange(s) {
+      const m = String(s.periode || '').match(/(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})/);
+      return m ? { a: m[1], b: m[2] } : null;
+    }
+    const snaps = Object.keys(byPeriode).map(function (k) { return byPeriode[k]; })
+      .sort(function (x, y) { return (Number(y.maj) || 0) - (Number(x.maj) || 0); });
+    const keptRanges = [];
+    snaps.forEach(function (s) {
+      const r = periodRange(s);
+      if (r) {
+        const clash = keptRanges.some(function (o) { return r.a <= o.b && o.a <= r.b; });
+        if (clash) return;              // périmé : recouvert par un snapshot plus récent
+        keptRanges.push(r);
+      }
       if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
       const T = techs[tname];
       (s.clotures || []).forEach(function (c) { T.clotures.push(c); });

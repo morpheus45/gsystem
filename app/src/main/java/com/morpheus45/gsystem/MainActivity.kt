@@ -226,6 +226,9 @@ fun AppNav() {
             return@LaunchedEffect
         }
         repo.store.debounce(1200L).collect { snapshot ->
+            // Jamais de push pendant une restauration : les photos ne sont pas
+            // encore re-téléchargées et le prune les effacerait du Drive.
+            if (DriveSync.restoreInProgress) return@collect
             driveSynced = false
             val (cs, ce) = DateUtil.currentCycle(
                 DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso

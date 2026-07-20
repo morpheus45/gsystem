@@ -473,7 +473,17 @@ fun EnvoiMensuelScreen(
 
                             // Cycle glissant : mémorise la date de cet envoi. Le prochain
                             // cycle démarrera le LENDEMAIN (aucun blanc, aucun chevauchement).
-                            settingsStore.update { it.copy(lastEnvoiDateIso = DateUtil.today().toString()) }
+                            // L'HISTORIQUE complet des envois est conservé : il permet à la
+                            // resynchro de re-ranger chaque donnée dans le cycle réellement
+                            // clôturé (24 envois gardés = 2 ans).
+                            settingsStore.update {
+                                val todayIso = DateUtil.today().toString()
+                                it.copy(
+                                    lastEnvoiDateIso = todayIso,
+                                    envoiHistoryIso = (it.envoiHistoryIso + todayIso)
+                                        .distinct().sorted().takeLast(24)
+                                )
+                            }
 
                             // Déclenche la création du dossier Drive du NOUVEAU cycle : on
                             // dépose un _stats.json (vide) dans le mois de FIN du prochain cycle

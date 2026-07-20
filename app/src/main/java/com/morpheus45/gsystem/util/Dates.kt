@@ -50,11 +50,13 @@ object DateUtil {
     ): Pair<LocalDate, LocalDate> {
         val anchor = lastEnvoiIso.takeIf { it.isNotBlank() }
             ?.let { runCatching { LocalDate.parse(it, ISO) }.getOrNull() }
-        if (anchor != null) {
+        // Dès le JOUR MÊME de l'envoi (reference == anchor), le cycle courant est
+        // déjà le suivant : sinon la synchro temps réel qui suit la clôture de
+        // quelques secondes retomberait sur la fenêtre fixe 21→20 et
+        // écraserait/prunerait le dossier tout juste clôturé.
+        if (anchor != null && !reference.isBefore(anchor)) {
             val start = anchor.plusDays(1)
-            if (!reference.isBefore(start)) {
-                return start to start.plusMonths(1).minusDays(1)
-            }
+            return start to start.plusMonths(1).minusDays(1)
         }
         return cyclePeriod(reference, cycleStartDay)
     }
@@ -67,25 +69,52 @@ object DateUtil {
      * réel et le 21) atterrit dans deux dossiers de mois → doublon de compteur/frais.
      *
      *  - toute date du cycle courant  -> le cycle courant (calé sur le dernier envoi) ;
-     *  - les dates passées            -> leur [cyclePeriod] fixe, mais bornée à la
-     *                                    veille du cycle courant pour ne JAMAIS déborder.
+     *  - les dates passées            -> le cycle RÉELLEMENT clôturé qui les contient
+     *                                    (reconstruit depuis l'historique des dates
+     *                                    d'envoi) ; à défaut d'historique, la fenêtre
+     *                                    fixe [cyclePeriod] bornée pour ne pas déborder.
      *
-     * Garantit qu'une même donnée n'appartient qu'à un seul dossier de mois.
+     * Garantit qu'une même donnée n'appartient qu'à un seul dossier de mois, et
+     * qu'un dossier de mois n'est visé que par UNE fenêtre (fusion sinon).
      */
     fun cyclesFor(
         dates: List<LocalDate>,
         cycleStartDay: Int,
         lastEnvoiIso: String,
+        envoiHistory: List<String> = emptyList(),
         reference: LocalDate = today()
     ): Set<Pair<LocalDate, LocalDate>> {
         val (curS, curE) = currentCycle(reference, cycleStartDay, lastEnvoiIso)
-        return dates.map { d ->
-            if (!d.isBefore(curS)) {
-                curS to curE
-            } else {
+        // Clôtures passées CONNUES (historique + dernier envoi), avant le cycle
+        // courant : elles définissent les cycles réellement clôturés — c'est la
+        // seule façon de re-ranger l'historique là où il a vraiment été mailé.
+        val envois = (envoiHistory + lastEnvoiIso)
+            .mapNotNull { runCatching { LocalDate.parse(it, ISO) }.getOrNull() }
+            .filter { it.isBefore(curS) }
+            .distinct().sorted()
+
+        fun pastCycle(d: LocalDate): Pair<LocalDate, LocalDate> {
+            val idx = envois.indexOfFirst { !it.isBefore(d) }   // 1er envoi >= d
+            if (idx >= 0) {
+                val end = envois[idx]
+                val start = if (idx > 0) envois[idx - 1].plusDays(1)
+                            else end.minusMonths(1).plusDays(1)
+                if (!d.isBefore(start)) return start to end
+                // Plus vieux que le premier cycle connu -> fenêtre fixe bornée.
                 val (ps, pe) = cyclePeriod(d, cycleStartDay)
-                ps to if (pe.isBefore(curS)) pe else curS.minusDays(1)
+                return ps to minOf(pe, start.minusDays(1))
             }
-        }.toSet()
+            // Aucun envoi connu : fenêtre fixe bornée au cycle courant.
+            val (ps, pe) = cyclePeriod(d, cycleStartDay)
+            return ps to minOf(pe, curS.minusDays(1))
+        }
+
+        // Un dossier-mois = UN SEUL push : deux fenêtres qui viseraient le même
+        // dossier (mois de FIN identique) sont fusionnées en une seule, sinon le
+        // second push supprimerait les fichiers du premier (prune).
+        return dates.map { d -> if (!d.isBefore(curS)) curS to curE else pastCycle(d) }
+            .groupBy { (_, e) -> e.toString().take(7) }
+            .map { (_, l) -> l.minOf { it.first } to l.maxOf { it.second } }
+            .toSet()
     }
 }
