@@ -72,7 +72,9 @@ object CsvExporter {
 
     fun exportGesteCo(
         context: Context, entries: List<GesteCoEntry>, prices: GesteCoPrices,
-        start: LocalDate, end: LocalDate
+        start: LocalDate, end: LocalDate,
+        /** Dates ayant une clôture INST : seules ces CAM comptent pour la prime. */
+        instDates: Set<String> = emptySet()
     ): File {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
@@ -82,7 +84,7 @@ object CsvExporter {
         val offeredPerType = GesteCoPrices.TYPES.associateWith { 0 }.toMutableMap()
         var grandPrime = 0.0
         for (e in filtered) {
-            grandPrime += e.totalPrime(prices)
+            grandPrime += e.totalPrime(prices, instDates)
             installedPerType["GSM"]   = (installedPerType["GSM"]   ?: 0) + e.installedGsm
             installedPerType["CO"]    = (installedPerType["CO"]    ?: 0) + e.installedCo
             installedPerType["DMP"]   = (installedPerType["DMP"]   ?: 0) + e.installedDmp
@@ -166,7 +168,7 @@ object CsvExporter {
                 e.offeredTc, e.offeredSi, e.offeredCam, e.offeredDacco, e.offeredBa,
                 e.offeredCl, e.offeredDf, e.offeredSondeIn,
                 if (e.epsDerogation) "OUI" else "",
-                "%.2f €".format(e.totalPrime(prices)),
+                "%.2f €".format(e.totalPrime(prices, instDates)),
                 e.nomClient, e.observations
             ))
         }

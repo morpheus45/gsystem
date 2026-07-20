@@ -47,7 +47,9 @@ fun GesteCoRecapScreen(
         runCatching { DateUtil.parseIso(it.date) in start..end }.getOrDefault(false)
     }.sortedBy { it.date }
 
-    val grandTotal = periodEntries.sumOf { it.totalPrime(settings.prices) }
+    // Règle CAM : seules les caméras posées sur une INST comptent pour la prime.
+    val instDates = store.instDates()
+    val grandTotal = periodEntries.sumOf { it.totalPrime(settings.prices, instDates) }
     val totalsPerType: Map<String, Pair<Int, Double>> = GesteCoPrices.TYPES.associateWith { type ->
         // La prime se calcule sur les extensions INSTALLÉES (pas les offertes)
         val qty = periodEntries.sumOf { entry ->
@@ -58,7 +60,8 @@ fun GesteCoRecapScreen(
                 "SE"    -> entry.installedSe
                 "TC"    -> entry.installedTc
                 "SI"    -> entry.installedSi
-                "CAM"   -> entry.installedCam
+                // Règle CAM : ne compte que posée un jour de clôture INST.
+                "CAM"   -> if (entry.date in instDates) entry.installedCam else 0
                 "DACCO" -> entry.installedDacco
                 "BA"    -> entry.installedBa
                 "CL"       -> entry.installedCl
@@ -186,7 +189,7 @@ fun GesteCoRecapScreen(
                 Button(
                     onClick = {
                         val pdf = PdfExporter.exportGesteCo(
-                            context, store.gesteCo, settings.prices, start, end
+                            context, store.gesteCo, settings.prices, start, end, instDates
                         )
                         EmailSender.send(
                             context = context,
@@ -252,7 +255,7 @@ fun GesteCoRecapScreen(
                                         color = RecapStart)
                                 }
                             }
-                            Text("%.2f €".format(e.totalPrime(settings.prices)),
+                            Text("%.2f €".format(e.totalPrime(settings.prices, instDates)),
                                 fontWeight = FontWeight.Bold, color = RecapStart, fontSize = 14.sp)
                             IconButton(onClick = { toDelete = e }) {
                                 Icon(Icons.Filled.Delete, "Supprimer ce site",

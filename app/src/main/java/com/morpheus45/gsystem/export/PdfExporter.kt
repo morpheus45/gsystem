@@ -28,7 +28,9 @@ object PdfExporter {
 
     fun exportGesteCo(
         context: Context, entries: List<GesteCoEntry>, prices: GesteCoPrices,
-        start: LocalDate, end: LocalDate
+        start: LocalDate, end: LocalDate,
+        /** Dates ayant une clôture INST : seules ces CAM comptent pour la prime. */
+        instDates: Set<String> = emptySet()
     ): File {
         val filtered = entries.filter { it.date in start.toString()..end.toString() }
             .sortedBy { it.date }
@@ -38,7 +40,7 @@ object PdfExporter {
         val offered = GesteCoPrices.TYPES.associateWith { 0 }.toMutableMap()
         var grandPrime = 0.0
         for (e in filtered) {
-            grandPrime += e.totalPrime(prices)
+            grandPrime += e.totalPrime(prices, instDates)
             installed["GSM"]      = installed["GSM"]!!      + e.installedGsm
             installed["CO"]       = installed["CO"]!!       + e.installedCo
             installed["DMP"]      = installed["DMP"]!!      + e.installedDmp
@@ -125,7 +127,7 @@ object PdfExporter {
         for (e in filtered) {
             b.ensure(48f) // garde le bloc d'un site groupé sur la même page
             val titleLine = "Site ${e.siteNumber}  ·  ${e.date}" + if (e.epsDerogation) "  ·  EPS" else ""
-            b.pair(titleLine, pCellB, eur(e.totalPrime(prices)), pPrime, gapBefore = 8f)
+            b.pair(titleLine, pCellB, eur(e.totalPrime(prices, instDates)), pPrime, gapBefore = 8f)
             b.text("Installé : ${summarizeInstalled(e).ifBlank { "—" }}", pSmall, x = MARGIN + 8f, gapBefore = 2f)
             val off = summarizeOffered(e)
             if (off.isNotBlank()) b.text("GESTE CO : $off", pSmall, x = MARGIN + 8f, gapBefore = 2f)

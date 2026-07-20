@@ -40,9 +40,11 @@ object StatsUploader {
                 }
 
             // Primes par type (sur les extensions installées), comme l'écran RÉCAP.
+            // Règle CAM : seules les caméras posées sur une INST comptent.
+            val instDates = store.instDates()
             val installedByType = linkedMapOf<String, Int>()
             geste.forEach { g ->
-                g.installedList().forEach { (t, c) ->
+                g.primeInstalledList(instDates).forEach { (t, c) ->
                     installedByType[t] = (installedByType[t] ?: 0) + c
                 }
             }
@@ -95,7 +97,9 @@ object StatsUploader {
             val gestesArr = JSONArray()
             geste.forEach { g ->
                 val tMap = JSONObject()
-                g.installedList().forEach { (type, c) -> tMap.put(type, c) }
+                // Règle CAM appliquée AVANT push : le dashboard (primes à venir,
+                // primes par type) ne compte ainsi que les caméras posées sur INST.
+                g.primeInstalledList(instDates).forEach { (type, c) -> tMap.put(type, c) }
                 gestesArr.put(JSONObject().put("d", g.date).put("t", tMap))
             }
             val pricesObj = JSONObject()
@@ -108,7 +112,7 @@ object StatsUploader {
                 put("interventions", temps.size)
                 put("tickets", frais.size)
                 put("frais", frais.sumOf { it.montantEur })
-                put("primes", geste.sumOf { it.totalPrime(tarifs) })
+                put("primes", geste.sumOf { it.totalPrime(tarifs, instDates) })
                 put("extensions", geste.sumOf { it.totalInstalled() })
                 put("compteur", compteur.size)
                 put("repartition", repartition)

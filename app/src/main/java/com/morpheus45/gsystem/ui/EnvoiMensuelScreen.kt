@@ -151,8 +151,10 @@ fun EnvoiMensuelScreen(
     // trié par montant décroissant. Rendu en barres « texte » dans le corps du mail.
     val primesByType: List<Triple<String, Int, Double>> = run {
         val counts = linkedMapOf<String, Int>()
+        val instDates = store.instDates()
         gesteCoPeriod.forEach { e ->
-            e.installedList().forEach { (type, n) -> counts[type] = (counts[type] ?: 0) + n }
+            // Règle CAM : seules les caméras posées sur une INST comptent.
+            e.primeInstalledList(instDates).forEach { (type, n) -> counts[type] = (counts[type] ?: 0) + n }
         }
         counts.entries
             .map { (type, n) -> Triple(type, n, n * settings.prices.priceFor(type)) }
