@@ -135,7 +135,9 @@ object StatsUploader {
             .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
         if (dates.isEmpty()) return 0
         // Même découpage glissant, non chevauchant, que CycleSync (une donnée = un dossier).
-        val cycles = DateUtil.cyclesFor(dates, settings.cycleStartDay, settings.lastEnvoiDateIso)
+        val cycles = DateUtil.cyclesFor(
+            dates, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
+        )
         cycles.forEach { (start, end) -> push(settings, store, start, end) }
         return cycles.size
     }

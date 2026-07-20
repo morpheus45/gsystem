@@ -298,6 +298,13 @@ data class AppSettings(
      * retombe sur le cycle fixe basé sur `cycleStartDay`.
      */
     val lastEnvoiDateIso: String = "",
+    /**
+     * Historique des dates ISO de TOUS les envois mensuels (le dernier inclus).
+     * Sert à reconstruire les cycles réellement clôturés lors d'une resynchro
+     * complète — sans lui, les cycles passés seraient re-rangés en fenêtres
+     * fixes 21→20 et les pièces déjà mailées déplacées/supprimées.
+     */
+    val envoiHistoryIso: List<String> = emptyList(),
     /** Plus grand id de message chat déjà lu par le tech (pour le badge non-lu). */
     val chatLastReadId: Long = 0L,
     val firstRunDone: Boolean = false

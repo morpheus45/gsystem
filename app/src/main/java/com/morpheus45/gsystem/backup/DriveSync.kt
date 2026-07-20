@@ -28,6 +28,16 @@ object DriveSync {
 
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
+    /**
+     * Vrai pendant une restauration Drive -> local. La synchro temps réel DOIT
+     * s'abstenir tant que c'est vrai : le mergeIn émet sur le store AVANT que
+     * les photos soient re-téléchargées, et un push à ce moment-là prunerait
+     * sur le Drive les photos dont le fichier local n'existe pas encore.
+     */
+    @Volatile
+    var restoreInProgress: Boolean = false
+        private set
+
     private fun postJson(payload: JSONObject): JSONObject? = runCatching {
         val conn = (URL(BackupConfig.ENDPOINT).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; doOutput = true; instanceFollowRedirects = true
@@ -76,6 +86,8 @@ object DriveSync {
     ): String = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
             return@withContext "Renseigne d'abord ton nom (identique à l'ancienne install) dans les réglages."
+        restoreInProgress = true
+        try {
         val user = settings.nomUtilisateur
         val list = postJson(JSONObject().apply {
             put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
@@ -125,5 +137,6 @@ object DriveSync {
                 .getOrNull()?.let { applyDriveSettings(it) }
         }
         "✅ Restauré · $addedEntries entrée(s) + $gotPhotos photo(s) ajoutées"
+        } finally { restoreInProgress = false }
     }
 }
