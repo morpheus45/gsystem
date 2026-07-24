@@ -166,7 +166,6 @@ fun PvCameraScreen(
     var totInt by remember { mutableStateOf("") }
     var nbTorus by remember { mutableStateOf("") }
     var totTorus by remember { mutableStateOf("") }
-    var montantTotal by remember { mutableStateOf("") }
     var observations by remember { mutableStateOf("") }
     var miseServInt by remember { mutableStateOf(false) }
     var miseServExt by remember { mutableStateOf(false) }
@@ -176,6 +175,17 @@ fun PvCameraScreen(
     val sigTech = remember { SignatureController() }
     val sigParapheClient = remember { SignatureController() }
     val sigParapheTech = remember { SignatureController() }
+
+    // Montant TOTAL calculé AUTOMATIQUEMENT : total des caméras + frais de mise
+    // en service. Règle de la trame : si intérieure ET extérieure, seul le frais
+    // le plus élevé s'applique (70 € prime sur 40 €).
+    fun eurOf(s: String): Double =
+        s.trim().replace("€", "").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
+    val miseFee = if (miseServExt) 70.0 else if (miseServInt) 40.0 else 0.0
+    val camSum = eurOf(totExt) + eurOf(totInt) + eurOf(totTorus)
+    val montantAuto = camSum + miseFee
+    val montantStr = if (montantAuto > 0.0)
+        String.format(java.util.Locale.US, "%.2f", montantAuto).replace(".", ",") else ""
 
     Scaffold(
         containerColor = Obsidian,
@@ -217,12 +227,23 @@ fun PvCameraScreen(
             Field("Caméra HOMIRIS HD-100 intérieure — Total €", totInt, KeyboardType.Number) { totInt = it }
             Field("Caméra TORUS intérieure — Nombre", nbTorus, KeyboardType.Number) { nbTorus = it }
             Field("Caméra TORUS intérieure — Total €", totTorus, KeyboardType.Number) { totTorus = it }
-            Field("Montant TOTAL (€ TTC)", montantTotal, KeyboardType.Number) { montantTotal = it }
 
             SectionTitle("Mise en service")
             CheckRow("Mise en service intérieure (40,00 € TTC)", miseServInt) { miseServInt = it }
             CheckRow("Mise en service extérieure (70,00 € TTC)", miseServExt) { miseServExt = it }
             CheckRow("Mise en service anticipée (avant fin de rétractation, page 2)", miseServAnticipee) { miseServAnticipee = it }
+
+            // Montant TOTAL calculé automatiquement (caméras + mise en service).
+            Text(
+                "Montant TOTAL : ${if (montantStr.isBlank()) "—" else "$montantStr € TTC"}",
+                color = CameraAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Text(
+                "= caméras (${String.format(java.util.Locale.US, "%.2f", camSum).replace(".", ",")} €)" +
+                    if (miseFee > 0) " + mise en service (${miseFee.toInt()} €)" else "",
+                color = TextLow, fontSize = 11.sp
+            )
 
             SectionTitle("Observations")
             FieldMulti("Observations du technicien-conseil", observations) { observations = it }
@@ -270,7 +291,7 @@ fun PvCameraScreen(
                                         nbExt = nbExt.trim(), totExt = totExt.trim(),
                                         nbInt = nbInt.trim(), totInt = totInt.trim(),
                                         nbTorus = nbTorus.trim(), totTorus = totTorus.trim(),
-                                        montantTotal = montantTotal.trim(),
+                                        montantTotal = montantStr,
                                         miseServInt = miseServInt, miseServExt = miseServExt,
                                         miseServAnticipee = miseServAnticipee,
                                         observations = observations.trim(),
