@@ -67,6 +67,8 @@ fun TempsScreen(
     onPeriodChange: (LocalDate, LocalDate) -> Unit,
     onResetPeriod: () -> Unit,
     onArrivalConsumed: () -> Unit = {},
+    /** TEST (branche fusion) : ouvre d'emblée le formulaire « Nouvelle intervention ». */
+    openNew: Boolean = false,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -75,7 +77,7 @@ fun TempsScreen(
         runCatching { DateUtil.parseIso(it.date) in periodStart..periodEnd }.getOrDefault(false)
     }.sortedByDescending { it.date }
 
-    var showAdd by remember { mutableStateOf(false) }
+    var showAdd by remember { mutableStateOf(openNew) }
     var editingEntry by remember { mutableStateOf<TempsEntry?>(null) }
     // Mails EPS à proposer après une clôture d'INSTALLATION (saisis inline dans le formulaire).
     var mailGeste by remember { mutableStateOf<GesteCoEntry?>(null) }

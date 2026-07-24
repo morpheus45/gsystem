@@ -260,6 +260,7 @@ fun AppNav() {
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
+                onNewIntervention = { navController.navigate("temps_new") },
                 onDemandeCamera = { navController.navigate("demande_camera") },
                 onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
@@ -361,6 +362,19 @@ fun AppNav() {
                 onArrivalConsumed = {
                     scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
                 },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        // TEST (branche fusion) : même écran, mais ouvre directement le formulaire.
+        composable("temps_new") {
+            TempsScreen(
+                settings = settings, store = store, repo = repo,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
+                onArrivalConsumed = {
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                },
+                openNew = true,
                 onBack = { navController.popBackStack() }
             )
         }
