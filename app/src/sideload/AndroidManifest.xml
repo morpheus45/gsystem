@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifest spécifique au canal "sideload" (APK GitHub Releases).
+  Il est FUSIONNÉ avec src/main/AndroidManifest.xml uniquement pour ce flavor.
+
+  La permission REQUEST_INSTALL_PACKAGES y vit seule : elle autorise
+  l'auto-update (installation de l'APK téléchargé). Le canal "play" ne la
+  reçoit PAS — c'est ce qui rend la variante Play conforme aux règles Google.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Permission pour installer l'APK téléchargé (Android 8+) — sideload only -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+</manifest>

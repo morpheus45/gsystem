@@ -67,7 +67,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Garde d'intégrité : une copie modifiée/re-signée ne démarre pas.
-        if (!IntegrityGuard.isGenuine(this)) {
+        // Désactivée sur le canal Play : Google re-signe l'app (Play App Signing),
+        // donc la signature ne correspond JAMAIS au certificat figé -> sinon tous
+        // les utilisateurs Play seraient bloqués par erreur.
+        if (!BuildConfig.PLAY_BUILD && !IntegrityGuard.isGenuine(this)) {
             setContent { GSystemTheme { TamperBlockScreen() } }
             return
         }
@@ -148,7 +151,8 @@ fun AppNav() {
     var pendingUpdate by remember { mutableStateOf<UpdateChecker.UpdateAvailable?>(null) }
     var updateCheckedThisSession by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        if (!updateCheckedThisSession) {
+        // Auto-update désactivée sur le canal Play : les MAJ passent par le Store.
+        if (!BuildConfig.PLAY_BUILD && !updateCheckedThisSession) {
             updateCheckedThisSession = true
             pendingUpdate = checkForUpdateSilently()
         }

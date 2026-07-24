@@ -4,8 +4,8 @@
     <!-- Internet pour vérifier les releases GitHub et télécharger l'APK -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Permission pour installer l'APK téléchargé (Android 8+) -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- REQUEST_INSTALL_PACKAGES : DÉPLACÉ vers le canal "sideload" uniquement
+         (src/sideload/AndroidManifest.xml). Interdit par Google Play. -->
     <!-- Appareil photo pour tickets de frais et compteur voiture -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
