@@ -159,21 +159,23 @@ fun PvCameraScreen(
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
 
-    var camTotal by remember { mutableStateOf("") }
-    var sdNb by remember { mutableStateOf("") }
-    var sdTotal by remember { mutableStateOf("") }
-    var abo by remember { mutableStateOf("") }
-    var frais by remember { mutableStateOf("") }
+    // Tableau ÉQUIPEMENT VIDÉO : Nombre + Total € par type de caméra.
+    var nbExt by remember { mutableStateOf("") }
+    var totExt by remember { mutableStateOf("") }
+    var nbInt by remember { mutableStateOf("") }
+    var totInt by remember { mutableStateOf("") }
+    var nbTorus by remember { mutableStateOf("") }
+    var totTorus by remember { mutableStateOf("") }
+    var montantTotal by remember { mutableStateOf("") }
     var observations by remember { mutableStateOf("") }
-    var adressePrec by remember { mutableStateOf("") }
-    var installInit by remember { mutableStateOf(true) }
-    var miseServ by remember { mutableStateOf(false) }
-    var repose by remember { mutableStateOf(false) }
-    var camSupp by remember { mutableStateOf(false) }
+    var miseServInt by remember { mutableStateOf(false) }
+    var miseServExt by remember { mutableStateOf(false) }
+    var miseServAnticipee by remember { mutableStateOf(false) }
 
     val sigAbonne = remember { SignatureController() }
     val sigTech = remember { SignatureController() }
-    val sigParaphe = remember { SignatureController() }
+    val sigParapheClient = remember { SignatureController() }
+    val sigParapheTech = remember { SignatureController() }
 
     Scaffold(
         containerColor = Obsidian,
@@ -208,19 +210,19 @@ fun PvCameraScreen(
             Field("Nom et prénom de l'Abonné", nomAbonne) { nomAbonne = it }
             Field("Adresse du lieu protégé", adresse) { adresse = it }
 
-            SectionTitle("Prestation")
-            CheckRow("Installation initiale", installInit) { installInit = it }
-            CheckRow("Mise en service anticipée (avant fin de rétractation)", miseServ) { miseServ = it }
-            CheckRow("Repose (déménagement)", repose) { repose = it }
-            if (repose) Field("Adresse du site précédent", adressePrec) { adressePrec = it }
-            CheckRow("Installation d'une caméra supplémentaire", camSupp) { camSupp = it }
+            SectionTitle("Équipement vidéo installé")
+            Field("Caméra HOMIRIS-HD-100 extérieure — Nombre", nbExt, KeyboardType.Number) { nbExt = it }
+            Field("Caméra HOMIRIS-HD-100 extérieure — Total €", totExt, KeyboardType.Number) { totExt = it }
+            Field("Caméra HOMIRIS HD-100 intérieure — Nombre", nbInt, KeyboardType.Number) { nbInt = it }
+            Field("Caméra HOMIRIS HD-100 intérieure — Total €", totInt, KeyboardType.Number) { totInt = it }
+            Field("Caméra TORUS intérieure — Nombre", nbTorus, KeyboardType.Number) { nbTorus = it }
+            Field("Caméra TORUS intérieure — Total €", totTorus, KeyboardType.Number) { totTorus = it }
+            Field("Montant TOTAL (€ TTC)", montantTotal, KeyboardType.Number) { montantTotal = it }
 
-            SectionTitle("Tarifs")
-            Field("Total caméras (€)", camTotal, KeyboardType.Number) { camTotal = it }
-            Field("Nb cartes SD", sdNb, KeyboardType.Number) { sdNb = it }
-            Field("Total cartes SD (€)", sdTotal, KeyboardType.Number) { sdTotal = it }
-            Field("Abonnement mensuel (€)", abo, KeyboardType.Number) { abo = it }
-            Field("Frais d'accès au service (€)", frais, KeyboardType.Number) { frais = it }
+            SectionTitle("Mise en service")
+            CheckRow("Mise en service intérieure (40,00 € TTC)", miseServInt) { miseServInt = it }
+            CheckRow("Mise en service extérieure (70,00 € TTC)", miseServExt) { miseServExt = it }
+            CheckRow("Mise en service anticipée (avant fin de rétractation, page 2)", miseServAnticipee) { miseServAnticipee = it }
 
             SectionTitle("Observations")
             FieldMulti("Observations du technicien-conseil", observations) { observations = it }
@@ -231,7 +233,8 @@ fun PvCameraScreen(
 
             SigBlock("Signature de l'Abonné", sigAbonne)
             SigBlock("Signature du technicien-conseil", sigTech)
-            SigBlock("Paraphe (page 1) — optionnel", sigParaphe)
+            SigBlock("Paraphe du client (page 1)", sigParapheClient)
+            SigBlock("Mon paraphe — technicien (bas gauche, page 1)", sigParapheTech)
 
             SectionTitle("Envoi")
             Field("E-mail du client", emailClient, KeyboardType.Email, caps = false) { emailClient = it }
@@ -253,7 +256,8 @@ fun PvCameraScreen(
                     working = true; status = "Génération du PV…"
                     val bmpAb = sigAbonne.toBitmap()
                     val bmpTe = sigTech.toBitmap()
-                    val bmpPa = sigParaphe.toBitmap()
+                    val bmpPaCli = sigParapheClient.toBitmap()
+                    val bmpPaTech = sigParapheTech.toBitmap()
                     scope.launch {
                         runCatching {
                             val file = withContext(Dispatchers.Default) {
@@ -263,14 +267,16 @@ fun PvCameraScreen(
                                         conv = convention.trim(), site = site.trim(),
                                         dateSous = dateSous.trim(), nom = nomAbonne.trim(),
                                         adr = adresse.trim(),
-                                        camTotal = camTotal.trim(), sdNb = sdNb.trim(),
-                                        sdTotal = sdTotal.trim(), abo = abo.trim(), frais = frais.trim(),
-                                        observations = observations.trim(), adressePrec = adressePrec.trim(),
-                                        faitLe = faitLe.trim(), nomTech = nomTech.trim(),
-                                        installInit = installInit, miseServ = miseServ,
-                                        repose = repose, camSupp = camSupp
+                                        nbExt = nbExt.trim(), totExt = totExt.trim(),
+                                        nbInt = nbInt.trim(), totInt = totInt.trim(),
+                                        nbTorus = nbTorus.trim(), totTorus = totTorus.trim(),
+                                        montantTotal = montantTotal.trim(),
+                                        miseServInt = miseServInt, miseServExt = miseServExt,
+                                        miseServAnticipee = miseServAnticipee,
+                                        observations = observations.trim(),
+                                        faitLe = faitLe.trim(), nomTech = nomTech.trim()
                                     ),
-                                    bmpAb, bmpTe, bmpPa
+                                    bmpAb, bmpTe, bmpPaCli, bmpPaTech
                                 )
                             }
                             EmailSender.send(

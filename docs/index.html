@@ -110,6 +110,13 @@
     .center-img { text-align: center; margin: 18px 0 6px; }
     .cap { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 
+    /* Bande de mockups téléphone côte à côte (un par onglet) */
+    .phones { display: flex; gap: 12px; overflow-x: auto; padding: 6px 2px 12px;
+      margin: 14px 0 2px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+    .phones figure { flex: none; margin: 0; width: 224px; scroll-snap-align: center; text-align: center; }
+    .phones svg { width: 100%; height: auto; display: block; }
+    .phones figcaption { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
+
     .mock { background: var(--card2); color: var(--text); border: 1px solid var(--border); padding: 12px; border-radius: 10px; font-family: ui-monospace, monospace; font-size: 12.5px; white-space: pre-wrap; margin: 8px 0; }
 
     footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }
@@ -131,10 +138,10 @@
 
   <!-- Téléchargement -->
   <div class="download-card">
-    <a class="download-btn" href="Gsystem-GooglePlay.apk" id="dl-btn" download>
+    <a class="download-btn" href="Gsystem-GooglePlay-1.9.43.apk" id="dl-btn" download>
       📲 Télécharger l'appli
     </a>
-    <div class="meta"><strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
+    <div class="meta">Version <strong>1.9.43</strong> &nbsp;·&nbsp; <strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
   </div>
 
   <div class="card green">
@@ -197,24 +204,26 @@
   <!-- ============ ACCUEIL ============ -->
   <h2><span class="ico">🏠</span>L'écran d'accueil</h2>
 
-  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">Les 10 tuiles sont rangées en <b>3 onglets</b> selon le moment de la journée. En haut, le <b>taux de NR</b> et l'état de <b>synchro Drive</b> en direct.</p>
+  <p style="font-size:14px; color:var(--muted); margin:0 0 4px">Les 12 tuiles sont rangées en <b>3 onglets</b> selon le moment de la journée. En haut, le <b>taux de NR</b> et l'état de <b>synchro Drive</b> en direct.</p>
 
-  <div class="center-img">
-    <svg viewBox="0 0 340 536" width="280" style="max-width:80%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran d'accueil G-Systems : badge NR, onglets et les tuiles de la section Sur site">
+  <div class="phones">
+
+    <!-- ===== Téléphone 1 : SUR SITE ===== -->
+    <figure>
+    <svg viewBox="0 0 340 716" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Onglet Sur site : Arrivée, Attente client, Appel techline">
       <defs>
-        <linearGradient id="tArrivee" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C026D3"/><stop offset="1" stop-color="#4a0e4e"/></linearGradient>
-        <linearGradient id="tAttente" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A5CF6"/><stop offset="1" stop-color="#312160"/></linearGradient>
-        <linearGradient id="tTechline" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#3a2170"/></linearGradient>
+        <linearGradient id="a1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C026D3"/><stop offset="1" stop-color="#4a0e4e"/></linearGradient>
+        <linearGradient id="a2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8A5CF6"/><stop offset="1" stop-color="#312160"/></linearGradient>
+        <linearGradient id="a3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#3a2170"/></linearGradient>
       </defs>
-      <rect x="2" y="2" width="336" height="532" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
+      <rect x="2" y="2" width="336" height="712" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
       <g font-family="Segoe UI, Arial, sans-serif">
         <circle cx="26" cy="30" r="3" fill="#4ADE80"/>
         <text x="35" y="27" fill="#7A8094" font-size="10" letter-spacing="1">G-S · FR / 054</text>
         <text x="35" y="40" fill="#4ADE80" font-size="9" font-weight="700" letter-spacing="1">SYNCHRONISÉ</text>
         <rect x="260" y="16" width="28" height="28" rx="9" fill="#12141B" stroke="#2F3340" stroke-width="1"/>
         <text x="274" y="36" text-anchor="middle" font-size="14">💬</text>
-        <circle cx="286" cy="17" r="7" fill="#FF3D5A"/>
-        <text x="286" y="20.5" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">2</text>
+        <circle cx="286" cy="17" r="7" fill="#FF3D5A"/><text x="286" y="20.5" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">2</text>
         <rect x="296" y="16" width="28" height="28" rx="9" fill="#16171e" stroke="#23232c" stroke-width="1"/>
         <text x="310" y="37" text-anchor="middle" font-size="15">⚙️</text>
         <rect x="22" y="46" width="294" height="34" rx="9" fill="#123524"/>
@@ -234,25 +243,168 @@
         <rect x="22" y="214" width="5" height="30" rx="3" fill="#C026D3"/>
         <text x="36" y="227" font-size="15" font-weight="800" fill="#EBA9F6" letter-spacing="1">SUR SITE</text>
         <text x="36" y="241" font-size="10" fill="#9AA0B0">En arrivant chez le client · 3 actions</text>
-        <rect x="22" y="252" width="294" height="82" rx="18" fill="url(#tArrivee)"/>
-        <circle cx="64" cy="293" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="301" text-anchor="middle" font-size="21">📍</text>
-        <text x="100" y="287" fill="#fff" font-size="17" font-weight="800">ARRIVÉE SUR SITE</text>
-        <text x="100" y="308" fill="#ffffff" fill-opacity="0.82" font-size="11">Note l'heure + appelle la techline</text>
-        <rect x="22" y="342" width="294" height="82" rx="18" fill="url(#tAttente)"/>
-        <circle cx="64" cy="383" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="391" text-anchor="middle" font-size="21">⏱️</text>
-        <text x="100" y="377" fill="#fff" font-size="17" font-weight="800">ATTENTE CLIENT</text>
-        <text x="100" y="398" fill="#ffffff" fill-opacity="0.82" font-size="11">Heure début + note l'arrivée</text>
-        <rect x="22" y="432" width="294" height="82" rx="18" fill="url(#tTechline)"/>
-        <circle cx="64" cy="473" r="21" fill="#ffffff" fill-opacity="0.18"/>
-        <text x="64" y="481" text-anchor="middle" font-size="21">📞</text>
-        <text x="100" y="467" fill="#fff" font-size="17" font-weight="800">APPEL TECHLINE</text>
-        <text x="100" y="488" fill="#ffffff" fill-opacity="0.82" font-size="11">Appel direct de la techline</text>
+        <g>
+          <rect x="22" y="252" width="294" height="82" rx="18" fill="url(#a1)"/>
+          <circle cx="64" cy="293" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="301" text-anchor="middle" font-size="21">📍</text>
+          <text x="100" y="287" fill="#fff" font-size="16" font-weight="800">ARRIVÉE SUR SITE</text>
+          <text x="100" y="308" fill="#fff" fill-opacity="0.82" font-size="11">Note l'heure + appelle la techline</text>
+        </g>
+        <g>
+          <rect x="22" y="342" width="294" height="82" rx="18" fill="url(#a2)"/>
+          <circle cx="64" cy="383" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="391" text-anchor="middle" font-size="21">⏱️</text>
+          <text x="100" y="377" fill="#fff" font-size="16" font-weight="800">ATTENTE CLIENT</text>
+          <text x="100" y="398" fill="#fff" fill-opacity="0.82" font-size="11">Note l'arrivée · motif à la clôture</text>
+        </g>
+        <g>
+          <rect x="22" y="432" width="294" height="82" rx="18" fill="url(#a3)"/>
+          <circle cx="64" cy="473" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="481" text-anchor="middle" font-size="21">📞</text>
+          <text x="100" y="467" fill="#fff" font-size="16" font-weight="800">APPEL TECHLINE</text>
+          <text x="100" y="488" fill="#fff" fill-opacity="0.82" font-size="11">Appel direct de la techline</text>
+        </g>
       </g>
     </svg>
-    <div class="cap">Les 10 tuiles sont rangées en <b>3 onglets</b> (Sur site · Intervention · Fin de cycle). En haut : le taux de NR et le voyant de synchro Drive — <b style="color:#4ADE80">vert quand tout est remonté</b>.</div>
+    <figcaption><b style="color:#EBA9F6">Onglet Sur site</b> · en arrivant chez le client</figcaption>
+    </figure>
+
+    <!-- ===== Téléphone 2 : INTERVENTION ===== -->
+    <figure>
+    <svg viewBox="0 0 340 716" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Onglet Intervention : Clôture, PV caméras, Demande caméra, Courrier">
+      <defs>
+        <linearGradient id="b1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#2a1152"/></linearGradient>
+        <linearGradient id="b2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9168F0"/><stop offset="1" stop-color="#3b2170"/></linearGradient>
+        <linearGradient id="b3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9168F0"/><stop offset="1" stop-color="#3b2170"/></linearGradient>
+        <linearGradient id="b4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6366F1"/><stop offset="1" stop-color="#24345f"/></linearGradient>
+      </defs>
+      <rect x="2" y="2" width="336" height="712" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
+      <g font-family="Segoe UI, Arial, sans-serif">
+        <circle cx="26" cy="30" r="3" fill="#4ADE80"/>
+        <text x="35" y="27" fill="#7A8094" font-size="10" letter-spacing="1">G-S · FR / 054</text>
+        <text x="35" y="40" fill="#4ADE80" font-size="9" font-weight="700" letter-spacing="1">SYNCHRONISÉ</text>
+        <rect x="260" y="16" width="28" height="28" rx="9" fill="#12141B" stroke="#2F3340" stroke-width="1"/>
+        <text x="274" y="36" text-anchor="middle" font-size="14">💬</text>
+        <circle cx="286" cy="17" r="7" fill="#FF3D5A"/><text x="286" y="20.5" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">2</text>
+        <rect x="296" y="16" width="28" height="28" rx="9" fill="#16171e" stroke="#23232c" stroke-width="1"/>
+        <text x="310" y="37" text-anchor="middle" font-size="15">⚙️</text>
+        <rect x="22" y="46" width="294" height="34" rx="9" fill="#123524"/>
+        <text x="34" y="68" fill="#4ADE80" font-size="10.5" font-weight="700">NR TECH 4,8 % ✓ · BRUT 23,8 % · 21 INST</text>
+        <line x1="22" y1="96" x2="316" y2="96" stroke="#23232c" stroke-width="1"/>
+        <text x="22" y="121" font-size="18" font-weight="800"><tspan fill="#ee2322">g</tspan><tspan fill="#f4f4f0">systems</tspan></text>
+        <circle cx="25" cy="136" r="3" fill="#4ADE80"/>
+        <text x="35" y="140" fill="#B8BECC" font-size="10" letter-spacing="0.5">MOREL · CYCLE 21/06 → 20/07</text>
+        <rect x="22" y="154" width="294" height="48" rx="13" fill="#12141b" stroke="#2a2f3c" stroke-width="1"/>
+        <text x="71" y="180" text-anchor="middle" font-size="15">📍</text>
+        <text x="71" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Sur site</text>
+        <rect x="124" y="157" width="92" height="42" rx="10" fill="#7C3AED"/>
+        <text x="167" y="180" text-anchor="middle" font-size="15">🔧</text>
+        <text x="167" y="195" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">Intervention</text>
+        <text x="263" y="180" text-anchor="middle" font-size="15">📅</text>
+        <text x="263" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Fin de cycle</text>
+        <rect x="22" y="214" width="5" height="30" rx="3" fill="#7C3AED"/>
+        <text x="36" y="227" font-size="15" font-weight="800" fill="#C4B5FD" letter-spacing="1">INTERVENTION</text>
+        <text x="36" y="241" font-size="10" fill="#9AA0B0">Pendant le rendez-vous · 4 actions</text>
+        <g>
+          <rect x="22" y="252" width="294" height="82" rx="18" fill="url(#b1)"/>
+          <circle cx="64" cy="293" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="301" text-anchor="middle" font-size="21">📋</text>
+          <text x="100" y="287" fill="#fff" font-size="16" font-weight="800">CLÔTURE</text>
+          <text x="100" y="308" fill="#fff" fill-opacity="0.82" font-size="11">Clôture d'intervention · Viber</text>
+        </g>
+        <g>
+          <rect x="22" y="342" width="294" height="82" rx="18" fill="url(#b2)"/>
+          <circle cx="64" cy="383" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="391" text-anchor="middle" font-size="21">📝</text>
+          <text x="100" y="377" fill="#fff" font-size="16" font-weight="800">PV CAMÉRAS</text>
+          <text x="100" y="398" fill="#fff" fill-opacity="0.82" font-size="11">PV signé + envoi client</text>
+        </g>
+        <g>
+          <rect x="22" y="432" width="294" height="82" rx="18" fill="url(#b3)"/>
+          <circle cx="64" cy="473" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="481" text-anchor="middle" font-size="21">🎥</text>
+          <text x="100" y="467" fill="#fff" font-size="16" font-weight="800">DEMANDE CAMÉRA</text>
+          <text x="100" y="488" fill="#fff" fill-opacity="0.82" font-size="11">Rappel installation caméra(s)</text>
+        </g>
+        <g>
+          <rect x="22" y="522" width="294" height="82" rx="18" fill="url(#b4)"/>
+          <circle cx="64" cy="563" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="571" text-anchor="middle" font-size="21">✉️</text>
+          <text x="100" y="557" fill="#fff" font-size="16" font-weight="800">COURRIER</text>
+          <text x="100" y="578" fill="#fff" fill-opacity="0.82" font-size="11">Viber « courrier ok »</text>
+        </g>
+      </g>
+    </svg>
+    <figcaption><b style="color:#C4B5FD">Onglet Intervention</b> · pendant le rendez-vous</figcaption>
+    </figure>
+
+    <!-- ===== Téléphone 3 : FIN DE CYCLE ===== -->
+    <figure>
+    <svg viewBox="0 0 340 716" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Onglet Fin de cycle : Récap, Frais, Envoi mensuel, Prime à venir, Demande de congé">
+      <defs>
+        <linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B82F6"/><stop offset="1" stop-color="#123a5c"/></linearGradient>
+        <linearGradient id="c2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06B6D4"/><stop offset="1" stop-color="#0a3a44"/></linearGradient>
+        <linearGradient id="c3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22C55E"/><stop offset="1" stop-color="#0f3a22"/></linearGradient>
+        <linearGradient id="c4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10B981"/><stop offset="1" stop-color="#0A3025"/></linearGradient>
+        <linearGradient id="c5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F59E0B"/><stop offset="1" stop-color="#3A2606"/></linearGradient>
+      </defs>
+      <rect x="2" y="2" width="336" height="712" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
+      <g font-family="Segoe UI, Arial, sans-serif">
+        <circle cx="26" cy="30" r="3" fill="#4ADE80"/>
+        <text x="35" y="27" fill="#7A8094" font-size="10" letter-spacing="1">G-S · FR / 054</text>
+        <text x="35" y="40" fill="#4ADE80" font-size="9" font-weight="700" letter-spacing="1">SYNCHRONISÉ</text>
+        <rect x="260" y="16" width="28" height="28" rx="9" fill="#12141B" stroke="#2F3340" stroke-width="1"/>
+        <text x="274" y="36" text-anchor="middle" font-size="14">💬</text>
+        <circle cx="286" cy="17" r="7" fill="#FF3D5A"/><text x="286" y="20.5" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">2</text>
+        <rect x="296" y="16" width="28" height="28" rx="9" fill="#16171e" stroke="#23232c" stroke-width="1"/>
+        <text x="310" y="37" text-anchor="middle" font-size="15">⚙️</text>
+        <rect x="22" y="46" width="294" height="34" rx="9" fill="#123524"/>
+        <text x="34" y="68" fill="#4ADE80" font-size="10.5" font-weight="700">NR TECH 4,8 % ✓ · BRUT 23,8 % · 21 INST</text>
+        <line x1="22" y1="96" x2="316" y2="96" stroke="#23232c" stroke-width="1"/>
+        <text x="22" y="121" font-size="18" font-weight="800"><tspan fill="#ee2322">g</tspan><tspan fill="#f4f4f0">systems</tspan></text>
+        <circle cx="25" cy="136" r="3" fill="#4ADE80"/>
+        <text x="35" y="140" fill="#B8BECC" font-size="10" letter-spacing="0.5">MOREL · CYCLE 21/06 → 20/07</text>
+        <rect x="22" y="154" width="294" height="48" rx="13" fill="#12141b" stroke="#2a2f3c" stroke-width="1"/>
+        <text x="71" y="180" text-anchor="middle" font-size="15">📍</text>
+        <text x="71" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Sur site</text>
+        <text x="167" y="180" text-anchor="middle" font-size="15">🔧</text>
+        <text x="167" y="195" text-anchor="middle" font-size="10" font-weight="600" fill="#C2C7D4">Intervention</text>
+        <rect x="223" y="157" width="92" height="42" rx="10" fill="#22C55E"/>
+        <text x="263" y="180" text-anchor="middle" font-size="15">📅</text>
+        <text x="263" y="195" text-anchor="middle" font-size="10" font-weight="700" fill="#06240f">Fin de cycle</text>
+        <rect x="22" y="214" width="5" height="30" rx="3" fill="#22C55E"/>
+        <text x="36" y="227" font-size="15" font-weight="800" fill="#86EFAC" letter-spacing="1">FIN DE CYCLE</text>
+        <text x="36" y="241" font-size="10" fill="#9AA0B0">Récap et envoi · 5 actions</text>
+        <g>
+          <rect x="22" y="252" width="294" height="82" rx="18" fill="url(#c1)"/>
+          <circle cx="64" cy="293" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="301" text-anchor="middle" font-size="21">📊</text>
+          <text x="100" y="287" fill="#fff" font-size="16" font-weight="800">RÉCAP</text>
+          <text x="100" y="308" fill="#fff" fill-opacity="0.82" font-size="11">Cumul du cycle · total euros</text>
+        </g>
+        <g>
+          <rect x="22" y="342" width="294" height="82" rx="18" fill="url(#c2)"/>
+          <circle cx="64" cy="383" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="391" text-anchor="middle" font-size="21">🧾</text>
+          <text x="100" y="377" fill="#fff" font-size="16" font-weight="800">FRAIS</text>
+          <text x="100" y="398" fill="#fff" fill-opacity="0.82" font-size="11">Tickets · photos · envoi groupé</text>
+        </g>
+        <g>
+          <rect x="22" y="432" width="294" height="82" rx="18" fill="url(#c3)"/>
+          <circle cx="64" cy="473" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="481" text-anchor="middle" font-size="21">📤</text>
+          <text x="100" y="467" fill="#fff" font-size="16" font-weight="800">ENVOI MENSUEL</text>
+          <text x="100" y="488" fill="#fff" fill-opacity="0.82" font-size="11">Excel + tickets + compteur</text>
+        </g>
+        <g>
+          <rect x="22" y="522" width="294" height="82" rx="18" fill="url(#c4)"/>
+          <circle cx="64" cy="563" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="571" text-anchor="middle" font-size="21">💰</text>
+          <text x="100" y="557" fill="#fff" font-size="16" font-weight="800">PRIME À VENIR</text>
+          <text x="100" y="578" fill="#fff" fill-opacity="0.82" font-size="11">Historique · versement à +2 mois</text>
+        </g>
+        <g>
+          <rect x="22" y="612" width="294" height="82" rx="18" fill="url(#c5)"/>
+          <circle cx="64" cy="653" r="21" fill="#fff" fill-opacity="0.18"/><text x="64" y="661" text-anchor="middle" font-size="21">🏖️</text>
+          <text x="100" y="647" fill="#fff" font-size="16" font-weight="800">DEMANDE DE CONGÉ</text>
+          <text x="100" y="668" fill="#fff" fill-opacity="0.82" font-size="11">Formulaire signé · envoi bureau</text>
+        </g>
+      </g>
+    </svg>
+    <figcaption><b style="color:#86EFAC">Onglet Fin de cycle</b> · récap et envoi</figcaption>
+    </figure>
+
   </div>
+  <p class="cap" style="text-align:center">Les <b>12 tuiles</b> rangées dans leurs <b>3 onglets</b>. En haut de chaque écran : le taux de NR et le voyant de synchro Drive — <b style="color:#4ADE80">vert quand tout est remonté</b>. Faites glisser pour voir les 3 onglets.</p>
 
   <div class="tiles">
     <div class="tile-row"><div class="dot" style="background:#fbe2fe">📍</div><div class="tx"><b>ARRIVÉE SUR SITE</b><span>En arrivant chez le client : un appui <b>note l'heure d'arrivée</b> et <b>appelle la techline</b>. Cette heure devient le <b>début</b> de la prochaine clôture. Appui par erreur ? Ré-appuyez → <b>Annuler l'arrivée</b> ou <b>Repointer</b>.</span></div></div>
@@ -285,26 +437,71 @@
   </div>
 
   <div class="center-img">
-    <div style="background:#1a1a20; border-radius:14px; overflow:hidden; max-width:320px; margin:0 auto; text-align:left; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
-      <div style="background:#7C3AED; color:#fff; padding:10px 14px; font-size:15px; font-weight:700;">CLÔTURE</div>
-      <div style="padding:12px 14px; color:#ececf0;">
-        <div style="margin-bottom:10px;">
-          <span style="background:#7C3AED; color:#fff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:12px;">INSTALL</span>
-          <span style="background:#26262e; color:#9a9aa6; font-size:11px; padding:4px 12px; border-radius:12px;">SAV</span>
-        </div>
-        <div style="display:flex; gap:6px; margin-bottom:8px;">
-          <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">Date</div><div style="font-size:12px;">2026-06-20</div></div>
-          <div style="flex:1; background:#26262e; border:1px solid #33333d; border-radius:8px; padding:6px 8px;"><div style="font-size:9px; color:#9a9aa6;">N° interv. *</div><div style="font-size:12px;">43001714</div></div>
-        </div>
-        <div style="background:#26262e; border:1px solid #f59e0b; border-radius:8px; padding:6px 8px; margin-bottom:10px;"><div style="font-size:9px; color:#f59e0b;">N° de site * (GESTE CO)</div><div style="font-size:12px;">12345</div></div>
-        <div style="background:#13251f; border:1px solid #10B981; border-radius:10px; padding:9px; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#5eead4;">Extensions installées (GESTE CO)</span><span style="width:30px; height:16px; background:#10B981; border-radius:9px; position:relative; display:inline-block; flex:none;"><span style="width:12px; height:12px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></span></span></div>
-          <div style="font-size:11px; color:#9a9aa6; margin-top:4px;">Tableau Installé / GESTE CO · prime calculée</div>
-        </div>
-        <div style="background:#7C3AED; color:#fff; text-align:center; font-size:14px; font-weight:700; padding:11px; border-radius:11px;">Enregistrer</div>
-      </div>
-    </div>
-    <div class="cap">Le formulaire de clôture d'une installation.</div>
+    <svg viewBox="0 0 340 662" style="width:300px; max-width:90%; height:auto;" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran Clôture d'une installation : tableau GESTE CO avec colonnes Installé et GESTE CO, et le bilan de prime">
+      <rect x="2" y="2" width="336" height="658" rx="34" fill="#0b0b11" stroke="#23232c" stroke-width="2"/>
+      <g font-family="Segoe UI, Arial, sans-serif" fill="#ececf0">
+        <!-- barre titre -->
+        <rect x="14" y="14" width="312" height="40" rx="12" fill="#7C3AED"/>
+        <text x="30" y="39" fill="#fff" font-size="16" font-weight="800">CLÔTURE</text>
+        <!-- chips INSTALL / SAV -->
+        <rect x="16" y="68" width="66" height="24" rx="12" fill="#7C3AED"/>
+        <text x="49" y="84" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">INSTALL</text>
+        <rect x="88" y="68" width="52" height="24" rx="12" fill="#26262e"/>
+        <text x="114" y="84" text-anchor="middle" fill="#9a9aa6" font-size="11">SAV</text>
+        <!-- date + n° interv -->
+        <rect x="16" y="102" width="150" height="44" rx="8" fill="#16171e" stroke="#2f3340"/>
+        <text x="26" y="120" fill="#9a9aa6" font-size="9">Date</text>
+        <text x="26" y="137" fill="#fff" font-size="12">20/06/2026</text>
+        <rect x="174" y="102" width="150" height="44" rx="8" fill="#16171e" stroke="#2f3340"/>
+        <text x="184" y="120" fill="#9a9aa6" font-size="9">N° interv. *</text>
+        <text x="184" y="137" fill="#fff" font-size="12">43001714</text>
+        <!-- n° de site -->
+        <rect x="16" y="154" width="308" height="44" rx="8" fill="#16171e" stroke="#f59e0b"/>
+        <text x="26" y="172" fill="#f59e0b" font-size="9">N° de site * (GESTE CO)</text>
+        <text x="26" y="189" fill="#fff" font-size="12">12345</text>
+        <!-- carte GESTE CO -->
+        <rect x="16" y="206" width="308" height="356" rx="12" fill="#0e1f18" stroke="#10B981"/>
+        <text x="28" y="230" fill="#6EE7B7" font-size="12" font-weight="700">Extensions installées (GESTE CO)</text>
+        <rect x="286" y="221" width="26" height="14" rx="7" fill="#10B981"/><circle cx="305" cy="228" r="5" fill="#fff"/>
+        <!-- en-têtes de colonnes -->
+        <text x="28" y="253" fill="#c9cdd6" font-size="11" font-weight="700">Type</text>
+        <text x="184" y="253" text-anchor="middle" fill="#c9cdd6" font-size="11" font-weight="700">Installé</text>
+        <text x="274" y="253" text-anchor="middle" fill="#6EE7B7" font-size="11" font-weight="700">GESTE CO</text>
+        <!-- lignes : Type(prix) | Installé | GESTE CO -->
+        <g font-size="13">
+          <!-- GSM -->
+          <text x="28" y="284" fill="#fff" font-weight="700">GSM</text><text x="28" y="297" fill="#7f8598" font-size="9">4,00 €</text>
+          <rect x="150" y="266" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="184" y="286" text-anchor="middle" fill="#fff">1</text>
+          <rect x="240" y="266" width="68" height="30" rx="7" fill="#16171e" stroke="#10B981"/><text x="274" y="286" text-anchor="middle" fill="#6EE7B7">1</text>
+          <!-- CO -->
+          <text x="28" y="334" fill="#fff" font-weight="700">CO</text><text x="28" y="347" fill="#7f8598" font-size="9">2,00 €</text>
+          <rect x="150" y="316" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="184" y="336" text-anchor="middle" fill="#fff">5</text>
+          <rect x="240" y="316" width="68" height="30" rx="7" fill="#16171e" stroke="#10B981"/><text x="274" y="336" text-anchor="middle" fill="#6EE7B7">2</text>
+          <!-- CAM -->
+          <text x="28" y="384" fill="#fff" font-weight="700">CAM</text><text x="28" y="397" fill="#7f8598" font-size="9">4,00 €</text>
+          <rect x="150" y="366" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="184" y="386" text-anchor="middle" fill="#fff">2</text>
+          <rect x="240" y="366" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="274" y="386" text-anchor="middle" fill="#7f8598">0</text>
+          <!-- SE -->
+          <text x="28" y="434" fill="#fff" font-weight="700">SE</text><text x="28" y="447" fill="#7f8598" font-size="9">4,00 €</text>
+          <rect x="150" y="416" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="184" y="436" text-anchor="middle" fill="#fff">1</text>
+          <rect x="240" y="416" width="68" height="30" rx="7" fill="#16171e" stroke="#2f3340"/><text x="274" y="436" text-anchor="middle" fill="#7f8598">0</text>
+        </g>
+        <text x="28" y="466" fill="#7f8598" font-size="10">… et 8 autres types (DMP, TC, SI, DACCO, BA, CL, DF, SONDE IN)</text>
+        <!-- dérogation EPS -->
+        <text x="28" y="490" fill="#fff" font-size="12" font-weight="700">Dérogation EPS</text>
+        <text x="28" y="503" fill="#7f8598" font-size="9">Désactive les règles 4,50 € et moitié max</text>
+        <rect x="286" y="483" width="26" height="14" rx="7" fill="#33333d"/><circle cx="293" cy="490" r="5" fill="#8a8f9e"/>
+        <!-- bilan -->
+        <rect x="28" y="512" width="284" height="42" rx="8" fill="#12291f"/>
+        <text x="38" y="527" fill="#6EE7B7" font-size="10" font-weight="700">✓ Règles OK</text>
+        <text x="38" y="540" fill="#aeb4c2" font-size="9">Installé : 9 · Offert : 3 · GESTE CO : 4,50 €</text>
+        <text x="38" y="551" fill="#fff" font-size="10" font-weight="700">Ta prime : 26,00 €</text>
+        <!-- enregistrer -->
+        <rect x="16" y="574" width="308" height="44" rx="11" fill="#7C3AED"/>
+        <text x="170" y="602" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">Enregistrer</text>
+      </g>
+    </svg>
+    <div class="cap">Clôture d'une <b>installation</b> : la section <b style="color:#6EE7B7">GESTE CO</b> — colonne <b>Installé</b> (extensions posées, = vos primes) et colonne <b style="color:#6EE7B7">GESTE CO</b> (ce qui est offert au client). La prime se calcule sur les <b>installées</b>.</div>
   </div>
 
   <div class="card" style="border-left:4px solid #FF3D5A">
