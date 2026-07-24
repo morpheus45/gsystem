@@ -303,6 +303,9 @@ data class AppSettings(
     val lastDriveBackup: Long = 0L,
     /** Heure (ms) d'arrivée sur site en attente d'être rattachée à la prochaine clôture. 0 = aucune. */
     val pendingArrivalMs: Long = 0L,
+    /** TEST (branche fusion) : tuile ayant pointé l'arrivée ("arrivee" | "attente" | ""),
+     *  pour que SEULE cette tuile se transforme en CLÔTURER. */
+    val pendingArrivalSource: String = "",
     /**
      * Date ISO (yyyy-MM-dd) du dernier envoi mensuel effectué. Vide = jamais.
      * Cycle glissant : le cycle courant démarre le LENDEMAIN de cette date

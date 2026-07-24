@@ -33,7 +33,7 @@ object PvPdfGenerator {
         val nbExt: String, val totExt: String,
         val nbInt: String, val totInt: String,
         val nbTorus: String, val totTorus: String,
-        val montantTotal: String,
+        val totEquip: String, val montantTotal: String,
         // cases mise en service (page 1 : int / ext) + anticipée (page 2)
         val miseServInt: Boolean, val miseServExt: Boolean, val miseServAnticipee: Boolean,
         // textes + validation
@@ -90,6 +90,8 @@ object PvPdfGenerator {
                 str(d.nbExt, 481f, 372f, 10f, bold = true);   str(d.totExt, 512f, 372f, 10f, bold = true)
                 str(d.nbInt, 481f, 392f, 10f, bold = true);   str(d.totInt, 512f, 392f, 10f, bold = true)
                 str(d.nbTorus, 481f, 410f, 10f, bold = true); str(d.totTorus, 512f, 410f, 10f, bold = true)
+                // ---- Ligne TOTAL du tableau (somme équipement, avant « € TTC » à droite)
+                str(d.totEquip, 512f, 427f, 10f, bold = true)
                 // ---- Cases « mise en service »
                 if (d.miseServInt) cross(14f, 508f)
                 if (d.miseServExt) cross(14f, 519f)

@@ -187,7 +187,7 @@ fun AppNav() {
     // Pointe l'arrivée : note l'heure + appelle la techline.
     val recordArrival = {
         val now = System.currentTimeMillis()
-        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = "arrivee") } }
         android.widget.Toast.makeText(
             context, "Arrivée notée : ${DateUtil.hm(now)}",
             android.widget.Toast.LENGTH_SHORT
@@ -264,6 +264,7 @@ fun AppNav() {
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
+                onNewIntervention = { navController.navigate("temps_new") },
                 onDemandeCamera = { navController.navigate("demande_camera") },
                 onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
@@ -277,7 +278,7 @@ fun AppNav() {
                     // la clôture (Perso / Attente client / Adresse).
                     if (settings.pendingArrivalMs <= 0L) {
                         val now = System.currentTimeMillis()
-                        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+                        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = "attente") } }
                         android.widget.Toast.makeText(
                             context, "Arrivée notée : ${DateUtil.hm(now)}",
                             android.widget.Toast.LENGTH_SHORT
@@ -363,8 +364,21 @@ fun AppNav() {
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onArrivalConsumed = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                 },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        // TEST (branche fusion) : même écran, mais ouvre directement le formulaire.
+        composable("temps_new") {
+            TempsScreen(
+                settings = settings, store = store, repo = repo,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
+                onArrivalConsumed = {
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
+                },
+                openNew = true,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -443,7 +457,7 @@ fun AppNav() {
             },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                     showArrivalDialog = false
                     android.widget.Toast.makeText(
                         context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
