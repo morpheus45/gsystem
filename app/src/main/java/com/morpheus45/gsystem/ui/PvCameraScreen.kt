@@ -160,12 +160,11 @@ fun PvCameraScreen(
     var working by remember { mutableStateOf(false) }
 
     // Tableau ÉQUIPEMENT VIDÉO : Nombre + Total € par type de caméra.
+    // Le tech ne saisit QUE le nombre de chaque caméra : les prix unitaires sont
+    // déjà imprimés sur la trame, donc l'app calcule tout (ligne + total).
     var nbExt by remember { mutableStateOf("") }
-    var totExt by remember { mutableStateOf("") }
     var nbInt by remember { mutableStateOf("") }
-    var totInt by remember { mutableStateOf("") }
     var nbTorus by remember { mutableStateOf("") }
-    var totTorus by remember { mutableStateOf("") }
     var observations by remember { mutableStateOf("") }
     var miseServInt by remember { mutableStateOf(false) }
     var miseServExt by remember { mutableStateOf(false) }
@@ -176,16 +175,20 @@ fun PvCameraScreen(
     val sigParapheClient = remember { SignatureController() }
     val sigParapheTech = remember { SignatureController() }
 
-    // Montant TOTAL calculé AUTOMATIQUEMENT : total des caméras + frais de mise
-    // en service. Règle de la trame : si intérieure ET extérieure, seul le frais
-    // le plus élevé s'applique (70 € prime sur 40 €).
-    fun eurOf(s: String): Double =
-        s.trim().replace("€", "").replace(" ", "").replace(",", ".").toDoubleOrNull() ?: 0.0
+    // Prix unitaires € TTC imprimés sur la trame.
+    val PRIX_EXT = 179.0; val PRIX_INT = 149.0; val PRIX_TORUS = 89.0
+    fun qOf(s: String): Int = s.filter { it.isDigit() }.toIntOrNull() ?: 0
+    fun fmt(v: Double): String =
+        if (v > 0.0) String.format(java.util.Locale.US, "%.2f", v).replace(".", ",") else ""
+    val tExt = qOf(nbExt) * PRIX_EXT
+    val tInt = qOf(nbInt) * PRIX_INT
+    val tTorus = qOf(nbTorus) * PRIX_TORUS
+    val equipSum = tExt + tInt + tTorus
+    // Frais de mise en service : si int ET ext, seul le plus élevé (70 €) s'applique.
     val miseFee = if (miseServExt) 70.0 else if (miseServInt) 40.0 else 0.0
-    val camSum = eurOf(totExt) + eurOf(totInt) + eurOf(totTorus)
-    val montantAuto = camSum + miseFee
-    val montantStr = if (montantAuto > 0.0)
-        String.format(java.util.Locale.US, "%.2f", montantAuto).replace(".", ",") else ""
+    val montantAuto = equipSum + miseFee
+    val totExtStr = fmt(tExt); val totIntStr = fmt(tInt); val totTorusStr = fmt(tTorus)
+    val totEquipStr = fmt(equipSum); val montantStr = fmt(montantAuto)
 
     Scaffold(
         containerColor = Obsidian,
@@ -221,12 +224,16 @@ fun PvCameraScreen(
             Field("Adresse du lieu protégé", adresse) { adresse = it }
 
             SectionTitle("Équipement vidéo installé")
-            Field("Caméra HOMIRIS-HD-100 extérieure — Nombre", nbExt, KeyboardType.Number) { nbExt = it }
-            Field("Caméra HOMIRIS-HD-100 extérieure — Total €", totExt, KeyboardType.Number) { totExt = it }
-            Field("Caméra HOMIRIS HD-100 intérieure — Nombre", nbInt, KeyboardType.Number) { nbInt = it }
-            Field("Caméra HOMIRIS HD-100 intérieure — Total €", totInt, KeyboardType.Number) { totInt = it }
-            Field("Caméra TORUS intérieure — Nombre", nbTorus, KeyboardType.Number) { nbTorus = it }
-            Field("Caméra TORUS intérieure — Total €", totTorus, KeyboardType.Number) { totTorus = it }
+            Text("Saisis seulement le NOMBRE de chaque caméra — le total se calcule tout seul.",
+                color = TextLow, fontSize = 11.sp)
+            Field("HOMIRIS-HD-100 extérieure (179,00 €) — Nombre", nbExt, KeyboardType.Number) { nbExt = it }
+            if (tExt > 0) Text("  → ${fmt(tExt)} € TTC", color = TextMid, fontSize = 12.sp)
+            Field("HOMIRIS HD-100 intérieure (149,00 €) — Nombre", nbInt, KeyboardType.Number) { nbInt = it }
+            if (tInt > 0) Text("  → ${fmt(tInt)} € TTC", color = TextMid, fontSize = 12.sp)
+            Field("TORUS intérieure (89,00 €) — Nombre", nbTorus, KeyboardType.Number) { nbTorus = it }
+            if (tTorus > 0) Text("  → ${fmt(tTorus)} € TTC", color = TextMid, fontSize = 12.sp)
+            if (equipSum > 0) Text("TOTAL équipement : ${fmt(equipSum)} € TTC",
+                color = TextHi, fontSize = 13.sp, fontWeight = FontWeight.Bold)
 
             SectionTitle("Mise en service")
             CheckRow("Mise en service intérieure (40,00 € TTC)", miseServInt) { miseServInt = it }
@@ -240,7 +247,7 @@ fun PvCameraScreen(
                 modifier = Modifier.padding(top = 4.dp)
             )
             Text(
-                "= caméras (${String.format(java.util.Locale.US, "%.2f", camSum).replace(".", ",")} €)" +
+                "= équipement (${fmt(equipSum).ifBlank { "0,00" }} €)" +
                     if (miseFee > 0) " + mise en service (${miseFee.toInt()} €)" else "",
                 color = TextLow, fontSize = 11.sp
             )
@@ -288,10 +295,10 @@ fun PvCameraScreen(
                                         conv = convention.trim(), site = site.trim(),
                                         dateSous = dateSous.trim(), nom = nomAbonne.trim(),
                                         adr = adresse.trim(),
-                                        nbExt = nbExt.trim(), totExt = totExt.trim(),
-                                        nbInt = nbInt.trim(), totInt = totInt.trim(),
-                                        nbTorus = nbTorus.trim(), totTorus = totTorus.trim(),
-                                        montantTotal = montantStr,
+                                        nbExt = nbExt.trim(), totExt = totExtStr,
+                                        nbInt = nbInt.trim(), totInt = totIntStr,
+                                        nbTorus = nbTorus.trim(), totTorus = totTorusStr,
+                                        totEquip = totEquipStr, montantTotal = montantStr,
                                         miseServInt = miseServInt, miseServExt = miseServExt,
                                         miseServAnticipee = miseServAnticipee,
                                         observations = observations.trim(),
