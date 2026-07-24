@@ -275,33 +275,36 @@ fun HomeScreen(
 
         // TEST (branche fusion arrivée/attente + clôture) :
         // tant qu'aucune arrivée n'est pointée, 01 = ARRIVÉE, 02 = ATTENTE (identiques).
-        // Dès qu'une arrivée est notée, la MÊME tuile se transforme en CLÔTURE :
-        // un appui ouvre directement « Nouvelle intervention ».
+        // Dès qu'une arrivée est notée, SEULE la tuile qui a pointé se transforme en
+        // CLÔTURER (un appui ouvre directement « Nouvelle intervention ») ; l'autre
+        // reste inchangée. La source du pointage est mémorisée dans les réglages.
         val arrPending = settings.pendingArrivalMs > 0L
         val arrHm = com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs)
+        val cloture01 = arrPending && settings.pendingArrivalSource == "arrivee"
+        val cloture02 = arrPending && settings.pendingArrivalSource == "attente"
         val tiles = listOf(
             HomeTile("01",
-                if (arrPending) "CLÔTURER" else "ARRIVÉE SUR SITE",
-                if (arrPending) "Arrivée notée · ouvrir une intervention" else "Note l'heure + appelle la techline",
-                if (arrPending) Icons.Outlined.Assignment else Icons.Outlined.PinDrop,
-                if (arrPending) TempsStart else ArriveeStart,
-                if (arrPending) TempsEnd else ArriveeEnd,
-                if (arrPending) TempsAccent else ArriveeAccent,
+                if (cloture01) "CLÔTURER" else "ARRIVÉE SUR SITE",
+                if (cloture01) "Arrivée notée · ouvrir une intervention" else "Note l'heure + appelle la techline",
+                if (cloture01) Icons.Outlined.Assignment else Icons.Outlined.PinDrop,
+                if (cloture01) TempsStart else ArriveeStart,
+                if (cloture01) TempsEnd else ArriveeEnd,
+                if (cloture01) TempsAccent else ArriveeAccent,
                 HomeGroup.SITE,
-                liveValue = if (arrPending) arrHm else null,
-                liveLabel = if (arrPending) "arrivée" else null,
-                onClick = if (arrPending) onNewIntervention else onArrivee),
+                liveValue = if (cloture01) arrHm else null,
+                liveLabel = if (cloture01) "arrivée" else null,
+                onClick = if (cloture01) onNewIntervention else onArrivee),
             HomeTile("02",
-                if (arrPending) "CLÔTURER" else "ATTENTE CLIENT",
-                if (arrPending) "Arrivée notée · ouvrir une intervention" else "Note l'arrivée · motif à la clôture",
-                if (arrPending) Icons.Outlined.Assignment else Icons.Outlined.Timer,
-                if (arrPending) TempsStart else AttenteStart,
-                if (arrPending) TempsEnd else AttenteEnd,
-                if (arrPending) TempsAccent else AttenteAccent,
+                if (cloture02) "CLÔTURER" else "ATTENTE CLIENT",
+                if (cloture02) "Arrivée notée · ouvrir une intervention" else "Note l'arrivée · motif à la clôture",
+                if (cloture02) Icons.Outlined.Assignment else Icons.Outlined.Timer,
+                if (cloture02) TempsStart else AttenteStart,
+                if (cloture02) TempsEnd else AttenteEnd,
+                if (cloture02) TempsAccent else AttenteAccent,
                 HomeGroup.SITE,
-                liveValue = if (arrPending) arrHm else null,
-                liveLabel = if (arrPending) "arrivée" else null,
-                onClick = if (arrPending) onNewIntervention else onAttenteClient),
+                liveValue = if (cloture02) arrHm else null,
+                liveLabel = if (cloture02) "arrivée" else null,
+                onClick = if (cloture02) onNewIntervention else onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
                 onClick = onAppelTechline),

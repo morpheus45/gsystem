@@ -183,7 +183,7 @@ fun AppNav() {
     // Pointe l'arrivée : note l'heure + appelle la techline.
     val recordArrival = {
         val now = System.currentTimeMillis()
-        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = "arrivee") } }
         android.widget.Toast.makeText(
             context, "Arrivée notée : ${DateUtil.hm(now)}",
             android.widget.Toast.LENGTH_SHORT
@@ -274,7 +274,7 @@ fun AppNav() {
                     // la clôture (Perso / Attente client / Adresse).
                     if (settings.pendingArrivalMs <= 0L) {
                         val now = System.currentTimeMillis()
-                        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now) } }
+                        scope.launch { settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = "attente") } }
                         android.widget.Toast.makeText(
                             context, "Arrivée notée : ${DateUtil.hm(now)}",
                             android.widget.Toast.LENGTH_SHORT
@@ -360,7 +360,7 @@ fun AppNav() {
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onArrivalConsumed = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -372,7 +372,7 @@ fun AppNav() {
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
                 onArrivalConsumed = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                 },
                 openNew = true,
                 onBack = { navController.popBackStack() }
@@ -453,7 +453,7 @@ fun AppNav() {
             },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L) } }
+                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                     showArrivalDialog = false
                     android.widget.Toast.makeText(
                         context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
