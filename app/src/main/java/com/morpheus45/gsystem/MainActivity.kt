@@ -265,6 +265,7 @@ fun AppNav() {
                 onAppelTechline = onAppelTechline,
                 onTemps = { navController.navigate("temps") },
                 onNewIntervention = { navController.navigate("temps_new") },
+                onArrivalCancel = { showArrivalDialog = true },
                 onDemandeCamera = { navController.navigate("demande_camera") },
                 onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },

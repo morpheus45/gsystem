@@ -115,8 +115,10 @@ fun HomeScreen(
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
     onTemps: () -> Unit,
-    // TEST (branche fusion) : ouvre directement « Nouvelle intervention ».
+    // Fusion : ouvre directement « Nouvelle intervention ».
     onNewIntervention: () -> Unit = {},
+    // Appui long sur une tuile 01/02 transformée : annuler / repointer l'arrivée.
+    onArrivalCancel: () -> Unit = {},
     onDemandeCamera: () -> Unit,
     onPvCameras: () -> Unit,
     onGesteCoRecap: () -> Unit,
@@ -293,6 +295,7 @@ fun HomeScreen(
                 HomeGroup.SITE,
                 liveValue = if (cloture01) arrHm else null,
                 liveLabel = if (cloture01) "arrivée" else null,
+                longPress = if (cloture01) onArrivalCancel else null,
                 onClick = if (cloture01) onNewIntervention else onArrivee),
             HomeTile("02",
                 if (cloture02) "CLÔTURER" else "ATTENTE CLIENT",
@@ -304,6 +307,7 @@ fun HomeScreen(
                 HomeGroup.SITE,
                 liveValue = if (cloture02) arrHm else null,
                 liveLabel = if (cloture02) "arrivée" else null,
+                longPress = if (cloture02) onArrivalCancel else null,
                 onClick = if (cloture02) onNewIntervention else onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
@@ -372,6 +376,7 @@ fun HomeScreen(
                     liveValue = t.liveValue,
                     liveLabel = t.liveLabel,
                     pulseAccent = t.pulse,
+                    onLongPress = t.longPress,
                     onClick = t.onClick
                 )
             }
@@ -418,6 +423,7 @@ private data class HomeTile(
     val liveValue: String? = null,
     val liveLabel: String? = null,
     val pulse: Boolean = false,
+    val longPress: (() -> Unit)? = null,
     val onClick: () -> Unit
 )
 

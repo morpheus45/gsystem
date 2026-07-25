@@ -10,6 +10,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +46,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +82,8 @@ fun CategoryTile(
     liveValue: String? = null,
     liveLabel: String? = null,
     pulseAccent: Boolean = false,
+    /** Appui LONG (2 s) — optionnel. Ex : annuler/repointer l'arrivée. */
+    onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -84,6 +93,32 @@ fun CategoryTile(
         animationSpec = tween(100),
         label = "press"
     )
+    val haptics = LocalHapticFeedback.current
+    // Sans appui long : clic simple. Avec : clic si relâché avant 2 s, sinon
+    // appui long (vibration) au bout de 2 s maintenues.
+    val clickModifier = if (onLongPress == null) {
+        Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+    } else {
+        Modifier.pointerInput(onClick, onLongPress) {
+            awaitEachGesture {
+                awaitFirstDown()
+                // true = relâché avant 2 s (clic) ; false = geste annulé (scroll) ;
+                // null = 2 s maintenues sans relâcher (appui long).
+                val tapped: Boolean? = withTimeoutOrNull(2000L) {
+                    waitForUpOrCancellation() != null
+                }
+                when (tapped) {
+                    true -> onClick()
+                    false -> { /* annulé par un scroll : ne rien faire */ }
+                    null -> {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongPress()
+                        waitForUpOrCancellation()
+                    }
+                }
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -102,11 +137,7 @@ fun CategoryTile(
                 color = accent.copy(alpha = 0.25f),
                 shape = RoundedCornerShape(14.dp)
             )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+            .then(clickModifier)
     ) {
         // Halo lumineux subtil top-left (proportionne)
         Box(
