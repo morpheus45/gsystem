@@ -6,9 +6,10 @@ plugins {
 
 android {
     namespace = "com.morpheus45.gsystem"
-    // 35 requis par le flavor "play" (targetSdk 35). Le flavor "sideload"
-    // continue de cibler targetSdk 34 (rien ne change pour l'APK quotidien).
-    compileSdk = 35
+    // 36 requis par le flavor "play" (targetSdk 36 = Android 16, exigence Google
+    // Play). Le flavor "sideload" continue de cibler targetSdk 34 (rien ne change
+    // pour l'APK quotidien).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.morpheus45.gsystem"
@@ -17,8 +18,8 @@ android {
         // téléphones Android modernes.
         minSdk = 26
         targetSdk = 34
-        versionCode = 127
-        versionName = "1.9.47"
+        versionCode = 128
+        versionName = "1.9.48"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -31,7 +32,8 @@ android {
     //
     //   • play     : build conforme Google Play (AAB).
     //                Pas d'auto-update, IntegrityGuard désactivé (Play re-signe),
-    //                targetSdk 35. Voir playstore/code-changes-required.md.
+    //                targetSdk 36 (Android 16, exigence Play). Voir
+    //                playstore/code-changes-required.md.
     //
     //  Le flag BuildConfig.PLAY_BUILD permet au code partagé (MainActivity,
     //  SettingsScreen) de désactiver l'auto-update / la garde d'intégrité
@@ -45,7 +47,7 @@ android {
         }
         create("play") {
             dimension = "canal"
-            targetSdk = 35
+            targetSdk = 36
             versionNameSuffix = "-play"
             buildConfigField("boolean", "PLAY_BUILD", "true")
         }
