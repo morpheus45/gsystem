@@ -53,6 +53,7 @@ object PvPdfGenerator {
         val renderer = PdfRenderer(pfd)
         val doc = PdfDocument()
 
+        val white = Paint().apply { color = Color.WHITE; style = Paint.Style.FILL }
         val txtPaint = Paint().apply { color = Color.BLACK; isAntiAlias = true }
         val linePaint = Paint().apply {
             color = Color.BLACK; isAntiAlias = true; strokeWidth = 1.4f * S
@@ -67,6 +68,8 @@ object PvPdfGenerator {
             page.close()
 
             val c = Canvas(bmp)
+            fun mask(x0: Float, y0: Float, x1: Float, y1: Float) =
+                c.drawRect(x0 * S, y0 * S, x1 * S, y1 * S, white)
             fun str(s: String, x: Float, y: Float, size: Float = 9.5f, bold: Boolean = false) {
                 if (s.isBlank()) return
                 txtPaint.textSize = size * S
@@ -78,12 +81,13 @@ object PvPdfGenerator {
                 c.drawLine((cx - r) * S, (cy + r) * S, (cx + r) * S, (cy - r) * S, linePaint)
             }
 
-            // ---- EN-TÊTE (identique sur les 2 pages ; l'asset est déjà vide) ----
-            str(d.conv, 78f, 45f)
-            str(d.site, 210f, 45f)
-            str(d.dateSous, 392f, 45f)
-            str(d.nom, 144f, 66f)
-            str(d.adr, 126f, 92f, 9f)
+            // ---- EN-TÊTE (identique sur les 2 pages ; zones grisées dans l'asset,
+            // valeurs écrites en GRAS par-dessus le gris du bandeau) ----
+            str(d.conv, 78f, 45f, bold = true)
+            str(d.site, 210f, 45f, bold = true)
+            str(d.dateSous, 392f, 45f, bold = true)
+            str(d.nom, 144f, 66f, bold = true)
+            str(d.adr, 126f, 92f, 9f, bold = true)
 
             if (i == 0) {
                 // ---- Tableau ÉQUIPEMENT VIDÉO : Nombre (centre ~483) + Total (avant « € TTC » à ~558)
@@ -110,13 +114,17 @@ object PvPdfGenerator {
             if (i == 1) {
                 // ---- Case « mise en service anticipée »
                 if (d.miseServAnticipee) cross(16f, 342f)
-                // ---- Fait le … + Nom du technicien-conseil (après les pointillés)
-                str(d.faitLe, 42f, 446f, 8.5f)
-                str(d.nomTech, 452f, 467f, 8.5f)
+                // ---- Fait le … : on BLANCHIT les barres imprimées I__/__I (x 34→109,4,
+                // « en 2 » commence à 111,6) puis on écrit la date en GRAS, centrée.
+                mask(33f, 437f, 110f, 450f)
+                str(d.faitLe, 36f, 447f, 9f, bold = true)
+                str(d.nomTech, 452f, 467f, 8.5f, bold = true)
                 // ---- Signatures : Abonné (gauche) + technicien-conseil (droite).
-                // Bande étroite (~30 pt) avant le pied de page légal : ne pas déborder.
-                sigAbonne?.let { drawFit(c, it, 10f, 472f, 295f, 502f) }
-                sigTech?.let { drawFit(c, it, 310f, 472f, 585f, 502f) }
+                // Cases agrandies au maximum de la bande disponible avant le pied de
+                // page légal (~y 508) ; côté droit borné à 545 pour ne pas couvrir
+                // le numéro de page.
+                sigAbonne?.let { drawFit(c, it, 8f, 470f, 300f, 507f) }
+                sigTech?.let { drawFit(c, it, 310f, 470f, 545f, 507f) }
             }
 
             val info = PdfDocument.PageInfo.Builder(wPt, hPt, i + 1).create()

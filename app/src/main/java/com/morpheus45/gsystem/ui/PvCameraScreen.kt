@@ -90,7 +90,9 @@ class SignatureController {
         val c = android.graphics.Canvas(bmp)
         val p = android.graphics.Paint().apply {
             color = android.graphics.Color.BLACK
-            strokeWidth = 4f
+            // Épais : le bitmap est RÉDUIT dans la case du PDF, un trait fin
+            // devenait illisible à l'impression.
+            strokeWidth = 10f
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
             strokeJoin = android.graphics.Paint.Join.ROUND
@@ -133,7 +135,7 @@ internal fun SignaturePad(controller: SignatureController, modifier: Modifier = 
                 for (i in 1 until s.size) lineTo(s[i].x, s[i].y)
             }
             drawPath(path, color = Color.Black,
-                style = Stroke(width = 4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                style = Stroke(width = 6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 }
