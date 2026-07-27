@@ -70,11 +70,22 @@ object PvPdfGenerator {
             val c = Canvas(bmp)
             fun mask(x0: Float, y0: Float, x1: Float, y1: Float) =
                 c.drawRect(x0 * S, y0 * S, x1 * S, y1 * S, white)
-            fun str(s: String, x: Float, y: Float, size: Float = 9.5f, bold: Boolean = false) {
+            // Gras RENFORCÉ : fakeBold + contour épais (FILL_AND_STROKE) — les
+            // écritures ressortent nettement à l'impression, comme les montants.
+            fun str(s: String, x: Float, y: Float, size: Float = 9.5f, bold: Boolean = true) {
                 if (s.isBlank()) return
                 txtPaint.textSize = size * S
                 txtPaint.isFakeBoldText = bold
+                if (bold) {
+                    txtPaint.style = Paint.Style.FILL_AND_STROKE
+                    txtPaint.strokeWidth = 0.9f * S
+                } else {
+                    txtPaint.style = Paint.Style.FILL
+                    txtPaint.strokeWidth = 0f
+                }
                 c.drawText(s, x * S, y * S, txtPaint)
+                txtPaint.style = Paint.Style.FILL
+                txtPaint.strokeWidth = 0f
             }
             fun cross(cx: Float, cy: Float, r: Float = 4.5f) {
                 c.drawLine((cx - r) * S, (cy - r) * S, (cx + r) * S, (cy + r) * S, linePaint)
@@ -117,7 +128,7 @@ object PvPdfGenerator {
                 // ---- Fait le … : on BLANCHIT les barres imprimées I__/__I (x 34→109,4,
                 // « en 2 » commence à 111,6) puis on écrit la date en GRAS, centrée.
                 mask(33f, 437f, 110f, 450f)
-                str(d.faitLe, 36f, 447f, 9f, bold = true)
+                str(frDate(d.faitLe), 36f, 447f, 9.5f, bold = true)
                 str(d.nomTech, 452f, 467f, 8.5f, bold = true)
                 // ---- Signatures : Abonné (gauche) + technicien-conseil (droite).
                 // Cases agrandies au maximum de la bande disponible avant le pied de
@@ -146,6 +157,21 @@ object PvPdfGenerator {
     }
 
     /**
+     * Normalise une date en JJ/MM/AAAA : les « / » sont posés automatiquement à
+     * partir des chiffres saisis (les barres imprimées du document sont masquées).
+     * Toute autre saisie est rendue telle quelle.
+     */
+    private fun frDate(s: String): String {
+        val digits = s.filter { it.isDigit() }
+        if (digits.length !in 6..8) return s.trim()
+        val dd = digits.substring(0, 2)
+        val mm = digits.substring(2, 4)
+        val yy = digits.substring(4)
+        val year = if (yy.length == 2) "20$yy" else yy
+        return "$dd/$mm/$year"
+    }
+
+    /**
      * Découpe les observations : 1re ligne courte (~92 car., placée après le
      * label), lignes suivantes pleine largeur (~150 car.).
      */
@@ -161,13 +187,24 @@ object PvPdfGenerator {
         return out
     }
 
+    /**
+     * Dessine une signature/paraphe dans la case, en RENFORÇANT le trait : le
+     * bitmap est réduit (donc le trait s'amincit), on le redessine plusieurs fois
+     * avec un léger décalage — le tracé ressort franchement à l'impression.
+     */
     private fun drawFit(c: Canvas, b: Bitmap, x0: Float, y0: Float, x1: Float, y1: Float) {
         if (b.width == 0 || b.height == 0) return
         val dw = (x1 - x0) * S; val dh = (y1 - y0) * S
         val scale = minOf(dw / b.width, dh / b.height)
         val w = b.width * scale; val h = b.height * scale
         val left = x0 * S + (dw - w) / 2f; val top = y0 * S + (dh - h) / 2f
-        c.drawBitmap(b, null, RectF(left, top, left + w, top + h),
-            Paint().apply { isFilterBitmap = true })
+        val paint = Paint().apply { isFilterBitmap = true }
+        val d = 0.8f   // décalage d'épaississement (px de rendu)
+        for ((ox, oy) in listOf(
+            0f to 0f, d to 0f, -d to 0f, 0f to d, 0f to -d, d to d, -d to -d
+        )) {
+            c.drawBitmap(b, null,
+                RectF(left + ox, top + oy, left + ox + w, top + oy + h), paint)
+        }
     }
 }
