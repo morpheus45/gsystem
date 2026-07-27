@@ -107,7 +107,39 @@ class SignatureController {
             }
             c.drawPath(path, p)
         }
-        return bmp
+        return cropToInk(bmp)
+    }
+
+    /**
+     * Rogne le bitmap sur l'ENCRE réelle. Sans ça, une signature tracée au
+     * milieu d'un grand pad garde toutes ses marges vides : une fois réduite
+     * dans la case du PDF, elle paraît minuscule. En rognant, le tracé remplit
+     * toute la case (et son épaisseur grossit d'autant).
+     */
+    private fun cropToInk(src: Bitmap): Bitmap {
+        val w = src.width; val h = src.height
+        if (w <= 0 || h <= 0) return src
+        val px = IntArray(w * h)
+        src.getPixels(px, 0, w, 0, 0, w, h)
+        var minX = w; var minY = h; var maxX = -1; var maxY = -1
+        for (y in 0 until h) {
+            val row = y * w
+            for (x in 0 until w) {
+                if ((px[row + x] ushr 24) != 0) {          // pixel non transparent
+                    if (x < minX) minX = x
+                    if (x > maxX) maxX = x
+                    if (y < minY) minY = y
+                    if (y > maxY) maxY = y
+                }
+            }
+        }
+        if (maxX < minX || maxY < minY) return src         // rien de dessiné
+        val pad = 8
+        val x0 = (minX - pad).coerceAtLeast(0)
+        val y0 = (minY - pad).coerceAtLeast(0)
+        val x1 = (maxX + pad).coerceAtMost(w - 1)
+        val y1 = (maxY + pad).coerceAtMost(h - 1)
+        return Bitmap.createBitmap(src, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
     }
 }
 

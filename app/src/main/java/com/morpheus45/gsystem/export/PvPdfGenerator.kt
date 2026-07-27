@@ -118,8 +118,10 @@ object PvPdfGenerator {
                     str(line, if (idx == 0) 200f else 10f, oy, 9f); oy += 13f
                 }
                 // ---- Paraphes (bas de page) : CLIENT à droite (agrandi) + TECHNICIEN à gauche
-                sigParapheClient?.let { drawFit(c, it, 513f, 806f, 592f, 838f) }
-                sigParapheTech?.let { drawFit(c, it, 8f, 806f, 92f, 838f) }
+                // Paraphes : à droite après le libellé « Paraphes : » (x≥513) et à
+                // gauche sous le pavé légal (qui commence à x≈110) — cases élargies.
+                sigParapheClient?.let { drawFit(c, it, 513f, 805f, 593f, 839f) }
+                sigParapheTech?.let { drawFit(c, it, 5f, 805f, 106f, 839f) }
             }
 
             if (i == 1) {
@@ -134,8 +136,16 @@ object PvPdfGenerator {
                 // Cases agrandies au maximum de la bande disponible avant le pied de
                 // page légal (~y 508) ; côté droit borné à 545 pour ne pas couvrir
                 // le numéro de page.
-                sigAbonne?.let { drawFit(c, it, 8f, 470f, 300f, 507f) }
-                sigTech?.let { drawFit(c, it, 310f, 470f, 545f, 507f) }
+                // Bande utile mesurée : libellés jusqu'à y=467,6 et trait du pied
+                // de page à y=506,7 -> on occupe 468 à 505,5 (max). À droite, on
+                // s'arrête à 548 pour ne pas couvrir le numéro de page (x≥551).
+                // Abonné : le libellé « Signature de l'Abonné : » s'arrête à x≈89,
+                // donc on démarre la case à x=92 et on remonte à y=457 -> ~48 pt de
+                // haut au lieu de 37 (signature nettement plus grande).
+                sigAbonne?.let { drawFit(c, it, 92f, 457f, 304f, 505.5f) }
+                // Technicien : le libellé occupe toute la ligne (nom écrit à x=452),
+                // la case reste donc sous y=468.
+                sigTech?.let { drawFit(c, it, 308f, 468f, 548f, 505.5f) }
             }
 
             val info = PdfDocument.PageInfo.Builder(wPt, hPt, i + 1).create()
