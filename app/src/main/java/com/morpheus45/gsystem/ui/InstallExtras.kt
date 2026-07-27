@@ -2,11 +2,13 @@ package com.morpheus45.gsystem.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,17 +64,31 @@ internal class InstallExtrasState {
         n(oTc) <= n(iTc) && n(oSi) <= n(iSi) && n(oCam) <= n(iCam) && n(oDacco) <= n(iDacco) &&
         n(oBa) <= n(iBa) && n(oCl) <= n(iCl) && n(oDf) <= n(iDf) && n(oSondeIn) <= n(iSondeIn)
 
-    /** GESTE CO valide ? (rien à offrir = OK ; sinon respect des règles). */
-    fun gesteValid(gifts: GesteCoClientGifts): Boolean {
-        if (!gesteOn || installedAll() == 0) return true
+    /**
+     * GESTE CO valide ?
+     *  - savMode (SAV : mise en conformité) : cadeau SEUL, plafond 3 € ; aucune
+     *    règle « installé / moitié / par type » (rien n'est installé).
+     *  - sinon (INSTALLATION) : règles habituelles (offert ≤ installé, ≤ moitié,
+     *    ≤ 4,50 €), sauf dérogation EPS.
+     */
+    fun gesteValid(gifts: GesteCoClientGifts, savMode: Boolean = false): Boolean {
+        if (!gesteOn) return true
+        if (savMode) return totalGift(gifts) <= MAX_GIFT_SAV_EUR + 0.001
+        if (installedAll() == 0) return true
         val halfOk = eps || offeredAll() <= installedAll() / 2
         val capOk = eps || totalGift(gifts) <= MAX_GIFT_EUR + 0.001
         return perTypeOk() && halfOk && capOk
     }
 
-    /** Crée l'entrée GESTE CO si des extensions sont installées, sinon null. */
-    fun buildGeste(date: String, site: String, nom: String, obs: String, tempsId: String): GesteCoEntry? {
-        if (!gesteOn || installedAll() == 0) return null
+    /**
+     * Crée l'entrée GESTE CO. En savMode (SAV), il suffit d'un cadeau offert
+     * (rien d'installé) ; sinon il faut des extensions installées.
+     */
+    fun buildGeste(date: String, site: String, nom: String, obs: String, tempsId: String,
+                   savMode: Boolean = false): GesteCoEntry? {
+        if (!gesteOn) return null
+        if (savMode) { if (offeredAll() == 0) return null }
+        else { if (installedAll() == 0) return null }
         return GesteCoEntry(
             id = EntriesRepository.newId(),
             tempsId = tempsId,
@@ -102,19 +118,57 @@ internal fun rememberInstallExtrasState(): InstallExtrasState = remember { Insta
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettings) {
+internal fun InstallExtrasSection(
+    state: InstallExtrasState, settings: AppSettings, savMode: Boolean = false
+) {
     // ===== GESTE CO =====
     AccentCard(ColorGesteCo) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()) {
-                Text("Extensions installées (GESTE CO)",
+                Text(if (savMode) "GESTE CO de mise en conformité (max 3 €)"
+                    else "Extensions installées (GESTE CO)",
                     fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ColorGesteCo,
                     modifier = Modifier.weight(1f))
                 Switch(checked = state.gesteOn, onCheckedChange = { state.gesteOn = it })
             }
-            if (state.gesteOn) {
+            if (state.gesteOn && savMode) {
+                // ---- SAV : cadeau client SEUL, plafond 3 € (ex. 2 CO ou 1 DMP) ----
+                Spacer(Modifier.height(4.dp))
+                Text("Cadeau offert au client pour mise en conformité — plafond 3,00 € (ex. 2 CO ou 1 DMP).",
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Spacer(Modifier.height(6.dp))
+                GiftRow("GSM", settings.clientGifts.gsm, state.oGsm) { state.oGsm = it }
+                GiftRow("CO", settings.clientGifts.co, state.oCo) { state.oCo = it }
+                GiftRow("DMP", settings.clientGifts.dmp, state.oDmp) { state.oDmp = it }
+                GiftRow("SE", settings.clientGifts.se, state.oSe) { state.oSe = it }
+                GiftRow("TC", settings.clientGifts.tc, state.oTc) { state.oTc = it }
+                GiftRow("SI", settings.clientGifts.si, state.oSi) { state.oSi = it }
+                GiftRow("CAM", settings.clientGifts.cam, state.oCam) { state.oCam = it }
+                GiftRow("DACCO", settings.clientGifts.dacco, state.oDacco) { state.oDacco = it }
+                GiftRow("BA", settings.clientGifts.ba, state.oBa) { state.oBa = it }
+                GiftRow("CL", settings.clientGifts.cl, state.oCl) { state.oCl = it }
+                GiftRow("DF", settings.clientGifts.df, state.oDf) { state.oDf = it }
+                GiftRow("SONDE IN", settings.clientGifts.sondeIn, state.oSondeIn) { state.oSondeIn = it }
+
+                Spacer(Modifier.height(8.dp))
+                val gift = state.totalGift(settings.clientGifts)
+                val valid = state.gesteValid(settings.clientGifts, savMode = true)
+                val barColor = if (valid) ColorGesteCo else Error
+                Surface(color = barColor.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(if (valid) "✓ Conforme (≤ 3,00 €)"
+                            else "✗ Cadeau %.2f € > plafond 3,00 €".format(gift),
+                            color = barColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Cadeau client : %.2f € / max 3,00 €  ·  aucune prime (SAV)".format(gift),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f))
+                    }
+                }
+            }
+            if (state.gesteOn && !savMode) {
                 Spacer(Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -175,5 +229,27 @@ internal fun InstallExtrasSection(state: InstallExtrasState, settings: AppSettin
                 }
             }
         }
+    }
+}
+
+/** Ligne « cadeau seul » (mode SAV) : libellé + prix cadeau + quantité offerte. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GiftRow(label: String, unitGift: Double, value: String, onChange: (String) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text("%.2f €".format(unitGift), fontSize = 9.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+        }
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(it.filter(Char::isDigit).take(2)) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.width(96.dp)
+        )
     }
 }

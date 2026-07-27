@@ -56,6 +56,10 @@ private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL"
 /** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
 private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION", "FERIE")
 
+/** Interventions SAV où un GESTE CO de mise en conformité (cadeau seul, max 3 €)
+ *  est autorisé — en plus des INSTALLATIONS. */
+private val SAV_GESTE_TYPES = setOf("REPA", "PILE", "SAV", "DECL", "AJOU", "FINS", "INTE", "MIGR")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TempsScreen(
@@ -430,8 +434,11 @@ private fun AddTempsDialog(
     // INSTALL (nouvelle saisie) : N° de site obligatoire SEULEMENT si un mail part
     // (GESTE CO offert ou GSM seul) + règles GESTE CO respectées.
     val isInstall = type == "INST" && !isEditing
-    val siteOk = !isInstall || !extras.needsSite() || siteNumber.isNotBlank()
-    val gesteOk = !isInstall || extras.gesteValid(settings.clientGifts)
+    // GESTE CO de conformité (cadeau seul, max 3 €) autorisé sur les SAV.
+    val isSavGeste = type in SAV_GESTE_TYPES && !isEditing
+    val showGeste = isInstall || isSavGeste
+    val siteOk = !showGeste || !extras.needsSite() || siteNumber.isNotBlank()
+    val gesteOk = !showGeste || extras.gesteValid(settings.clientGifts, savMode = isSavGeste)
     val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk && siteOk && gesteOk
 
     // Pour eviter l'affichage des erreurs avant que l'utilisateur ne tente
@@ -718,8 +725,8 @@ private fun AddTempsDialog(
                         )
                     }
 
-                    // ===== INSTALLATION : N° de site + GESTE CO (inline) =====
-                    if (isInstall) {
+                    // ===== INSTALLATION ou SAV (conformité) : N° de site + GESTE CO =====
+                    if (showGeste) {
                         Spacer(Modifier.height(14.dp))
                         AccentTextField(
                             value = siteNumber, onValueChange = { siteNumber = it.trim() },
@@ -732,7 +739,7 @@ private fun AddTempsDialog(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(Modifier.height(10.dp))
-                        InstallExtrasSection(extras, settings)
+                        InstallExtrasSection(extras, settings, savMode = isSavGeste)
                     }
 
                     Spacer(Modifier.height(14.dp))
@@ -801,7 +808,9 @@ private fun AddTempsDialog(
                             tried = true
                             if (!allOk) return@Button
                             val entry = buildEntry()
-                            val geste = if (isInstall) extras.buildGeste(date, siteNumber, nom, obs, entry.id) else null
+                            val geste = if (showGeste)
+                                extras.buildGeste(date, siteNumber, nom, obs, entry.id, savMode = isSavGeste)
+                            else null
                             onSave(entry, geste, true)
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),

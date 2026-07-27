@@ -41,6 +41,10 @@ import kotlinx.coroutines.launch
 /** Plafond du cadeau total par site (sauf dérogation EPS). */
 internal const val MAX_GIFT_EUR = 4.50
 
+/** Plafond du GESTE CO de mise en conformité sur une intervention SAV
+ *  (REPA, PILE, SAV, DECL, AJOU, FINS, INTE, MIGR) : cadeau seul, ex. 2 CO ou 1 DMP. */
+internal const val MAX_GIFT_SAV_EUR = 3.00
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GesteCoScreen(
