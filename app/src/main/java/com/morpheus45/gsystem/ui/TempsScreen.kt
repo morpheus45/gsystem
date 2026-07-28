@@ -179,9 +179,10 @@ fun TempsScreen(
             existing = null,
             otherCloturesDates = store.temps.map { it.date }.toSet(),
             onDismiss = { showAdd = false },
-            onSave = { entry, geste, alsoShareViber ->
+            onSave = { entries, geste, alsoShareViber ->
+                val entry = entries.first()
                 scope.launch {
-                    repo.addTemps(entry)
+                    repo.addTempsAll(entries)      // 1 entrée, ou 1 par jour de congés
                     if (geste != null) repo.addGesteCo(geste)
                     StatsUploader.push(settings, repo.store.value, periodStart, periodEnd)
                 }
@@ -205,7 +206,8 @@ fun TempsScreen(
             existing = e,
             otherCloturesDates = store.temps.filter { it.id != e.id }.map { it.date }.toSet(),
             onDismiss = { editingEntry = null },
-            onSave = { updated, _, alsoShareViber ->
+            onSave = { updatedList, _, alsoShareViber ->
+                val updated = updatedList.first()
                 scope.launch { repo.updateTemps(updated) }
                 if (alsoShareViber && updated.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(updated))
@@ -385,7 +387,8 @@ private fun AddTempsDialog(
     existing: TempsEntry?,
     otherCloturesDates: Set<String> = emptySet(),
     onDismiss: () -> Unit,
-    onSave: (entry: TempsEntry, geste: GesteCoEntry?, alsoShareViber: Boolean) -> Unit
+    /** `entries` contient 1 élément, sauf période de congés (1 par jour ouvré). */
+    onSave: (entries: List<TempsEntry>, geste: GesteCoEntry?, alsoShareViber: Boolean) -> Unit
 ) {
     val isEditing = existing != null
     var date by remember { mutableStateOf(existing?.date ?: DateUtil.today().toString()) }
@@ -422,6 +425,21 @@ private fun AddTempsDialog(
     val extras = rememberInstallExtrasState()
 
     val isWholeDay = type in WHOLE_DAY_TYPES
+    // VACANCES : saisie d'une PÉRIODE (du → au). Une entrée est créée par jour
+    // ouvré (dimanche exclu : la feuille de temps n'a pas de bloc dimanche).
+    var dateFin by remember { mutableStateOf("") }
+    val isConge = type == "VACANCES" && !isEditing
+    val congeDays: List<String> = if (isConge && dateFin.isNotBlank()) {
+        runCatching {
+            val d1 = DateUtil.parseIso(date); val d2 = DateUtil.parseIso(dateFin)
+            if (d2.isBefore(d1)) emptyList()
+            else generateSequence(d1) { it.plusDays(1) }
+                .takeWhile { !it.isAfter(d2) }
+                .filter { it.dayOfWeek != java.time.DayOfWeek.SUNDAY }
+                .map { it.toString() }.toList()
+        }.getOrDefault(emptyList())
+    } else emptyList()
+    val congePeriodeOk = !isConge || dateFin.isBlank() || congeDays.isNotEmpty()
     // Retard : proposé UNIQUEMENT sur la 1ère clôture du jour (aucune autre à cette date).
     val isFirstOfDay = date !in otherCloturesDates
 
@@ -439,7 +457,8 @@ private fun AddTempsDialog(
     val showGeste = isInstall || isSavGeste
     val siteOk = !showGeste || !extras.needsSite() || siteNumber.isNotBlank()
     val gesteOk = !showGeste || extras.gesteValid(settings.clientGifts, savMode = isSavGeste)
-    val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk && siteOk && gesteOk
+    val allOk = dateOk && deptOk && nomOk && villeOk && numeroOk && siteOk && gesteOk &&
+        congePeriodeOk
 
     // Pour eviter l'affichage des erreurs avant que l'utilisateur ne tente
     // d'enregistrer, on suit un "touched" par champ.
@@ -713,6 +732,28 @@ private fun AddTempsDialog(
                             }
                         }
                     } else {
+                        // VACANCES : période (du → au). Une ligne « CONGÉ PAYÉ » sera
+                        // créée pour chaque jour ouvré, reprise telle quelle dans l'Excel.
+                        if (isConge) {
+                            OutlinedTextField(
+                                value = dateFin,
+                                onValueChange = { dateFin = it.trim() },
+                                label = { Text("Au (AAAA-MM-JJ) — laisser vide pour 1 seul jour") },
+                                singleLine = true,
+                                isError = tried && !congePeriodeOk,
+                                supportingText = {
+                                    Text(
+                                        when {
+                                            !congePeriodeOk -> "Période invalide (la fin doit suivre le début)"
+                                            congeDays.size > 1 -> "${congeDays.size} jours de congé seront enregistrés (dimanches exclus)"
+                                            else -> "Du $date — « CONGÉ PAYÉ » sera écrit dans l'Excel"
+                                        }
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(10.dp))
+                        }
                         OutlinedTextField(
                             value = obs, onValueChange = { obs = it.uppercase() },
                             label = {
@@ -763,10 +804,11 @@ private fun AddTempsDialog(
 
                 // ---- Bottom bar (actions, fixe) ----
                 Divider()
-                // Construit l'entree (id preserve si edition)
-                fun buildEntry() = TempsEntry(
-                    id = existing?.id ?: EntriesRepository.newId(),
-                    date = date.trim(),
+                // Construit l'entree (id preserve si edition). `d` permet de générer
+                // une entrée par jour sur une période de congés.
+                fun buildEntryFor(d: String, id: String) = TempsEntry(
+                    id = id,
+                    date = d.trim(),
                     departement = dept.trim(),
                     typeMission = effectiveType,
                     nomClient = nom.trim(),
@@ -784,6 +826,12 @@ private fun AddTempsDialog(
                         ?: (if (settings.pendingArrivalMs > 0L) DateUtil.hm(settings.pendingArrivalMs) else ""),
                     heureFin = existing?.heureFin ?: DateUtil.nowHm()
                 )
+                fun buildEntry() = buildEntryFor(date, existing?.id ?: EntriesRepository.newId())
+                /** Période de congés -> une entrée par jour ouvré ; sinon l'entrée seule. */
+                fun buildAll(): List<TempsEntry> =
+                    if (isConge && congeDays.size > 1)
+                        congeDays.map { buildEntryFor(it, EntriesRepository.newId()) }
+                    else listOf(buildEntry())
                 Column(
                     modifier = Modifier.fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -793,7 +841,7 @@ private fun AddTempsDialog(
                             onClick = {
                                 tried = true
                                 if (!allOk) return@OutlinedButton
-                                onSave(buildEntry(), null, false)
+                                onSave(listOf(buildEntry()), null, false)
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -807,11 +855,12 @@ private fun AddTempsDialog(
                         onClick = {
                             tried = true
                             if (!allOk) return@Button
-                            val entry = buildEntry()
+                            val entries = buildAll()
                             val geste = if (showGeste)
-                                extras.buildGeste(date, siteNumber, nom, obs, entry.id, savMode = isSavGeste)
+                                extras.buildGeste(date, siteNumber, nom, obs, entries.first().id,
+                                    savMode = isSavGeste)
                             else null
-                            onSave(entry, geste, true)
+                            onSave(entries, geste, true)
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
