@@ -26,9 +26,14 @@ import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.BuildConfig
 import kotlinx.coroutines.launch
 
+/** Page du tuto qui héberge l'APK signé Google Play (canal « play »). */
+private const val TUTO_URL = "https://morpheus45.github.io/gsystem/"
+
 /**
  * Dialog de mise à jour. Affiche la nouvelle version, gère le téléchargement
- * avec progress bar et lance l'installateur Android à la fin.
+ * avec progress bar et lance l'installateur Android à la fin. Sur le canal
+ * « play » (APK signé Google Play), l'installation directe est impossible
+ * (signatures différentes) : le bouton renvoie vers le tuto.
  */
 @Composable
 fun UpdateDialog(
@@ -82,6 +87,22 @@ fun UpdateDialog(
             Button(
                 enabled = !downloading,
                 onClick = {
+                    // Build « play » : l'APK installé est signé par Google Play, celui
+                    // de la Release GitHub ne l'est pas -> Android refuserait de
+                    // l'installer par-dessus. On renvoie donc vers le tuto, qui
+                    // héberge l'APK de la MÊME signature.
+                    if (BuildConfig.PLAY_BUILD) {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(TUTO_URL)
+                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }.onFailure { errorMsg = "Ouvre le tuto : $TUTO_URL" }
+                        onDismiss()
+                        return@Button
+                    }
                     scope.launch {
                         downloading = true
                         errorMsg = null
@@ -98,7 +119,13 @@ fun UpdateDialog(
                     }
                 }
             ) {
-                Text(if (downloading) "Téléchargement…" else "Mettre à jour")
+                Text(
+                    when {
+                        BuildConfig.PLAY_BUILD -> "Ouvrir le tuto"
+                        downloading -> "Téléchargement…"
+                        else -> "Mettre à jour"
+                    }
+                )
             }
         },
         dismissButton = {
