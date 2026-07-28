@@ -252,6 +252,9 @@ fun AppNav() {
             // Synchro du cycle EN COURS : frais/compteur propres + donnees.json +
             // _stats.json dans son dossier, obsolète supprimé (hors .xlsm/Recap).
             driveSynced = CycleSync.pushCycle(context, settings, snapshot, cs, ce)
+            // Jours saisis EN AVANCE (congés/formation) : sauvegardés d'office dans
+            // le dossier de leur futur cycle, sans attendre que celui-ci arrive.
+            CycleSync.pushFutureCycles(context, settings, snapshot)
         }
     }
 
