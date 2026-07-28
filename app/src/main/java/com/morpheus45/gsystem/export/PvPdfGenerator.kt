@@ -78,7 +78,7 @@ object PvPdfGenerator {
                 txtPaint.isFakeBoldText = bold
                 if (bold) {
                     txtPaint.style = Paint.Style.FILL_AND_STROKE
-                    txtPaint.strokeWidth = 0.9f * S
+                    txtPaint.strokeWidth = 0.4f * S   // gras net, sans être épais
                 } else {
                     txtPaint.style = Paint.Style.FILL
                     txtPaint.strokeWidth = 0f
@@ -209,10 +209,10 @@ object PvPdfGenerator {
         val w = b.width * scale; val h = b.height * scale
         val left = x0 * S + (dw - w) / 2f; val top = y0 * S + (dh - h) / 2f
         val paint = Paint().apply { isFilterBitmap = true }
-        val d = 0.8f   // décalage d'épaississement (px de rendu)
-        for ((ox, oy) in listOf(
-            0f to 0f, d to 0f, -d to 0f, 0f to d, 0f to -d, d to d, -d to -d
-        )) {
+        // Léger renfort seulement (3 passes) : le tracé est déjà agrandi par le
+        // rognage, trop de passes le rendait pâteux.
+        val d = 0.5f
+        for ((ox, oy) in listOf(0f to 0f, d to 0f, 0f to d)) {
             c.drawBitmap(b, null,
                 RectF(left + ox, top + oy, left + ox + w, top + oy + h), paint)
         }
