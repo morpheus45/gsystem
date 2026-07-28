@@ -117,4 +117,27 @@ object CycleSync {
             cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
             cycles.size
         }
+
+    /**
+     * Pousse les cycles POSTÉRIEURS au cycle courant : congés/formations saisis
+     * en avance. Sans ça, ces jours resteraient uniquement sur le téléphone
+     * jusqu'à ce que leur cycle devienne le cycle courant.
+     */
+    suspend fun pushFutureCycles(context: Context, settings: AppSettings, store: EntriesStore): Int =
+        withContext(Dispatchers.IO) {
+            if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext 0
+            val (_, curEnd) = DateUtil.currentCycle(
+                DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
+            )
+            val futures = (store.temps.map { it.date } + store.frais.map { it.date } +
+                store.gesteCo.map { it.date } + store.compteur.map { it.date })
+                .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+                .filter { it.isAfter(curEnd) }
+            if (futures.isEmpty()) return@withContext 0
+            val cycles = DateUtil.cyclesFor(
+                futures, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
+            )
+            cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
+            cycles.size
+        }
 }

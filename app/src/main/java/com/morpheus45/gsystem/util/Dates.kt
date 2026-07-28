@@ -109,10 +109,32 @@ object DateUtil {
             return ps to minOf(pe, curS.minusDays(1))
         }
 
+        /**
+         * Date APRÈS le cycle courant (congés/formation saisis en avance) : on
+         * déroule les cycles suivants à partir du courant jusqu'à contenir `d`.
+         * Sans ça, ces jours étaient rattachés au cycle courant mais exclus de sa
+         * fenêtre de push -> jamais sauvegardés sur le Drive.
+         */
+        fun futureCycle(d: LocalDate): Pair<LocalDate, LocalDate> {
+            var s = curS; var e = curE
+            var guard = 0
+            while (d.isAfter(e) && guard++ < 240) {          // garde-fou : 20 ans
+                s = e.plusDays(1)
+                e = s.plusMonths(1).minusDays(1)
+            }
+            return s to e
+        }
+
         // Un dossier-mois = UN SEUL push : deux fenêtres qui viseraient le même
         // dossier (mois de FIN identique) sont fusionnées en une seule, sinon le
         // second push supprimerait les fichiers du premier (prune).
-        return dates.map { d -> if (!d.isBefore(curS)) curS to curE else pastCycle(d) }
+        return dates.map { d ->
+            when {
+                d.isAfter(curE) -> futureCycle(d)                 // saisi en avance
+                !d.isBefore(curS) -> curS to curE                 // cycle courant
+                else -> pastCycle(d)                              // historique
+            }
+        }
             .groupBy { (_, e) -> e.toString().take(7) }
             .map { (_, l) -> l.minOf { it.first } to l.maxOf { it.second } }
             .toSet()
