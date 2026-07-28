@@ -425,17 +425,20 @@ private fun AddTempsDialog(
     val extras = rememberInstallExtrasState()
 
     val isWholeDay = type in WHOLE_DAY_TYPES
-    // VACANCES : saisie d'une PÉRIODE (du → au). Une entrée est créée par jour
-    // ouvré (dimanche exclu : la feuille de temps n'a pas de bloc dimanche).
+    // VACANCES et FORMATION : saisie d'une PÉRIODE (du → au). Une entrée est créée
+    // par jour travaillé — samedis ET dimanches exclus (jamais travaillés).
     var dateFin by remember { mutableStateOf("") }
-    val isConge = type == "VACANCES" && !isEditing
+    val isConge = (type == "VACANCES" || type == "FORMATION") && !isEditing
     val congeDays: List<String> = if (isConge && dateFin.isNotBlank()) {
         runCatching {
             val d1 = DateUtil.parseIso(date); val d2 = DateUtil.parseIso(dateFin)
             if (d2.isBefore(d1)) emptyList()
             else generateSequence(d1) { it.plusDays(1) }
                 .takeWhile { !it.isAfter(d2) }
-                .filter { it.dayOfWeek != java.time.DayOfWeek.SUNDAY }
+                .filter {
+                    it.dayOfWeek != java.time.DayOfWeek.SATURDAY &&
+                        it.dayOfWeek != java.time.DayOfWeek.SUNDAY
+                }
                 .map { it.toString() }.toList()
         }.getOrDefault(emptyList())
     } else emptyList()
@@ -732,9 +735,10 @@ private fun AddTempsDialog(
                             }
                         }
                     } else {
-                        // VACANCES : période (du → au). Une ligne « CONGÉ PAYÉ » sera
-                        // créée pour chaque jour ouvré, reprise telle quelle dans l'Excel.
+                        // VACANCES / FORMATION : période (du → au). Une ligne est créée
+                        // pour chaque jour travaillé (samedis et dimanches exclus).
                         if (isConge) {
+                            val libelle = if (type == "VACANCES") "CONGÉ PAYÉ" else "FORMATION"
                             OutlinedTextField(
                                 value = dateFin,
                                 onValueChange = { dateFin = it.trim() },
@@ -745,8 +749,9 @@ private fun AddTempsDialog(
                                     Text(
                                         when {
                                             !congePeriodeOk -> "Période invalide (la fin doit suivre le début)"
-                                            congeDays.size > 1 -> "${congeDays.size} jours de congé seront enregistrés (dimanches exclus)"
-                                            else -> "Du $date — « CONGÉ PAYÉ » sera écrit dans l'Excel"
+                                            congeDays.size > 1 ->
+                                                "${congeDays.size} jours seront enregistrés (samedis et dimanches exclus)"
+                                            else -> "Du $date — « $libelle » sera écrit dans l'Excel"
                                         }
                                     )
                                 },
