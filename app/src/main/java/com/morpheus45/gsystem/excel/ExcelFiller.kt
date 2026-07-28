@@ -176,6 +176,9 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
     }
 
     private fun buildMissionText(e: TempsEntry): String {
+        // VACANCES -> libellé officiel « CONGÉ PAYÉ » attendu dans la feuille de
+        // temps (la note éventuelle part déjà en colonne H, pas de doublon ici).
+        if (e.typeMission.equals("VACANCES", ignoreCase = true)) return "CONGÉ PAYÉ"
         // Mirror du desktop tool : TYPE NOM VILLE NUMERO en majuscules
         val parts = listOf(
             e.typeMission, e.nomClient, e.ville, e.numeroIntervention

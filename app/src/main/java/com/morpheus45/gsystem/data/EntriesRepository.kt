@@ -41,6 +41,11 @@ class EntriesRepository private constructor(context: Context) {
     }
 
     suspend fun addTemps(e: TempsEntry) = persist(_store.value.copy(temps = _store.value.temps + e))
+    /** Ajoute plusieurs interventions en UNE écriture (ex : période de congés). */
+    suspend fun addTempsAll(list: List<TempsEntry>) {
+        if (list.isEmpty()) return
+        persist(_store.value.copy(temps = _store.value.temps + list))
+    }
     suspend fun addGesteCo(e: GesteCoEntry) = persist(_store.value.copy(gesteCo = _store.value.gesteCo + e))
     suspend fun addFrais(e: FraisTicket) = persist(_store.value.copy(frais = _store.value.frais + e))
     suspend fun addCompteur(e: CompteurEntry) = persist(_store.value.copy(compteur = _store.value.compteur + e))
