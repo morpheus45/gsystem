@@ -142,6 +142,10 @@ object PvPdfGenerator {
                 // Abonné : le libellé « Signature de l'Abonné : » s'arrête à x≈89,
                 // donc on démarre la case à x=92 et on remonte à y=457 -> ~48 pt de
                 // haut au lieu de 37 (signature nettement plus grande).
+                // Formulaire de rétractation (bas de page) : « Site n° … » — le
+                // numéro du client, retiré de la trame (il contenait celui d'un
+                // autre abonné).
+                str(d.site, 533f, 751f, 8.5f, bold = true)
                 sigAbonne?.let { drawFit(c, it, 92f, 457f, 304f, 505.5f) }
                 // Technicien : le libellé occupe toute la ligne (nom écrit à x=452),
                 // la case reste donc sous y=468.
