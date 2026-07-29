@@ -96,7 +96,7 @@ object PvPdfGenerator {
             // valeurs écrites en GRAS par-dessus le gris du bandeau) ----
             str(d.conv, 78f, 45f, bold = true)
             str(d.site, 210f, 45f, bold = true)
-            str(d.dateSous, 392f, 45f, bold = true)
+            str(frDate(d.dateSous), 392f, 45f, bold = true)
             str(d.nom, 144f, 66f, bold = true)
             str(d.adr, 126f, 92f, 9f, bold = true)
 

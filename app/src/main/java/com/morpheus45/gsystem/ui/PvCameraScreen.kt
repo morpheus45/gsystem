@@ -185,7 +185,9 @@ fun PvCameraScreen(
 
     var convention by remember { mutableStateOf("") }
     var site by remember { mutableStateOf("") }
-    var dateSous by remember { mutableStateOf("") }
+    // Souscription : pré-remplie à la date du jour (= date de création du PV),
+    // modifiable si le client a souscrit un autre jour.
+    var dateSous by remember { mutableStateOf(today) }
     var nomAbonne by remember { mutableStateOf("") }
     var adresse by remember { mutableStateOf("") }
     var faitLe by remember { mutableStateOf(today) }
