@@ -88,9 +88,9 @@ import com.morpheus45.gsystem.ui.theme.GesteStart
 import com.morpheus45.gsystem.ui.theme.CameraAccent
 import com.morpheus45.gsystem.ui.theme.CameraEnd
 import com.morpheus45.gsystem.ui.theme.CameraStart
-import com.morpheus45.gsystem.ui.theme.GsmStart
-import com.morpheus45.gsystem.ui.theme.GsmEnd
-import com.morpheus45.gsystem.ui.theme.GsmAccent
+import com.morpheus45.gsystem.ui.theme.BulletinStart
+import com.morpheus45.gsystem.ui.theme.BulletinEnd
+import com.morpheus45.gsystem.ui.theme.BulletinAccent
 import com.morpheus45.gsystem.ui.theme.Obsidian
 import com.morpheus45.gsystem.ui.theme.RecapAccent
 import com.morpheus45.gsystem.ui.theme.RecapEnd
@@ -329,7 +329,7 @@ fun HomeScreen(
                 Icons.Outlined.FactCheck, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onPvCameras),
             HomeTile("07", "BULLETIN INTER", "Intervention sur site · signé client",
-                Icons.Outlined.Description, GsmStart, GsmEnd, GsmAccent, HomeGroup.INTERV,
+                Icons.Outlined.Description, BulletinStart, BulletinEnd, BulletinAccent, HomeGroup.INTERV,
                 onClick = onBulletin),
             HomeTile("08", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,

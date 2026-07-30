@@ -52,8 +52,8 @@ import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.BulletinPdfGenerator
-import com.morpheus45.gsystem.ui.theme.GsmAccent
-import com.morpheus45.gsystem.ui.theme.GsmStart
+import com.morpheus45.gsystem.ui.theme.BulletinAccent
+import com.morpheus45.gsystem.ui.theme.BulletinStart
 import com.morpheus45.gsystem.ui.theme.Obsidian
 import com.morpheus45.gsystem.ui.theme.TextHi
 import com.morpheus45.gsystem.ui.theme.TextLow
@@ -161,7 +161,7 @@ fun BulletinScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = GsmStart,
+                    containerColor = BulletinStart,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
@@ -214,7 +214,7 @@ fun BulletinScreen(
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("Ligne ${i + 1}", color = GsmAccent, fontSize = 11.sp,
+                    Text("Ligne ${i + 1}", color = BulletinAccent, fontSize = 11.sp,
                         fontWeight = FontWeight.Bold)
                     BField("Détail de la prestation ou pièce", l.detail) { l.detail = it }
                     BField("Référence", l.reference) { l.reference = it }
@@ -233,7 +233,7 @@ fun BulletinScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 10 lignes max : au-delà le tableau ne tiendrait plus sur la page.
                 if (lignes.size < 10) TextButton(onClick = { lignes.add(PrestaLigne()) }) {
-                    Text("+ Ajouter une ligne", color = GsmAccent)
+                    Text("+ Ajouter une ligne", color = BulletinAccent)
                 }
                 if (lignes.size > 1) TextButton(onClick = { lignes.removeAt(lignes.lastIndex) }) {
                     Text("− Retirer", color = TextLow)
@@ -259,7 +259,9 @@ fun BulletinScreen(
             }
 
             BSection("2 · Nouvelle mensualité")
-            BField("Montant de la nouvelle mensualité €", mensualite, KeyboardType.Number) { mensualite = it }
+            // Texte LIBRE : un montant, mais aussi « IDEM », « = 1,5 », « sans
+            // changement »… (c'est ce qui est écrit à la main sur le bulletin).
+            BField("Nouvelle mensualité (montant, IDEM, = 1,5 …)", mensualite) { mensualite = it }
             BCheck("Mensualité en H.T. (décoché = T.T.C.)", mensHt) { mensHt = it }
 
             BSection("3 · Tests du système d'alarme")
@@ -285,7 +287,7 @@ fun BulletinScreen(
             BField("E-mail du client", emailClient, KeyboardType.Email, caps = false) { emailClient = it }
 
             status?.let {
-                Text(it, color = GsmAccent, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+                Text(it, color = BulletinAccent, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             }
 
             Button(
@@ -358,7 +360,7 @@ fun BulletinScreen(
                 },
                 enabled = !working,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GsmStart)
+                colors = ButtonDefaults.buttonColors(containerColor = BulletinStart)
             ) {
                 Icon(Icons.Filled.Send, null, tint = Color.White)
                 Text("  Générer et envoyer", color = Color.White)
@@ -370,7 +372,7 @@ fun BulletinScreen(
 
 @Composable
 private fun BSection(t: String) {
-    Text(t.uppercase(), color = GsmAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+    Text(t.uppercase(), color = BulletinAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(top = 10.dp))
 }
 
@@ -413,7 +415,7 @@ private fun BCheck(label: String, checked: Boolean, onToggle: (Boolean) -> Unit)
     ) {
         Checkbox(
             checked = checked, onCheckedChange = onToggle,
-            colors = CheckboxDefaults.colors(checkedColor = GsmStart, uncheckedColor = TextLow)
+            colors = CheckboxDefaults.colors(checkedColor = BulletinStart, uncheckedColor = TextLow)
         )
         Text(label, color = TextMid, fontSize = 13.sp)
     }
@@ -428,7 +430,7 @@ private fun SigBlockB(label: String, controller: SignatureController) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, color = TextMid, fontSize = 13.sp)
-            TextButton(onClick = { controller.clear() }) { Text("Effacer", color = GsmAccent) }
+            TextButton(onClick = { controller.clear() }) { Text("Effacer", color = BulletinAccent) }
         }
         Box(
             modifier = Modifier
