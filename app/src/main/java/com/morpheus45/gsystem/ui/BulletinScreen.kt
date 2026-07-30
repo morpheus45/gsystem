@@ -49,6 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,6 +145,7 @@ fun BulletinScreen(
     var reglCheque by remember { mutableStateOf(false) }
     var reglAutre by remember { mutableStateOf(false) }
     var reglAutreTxt by remember { mutableStateOf("") }
+    var fraisOui by remember { mutableStateOf(false) }
     var conserverOui by remember { mutableStateOf(false) }
     var conserverNon by remember { mutableStateOf(false) }
     var totalHt by remember { mutableStateOf(true) }      // TOTAL en H.T. sinon T.T.C.
@@ -163,7 +168,9 @@ fun BulletinScreen(
     val sigTech = remember { SignatureController() }
     val sigClient = remember { SignatureController() }
 
-    val totalGeneral = lignes.sumOf { it.total }
+    // Le forfait d'intervention (65 €) s'ajoute au TOTAL quand « Oui » est coché.
+    val fraisMontant = if (fraisOui) BulletinPdfGenerator.FRAIS_INTERVENTION_EUR else 0.0
+    val totalGeneral = lignes.sumOf { it.total } + fraisMontant
     fun eur(v: Double) = String.format(java.util.Locale.US, "%.2f", v).replace(".", ",")
 
     Scaffold(
@@ -233,13 +240,13 @@ fun BulletinScreen(
                     Text("Ligne ${i + 1}", color = BulletinAccent, fontSize = 11.sp,
                         fontWeight = FontWeight.Bold)
                     BPrestaChoice(l.detail) { l.detail = it }
-                    BField("Référence", l.reference) { l.reference = it }
+                    BRefField(l.reference) { l.reference = it }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
-                            BField("Quantité", l.qte, KeyboardType.Number) { l.qte = it }
+                            BField("Quantité", l.qte, KeyboardType.Number) { v -> l.qte = v.filter { it.isDigit() }.take(3) }
                         }
                         Box(Modifier.weight(1f)) {
-                            BField("Prix unitaire €", l.pu, KeyboardType.Number) { l.pu = it }
+                            BField("Prix unitaire €", l.pu, KeyboardType.Number) { v -> l.pu = v.filter { it.isDigit() || it == ',' || it == '.' } }
                         }
                     }
                     if (l.total > 0.0) Text("Prix total : ${eur(l.total)} €",
@@ -264,6 +271,7 @@ fun BulletinScreen(
                 modifier = Modifier.padding(top = 4.dp))
             BCheck("Locatif", forfaitLocatif) { forfaitLocatif = it; if (it) forfaitAcquisition = false }
             BCheck("Acquisition", forfaitAcquisition) { forfaitAcquisition = it; if (it) forfaitLocatif = false }
+            BCheck("Frais d'intervention (+ 65,00 €)", fraisOui) { fraisOui = it }
             Text("Règlement", color = TextMid, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
             BCheck("Prélèvement", reglPrelevement) { reglPrelevement = it }
             BCheck("Chèque", reglCheque) { reglCheque = it }
@@ -348,6 +356,8 @@ fun BulletinScreen(
                                         reglPrelevement = reglPrelevement, reglCheque = reglCheque,
                                         reglAutre = reglAutre, reglAutreTxt = reglAutreTxt.trim(),
                                         conserverOui = conserverOui, conserverNon = conserverNon,
+                                        fraisOui = fraisOui,
+                                        fraisMontant = if (fraisOui) eur(fraisMontant) else "",
                                         total = if (totalGeneral > 0.0) eur(totalGeneral) else "",
                                         totalHt = totalHt,
                                         mensualite = mensualite.trim(), mensHt = mensHt,
@@ -409,6 +419,45 @@ private fun BField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/**
+ * Référence pièce au format XX-XXX-XX (ex. IR-C08-12). Le champ ne stocke que
+ * les caractères utiles ; les « - » sont posés à l'AFFICHAGE, sinon le curseur
+ * saute à chaque frappe et les caractères se mélangent.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BRefField(value: String, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { v -> onChange(v.filter { it.isLetterOrDigit() }.uppercase().take(7)) },
+        label = { Text("Référence (ex. IR-C08-12)") },
+        singleLine = true,
+        visualTransformation = RefVisualTransformation,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+private val RefVisualTransformation = VisualTransformation { text ->
+    val raw = text.text
+    val out = buildString {
+        raw.forEachIndexed { i, ch ->
+            if (i == 2 || i == 5) append('-')
+            append(ch)
+        }
+    }
+    TransformedText(AnnotatedString(out), object : OffsetMapping {
+        // Le tiret n'existe que s'il y a un caractère APRÈS lui : sans cette
+        // condition, une saisie de 2 (ou 5) caractères renvoie un offset plus
+        // grand que le texte affiché -> plantage du champ.
+        override fun originalToTransformed(offset: Int): Int =
+            (offset + (if (offset >= 2 && raw.length > 2) 1 else 0) +
+                (if (offset >= 5 && raw.length > 5) 1 else 0)).coerceIn(0, out.length)
+        override fun transformedToOriginal(offset: Int): Int =
+            (offset - (if (offset > 2) 1 else 0) - (if (offset > 6) 1 else 0))
+                .coerceIn(0, raw.length)
+    })
 }
 
 /**
