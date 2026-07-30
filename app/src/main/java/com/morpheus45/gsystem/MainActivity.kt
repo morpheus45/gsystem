@@ -37,6 +37,7 @@ import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
+import com.morpheus45.gsystem.ui.BulletinScreen
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
 import com.morpheus45.gsystem.ui.CongeScreen
@@ -299,6 +300,7 @@ fun AppNav() {
                 },
                 onEnvoiMensuel = { navController.navigate("envoi_mensuel") },
                 onPrimeAVenir = { navController.navigate("prime_a_venir") },
+                onBulletin = { navController.navigate("bulletin") },
                 onConge = { navController.navigate("conge") },
                 onSettings = { navController.navigate("settings") }
             )
@@ -428,6 +430,12 @@ fun AppNav() {
             PrimeAVenirScreen(
                 settings = settings,
                 store = store,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("bulletin") {
+            BulletinScreen(
+                settings = settings,
                 onBack = { navController.popBackStack() }
             )
         }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Outbox
 import androidx.compose.material.icons.outlined.Receipt
@@ -87,6 +88,9 @@ import com.morpheus45.gsystem.ui.theme.GesteStart
 import com.morpheus45.gsystem.ui.theme.CameraAccent
 import com.morpheus45.gsystem.ui.theme.CameraEnd
 import com.morpheus45.gsystem.ui.theme.CameraStart
+import com.morpheus45.gsystem.ui.theme.GsmStart
+import com.morpheus45.gsystem.ui.theme.GsmEnd
+import com.morpheus45.gsystem.ui.theme.GsmAccent
 import com.morpheus45.gsystem.ui.theme.Obsidian
 import com.morpheus45.gsystem.ui.theme.RecapAccent
 import com.morpheus45.gsystem.ui.theme.RecapEnd
@@ -127,6 +131,7 @@ fun HomeScreen(
     onAttenteClient: () -> Unit,
     onEnvoiMensuel: () -> Unit,
     onPrimeAVenir: () -> Unit = {},
+    onBulletin: () -> Unit = {},
     onConge: () -> Unit = {},
     onSettings: () -> Unit
 ) {
@@ -312,36 +317,39 @@ fun HomeScreen(
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
                 onClick = onAppelTechline),
-            HomeTile("04", "CLÔTURE", "Clôture d'intervention",
+            HomeTile("04", "COURRIER", "Viber « courrier ok »",
+                Icons.Outlined.Email, CourrierStart, CourrierEnd, CourrierAccent, HomeGroup.SITE,
+                onClick = onCourrier),
+            HomeTile("05", "CLÔTURE", "Clôture d'intervention",
                 Icons.Outlined.Assignment, TempsStart, TempsEnd, TempsAccent, HomeGroup.INTERV,
                 liveValue = if (countTemps > 0) countTemps.toString() else null,
                 liveLabel = if (countTemps > 0) "ce cycle" else null,
                 onClick = onTemps),
-            HomeTile("05", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
+            HomeTile("06", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
                 Icons.Outlined.FactCheck, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onPvCameras),
-            HomeTile("06", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
+            HomeTile("07", "BULLETIN INTER", "Intervention sur site · signé client",
+                Icons.Outlined.Description, GsmStart, GsmEnd, GsmAccent, HomeGroup.INTERV,
+                onClick = onBulletin),
+            HomeTile("08", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onDemandeCamera),
-            HomeTile("07", "COURRIER", "Viber « courrier ok »",
-                Icons.Outlined.Email, CourrierStart, CourrierEnd, CourrierAccent, HomeGroup.INTERV,
-                onClick = onCourrier),
-            HomeTile("08", "RÉCAP", "Cumul du cycle · total euros",
+            HomeTile("09", "RÉCAP", "Cumul du cycle · total euros",
                 Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
                 onClick = onGesteCoRecap),
-            HomeTile("09", "FRAIS", fraisSub,
+            HomeTile("10", "FRAIS", fraisSub,
                 Icons.Outlined.Receipt, FraisStart, FraisEnd, FraisAccent, HomeGroup.FIN,
                 liveValue = if (countFrais > 0) countFrais.toString() else null,
                 liveLabel = if (countFrais > 0) "tickets" else null,
                 onClick = onFrais),
-            HomeTile("10", "ENVOI MENSUEL", "Excel + tickets + compteur",
+            HomeTile("11", "ENVOI MENSUEL", "Excel + tickets + compteur",
                 Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
                 pulse = endOfCycleApproaching,
                 onClick = onEnvoiMensuel),
-            HomeTile("11", "PRIME À VENIR", "Historique · versement à +2 mois",
+            HomeTile("12", "PRIME À VENIR", "Historique · versement à +2 mois",
                 Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
                 onClick = onPrimeAVenir),
-            HomeTile("12", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
+            HomeTile("13", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
                 onClick = onConge)
         )
