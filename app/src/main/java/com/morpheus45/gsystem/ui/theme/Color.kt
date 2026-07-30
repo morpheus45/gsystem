@@ -84,10 +84,18 @@ val TechlineStart  = Color(0xFF6366F1)
 val TechlineEnd    = Color(0xFF7C3AED)
 val TechlineAccent = Color(0xFFC7D2FE)
 
-// 03 COURRIER — indigo
-val CourrierStart  = Color(0xFF6366F1)
+// COURRIER — violet -> bleu. Déplacé dans l'onglet « Sur site » SOUS APPEL
+// TECHLINE : son départ reprend donc la fin de TECHLINE (#7C3AED) pour ne pas
+// casser la waterfall de la pile.
+val CourrierStart  = Color(0xFF7C3AED)
 val CourrierEnd    = Color(0xFF3B82F6)
 val CourrierAccent = Color(0xFFC7D2FE)
+
+// BULLETIN INTER — violet : intercalé entre PV CAMÉRAS (fin #8A5CF6) et
+// DEMANDE CAMÉRA (départ #9168F0), il fait exactement le pont entre les deux.
+val BulletinStart  = Color(0xFF8A5CF6)
+val BulletinEnd    = Color(0xFF9168F0)
+val BulletinAccent = Color(0xFFDDD6FE)
 
 // 04 RECAP — bleu
 val RecapStart     = Color(0xFF3B82F6)

@@ -31,11 +31,30 @@ object UpdateChecker {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Raison du dernier échec (réseau coupé, quota GitHub, réponse illisible…).
+     * `check()` renvoie null aussi bien quand on est à jour que quand la
+     * vérification a échoué : sans ça, l'utilisateur ne peut pas distinguer
+     * les deux et croit que la mise à jour « n'est jamais proposée ».
+     */
+    @Volatile
+    var lastError: String? = null
+        private set
+
     /** Renvoie UpdateAvailable si une version plus récente existe, sinon null. */
     suspend fun check(): UpdateAvailable? = withContext(Dispatchers.IO) {
-        val payload = fetchJson(GITHUB_API) ?: return@withContext null
+        lastError = null
+        val payload = fetchJson(GITHUB_API)
+        if (payload == null) {
+            lastError = "vérification impossible (pas de réseau ?)"
+            return@withContext null
+        }
         val release = runCatching { json.decodeFromString(GithubRelease.serializer(), payload) }
-            .getOrNull() ?: return@withContext null
+            .getOrNull()
+        if (release == null) {
+            lastError = "réponse illisible du serveur"
+            return@withContext null
+        }
 
         val remoteVersion = release.tagName.removePrefix("v").trim()
         val localVersion = BuildConfig.VERSION_NAME.removePrefix("v").trim()
