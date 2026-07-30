@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
@@ -13,23 +14,25 @@ import java.io.File
  * BULLETIN D'INTERVENTION SUR SITE.
  *
  * Le document d'origine n'existe qu'en PHOTO (aucun texte exploitable, page
- * penchée) : impossible de s'en servir comme fond propre. On le REDESSINE donc
- * à l'identique en vectoriel — même structure, mêmes libellés, mêmes cases —
- * ce qui donne un PDF net, imprimable et lisible, avec un remplissage aligné au
- * pixel près. Repère A4 en points (595 x 842), origine en HAUT à gauche.
+ * penchée) : il est REDESSINÉ en vectoriel, avec les mêmes proportions que
+ * l'original — tableau de 9 lignes, sections espacées, signatures en pied de
+ * page. Si les prestations dépassent 9 lignes, le formulaire est DUPLIQUÉ sur
+ * une page supplémentaire (sections 2 à 5 et signatures sur la dernière page).
+ *
+ * Repère A4 en points (595 x 842), origine en HAUT à gauche.
  */
 object BulletinPdfGenerator {
 
     private const val W = 595
     private const val H = 842
-    private const val M = 22f            // marge gauche/droite
+    private const val M = 22f
+    private const val LIGNES_PAR_PAGE = 9
 
-    // Palette du document d'origine
     private val BLEU = Color.rgb(0x1F, 0x4E, 0x9C)
-    private val BLEU_CLAIR = Color.rgb(0xD6, 0xE2, 0xF2)
-    private val BLEU_BAND = Color.rgb(0xC3, 0xD5, 0xEC)
+    private val BLEU_CLAIR = Color.rgb(0xDA, 0xE4, 0xF2)
+    private val BLEU_BAND = Color.rgb(0xC6, 0xD8, 0xEE)
     private val ROUGE = Color.rgb(0xC8, 0x4B, 0x31)
-    private val GRIS = Color.rgb(0x77, 0x77, 0x77)
+    private val GRIS = Color.rgb(0x80, 0x80, 0x80)
 
     data class Ligne(
         val detail: String, val reference: String,
@@ -57,226 +60,20 @@ object BulletinPdfGenerator {
 
     fun generate(context: Context, d: BulletinData, sigTech: Bitmap?, sigClient: Bitmap?): File {
         val doc = PdfDocument()
-        val page = doc.startPage(PdfDocument.PageInfo.Builder(W, H, 1).create())
-        val c = page.canvas
-
-        val txt = Paint().apply { color = Color.BLACK; isAntiAlias = true; textSize = 7.5f }
-        val line = Paint().apply {
-            color = Color.rgb(0x55, 0x55, 0x55); isAntiAlias = true
-            strokeWidth = 0.6f; style = Paint.Style.STROKE
+        // Découpe des prestations : une page par tranche de 9 lignes.
+        val remplies = d.lignes.filter {
+            it.detail.isNotBlank() || it.reference.isNotBlank() || it.qte.isNotBlank()
         }
-        val fill = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+        val pages = if (remplies.size <= LIGNES_PAR_PAGE) listOf(remplies)
+        else remplies.chunked(LIGNES_PAR_PAGE)
+        val nbPages = pages.size
 
-        fun str(s: String, x: Float, y: Float, size: Float = 7.5f,
-                bold: Boolean = false, col: Int = Color.BLACK) {
-            if (s.isBlank()) return
-            txt.textSize = size; txt.isFakeBoldText = bold; txt.color = col
-            txt.style = if (bold) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
-            txt.strokeWidth = if (bold) 0.25f else 0f
-            c.drawText(s, x, y, txt)
-            txt.style = Paint.Style.FILL; txt.strokeWidth = 0f
+        pages.forEachIndexed { idx, chunk ->
+            val page = doc.startPage(PdfDocument.PageInfo.Builder(W, H, idx + 1).create())
+            dessinePage(page.canvas, d, chunk, idx + 1, nbPages,
+                derniere = idx == nbPages - 1, sigTech = sigTech, sigClient = sigClient)
+            doc.finishPage(page)
         }
-        fun rect(x0: Float, y0: Float, x1: Float, y1: Float, col: Int? = null) {
-            if (col != null) { fill.color = col; c.drawRect(x0, y0, x1, y1, fill) }
-            c.drawRect(x0, y0, x1, y1, line)
-        }
-        /** Case à cocher + libellé ; croix si cochée. */
-        fun box(x: Float, y: Float, label: String, checked: Boolean, size: Float = 7f) {
-            val s = 6.5f
-            c.drawRect(x, y - s + 1f, x + s, y + 1f, line)
-            if (checked) {
-                val p = Paint().apply {
-                    color = Color.BLACK; isAntiAlias = true; strokeWidth = 1.3f
-                }
-                c.drawLine(x + 0.8f, y - s + 1.8f, x + s - 0.8f, y + 0.2f, p)
-                c.drawLine(x + 0.8f, y + 0.2f, x + s - 0.8f, y - s + 1.8f, p)
-            }
-            str(label, x + s + 3f, y, size)
-        }
-        /** Ligne pointillée pour un champ à remplir + valeur écrite dessus. */
-        fun champ(label: String, valeur: String, x: Float, y: Float, xEnd: Float,
-                  size: Float = 7.5f) {
-            str(label, x, y, size)
-            val xv = x + txt.let { it.textSize = size; it.measureText(label) } + 3f
-            val dot = Paint().apply {
-                color = GRIS; strokeWidth = 0.5f
-                pathEffect = android.graphics.DashPathEffect(floatArrayOf(1.2f, 1.8f), 0f)
-            }
-            c.drawLine(xv, y + 1.5f, xEnd, y + 1.5f, dot)
-            str(valeur, xv + 2f, y, size, bold = true)
-        }
-        fun sectionTitre(n: String, titre: String, y: Float) {
-            fill.color = ROUGE; c.drawRect(M, y - 9f, M + 11f, y + 2f, fill)
-            str(n, M + 3f, y, 8f, bold = true, col = Color.WHITE)
-            str(titre, M + 17f, y, 11f, bold = true, col = ROUGE)
-        }
-
-        // ---------------- EN-TÊTE ----------------
-        fill.color = BLEU_BAND; c.drawRect(M, 24f, W - M, 74f, fill)
-        str("INTERVENTION SUR SITE", M + 6f, 44f, 16f, bold = true, col = BLEU)
-        champ("Date :", d.date, 245f, 42f, 400f, 8f)
-        str("(Exemplaire technicien-conseil)", W - M - 100f, 34f, 6f, col = BLEU)
-        champ("N° de mission :", d.numMission, M + 6f, 64f, 250f, 8f)
-        champ("Lieu protégé N° :", d.lieuProtege, 300f, 64f, W - M - 6f, 8f)
-
-        // ---------------- COORDONNÉES CLIENT (gauche) ----------------
-        var y = 96f
-        str("Coordonnées du client", M, y, 11f, bold = true, col = BLEU)
-        y += 16f
-        champ("Nom et prénom :", d.nom, M, y, 285f); y += 14f
-        champ("Adresse :", d.adresse, M, y, 285f); y += 14f
-        champ("Code Postal :", d.codePostal, M, y, 285f); y += 14f
-        champ("Ville :", d.ville, M, y, 285f)
-
-        // ---------------- NATURE DE L'INTERVENTION (droite) ----------------
-        val cx = 300f
-        var ny = 96f
-        str("Nature de l'intervention", cx, ny, 11f, bold = true, col = BLEU)
-        ny += 16f
-        val c1 = cx; val c2 = cx + 100f; val c3 = cx + 195f
-        box(c1, ny, "Migration (MIGR)", d.natMigr)
-        box(c2, ny, "Démontage (RESI)", d.natResi)
-        box(c3, ny, "Vérification (INTE)", d.natInte)
-        ny += 13f
-        box(c1, ny, "Ajout (AJOU)", d.natAjou)
-        box(c2, ny, "Remplac. piles (PILE)", d.natPile)
-        box(c3, ny, "Demande client (DECL)", d.natDecl)
-        ny += 13f
-        box(c1, ny, "Réparation (REPA)", d.natRepa)
-        box(c2, ny, "Contrôle (CONT)", d.natCont)
-        box(c3, ny, "Autre (préciser) :", d.natAutre)
-        ny += 13f
-        box(c1, ny, "Visite/Devis (VISI)", d.natVisi)
-        if (d.natAutre) champ("", d.natAutreTxt, c2, ny, W - M)
-        ny += 16f
-        champ("Marque du matériel :", d.marque, cx, ny, cx + 160f)
-        champ("Type :", d.typeMat, cx + 170f, ny, W - M)
-
-        // ---------------- 1. NATURE DES PRESTATIONS ----------------
-        y = 172f
-        sectionTitre("1", "Nature des prestations", y)
-        // barre bleue verticale de section
-        fill.color = BLEU; c.drawRect(M, y + 6f, M + 11f, y + 132f, fill)
-        val tX = M + 20f; val tW = W - M - tX
-        val colRef = tX + 250f; val colQte = colRef + 90f
-        val colPu = colQte + 55f; val colTot = colPu + 75f
-        var ty = y + 10f
-        rect(tX, ty, W - M, ty + 14f, BLEU_CLAIR)
-        str("Détail des prestations ou pièces fournies", tX + 4f, ty + 10f, 7.5f, bold = true)
-        str("Référence", colRef + 4f, ty + 10f, 7.5f, bold = true)
-        str("Quantité", colQte + 4f, ty + 10f, 7.5f, bold = true)
-        str("Prix unitaire", colPu + 3f, ty + 10f, 7.5f, bold = true)
-        str("Prix total", colTot + 4f, ty + 10f, 7.5f, bold = true)
-        ty += 14f
-        // 6 lignes minimum (aspect du formulaire) et 10 maximum : au-delà, le
-        // tableau pousserait les observations sous le bloc signatures.
-        val nbLignes = d.lignes.size.coerceIn(6, 10)
-        for (i in 0 until nbLignes) {
-            rect(tX, ty, W - M, ty + 13f)
-            listOf(colRef, colQte, colPu, colTot).forEach { c.drawLine(it, ty, it, ty + 13f, line) }
-            d.lignes.getOrNull(i)?.let { l ->
-                str(l.detail, tX + 4f, ty + 9f, 7f, bold = true)
-                str(l.reference, colRef + 4f, ty + 9f, 7f, bold = true)
-                str(l.qte, colQte + 22f, ty + 9f, 7f, bold = true)
-                str(l.pu, colPu + 4f, ty + 9f, 7f, bold = true)
-                str(l.total, colTot + 4f, ty + 9f, 7f, bold = true)
-            }
-            str("€", colPu + 62f, ty + 9f, 6.5f, col = GRIS)
-            str("€", W - M - 8f, ty + 9f, 6.5f, col = GRIS)
-            ty += 13f
-        }
-        // Forfait
-        rect(tX, ty, W - M, ty + 13f)
-        str("Forfait d'intervention :", tX + 4f, ty + 9f, 7f)
-        box(tX + 82f, ty + 9f, "Locatif", d.forfaitLocatif)
-        box(tX + 130f, ty + 9f, "Acquisition", d.forfaitAcquisition)
-        ty += 13f
-        // Règlement + TOTAL
-        rect(tX, ty, colTot, ty + 26f)
-        rect(colTot, ty, W - M, ty + 26f)
-        str("Règlement :", tX + 4f, ty + 9f, 7f)
-        box(tX + 48f, ty + 9f, "Prélèvement", d.reglPrelevement)
-        box(tX + 112f, ty + 9f, "Chèque", d.reglCheque)
-        box(tX + 158f, ty + 9f, "Autre :", d.reglAutre)
-        if (d.reglAutre) str(d.reglAutreTxt, tX + 195f, ty + 9f, 7f, bold = true)
-        str("Si acquisition : conserver les pièces remplacées ?", tX + 4f, ty + 21f, 6.5f)
-        box(tX + 168f, ty + 21f, "Oui", d.conserverOui)
-        box(tX + 196f, ty + 21f, "Non", d.conserverNon)
-        str("TOTAL :", colTot + 5f, ty + 12f, 8.5f, bold = true)
-        str(d.total, colTot + 5f, ty + 23f, 9f, bold = true)
-        str("€", W - M - 8f, ty + 12f, 7f, col = GRIS)
-        box(colTot + 42f, ty + 23f, "H.T.", d.totalHt, 6f)
-        box(colTot + 72f, ty + 23f, "T.T.C.", !d.totalHt, 6f)
-        ty += 34f
-
-        // ---------------- 2. NOUVELLE MENSUALITÉ ----------------
-        sectionTitre("2", "Nouvelle mensualité", ty)
-        fill.color = BLEU; c.drawRect(M, ty + 6f, M + 11f, ty + 40f, fill)
-        ty += 10f
-        rect(tX, ty, W - M, ty + 28f)
-        str("Montant total de la nouvelle mensualité d'abonnement", tX + 5f, ty + 12f, 7.5f)
-        str("(en cas de modification de l'équipement) :", tX + 5f, ty + 22f, 7f, col = GRIS)
-        str(d.mensualite, colTot + 5f, ty + 14f, 9f, bold = true)
-        str("€", W - M - 8f, ty + 12f, 7f, col = GRIS)
-        box(colTot + 5f, ty + 25f, "H.T.", d.mensHt, 6f)
-        box(colTot + 40f, ty + 25f, "T.T.C.", !d.mensHt, 6f)
-        ty += 40f
-
-        // ---------------- 3. TESTS ----------------
-        sectionTitre("3", "Tests du système d'alarme", ty)
-        fill.color = BLEU; c.drawRect(M, ty + 6f, M + 11f, ty + 40f, fill)
-        ty += 14f
-        str("Le technicien-conseil a procédé en présence de l'abonné ou de son représentant aux",
-            tX, ty, 7f); ty += 10f
-        str("tests prévus au contrat et confirme le bon fonctionnement :", tX, ty, 7f)
-        box(tX + 205f, ty, "du système d'alarme", d.testAlarme); ty += 12f
-        box(tX + 205f, ty, "et des moyens de liaison au centre de surveillance.", d.testLiaison)
-        ty += 18f
-
-        // ---------------- 4. OBSERVATIONS TECHNICIEN ----------------
-        sectionTitre("4", "Observations du technicien-conseil", ty)
-        fill.color = BLEU; c.drawRect(M, ty + 6f, M + 11f, ty + 66f, fill)
-        ty += 12f
-        wrap(d.obsTech, 118).take(5).forEach { l ->
-            val dot = Paint().apply {
-                color = GRIS; strokeWidth = 0.4f
-                pathEffect = android.graphics.DashPathEffect(floatArrayOf(1.2f, 1.8f), 0f)
-            }
-            c.drawLine(tX, ty + 1.5f, W - M, ty + 1.5f, dot)
-            str(l, tX + 2f, ty, 7.5f, bold = true)
-            ty += 12f
-        }
-        ty += 6f
-
-        // ---------------- 5. OBSERVATIONS CLIENT ----------------
-        sectionTitre("5", "Observations du client ou de son représentant", ty)
-        fill.color = BLEU; c.drawRect(M, ty + 6f, M + 11f, ty + 56f, fill)
-        ty += 11f
-        str("Je reconnais avoir constaté le bon fonctionnement du système", tX, ty, 7f, col = GRIS)
-        ty += 12f
-        wrap(d.obsClient, 118).take(4).forEach { l ->
-            val dot = Paint().apply {
-                color = GRIS; strokeWidth = 0.4f
-                pathEffect = android.graphics.DashPathEffect(floatArrayOf(1.2f, 1.8f), 0f)
-            }
-            c.drawLine(tX, ty + 1.5f, W - M, ty + 1.5f, dot)
-            str(l, tX + 2f, ty, 7.5f, bold = true)
-            ty += 12f
-        }
-
-        // ---------------- SIGNATURES ----------------
-        val sy = maxOf(ty + 8f, H - 108f)
-        val mid = W / 2f
-        rect(M, sy, mid - 6f, H - 26f)
-        rect(mid + 6f, sy, W - M, H - 26f)
-        str("Nom et signature du technicien-conseil :", M + 6f, sy + 13f, 7.5f, bold = true)
-        str("Nom et signature du client ou de son représentant :", mid + 12f, sy + 13f, 7.5f, bold = true)
-        str(d.nomTech, M + 6f, sy + 26f, 8f, bold = true)
-        str(d.nomClient, mid + 12f, sy + 26f, 8f, bold = true)
-        sigTech?.let { drawFit(c, it, M + 6f, sy + 30f, mid - 12f, H - 30f) }
-        sigClient?.let { drawFit(c, it, mid + 12f, sy + 30f, W - M - 6f, H - 30f) }
-
-        doc.finishPage(page)
 
         val outDir = File(context.cacheDir, "exports").apply { mkdirs() }
         val safe = d.numMission.replace(Regex("[^A-Za-z0-9_-]"), "_").ifBlank { "bulletin" }
@@ -286,9 +83,229 @@ object BulletinPdfGenerator {
         return out
     }
 
-    /** Découpe un texte libre en lignes d'environ [lim] caractères. */
+    private fun dessinePage(
+        c: Canvas, d: BulletinData, lignes: List<Ligne>,
+        noPage: Int, nbPages: Int, derniere: Boolean,
+        sigTech: Bitmap?, sigClient: Bitmap?
+    ) {
+        val txt = Paint().apply { color = Color.BLACK; isAntiAlias = true }
+        val line = Paint().apply {
+            color = Color.rgb(0x60, 0x60, 0x60); isAntiAlias = true
+            strokeWidth = 0.6f; style = Paint.Style.STROKE
+        }
+        val fill = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+        val dash = Paint().apply {
+            color = GRIS; strokeWidth = 0.5f; style = Paint.Style.STROKE
+            pathEffect = DashPathEffect(floatArrayOf(1.3f, 1.9f), 0f)
+        }
+
+        fun largeur(s: String, size: Float, bold: Boolean = false): Float {
+            txt.textSize = size; txt.isFakeBoldText = bold
+            return txt.measureText(s)
+        }
+        fun str(s: String, x: Float, y: Float, size: Float = 8f,
+                bold: Boolean = false, col: Int = Color.BLACK, maxW: Float = 0f) {
+            if (s.isBlank()) return
+            var t = s
+            txt.textSize = size; txt.isFakeBoldText = bold
+            if (maxW > 0f) while (t.length > 1 && txt.measureText(t) > maxW) t = t.dropLast(1)
+            txt.color = col
+            txt.style = if (bold) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
+            txt.strokeWidth = if (bold) 0.22f else 0f
+            c.drawText(t, x, y, txt)
+            txt.style = Paint.Style.FILL; txt.strokeWidth = 0f
+        }
+        fun cadre(x0: Float, y0: Float, x1: Float, y1: Float, remplissage: Int? = null) {
+            if (remplissage != null) { fill.color = remplissage; c.drawRect(x0, y0, x1, y1, fill) }
+            c.drawRect(x0, y0, x1, y1, line)
+        }
+        /** Case à cocher + libellé. Renvoie la largeur totale occupée. */
+        fun box(x: Float, y: Float, label: String, coche: Boolean, size: Float = 7.5f): Float {
+            val s = 7f
+            c.drawRect(x, y - s + 0.5f, x + s, y + 0.5f, line)
+            if (coche) {
+                val p = Paint().apply { color = Color.BLACK; isAntiAlias = true; strokeWidth = 1.25f }
+                c.drawLine(x + 1f, y - s + 1.5f, x + s - 1f, y - 0.5f, p)
+                c.drawLine(x + 1f, y - 0.5f, x + s - 1f, y - s + 1.5f, p)
+            }
+            str(label, x + s + 3f, y, size)
+            return s + 3f + largeur(label, size)
+        }
+        fun champ(label: String, valeur: String, x: Float, y: Float, xFin: Float, size: Float = 8f) {
+            str(label, x, y, size)
+            val xv = x + largeur(label, size) + 3f
+            c.drawLine(xv, y + 1.5f, xFin, y + 1.5f, dash)
+            str(valeur, xv + 2f, y, size, bold = true, maxW = xFin - xv - 4f)
+        }
+        fun sectionTitre(n: String, titre: String, y: Float, hauteurBarre: Float) {
+            fill.color = ROUGE; c.drawRect(M, y - 10f, M + 12f, y + 2f, fill)
+            str(n, M + 3.5f, y, 8.5f, bold = true, col = Color.WHITE)
+            str(titre, M + 19f, y, 12f, bold = true, col = ROUGE)
+            fill.color = BLEU; c.drawRect(M, y + 6f, M + 12f, y + hauteurBarre, fill)
+        }
+
+        // ================= EN-TÊTE =================
+        fill.color = BLEU_BAND; c.drawRect(M, 24f, W - M, 78f, fill)
+        str("INTERVENTION SUR SITE", M + 8f, 50f, 17f, bold = true, col = BLEU)
+        str("(Exemplaire technicien-conseil)", W - M - 108f, 36f, 6.2f, col = BLEU)
+        champ("Date :", d.date, 250f, 48f, 420f, 8.5f)
+        champ("N° de mission :", d.numMission, M + 8f, 70f, 285f, 8.5f)
+        champ("Lieu protégé N° :", d.lieuProtege, 310f, 70f, W - M - 8f, 8.5f)
+
+        // ================= COORDONNÉES CLIENT =================
+        str("Coordonnées du client", M, 102f, 12f, bold = true, col = BLEU)
+        champ("Nom et prénom :", d.nom, M, 122f, 288f)
+        champ("Adresse :", d.adresse, M, 140f, 288f)
+        c.drawLine(M, 157.5f, 288f, 157.5f, dash)          // 2e ligne d'adresse
+        champ("Code Postal :", d.codePostal, M, 176f, 288f)
+        champ("Ville :", d.ville, M, 194f, 288f)
+
+        // ================= NATURE DE L'INTERVENTION =================
+        val cx = 300f
+        str("Nature de l'intervention", cx, 102f, 12f, bold = true, col = BLEU)
+        val k1 = cx; val k2 = cx + 103f; val k3 = cx + 200f
+        box(k1, 122f, "Migration (MIGR)", d.natMigr)
+        box(k2, 122f, "Démontage (RESI)", d.natResi)
+        box(k3, 122f, "Vérification (INTE)", d.natInte)
+        box(k1, 138f, "Ajout (AJOU)", d.natAjou)
+        box(k2, 138f, "Remplac. piles (PILE)", d.natPile)
+        box(k3, 138f, "Demande client (DECL)", d.natDecl)
+        box(k1, 154f, "Réparation (REPA)", d.natRepa)
+        box(k2, 154f, "Contrôle (CONT)", d.natCont)
+        val wAutre = box(k3, 154f, "Autre (préciser) :", d.natAutre)
+        box(k1, 170f, "Visite/Devis (VISI)", d.natVisi)
+        c.drawLine(k3 + wAutre + 2f, 155.5f, W - M, 155.5f, dash)
+        if (d.natAutre) str(d.natAutreTxt, k3 + wAutre + 4f, 154f, 7.5f, bold = true,
+            maxW = W - M - (k3 + wAutre + 6f))
+        champ("Marque du matériel :", d.marque, cx, 194f, cx + 175f)
+        champ("Type :", d.typeMat, cx + 185f, 194f, W - M)
+
+        // ================= 1 · NATURE DES PRESTATIONS =================
+        sectionTitre("1", "Nature des prestations", 218f, 222f)
+        val tX = M + 20f
+        val cRef = 300f; val cQte = 392f; val cPu = 455f; val cTot = 516f
+        var ty = 226f
+        cadre(tX, ty, W - M, ty + 17f, BLEU_CLAIR)
+        listOf(cRef, cQte, cPu, cTot).forEach { c.drawLine(it, ty, it, ty + 17f, line) }
+        str("Détail des prestations ou pièces fournies", tX + 5f, ty + 12f, 8f, bold = true)
+        str("Référence", cRef + 6f, ty + 12f, 8f, bold = true)
+        str("Quantité", cQte + 8f, ty + 12f, 8f, bold = true)
+        str("Prix unitaire", cPu + 3f, ty + 12f, 8f, bold = true)
+        str("Prix total", cTot + 10f, ty + 12f, 8f, bold = true)
+        ty += 17f
+        for (i in 0 until LIGNES_PAR_PAGE) {
+            cadre(tX, ty, W - M, ty + 17f)
+            listOf(cRef, cQte, cPu, cTot).forEach { c.drawLine(it, ty, it, ty + 17f, line) }
+            lignes.getOrNull(i)?.let { l ->
+                str(l.detail, tX + 5f, ty + 12f, 8f, bold = true, maxW = cRef - tX - 10f)
+                str(l.reference, cRef + 6f, ty + 12f, 8f, bold = true, maxW = cQte - cRef - 12f)
+                val wq = largeur(l.qte, 8f, true)
+                str(l.qte, cQte + (cPu - cQte - wq) / 2f, ty + 12f, 8f, bold = true)
+                str(l.pu, cPu + 5f, ty + 12f, 8f, bold = true, maxW = 40f)
+                str(l.total, cTot + 6f, ty + 12f, 8f, bold = true, maxW = 44f)
+            }
+            str("€", cPu + 50f, ty + 12f, 7f, col = GRIS)
+            str("€", W - M - 9f, ty + 12f, 7f, col = GRIS)
+            ty += 17f
+        }
+        // Forfait d'intervention
+        cadre(tX, ty, W - M, ty + 18f)
+        c.drawLine(cTot, ty, cTot, ty + 18f, line)
+        str("Forfait d'intervention :", tX + 5f, ty + 12f, 8f)
+        box(tX + 95f, ty + 12f, "Locatif", d.forfaitLocatif)
+        box(tX + 150f, ty + 12f, "Acquisition", d.forfaitAcquisition)
+        str("€", W - M - 9f, ty + 12f, 7f, col = GRIS)
+        ty += 18f
+        // Règlement + TOTAL
+        cadre(tX, ty, cTot, ty + 32f)
+        cadre(cTot, ty, W - M, ty + 32f)
+        str("Règlement :", tX + 5f, ty + 12f, 8f)
+        var rx = tX + 55f
+        rx += box(rx, ty + 12f, "Prélèvement", d.reglPrelevement) + 10f
+        rx += box(rx, ty + 12f, "Chèque", d.reglCheque) + 10f
+        val wRegl = box(rx, ty + 12f, "Autre :", d.reglAutre)
+        c.drawLine(rx + wRegl + 2f, ty + 13.5f, cTot - 6f, ty + 13.5f, dash)
+        if (d.reglAutre) str(d.reglAutreTxt, rx + wRegl + 4f, ty + 12f, 7.5f, bold = true,
+            maxW = cTot - (rx + wRegl + 10f))
+        str("Si acquisition : souhaitez-vous conserver les pièces remplacées ?",
+            tX + 5f, ty + 26f, 7.5f)
+        box(tX + 215f, ty + 26f, "Oui", d.conserverOui)
+        box(tX + 250f, ty + 26f, "Non", d.conserverNon)
+        str("TOTAL :", cTot + 6f, ty + 14f, 9f, bold = true)
+        str(d.total, cTot + 6f, ty + 26f, 9.5f, bold = true, maxW = 40f)
+        str("€", W - M - 9f, ty + 14f, 7f, col = GRIS)
+        box(cTot + 50f, ty + 26f, "H.T.", d.totalHt, 6.5f)
+        box(cTot + 50f + 32f, ty + 26f, "T.T.C.", !d.totalHt, 6.5f)
+        ty += 32f
+
+        // Pages intermédiaires : on s'arrête après le tableau.
+        if (!derniere) {
+            str("Suite des prestations au verso — page $noPage / $nbPages",
+                M, H - 30f, 8f, bold = true, col = BLEU)
+            return
+        }
+
+        // ================= 2 · NOUVELLE MENSUALITÉ =================
+        var y = 468f
+        sectionTitre("2", "Nouvelle mensualité", y, 46f)
+        y += 8f
+        cadre(tX, y, W - M, y + 38f)
+        c.drawLine(cTot, y, cTot, y + 38f, line)
+        str("Montant total de la nouvelle mensualité d'abonnement", tX + 6f, y + 16f, 8f)
+        str("(en cas de modification de l'équipement) :", tX + 6f, y + 29f, 7.5f, col = GRIS)
+        str(d.mensualite, cTot + 6f, y + 18f, 9.5f, bold = true, maxW = 48f)
+        str("€", W - M - 9f, y + 16f, 7f, col = GRIS)
+        box(cTot + 6f, y + 31f, "H.T.", d.mensHt, 6.5f)
+        box(cTot + 6f + 32f, y + 31f, "T.T.C.", !d.mensHt, 6.5f)
+
+        // ================= 3 · TESTS =================
+        y = 546f
+        sectionTitre("3", "Tests du système d'alarme", y, 54f)
+        str("Le technicien-conseil a procédé en présence de l'abonné ou de son représentant aux tests prévus",
+            tX, y + 20f, 8f)
+        str("au contrat et confirme le bon fonctionnement :", tX, y + 34f, 8f)
+        box(tX + 190f, y + 34f, "du système d'alarme", d.testAlarme, 8f)
+        box(tX + 190f, y + 48f, "et des moyens de liaison au centre de surveillance.", d.testLiaison, 8f)
+
+        // ================= 4 · OBSERVATIONS TECHNICIEN =================
+        y = 630f
+        sectionTitre("4", "Observations du technicien-conseil", y, 62f)
+        var ly = y + 20f
+        val obsT = wrap(d.obsTech, 120)
+        for (i in 0 until 4) {
+            c.drawLine(tX, ly + 1.5f, W - M, ly + 1.5f, dash)
+            obsT.getOrNull(i)?.let { str(it, tX + 3f, ly, 8f, bold = true, maxW = W - M - tX - 6f) }
+            ly += 15f
+        }
+
+        // ================= 5 · OBSERVATIONS CLIENT =================
+        y = 704f
+        sectionTitre("5", "Observations du client ou de son représentant", y, 56f)
+        str("Je reconnais avoir constaté le bon fonctionnement du système", tX, y + 14f, 7.5f, col = GRIS)
+        ly = y + 32f
+        val obsC = wrap(d.obsClient, 120)
+        for (i in 0 until 3) {
+            c.drawLine(tX, ly + 1.5f, W - M, ly + 1.5f, dash)
+            obsC.getOrNull(i)?.let { str(it, tX + 3f, ly, 8f, bold = true, maxW = W - M - tX - 6f) }
+            ly += 15f
+        }
+
+        // ================= SIGNATURES =================
+        val sy = 772f
+        val mid = W / 2f
+        cadre(M, sy, mid - 6f, H - 22f)
+        cadre(mid + 6f, sy, W - M, H - 22f)
+        str("Nom et signature du technicien-conseil :", M + 6f, sy + 13f, 8f, bold = true)
+        str("Nom et signature du client ou de son représentant :", mid + 12f, sy + 13f, 8f, bold = true)
+        str(d.nomTech, M + 6f, sy + 25f, 8f, bold = true, maxW = mid - M - 20f)
+        str(d.nomClient, mid + 12f, sy + 25f, 8f, bold = true, maxW = W - mid - 30f)
+        sigTech?.let { drawFit(c, it, M + 6f, sy + 28f, mid - 12f, H - 26f) }
+        sigClient?.let { drawFit(c, it, mid + 12f, sy + 28f, W - M - 6f, H - 26f) }
+        if (nbPages > 1) str("Page $noPage / $nbPages", W - M - 46f, sy - 4f, 7f, col = GRIS)
+    }
+
     private fun wrap(s: String, lim: Int): List<String> {
-        if (s.isBlank()) return listOf("")
+        if (s.isBlank()) return emptyList()
         val out = ArrayList<String>(); val cur = StringBuilder()
         for (w in s.trim().split(Regex("\\s+"))) {
             val t = if (cur.isEmpty()) w else "$cur $w"
@@ -299,7 +316,6 @@ object BulletinPdfGenerator {
         return out
     }
 
-    /** Signature rognée placée dans la case, trait renforcé (cf. PV caméras). */
     private fun drawFit(c: Canvas, b: Bitmap, x0: Float, y0: Float, x1: Float, y1: Float) {
         if (b.width == 0 || b.height == 0) return
         val dw = x1 - x0; val dh = y1 - y0
