@@ -25,6 +25,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -63,6 +66,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+/** Matériels proposés dans le menu déroulant « Détail des prestations ». */
+private val PRESTATIONS = listOf(
+    "DÉTECTEUR DE MOUVEMENT",
+    "DÉTECTEUR OUVERTURE",
+    "CLAVIER",
+    "SIRÈNE INTÉRIEURE",
+    "SIRÈNE EXTÉRIEURE",
+    "BOUTON ALERTE",
+    "DÉTECTEUR DE FUMÉE",
+    "DÉTECTEUR DE MONOXYDE",
+    "TÉLÉCOMMANDE"
+)
 
 /** Une ligne du tableau « Nature des prestations ». */
 internal class PrestaLigne(
@@ -216,7 +232,7 @@ fun BulletinScreen(
                 ) {
                     Text("Ligne ${i + 1}", color = BulletinAccent, fontSize = 11.sp,
                         fontWeight = FontWeight.Bold)
-                    BField("Détail de la prestation ou pièce", l.detail) { l.detail = it }
+                    BPrestaChoice(l.detail) { l.detail = it }
                     BField("Référence", l.reference) { l.reference = it }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
@@ -231,8 +247,9 @@ fun BulletinScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 10 lignes max : au-delà le tableau ne tiendrait plus sur la page.
-                if (lignes.size < 10) TextButton(onClick = { lignes.add(PrestaLigne()) }) {
+                // Au-delà de 9 lignes, le PDF passe automatiquement sur une page
+                // supplémentaire (formulaire dupliqué).
+                if (lignes.size < 27) TextButton(onClick = { lignes.add(PrestaLigne()) }) {
                     Text("+ Ajouter une ligne", color = BulletinAccent)
                 }
                 if (lignes.size > 1) TextButton(onClick = { lignes.removeAt(lignes.lastIndex) }) {
@@ -392,6 +409,38 @@ private fun BField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboard),
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/**
+ * Détail d'une prestation : menu déroulant des matériels courants, tout en
+ * restant librement modifiable au clavier (matériel hors liste).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BPrestaChoice(value: String, onChange: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(it.uppercase()) },
+            label = { Text("Détail de la prestation ou pièce") },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            PRESTATIONS.forEach { p ->
+                DropdownMenuItem(
+                    text = { Text(p) },
+                    onClick = { onChange(p); expanded = false }
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
