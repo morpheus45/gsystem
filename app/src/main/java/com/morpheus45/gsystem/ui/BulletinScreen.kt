@@ -231,7 +231,8 @@ fun BulletinScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { lignes.add(PrestaLigne()) }) {
+                // 10 lignes max : au-delà le tableau ne tiendrait plus sur la page.
+                if (lignes.size < 10) TextButton(onClick = { lignes.add(PrestaLigne()) }) {
                     Text("+ Ajouter une ligne", color = GsmAccent)
                 }
                 if (lignes.size > 1) TextButton(onClick = { lignes.removeAt(lignes.lastIndex) }) {

@@ -168,7 +168,9 @@ object BulletinPdfGenerator {
         str("Prix unitaire", colPu + 3f, ty + 10f, 7.5f, bold = true)
         str("Prix total", colTot + 4f, ty + 10f, 7.5f, bold = true)
         ty += 14f
-        val nbLignes = maxOf(d.lignes.size, 6)
+        // 6 lignes minimum (aspect du formulaire) et 10 maximum : au-delà, le
+        // tableau pousserait les observations sous le bloc signatures.
+        val nbLignes = d.lignes.size.coerceIn(6, 10)
         for (i in 0 until nbLignes) {
             rect(tX, ty, W - M, ty + 13f)
             listOf(colRef, colQte, colPu, colTot).forEach { c.drawLine(it, ty, it, ty + 13f, line) }
