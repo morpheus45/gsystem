@@ -28,6 +28,9 @@ object BulletinPdfGenerator {
     private const val M = 22f
     private const val LIGNES_PAR_PAGE = 9
 
+    /** Frais d'intervention facturés quand « Oui » est coché. */
+    const val FRAIS_INTERVENTION_EUR = 65.0
+
     private val BLEU = Color.rgb(0x1F, 0x4E, 0x9C)
     private val BLEU_CLAIR = Color.rgb(0xDA, 0xE4, 0xF2)
     private val BLEU_BAND = Color.rgb(0xC6, 0xD8, 0xEE)
@@ -51,6 +54,7 @@ object BulletinPdfGenerator {
         val reglPrelevement: Boolean, val reglCheque: Boolean,
         val reglAutre: Boolean, val reglAutreTxt: String,
         val conserverOui: Boolean, val conserverNon: Boolean,
+        val fraisOui: Boolean, val fraisMontant: String,
         val total: String, val totalHt: Boolean,
         val mensualite: String, val mensHt: Boolean,
         val testAlarme: Boolean, val testLiaison: Boolean,
@@ -208,35 +212,41 @@ object BulletinPdfGenerator {
             str("€", W - M - 9f, ty + 12f, 7f, col = GRIS)
             ty += 17f
         }
-        // Forfait d'intervention
+        // Forfait d'intervention (Locatif/Acquisition) + FRAIS D'INTERVENTION Oui/Non.
+        // « Oui » facture le forfait (FRAIS_INTERVENTION_EUR), déjà inclus dans le TOTAL.
         cadre(tX, ty, W - M, ty + 18f)
         c.drawLine(cTot, ty, cTot, ty + 18f, line)
         str("Forfait d'intervention :", tX + 5f, ty + 12f, 8f)
-        box(tX + 95f, ty + 12f, "Locatif", d.forfaitLocatif)
-        box(tX + 150f, ty + 12f, "Acquisition", d.forfaitAcquisition)
+        box(tX + 92f, ty + 12f, "Locatif", d.forfaitLocatif)
+        box(tX + 145f, ty + 12f, "Acquisition", d.forfaitAcquisition)
+        str("Frais :", tX + 218f, ty + 12f, 8f)
+        box(tX + 248f, ty + 12f, "Oui", d.fraisOui)
+        box(tX + 285f, ty + 12f, "Non", !d.fraisOui)
+        if (d.fraisOui) str(d.fraisMontant, cTot + 8f, ty + 12f, 8.5f, bold = true, maxW = 40f)
         str("€", W - M - 9f, ty + 12f, 7f, col = GRIS)
         ty += 18f
-        // Règlement + TOTAL
-        cadre(tX, ty, cTot, ty + 32f)
-        cadre(cTot, ty, W - M, ty + 32f)
+        // Règlement (large) + TOTAL : la case TOTAL démarre à la colonne « Prix
+        // unitaire », sinon les cases H.T./T.T.C. sortaient de la page.
+        cadre(tX, ty, cPu, ty + 34f)
+        cadre(cPu, ty, W - M, ty + 34f)
         str("Règlement :", tX + 5f, ty + 12f, 8f)
-        var rx = tX + 55f
-        rx += box(rx, ty + 12f, "Prélèvement", d.reglPrelevement) + 10f
-        rx += box(rx, ty + 12f, "Chèque", d.reglCheque) + 10f
+        var rx = tX + 52f
+        rx += box(rx, ty + 12f, "Prélèvement", d.reglPrelevement) + 8f
+        rx += box(rx, ty + 12f, "Chèque", d.reglCheque) + 8f
         val wRegl = box(rx, ty + 12f, "Autre :", d.reglAutre)
-        c.drawLine(rx + wRegl + 2f, ty + 13.5f, cTot - 6f, ty + 13.5f, dash)
+        c.drawLine(rx + wRegl + 2f, ty + 13.5f, cPu - 6f, ty + 13.5f, dash)
         if (d.reglAutre) str(d.reglAutreTxt, rx + wRegl + 4f, ty + 12f, 7.5f, bold = true,
-            maxW = cTot - (rx + wRegl + 10f))
+            maxW = cPu - (rx + wRegl + 10f))
         str("Si acquisition : souhaitez-vous conserver les pièces remplacées ?",
-            tX + 5f, ty + 26f, 7.5f)
-        box(tX + 215f, ty + 26f, "Oui", d.conserverOui)
-        box(tX + 250f, ty + 26f, "Non", d.conserverNon)
-        str("TOTAL :", cTot + 6f, ty + 14f, 9f, bold = true)
-        str(d.total, cTot + 6f, ty + 26f, 9.5f, bold = true, maxW = 40f)
+            tX + 5f, ty + 27f, 7.5f)
+        box(tX + 228f, ty + 27f, "Oui", d.conserverOui)
+        box(tX + 262f, ty + 27f, "Non", d.conserverNon)
+        str("TOTAL :", cPu + 6f, ty + 14f, 9.5f, bold = true)
+        str(d.total, cPu + 48f, ty + 14f, 10f, bold = true, maxW = 52f)
         str("€", W - M - 9f, ty + 14f, 7f, col = GRIS)
-        box(cTot + 50f, ty + 26f, "H.T.", d.totalHt, 6.5f)
-        box(cTot + 50f + 32f, ty + 26f, "T.T.C.", !d.totalHt, 6.5f)
-        ty += 32f
+        box(cPu + 8f, ty + 29f, "H.T.", d.totalHt, 7f)
+        box(cPu + 58f, ty + 29f, "T.T.C.", !d.totalHt, 7f)
+        ty += 34f
 
         // Pages intermédiaires : on s'arrête après le tableau.
         if (!derniere) {
@@ -270,7 +280,7 @@ object BulletinPdfGenerator {
         // ================= 4 · OBSERVATIONS TECHNICIEN =================
         y = 630f
         sectionTitre("4", "Observations du technicien-conseil", y, 62f)
-        var ly = y + 20f
+        var ly = y + 26f
         val obsT = wrap(d.obsTech, 120)
         for (i in 0 until 4) {
             c.drawLine(tX, ly + 1.5f, W - M, ly + 1.5f, dash)
@@ -282,7 +292,7 @@ object BulletinPdfGenerator {
         y = 704f
         sectionTitre("5", "Observations du client ou de son représentant", y, 56f)
         str("Je reconnais avoir constaté le bon fonctionnement du système", tX, y + 14f, 7.5f, col = GRIS)
-        ly = y + 32f
+        ly = y + 36f
         val obsC = wrap(d.obsClient, 120)
         for (i in 0 until 3) {
             c.drawLine(tX, ly + 1.5f, W - M, ly + 1.5f, dash)
