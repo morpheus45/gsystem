@@ -309,8 +309,12 @@ object BulletinPdfGenerator {
         str("Nom et signature du client ou de son représentant :", mid + 12f, sy + 13f, 8f, bold = true)
         str(d.nomTech, M + 6f, sy + 25f, 8f, bold = true, maxW = mid - M - 20f)
         str(d.nomClient, mid + 12f, sy + 25f, 8f, bold = true, maxW = W - mid - 30f)
-        sigTech?.let { drawFit(c, it, M + 6f, sy + 28f, mid - 12f, H - 26f) }
-        sigClient?.let { drawFit(c, it, mid + 12f, sy + 28f, W - M - 6f, H - 26f) }
+        // La signature déborde volontairement sous le cadre : entre le nom du
+        // signataire et le bas du cadre il ne reste que 16 pt, ce qui la rendait
+        // minuscule. On descend jusqu'à 10 pt du bord de page, soit une hauteur
+        // utile doublée (32 pt).
+        sigTech?.let { drawFit(c, it, M + 6f, sy + 28f, mid - 12f, H - 10f) }
+        sigClient?.let { drawFit(c, it, mid + 12f, sy + 28f, W - M - 6f, H - 10f) }
         if (nbPages > 1) str("Page $noPage / $nbPages", W - M - 46f, sy - 4f, 7f, col = GRIS)
     }
 
