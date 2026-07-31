@@ -81,7 +81,8 @@ private val PRESTATIONS = listOf(
     "BOUTON ALERTE",
     "DÉTECTEUR DE FUMÉE",
     "DÉTECTEUR DE MONOXYDE",
-    "TÉLÉCOMMANDE"
+    "TÉLÉCOMMANDE",
+    "CAMÉRA"
 )
 
 /**
