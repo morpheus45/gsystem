@@ -145,8 +145,10 @@ fun BulletinScreen(
     var natDecl by remember { mutableStateOf(false) }
     var natAutre by remember { mutableStateOf(false) }
     var natAutreTxt by remember { mutableStateOf("") }
-    var marque by remember { mutableStateOf("") }
-    var typeMat by remember { mutableStateOf("") }
+    // Matériel prérempli : c'est celui du parc sur la quasi-totalité des
+    // interventions, il reste modifiable.
+    var marque by remember { mutableStateOf("BIRDIE") }
+    var typeMat by remember { mutableStateOf("V5") }
     // --- 1. Prestations ---
     val lignes: SnapshotStateList<PrestaLigne> =
         remember { List(4) { PrestaLigne() }.toMutableStateList() }
@@ -159,10 +161,12 @@ fun BulletinScreen(
     var fraisOui by remember { mutableStateOf(false) }
     var conserverOui by remember { mutableStateOf(false) }
     var conserverNon by remember { mutableStateOf(false) }
-    var totalHt by remember { mutableStateOf(true) }      // TOTAL en H.T. sinon T.T.C.
+    // H.T. / T.T.C. : un SEUL choix pour tout le bulletin (TOTAL et nouvelle
+    // mensualité). Deux cases séparées laissaient sortir un bulletin avec un
+    // total H.T. et une mensualité T.T.C.
+    var totalHt by remember { mutableStateOf(true) }
     // --- 2. Nouvelle mensualité ---
     var mensualite by remember { mutableStateOf("") }
-    var mensHt by remember { mutableStateOf(false) }
     // --- 3. Tests ---
     var testAlarme by remember { mutableStateOf(false) }
     var testLiaison by remember { mutableStateOf(false) }
@@ -276,7 +280,7 @@ fun BulletinScreen(
             }
             Text("TOTAL : ${eur(totalGeneral)} €", color = TextHi,
                 fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            BCheck("TOTAL en H.T. (décoché = T.T.C.)", totalHt) { totalHt = it }
+            BCheck("Tout le bulletin en H.T. (décoché = T.T.C.)", totalHt) { totalHt = it }
 
             Text("Forfait d'intervention", color = TextMid, fontSize = 12.sp,
                 modifier = Modifier.padding(top = 4.dp))
@@ -298,7 +302,8 @@ fun BulletinScreen(
             // Texte LIBRE : un montant, mais aussi « IDEM », « = 1,5 », « sans
             // changement »… (c'est ce qui est écrit à la main sur le bulletin).
             BField("Nouvelle mensualité (montant, IDEM, = 1,5 …)", mensualite) { mensualite = it }
-            BCheck("Mensualité en H.T. (décoché = T.T.C.)", mensHt) { mensHt = it }
+            Text("Cochée en ${if (totalHt) "H.T." else "T.T.C."} — suit le choix du TOTAL.",
+                color = TextLow, fontSize = 11.sp)
 
             BSection("3 · Tests du système d'alarme")
             BCheck("Bon fonctionnement du système d'alarme", testAlarme) { testAlarme = it }
@@ -371,7 +376,7 @@ fun BulletinScreen(
                                         fraisMontant = if (fraisOui) eur(fraisMontant) else "",
                                         total = if (totalGeneral != 0.0) eur(totalGeneral) else "",
                                         totalHt = totalHt,
-                                        mensualite = mensualite.trim(), mensHt = mensHt,
+                                        mensualite = mensualite.trim(), mensHt = totalHt,
                                         testAlarme = testAlarme, testLiaison = testLiaison,
                                         obsTech = obsTech.trim(), obsClient = obsClient.trim(),
                                         nomTech = nomTech.trim(), nomClient = nomClientSig.trim()

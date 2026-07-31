@@ -269,7 +269,9 @@ object BulletinPdfGenerator {
         box(cTot + 6f + 32f, y + 31f, "T.T.C.", !d.mensHt, 6.5f)
 
         // ================= 3 · TESTS =================
-        y = 546f
+        // Les sections 3 à 5 sont remontées de 10 à 30 pt : la place gagnée est
+        // rendue au bloc signatures, qui était le seul endroit trop serré.
+        y = 536f
         sectionTitre("3", "Tests du système d'alarme", y, 54f)
         str("Le technicien-conseil a procédé en présence de l'abonné ou de son représentant aux tests prévus",
             tX, y + 20f, 8f)
@@ -278,7 +280,7 @@ object BulletinPdfGenerator {
         box(tX + 190f, y + 48f, "et des moyens de liaison au centre de surveillance.", d.testLiaison, 8f)
 
         // ================= 4 · OBSERVATIONS TECHNICIEN =================
-        y = 630f
+        y = 604f
         sectionTitre("4", "Observations du technicien-conseil", y, 62f)
         var ly = y + 26f
         val obsT = wrap(d.obsTech, 120)
@@ -289,33 +291,35 @@ object BulletinPdfGenerator {
         }
 
         // ================= 5 · OBSERVATIONS CLIENT =================
-        y = 704f
-        sectionTitre("5", "Observations du client ou de son représentant", y, 56f)
+        y = 688f
+        sectionTitre("5", "Observations du client ou de son représentant", y, 48f)
         str("Je reconnais avoir constaté le bon fonctionnement du système", tX, y + 14f, 7.5f, col = GRIS)
-        ly = y + 36f
+        if (nbPages > 1) str("Page $noPage / $nbPages", W - M - 46f, y, 7f, col = GRIS)
+        ly = y + 32f
         val obsC = wrap(d.obsClient, 120)
-        for (i in 0 until 3) {
+        // 2 lignes ici (contre 4 pour le technicien) : le client écrit rarement,
+        // et les 15 pt récupérés vont à la signature.
+        for (i in 0 until 2) {
             c.drawLine(tX, ly + 1.5f, W - M, ly + 1.5f, dash)
             obsC.getOrNull(i)?.let { str(it, tX + 3f, ly, 8f, bold = true, maxW = W - M - tX - 6f) }
             ly += 15f
         }
 
         // ================= SIGNATURES =================
-        val sy = 772f
+        val sy = 742f
         val mid = W / 2f
         cadre(M, sy, mid - 6f, H - 22f)
         cadre(mid + 6f, sy, W - M, H - 22f)
-        str("Nom et signature du technicien-conseil :", M + 6f, sy + 13f, 8f, bold = true)
-        str("Nom et signature du client ou de son représentant :", mid + 12f, sy + 13f, 8f, bold = true)
-        str(d.nomTech, M + 6f, sy + 25f, 8f, bold = true, maxW = mid - M - 20f)
-        str(d.nomClient, mid + 12f, sy + 25f, 8f, bold = true, maxW = W - mid - 30f)
-        // La signature déborde volontairement sous le cadre : entre le nom du
-        // signataire et le bas du cadre il ne reste que 16 pt, ce qui la rendait
-        // minuscule. On descend jusqu'à 10 pt du bord de page, soit une hauteur
-        // utile doublée (32 pt).
-        sigTech?.let { drawFit(c, it, M + 6f, sy + 28f, mid - 12f, H - 10f) }
-        sigClient?.let { drawFit(c, it, mid + 12f, sy + 28f, W - M - 6f, H - 10f) }
-        if (nbPages > 1) str("Page $noPage / $nbPages", W - M - 46f, sy - 4f, 7f, col = GRIS)
+        str("Nom et signature du technicien-conseil :", M + 6f, sy + 11f, 8f, bold = true)
+        str("Nom et signature du client ou de son représentant :", mid + 12f, sy + 11f, 8f, bold = true)
+        str(d.nomTech, M + 6f, sy + 23f, 8f, bold = true, maxW = mid - M - 20f)
+        str(d.nomClient, mid + 12f, sy + 23f, 8f, bold = true, maxW = W - mid - 30f)
+        // Le tracé est rogné sur l'encre puis étiré au maximum : 64 pt de haut,
+        // depuis sous le nom du signataire jusqu'à 10 pt du bord de page. Il
+        // déborde volontairement sous le cadre, sinon la hauteur utile retombe
+        // à 16 pt et la signature sort minuscule.
+        sigTech?.let { drawFit(c, it, M + 6f, sy + 26f, mid - 12f, H - 10f) }
+        sigClient?.let { drawFit(c, it, mid + 12f, sy + 26f, W - M - 6f, H - 10f) }
     }
 
     private fun wrap(s: String, lim: Int): List<String> {
