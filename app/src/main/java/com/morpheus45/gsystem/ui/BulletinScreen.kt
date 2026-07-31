@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
@@ -153,9 +154,11 @@ fun BulletinScreen(
     // --- 1. Prestations ---
     val lignes: SnapshotStateList<PrestaLigne> =
         remember { List(4) { PrestaLigne() }.toMutableStateList() }
-    var forfaitLocatif by remember { mutableStateOf(false) }
+    // Cases pré-cochées : ce sont celles de la quasi-totalité des bulletins.
+    // Toutes restent décochables.
+    var forfaitLocatif by remember { mutableStateOf(true) }
     var forfaitAcquisition by remember { mutableStateOf(false) }
-    var reglPrelevement by remember { mutableStateOf(false) }
+    var reglPrelevement by remember { mutableStateOf(true) }
     var reglCheque by remember { mutableStateOf(false) }
     var reglAutre by remember { mutableStateOf(false) }
     var reglAutreTxt by remember { mutableStateOf("") }
@@ -165,12 +168,12 @@ fun BulletinScreen(
     // H.T. / T.T.C. : un SEUL choix pour tout le bulletin (TOTAL et nouvelle
     // mensualité). Deux cases séparées laissaient sortir un bulletin avec un
     // total H.T. et une mensualité T.T.C.
-    var totalHt by remember { mutableStateOf(true) }
+    var totalHt by remember { mutableStateOf(false) }
     // --- 2. Nouvelle mensualité ---
     var mensualite by remember { mutableStateOf("") }
     // --- 3. Tests ---
-    var testAlarme by remember { mutableStateOf(false) }
-    var testLiaison by remember { mutableStateOf(false) }
+    var testAlarme by remember { mutableStateOf(true) }
+    var testLiaison by remember { mutableStateOf(true) }
     // --- 4 & 5. Observations ---
     var obsTech by remember { mutableStateOf("") }
     var obsClient by remember { mutableStateOf("") }
@@ -442,18 +445,38 @@ private fun BField(
  * Référence pièce au format XX-XXX-XX (ex. IR-C08-12). Le champ ne stocke que
  * les caractères utiles ; les « - » sont posés à l'AFFICHAGE, sinon le curseur
  * saute à chaque frappe et les caractères se mélangent.
+ *
+ * La référence suit toujours le même schéma : 3 lettres puis 4 chiffres. Le
+ * champ n'accepte donc que des lettres sur les 3 premières positions, que des
+ * chiffres ensuite, et le clavier bascule tout seul de l'alphabétique au
+ * numérique une fois les 3 lettres saisies.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BRefField(value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
-        onValueChange = { v -> onChange(v.filter { it.isLetterOrDigit() }.uppercase().take(7)) },
+        onValueChange = { v -> onChange(refSaisie(v)) },
         label = { Text("Référence (ex. IR-C08-12)") },
         singleLine = true,
         visualTransformation = RefVisualTransformation,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (value.length < 3) KeyboardType.Text else KeyboardType.Number,
+            capitalization = KeyboardCapitalization.Characters
+        ),
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/** 3 lettres puis 4 chiffres, majuscules, tout le reste est ignoré. */
+internal fun refSaisie(v: String): String = buildString {
+    for (ch in v.uppercase()) {
+        when {
+            length < 3 -> if (ch.isLetter()) append(ch)
+            length < 7 -> if (ch.isDigit()) append(ch)
+            else -> return@buildString
+        }
+    }
 }
 
 /**
