@@ -84,6 +84,17 @@ private val PRESTATIONS = listOf(
     "TÉLÉCOMMANDE"
 )
 
+/**
+ * Quantité : des chiffres, précédés au besoin d'un « + » ou d'un « - »
+ * (ex. « +1 » pour un ajout de matériel, « -1 » pour un retrait). Le signe
+ * n'est accepté qu'en première position, sinon le pavé numérique laisse
+ * passer des saisies du genre « 1-2 » qui ne veulent rien dire.
+ */
+internal fun qteFiltree(v: String): String {
+    val signe = if (v.startsWith("+") || v.startsWith("-")) v.take(1) else ""
+    return signe + v.filter { it.isDigit() }.take(3)
+}
+
 /** Une ligne du tableau « Nature des prestations ». */
 internal class PrestaLigne(
     detail: String = "", reference: String = "", qte: String = "",
@@ -243,13 +254,13 @@ fun BulletinScreen(
                     BRefField(l.reference) { l.reference = it }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
-                            BField("Quantité", l.qte, KeyboardType.Number) { v -> l.qte = v.filter { it.isDigit() }.take(3) }
+                            BField("Quantité", l.qte, KeyboardType.Number) { v -> l.qte = qteFiltree(v) }
                         }
                         Box(Modifier.weight(1f)) {
                             BField("Prix unitaire €", l.pu, KeyboardType.Number) { v -> l.pu = v.filter { it.isDigit() || it == ',' || it == '.' } }
                         }
                     }
-                    if (l.total > 0.0) Text("Prix total : ${eur(l.total)} €",
+                    if (l.total != 0.0) Text("Prix total : ${eur(l.total)} €",
                         color = TextMid, fontSize = 12.sp)
                 }
             }
@@ -345,10 +356,10 @@ fun BulletinScreen(
                                         marque = marque.trim(), typeMat = typeMat.trim(),
                                         lignes = lignes.map {
                                             BulletinPdfGenerator.Ligne(
-                                                it.detail.trim(), it.reference.trim(),
+                                                it.detail.trim(), refFormatee(it.reference.trim()),
                                                 it.qte.trim(),
                                                 it.pu.trim(),
-                                                if (it.total > 0.0) eur(it.total) else ""
+                                                if (it.total != 0.0) eur(it.total) else ""
                                             )
                                         },
                                         forfaitLocatif = forfaitLocatif,
@@ -358,7 +369,7 @@ fun BulletinScreen(
                                         conserverOui = conserverOui, conserverNon = conserverNon,
                                         fraisOui = fraisOui,
                                         fraisMontant = if (fraisOui) eur(fraisMontant) else "",
-                                        total = if (totalGeneral > 0.0) eur(totalGeneral) else "",
+                                        total = if (totalGeneral != 0.0) eur(totalGeneral) else "",
                                         totalHt = totalHt,
                                         mensualite = mensualite.trim(), mensHt = mensHt,
                                         testAlarme = testAlarme, testLiaison = testLiaison,
@@ -439,14 +450,21 @@ private fun BRefField(value: String, onChange: (String) -> Unit) {
     )
 }
 
+/**
+ * Pose les « - » du format XX-XXX-XX. Sert à l'affichage du champ ET à
+ * l'impression du PDF : le champ ne stocke que les caractères utiles, donc
+ * sans ça la référence sortirait « IRC0812 » sur le bulletin.
+ */
+internal fun refFormatee(raw: String): String = buildString {
+    raw.forEachIndexed { i, ch ->
+        if (i == 2 || i == 5) append('-')
+        append(ch)
+    }
+}
+
 private val RefVisualTransformation = VisualTransformation { text ->
     val raw = text.text
-    val out = buildString {
-        raw.forEachIndexed { i, ch ->
-            if (i == 2 || i == 5) append('-')
-            append(ch)
-        }
-    }
+    val out = refFormatee(raw)
     TransformedText(AnnotatedString(out), object : OffsetMapping {
         // Le tiret n'existe que s'il y a un caractère APRÈS lui : sans cette
         // condition, une saisie de 2 (ou 5) caractères renvoie un offset plus
