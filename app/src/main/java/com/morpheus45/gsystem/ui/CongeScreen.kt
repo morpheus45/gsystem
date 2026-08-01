@@ -237,6 +237,22 @@ private fun SectionTitle(t: String) {
         modifier = Modifier.padding(top = 8.dp))
 }
 
+/**
+ * Chiffres JJMMAAAA saisis à l'écran -> date ISO AAAA-MM-JJ pour le stockage.
+ * Renvoie "" tant que la saisie est incomplète ou que la date n'existe pas
+ * (31/02 par exemple) : à l'appelant de bloquer l'enregistrement.
+ */
+internal fun isoDepuisSaisie(digits: String): String {
+    if (digits.length < 8) return ""
+    return runCatching {
+        LocalDate.of(
+            digits.substring(4).toInt(),
+            digits.substring(2, 4).toInt(),
+            digits.substring(0, 2).toInt()
+        ).toString()
+    }.getOrDefault("")
+}
+
 /** Formate des chiffres en JJ/MM/AAAA (ex: 02022026 -> 02/02/2026). */
 private fun maskDate(input: String): String {
     val digits = input.filter { it.isDigit() }.take(8)
@@ -256,7 +272,7 @@ private fun maskDate(input: String): String {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CDateField(label: String, digits: String, onChange: (String) -> Unit) {
+internal fun CDateField(label: String, digits: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = digits,
         onValueChange = { onChange(it.filter { c -> c.isDigit() }.take(8)) },
@@ -269,7 +285,7 @@ private fun CDateField(label: String, digits: String, onChange: (String) -> Unit
     )
 }
 
-private val DateVisualTransformation = VisualTransformation { text ->
+internal val DateVisualTransformation = VisualTransformation { text ->
     val d = text.text
     val out = buildString {
         d.forEachIndexed { i, c ->

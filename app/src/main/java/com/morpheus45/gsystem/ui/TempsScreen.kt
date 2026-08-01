@@ -43,6 +43,7 @@ import com.morpheus45.gsystem.export.CsvExporter
 import com.morpheus45.gsystem.ui.common.EditablePeriodHeader
 import com.morpheus45.gsystem.ui.theme.ColorTemps
 import com.morpheus45.gsystem.ui.theme.Success
+import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.Warning
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.util.HoursCalculator
@@ -427,7 +428,10 @@ private fun AddTempsDialog(
     val isWholeDay = type in WHOLE_DAY_TYPES
     // VACANCES et FORMATION : saisie d'une PÉRIODE (du → au). Une entrée est créée
     // par jour travaillé — samedis ET dimanches exclus (jamais travaillés).
-    var dateFin by remember { mutableStateOf("") }
+    // Saisie au format français : l'état ne garde que les chiffres (JJMMAAAA),
+    // les « / » sont posés à l'affichage. dateFin reste en ISO pour le stockage.
+    var dateFinDigits by remember { mutableStateOf("") }
+    val dateFin = isoDepuisSaisie(dateFinDigits)
     val isConge = (type == "VACANCES" || type == "FORMATION") && !isEditing
     val congeDays: List<String> = if (isConge && dateFin.isNotBlank()) {
         runCatching {
@@ -442,7 +446,9 @@ private fun AddTempsDialog(
                 .map { it.toString() }.toList()
         }.getOrDefault(emptyList())
     } else emptyList()
-    val congePeriodeOk = !isConge || dateFin.isBlank() || congeDays.isNotEmpty()
+    // Une saisie entamée mais incomplète (ou une date qui n'existe pas) donne
+    // dateFin vide : on bloque au lieu de n'enregistrer qu'un seul jour.
+    val congePeriodeOk = !isConge || dateFinDigits.isEmpty() || congeDays.isNotEmpty()
     // Retard : proposé UNIQUEMENT sur la 1ère clôture du jour (aucune autre à cette date).
     val isFirstOfDay = date !in otherCloturesDates
 
@@ -739,19 +745,31 @@ private fun AddTempsDialog(
                         // pour chaque jour travaillé (samedis et dimanches exclus).
                         if (isConge) {
                             val libelle = if (type == "VACANCES") "CONGÉ PAYÉ" else "FORMATION"
+                            val duFr = runCatching { DateUtil.fr(DateUtil.parseIso(date)) }
+                                .getOrDefault(date)
                             OutlinedTextField(
-                                value = dateFin,
-                                onValueChange = { dateFin = it.trim() },
-                                label = { Text("Au (AAAA-MM-JJ) — laisser vide pour 1 seul jour") },
+                                value = dateFinDigits,
+                                onValueChange = {
+                                    dateFinDigits = it.filter { c -> c.isDigit() }.take(8)
+                                },
+                                label = { Text("Au (JJ/MM/AAAA) — laisser vide pour 1 seul jour") },
+                                placeholder = { Text("JJ/MM/AAAA", color = TextLow) },
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                visualTransformation = DateVisualTransformation,
                                 isError = tried && !congePeriodeOk,
                                 supportingText = {
                                     Text(
                                         when {
-                                            !congePeriodeOk -> "Période invalide (la fin doit suivre le début)"
+                                            dateFinDigits.length in 1..7 -> "Date incomplète (JJ/MM/AAAA)"
+                                            dateFin.isBlank() -> "Cette date n'existe pas"
+                                            dateFin < date ->
+                                                "Période invalide (la fin doit suivre le début)"
+                                            !congePeriodeOk ->
+                                                "Aucun jour ouvré dans cette période (samedis et dimanches exclus)"
                                             congeDays.size > 1 ->
                                                 "${congeDays.size} jours seront enregistrés (samedis et dimanches exclus)"
-                                            else -> "Du $date — « $libelle » sera écrit dans l'Excel"
+                                            else -> "Du $duFr — « $libelle » sera écrit dans l'Excel"
                                         }
                                     )
                                 },
