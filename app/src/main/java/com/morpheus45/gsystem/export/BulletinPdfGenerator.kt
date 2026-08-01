@@ -344,9 +344,9 @@ object BulletinPdfGenerator {
         val w = b.width * scale; val h = b.height * scale
         val left = x0 + (dw - w) / 2f; val top = y0 + (dh - h) / 2f
         val p = Paint().apply { isFilterBitmap = true }
-        // Renfort du tracé réduit avec l'épaisseur du pad (0,35 -> 0,2 pt) :
+        // Renfort du tracé réduit avec l'épaisseur du pad (0,35 -> 0,15 pt) :
         // à 64 pt de haut le trait est déjà franc, le renfort le rendait pâteux.
-        val e = 0.2f
+        val e = 0.15f
         for ((ox, oy) in listOf(0f to 0f, e to 0f, 0f to e)) {
             c.drawBitmap(b, null, RectF(left + ox, top + oy, left + ox + w, top + oy + h), p)
         }

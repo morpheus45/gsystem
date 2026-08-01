@@ -346,11 +346,12 @@ fun BulletinScreen(
                     }
                     if (err != null) { status = err; return@Button }
                     working = true; status = "Génération du bulletin…"
-                    // 5 px au lieu de 10 : la signature du bulletin est deux
-                    // fois plus grande que celle du PV, donc deux fois plus
-                    // épaisse à l'impression si on ne compense pas.
-                    val bTech = sigTech.toBitmap(epaisseur = 5f)
-                    val bCli = sigClient.toBitmap(epaisseur = 5f)
+                    // 4 px : la signature du bulletin fait 64 pt de haut, elle
+                    // agrandit d'autant l'épaisseur du tracé. Le PV caméras,
+                    // dont les cases font ~40 pt, tourne à 6,5 px pour un trait
+                    // imprimé de la même finesse.
+                    val bTech = sigTech.toBitmap(epaisseur = 4f)
+                    val bCli = sigClient.toBitmap(epaisseur = 4f)
                     scope.launch {
                         runCatching {
                             val file = withContext(Dispatchers.Default) {

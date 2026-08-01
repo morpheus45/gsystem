@@ -322,10 +322,13 @@ fun PvCameraScreen(
                     }
                     if (err != null) { status = err; return@Button }
                     working = true; status = "Génération du PV…"
-                    val bmpAb = sigAbonne.toBitmap()
-                    val bmpTe = sigTech.toBitmap()
-                    val bmpPaCli = sigParapheClient.toBitmap()
-                    val bmpPaTech = sigParapheTech.toBitmap()
+                    // 6,5 px au lieu de 10 : à l'impression le tracé ressortait
+                    // pâteux. Même finesse que le bulletin, dont les cases sont
+                    // plus grandes et qui tourne donc à 4 px.
+                    val bmpAb = sigAbonne.toBitmap(epaisseur = 6.5f)
+                    val bmpTe = sigTech.toBitmap(epaisseur = 6.5f)
+                    val bmpPaCli = sigParapheClient.toBitmap(epaisseur = 6.5f)
+                    val bmpPaTech = sigParapheTech.toBitmap(epaisseur = 6.5f)
                     scope.launch {
                         runCatching {
                             val file = withContext(Dispatchers.Default) {
