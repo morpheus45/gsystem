@@ -149,10 +149,10 @@
 
   <!-- Téléchargement -->
   <div class="download-card">
-    <a class="download-btn" href="Gsystem-GooglePlay-1.9.67.apk" id="dl-btn" download>
+    <a class="download-btn" href="Gsystem-GooglePlay-1.9.70.apk" id="dl-btn" download>
       📲 Télécharger l'appli
     </a>
-    <div class="meta">Version <strong>1.9.67</strong> &nbsp;·&nbsp; <strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
+    <div class="meta">Version <strong>1.9.70</strong> &nbsp;·&nbsp; <strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
   </div>
 
   <div class="card green">
@@ -625,6 +625,90 @@
   </div>
 
   <div class="card green"><p style="margin:0">Le PV reproduit le document officiel <b>à l'identique</b> : seuls les champs sont à remplir, les signatures et les croix se posent automatiquement au bon endroit.</p></div>
+
+  <!-- ============ BULLETIN INTER ============ -->
+  <h2><span class="ico">🧾</span>Remplir un bulletin d'intervention</h2>
+
+  <div class="card" style="border-left:4px solid var(--accent, #6c5ce7)">
+    <p style="margin:0 0 6px"><b>À quoi sert-il&nbsp;?</b> C'est le <b>bulletin d'intervention sur site</b> papier, repris à l'identique dans l'application. Même principe que le PV caméras&nbsp;: il se remplit et se signe sur le téléphone quand le document n'est pas dans le véhicule.</p>
+    <p style="margin:0"><b>Rien n'est conservé dans l'application.</b> C'est l'<b>envoi du PDF par mail au client</b> qui sert de preuve.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div class="t"><p style="margin:0">Accueil → onglet <b>Intervention</b> → <b>BULLETIN INTER</b>. La date, <b>BIRDIE</b> et <b>V5</b> sont déjà remplis&nbsp;; renseignez le n° de mission, le lieu protégé et les coordonnées du client.</p></div></div>
+    <div class="step"><div class="n">2</div><div class="t"><p style="margin:0">Cochez la <b>nature de l'intervention</b> (Migration, Ajout, Réparation, Remplacement piles…).</p></div></div>
+    <div class="step"><div class="n">3</div><div class="t"><p style="margin:0">Pour chaque ligne de prestation&nbsp;: choisissez le matériel dans la <b>liste déroulante</b>, tapez la <b>référence</b> — les <b>«&nbsp;-&nbsp;»</b> se posent tout seuls au format <b>IR-C08-12</b> et le clavier passe en chiffres après les 3 lettres — puis la <b>quantité</b> et le prix. La quantité accepte <b>+1</b> pour un ajout et <b>−1</b> pour un retrait.</p></div></div>
+    <div class="step"><div class="n">4</div><div class="t"><p style="margin:0">Cochez <b>Frais d'intervention</b> si le forfait s'applique&nbsp;: <b>65,00 €</b> s'ajoutent au TOTAL. La case <b>H.T. / T.T.C.</b> vaut pour <b>tout le bulletin</b>, mensualité comprise. La <b>nouvelle mensualité</b> accepte du texte libre (<b>IDEM</b>, <b>=1,5</b>…).</p></div></div>
+    <div class="step"><div class="n">5</div><div class="t"><p style="margin:0"><b>Faites signer à l'écran</b> — vous puis le client — renseignez l'<b>e-mail du client</b> et <b>« Générer et envoyer »</b>. S'il y a plus de <b>9 lignes</b>, le bulletin <b>continue automatiquement sur une seconde page</b>.</p></div></div>
+  </div>
+
+  <!-- Saisie dans l'app  →  rendu PDF final -->
+  <div class="beforeafter">
+    <figure>
+      <svg viewBox="0 0 300 470" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Écran BULLETIN INTER dans l'application : liste déroulante du matériel, référence, quantité et signatures">
+        <rect width="300" height="470" rx="14" fill="#0b0b11"/>
+        <g font-family="Segoe UI, Arial, sans-serif">
+          <rect x="0" y="0" width="300" height="34" rx="14" fill="#8A5CF6"/>
+          <rect x="0" y="20" width="300" height="14" fill="#8A5CF6"/>
+          <text x="14" y="23" fill="#fff" font-size="13" font-weight="800">BULLETIN INTER</text>
+
+          <text x="14" y="54" fill="#C4B5FD" font-size="9" font-weight="700" letter-spacing="0.6">MATÉRIEL — DÉJÀ REMPLI</text>
+          <rect x="14" y="60" width="130" height="26" rx="7" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="24" y="77" fill="#E8EAF0" font-size="10">Marque BIRDIE</text>
+          <rect x="152" y="60" width="134" height="26" rx="7" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="162" y="77" fill="#E8EAF0" font-size="10">Type V5</text>
+
+          <text x="14" y="108" fill="#C4B5FD" font-size="9" font-weight="700" letter-spacing="0.6">LIGNE 1 — PRESTATION</text>
+          <rect x="14" y="114" width="272" height="26" rx="7" fill="#12141b" stroke="#8A5CF6"/>
+          <text x="24" y="131" fill="#E8EAF0" font-size="10">DÉTECTEUR OUVERTURE</text>
+          <path d="M268 125 l5 6 5 -6" fill="none" stroke="#C4B5FD" stroke-width="1.6" stroke-linecap="round"/>
+          <text x="180" y="152" fill="#7A8094" font-size="8">liste déroulante</text>
+
+          <rect x="14" y="158" width="272" height="26" rx="7" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="24" y="175" fill="#E8EAF0" font-size="10">CO-C08-12</text>
+          <text x="150" y="175" fill="#4ADE80" font-size="8.5" font-weight="700">tirets auto</text>
+
+          <rect x="14" y="192" width="130" height="26" rx="7" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="24" y="209" fill="#E8EAF0" font-size="10">Quantité  +1</text>
+          <rect x="152" y="192" width="134" height="26" rx="7" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="162" y="209" fill="#E8EAF0" font-size="10">Prix unitaire  35,00</text>
+
+          <rect x="14" y="230" width="272" height="26" rx="7" fill="#123524"/>
+          <text x="24" y="247" fill="#4ADE80" font-size="10.5" font-weight="800">TOTAL : 244,00 €</text>
+          <text x="196" y="247" fill="#4ADE80" font-size="8.5">frais 65 € inclus</text>
+
+          <text x="14" y="278" fill="#C4B5FD" font-size="9" font-weight="700" letter-spacing="0.6">OPTIONS</text>
+          <rect x="14" y="286" width="13" height="13" rx="3" fill="#8A5CF6"/>
+          <path d="M17 292.5 l3 3 5 -6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+          <text x="34" y="297" fill="#E8EAF0" font-size="10">Frais d'intervention (+ 65,00 €)</text>
+          <rect x="14" y="306" width="13" height="13" rx="3" fill="none" stroke="#4b5162" stroke-width="1.4"/>
+          <text x="34" y="317" fill="#E8EAF0" font-size="10">Tout le bulletin en H.T.</text>
+          <text x="34" y="330" fill="#7A8094" font-size="8.5">décoché = T.T.C. partout</text>
+
+          <text x="14" y="356" fill="#C4B5FD" font-size="9" font-weight="700" letter-spacing="0.6">SIGNATURES AU DOIGT</text>
+          <rect x="14" y="364" width="130" height="64" rx="9" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="24" y="378" fill="#7A8094" font-size="8">Technicien</text>
+          <path d="M28 414 l10 -22 8 24 9 -26 10 22 9 -18 12 20" fill="none" stroke="#E8EAF0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="152" y="364" width="134" height="64" rx="9" fill="#12141b" stroke="#2a2f3c"/>
+          <text x="162" y="378" fill="#7A8094" font-size="8">Client</text>
+          <path d="M166 414 l11 -22 8 24 9 -26 10 22 9 -18 12 20" fill="none" stroke="#E8EAF0" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+
+          <rect x="14" y="438" width="272" height="20" rx="10" fill="#8A5CF6"/>
+          <text x="150" y="452" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">GÉNÉRER ET ENVOYER</text>
+        </g>
+      </svg>
+      <figcaption><b>1. Vous remplissez</b> — le matériel se choisit dans une liste, les tirets de la référence se posent seuls, le total s'additionne.</figcaption>
+    </figure>
+
+    <div class="arrow">➜</div>
+
+    <figure>
+      <img src="bulletin-rendu.png" alt="Rendu final du bulletin d'intervention : document rempli et signé par les deux parties" style="width:100%;height:auto;display:block;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.4);background:#fff" />
+      <figcaption><b>2. L'app produit</b> — le bulletin complet, signé des deux côtés. Les données ci-dessus sont fictives.</figcaption>
+    </figure>
+  </div>
+
+  <div class="card green"><p style="margin:0">Une <b>quantité négative</b> (−1) sort bien en négatif dans la colonne « Prix total » et se déduit du TOTAL : c'est ce qui permet de facturer un <b>échange</b> (un retrait + un ajout) sur le même bulletin.</p></div>
 
   <!-- ============ A COMPRENDRE ============ -->
   <h2><span class="ico">💡</span>2 trucs à comprendre</h2>
