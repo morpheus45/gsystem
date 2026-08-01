@@ -346,8 +346,11 @@ fun BulletinScreen(
                     }
                     if (err != null) { status = err; return@Button }
                     working = true; status = "Génération du bulletin…"
-                    val bTech = sigTech.toBitmap()
-                    val bCli = sigClient.toBitmap()
+                    // 5 px au lieu de 10 : la signature du bulletin est deux
+                    // fois plus grande que celle du PV, donc deux fois plus
+                    // épaisse à l'impression si on ne compense pas.
+                    val bTech = sigTech.toBitmap(epaisseur = 5f)
+                    val bCli = sigClient.toBitmap(epaisseur = 5f)
                     scope.launch {
                         runCatching {
                             val file = withContext(Dispatchers.Default) {
