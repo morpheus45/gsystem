@@ -83,17 +83,20 @@ class SignatureController {
     val isEmpty: Boolean get() = strokes.isEmpty()
     fun clear() { strokes.clear(); tick++ }
 
-    fun toBitmap(): Bitmap? {
+    /**
+     * @param epaisseur épaisseur du tracé en pixels du pad. Le bitmap est rogné
+     * sur l'encre puis AGRANDI dans la case du PDF : l'épaisseur est multipliée
+     * d'autant. 10 px convient au PV caméras ; le bulletin, où la signature est
+     * deux fois plus grande, passe 5 px pour ne pas sortir pâteux à l'impression.
+     */
+    fun toBitmap(epaisseur: Float = 10f): Bitmap? {
         val w = size.width; val h = size.height
         if (w <= 0 || h <= 0 || strokes.isEmpty()) return null
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = android.graphics.Canvas(bmp)
         val p = android.graphics.Paint().apply {
             color = android.graphics.Color.BLACK
-            // Le tracé est rogné sur l'encre (cropToInk) puis AGRANDI dans la case :
-            // son épaisseur est donc multipliée d'autant. 10 px donne un trait franc
-            // sans être pâteux.
-            strokeWidth = 10f
+            strokeWidth = epaisseur
             style = android.graphics.Paint.Style.STROKE
             strokeCap = android.graphics.Paint.Cap.ROUND
             strokeJoin = android.graphics.Paint.Join.ROUND

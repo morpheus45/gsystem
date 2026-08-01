@@ -114,8 +114,11 @@ object BulletinPdfGenerator {
             txt.textSize = size; txt.isFakeBoldText = bold
             if (maxW > 0f) while (t.length > 1 && txt.measureText(t) > maxW) t = t.dropLast(1)
             txt.color = col
+            // Le gras vient déjà de isFakeBoldText ; le contour ne fait que
+            // l'appuyer. Réduit de moitié (0,22 -> 0,1 pt) : à l'impression le
+            // texte ressortait empâté.
             txt.style = if (bold) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
-            txt.strokeWidth = if (bold) 0.22f else 0f
+            txt.strokeWidth = if (bold) 0.1f else 0f
             c.drawText(t, x, y, txt)
             txt.style = Paint.Style.FILL; txt.strokeWidth = 0f
         }
@@ -341,7 +344,9 @@ object BulletinPdfGenerator {
         val w = b.width * scale; val h = b.height * scale
         val left = x0 + (dw - w) / 2f; val top = y0 + (dh - h) / 2f
         val p = Paint().apply { isFilterBitmap = true }
-        val e = 0.35f
+        // Renfort du tracé réduit avec l'épaisseur du pad (0,35 -> 0,2 pt) :
+        // à 64 pt de haut le trait est déjà franc, le renfort le rendait pâteux.
+        val e = 0.2f
         for ((ox, oy) in listOf(0f to 0f, e to 0f, 0f to e)) {
             c.drawBitmap(b, null, RectF(left + ox, top + oy, left + ox + w, top + oy + h), p)
         }
