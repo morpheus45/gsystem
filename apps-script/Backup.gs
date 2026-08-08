@@ -615,10 +615,17 @@ function chatFetch_(tech) {
   const n = sh.getLastRow();
   const out = [];
   if (n > 1) {
-    const rows = sh.getRange(2, 1, n - 1, 5).getValues();
+    const rows = sh.getRange(2, 1, n - 1, 7).getValues();
     for (let i = 0; i < rows.length; i++) {
       if (String(rows[i][1]) === tech) {
-        out.push({ id: Number(rows[i][0]), from: String(rows[i][2]), text: String(rows[i][3]), ts: Number(rows[i][4]) });
+        // « lu » = accusé de lecture DU DESTINATAIRE : pour un message du
+        // bureau c'est readTech, pour un message du tech c'est readBureau.
+        const parBureau = String(rows[i][2]) === 'bureau';
+        out.push({
+          id: Number(rows[i][0]), from: String(rows[i][2]),
+          text: String(rows[i][3]), ts: Number(rows[i][4]),
+          lu: (parBureau ? rows[i][5] : rows[i][6]) === true
+        });
       }
     }
   }
@@ -640,6 +647,38 @@ function chatMarkRead_(tech, who, upTo) {
     }
   }
   return json({ ok: true });
+}
+
+/**
+ * Écrit la conversation dans un fichier texte du dossier de sauvegarde et
+ * renvoie son URL. Appelé AVANT toute suppression : la corbeille effaçait
+ * définitivement des échanges qui peuvent servir de trace.
+ */
+function chatArchive_(tech) {
+  tech = sanitize(tech);
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  const lignes = [];
+  if (n > 1) {
+    const rows = sh.getRange(2, 1, n - 1, 5).getValues()
+      .filter(function (r) { return String(r[1]) === tech; })
+      .sort(function (a, b) { return Number(a[0]) - Number(b[0]); });
+    for (let i = 0; i < rows.length; i++) {
+      const d = Utilities.formatDate(new Date(Number(rows[i][4])),
+        Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+      const qui = String(rows[i][2]) === 'bureau' ? 'Bureau' : tech;
+      lignes.push(d + ' — ' + qui + ' : ' + String(rows[i][3]));
+    }
+  }
+  if (!lignes.length) return '';
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const dossier = getOrCreateFolder(root, 'Conversations archivées');
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HHmm');
+  const f = dossier.createFile(
+    'Conversation_' + tech.replace(/[^A-Za-z0-9_ -]/g, '_') + '_' + stamp + '.txt',
+    'Conversation bureau / ' + tech + '\n\n' + lignes.join('\n'),
+    MimeType.PLAIN_TEXT);
+  return f.getUrl();
 }
 
 function chatDelete_(tech) {
@@ -680,7 +719,21 @@ function boChatFetch(code, tech) {
 }
 function boChatSend(code, tech, text) { requireCode_(code); chatSend_(tech, 'bureau', text); return { ok: true }; }
 function boChatMarkRead(code, tech, upTo) { requireCode_(code); chatMarkRead_(tech, 'bureau', Number(upTo) || 0); return { ok: true }; }
-function boChatDelete(code, tech) { requireCode_(code); chatDelete_(tech); return { ok: true }; }
+// Une conversation est TOUJOURS archivée avant d'être effacée : le tableau de
+// bord ouvre le fichier renvoyé pour que rien ne soit perdu.
+function boChatDelete(code, tech) {
+  requireCode_(code);
+  const url = chatArchive_(tech);
+  chatDelete_(tech);
+  return { ok: true, url: url };
+}
+/** Même message envoyé à plusieurs techniciens en un seul aller-retour. */
+function boChatBroadcast(code, techs, text) {
+  requireCode_(code);
+  const l = (techs || []).filter(function (t) { return String(t || '').trim(); });
+  for (let i = 0; i < l.length; i++) chatSend_(l[i], 'bureau', text);
+  return { ok: true, envoyes: l.length };
+}
 // Primes marquées « payées » manuellement (clé = "tech|yyyy-MM").
 function boPrimeGetPaid(code) { requireCode_(code); try { return JSON.parse(PROP.getProperty('PAID_PRIMES') || '{}'); } catch (e) { return {}; } }
 function boPrimeSetPaid(code, tech, ym, paid) {
@@ -914,11 +967,17 @@ function cloturesTable(list,withTech){
   var types={},obss={};
   l.forEach(function(c){if(c.type)types[c.type]=1;obss[c.obs||'OK']=1;});
   function opts(o,lbl){return '<option value="">'+lbl+'</option>'+Object.keys(o).sort().map(function(k){return '<option>'+esc(k)+'</option>';}).join('');}
-  var bar='<div class="cflt"><select data-k="t" onchange="cltFilter(this)">'+opts(types,'Type : tous')+'</select><select data-k="o" onchange="cltFilter(this)">'+opts(obss,'Obs : toutes')+'</select><input data-k="n" oninput="cltFilter(this)" placeholder="Rechercher un N°…"></div>';
+  var bar='<div class="cflt"><select data-k="t" onchange="cltFilter(this)">'+opts(types,'Type : tous')+'</select><select data-k="o" onchange="cltFilter(this)">'+opts(obss,'Obs : toutes')+'</select><input data-k="n" oninput="cltFilter(this)" placeholder="Rechercher : client, ville, n°, note…"><span class="cnb" style="color:var(--low);font-size:12px;align-self:center"></span></div>';
   var head='<tr><th>Date</th><th>Début</th><th>Fin</th><th>Durée</th>'+(withTech?'<th>Tech</th>':'')+'<th>Type</th><th>Client</th><th>Ville</th><th>Dép.</th><th>N°</th><th>Obs</th><th>Note</th></tr>';
-  var body=l.map(function(c){return '<tr data-t="'+esc(c.type||'')+'" data-o="'+esc(c.obs||'OK')+'" data-n="'+esc(String(c.num||''))+'"><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
+  // data-s : tout le texte de la ligne, pour chercher aussi bien un client
+  // qu'une ville ou un numéro (avant, la recherche ne portait que sur le N°).
+  function cle(c){return [c.num,c.client,c.ville,c.dept,c.tech,c.type,c.note,c.motif]
+    .map(function(x){return String(x||'');}).join(' ').toLowerCase();}
+  var body=l.map(function(c){return '<tr data-t="'+esc(c.type||'')+'" data-o="'+esc(c.obs||'OK')+'" data-s="'+esc(cle(c))+'"><td>'+esc(c.date)+'</td><td>'+esc(c.hDebut)+'</td><td>'+esc(c.hFin)+'</td><td>'+dur(c.hDebut,c.hFin)+'</td>'+(withTech?'<td>'+esc(c.tech)+'</td>':'')+'<td>'+esc(c.type)+'</td><td>'+esc(c.client)+'</td><td>'+esc(c.ville)+'</td><td>'+esc(c.dept)+'</td><td>'+esc(c.num)+'</td><td>'+obsCell(c.obs||'')+'</td><td class="note">'+(c.motif?('<i style="color:var(--low)">'+esc(c.motif)+'</i>'+(c.note?' · ':'')):'')+esc(c.note||'')+'</td></tr>';}).join('');
   return '<div class="cbox">'+bar+'<div class="ctab"><table class="clt"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';}
-function cltFilter(el){var root=el.closest('.cbox');if(!root)return;var t=root.querySelector('[data-k=t]').value;var o=root.querySelector('[data-k=o]').value;var n=(root.querySelector('[data-k=n]').value||'').trim().toLowerCase();var trs=root.querySelectorAll('tbody tr');for(var i=0;i<trs.length;i++){var tr=trs[i];var okT=!t||tr.getAttribute('data-t')===t;var okO=!o||tr.getAttribute('data-o')===o;var okN=!n||(tr.getAttribute('data-n')||'').toLowerCase().indexOf(n)>=0;tr.style.display=(okT&&okO&&okN)?'':'none';}}
+function cltFilter(el){var root=el.closest('.cbox');if(!root)return;var t=root.querySelector('[data-k=t]').value;var o=root.querySelector('[data-k=o]').value;var n=(root.querySelector('[data-k=n]').value||'').trim().toLowerCase();var trs=root.querySelectorAll('tbody tr');for(var i=0;i<trs.length;i++){var tr=trs[i];var okT=!t||tr.getAttribute('data-t')===t;var okO=!o||tr.getAttribute('data-o')===o;var okN=!n||(tr.getAttribute('data-s')||'').indexOf(n)>=0;tr.style.display=(okT&&okO&&okN)?'':'none';}
+var vis=0;for(var j=0;j<trs.length;j++)if(trs[j].style.display!=='none')vis++;
+var cpt=root.querySelector('.cnb');if(cpt)cpt.textContent=(vis===trs.length)?'':(vis+' / '+trs.length);}
 function setGJour(v){GJOUR=v;apply();}
 // Taux de NR sur les INSTALLATIONS uniquement (type INST).
 //  - NR brut       = installations non réalisées (obs != OK) / total installations
@@ -1079,7 +1138,7 @@ setInterval(function(){
   </div>
 </div>
 <script>
-var CHAT={tech:null,list:[]};
+var CHAT={tech:null,list:[],tous:[]};
 function chatToggle(){var p=document.getElementById('chatPanel');var open=p.style.display==='none';p.style.display=open?'flex':'none';if(open)chatLoadList();}
 function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function chatHm(ts){var d=new Date(Number(ts||0));function z(n){return(n<10?'0':'')+n;}return z(d.getHours())+':'+z(d.getMinutes());}
@@ -1088,7 +1147,7 @@ function chatRenderList(list){CHAT.list=list||[];var tot=0,h='';for(var i=0;i<CH
 document.getElementById('chatTechs').innerHTML=h||'<span style="color:var(--low);font-size:12px">Aucune conversation en cours</span>';
 var b=document.getElementById('chatFabBadge');if(tot>0){b.style.display='block';b.textContent=tot>9?'9+':tot;}else{b.style.display='none';}
 chatFillPicker();
-if(CHAT.tech)chatLoadThread();}
+if(CHAT.tech&&CHAT.tech!=='*')chatLoadThread();}
 // Le bureau ne pouvait joindre QUE les techs ayant deja ecrit : la liste des
 // conversations servait de carnet d adresses. Le selecteur reprend tous les
 // techniciens connus du backup (les inactifs sont exclus, sauf s ils ont une
@@ -1098,18 +1157,33 @@ var noms={},unread={};
 try{(DATA||[]).forEach(function(t){var n=String(t.tech||'');if(n&&!INACTIVE[n])noms[n]=true;});}catch(e){}
 CHAT.list.forEach(function(t){noms[t.tech]=true;if(t.unread>0)unread[t.tech]=t.unread;});
 var l=Object.keys(noms).sort();
+CHAT.tous=l.slice();
 var h='<option value="">Choisir un technicien…</option>';
+if(l.length>1)h+='<option value="*"'+(CHAT.tech==='*'?' selected':'')+'>Tous les techniciens ('+l.length+') — message groupe</option>';
 for(var i=0;i<l.length;i++){var n=l[i];h+='<option value="'+esc2(n)+'"'+(n===CHAT.tech?' selected':'')+'>'+esc2(n)+(unread[n]?' ('+unread[n]+')':'')+'</option>';}
 sel.innerHTML=h;}
-function chatPickTech(n){if(!n)return;CHAT.tech=n;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}
+function chatPickTech(n){if(!n)return;CHAT.tech=n;document.getElementById('chatReply').style.display='flex';
+document.getElementById('chatInput').placeholder=(n==='*')?'Message a tous les techniciens…':'Repondre…';
+if(n==='*'){document.getElementById('chatThread').innerHTML='<div style="color:var(--mid);font-size:12px;text-align:center;margin-top:20px">Message groupe<br><b>'+CHAT.tous.length+' techniciens</b> le recevront chacun dans sa conversation.</div>';chatRenderList(CHAT.list);return;}
+chatLoadThread();chatRenderList(CHAT.list);}
 function chatOpenIdx(i){var t=CHAT.list[i];if(t){CHAT.tech=t.tech;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}}
 function chatLoadThread(){if(CHAT.tech)google.script.run.withSuccessHandler(chatRenderThread).boChatFetch(CODE,CHAT.tech);}
-function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(function(a,b){return a.id-b.id;});var h='',maxId=0;for(var i=0;i<msgs.length;i++){var m=msgs[i];maxId=Math.max(maxId,Number(m.id));var mine=(m.from==='bureau');h+='<div style="align-self:'+(mine?'flex-end':'flex-start')+';max-width:80%;padding:8px 11px;font-size:12.5px;border-radius:14px;'+(mine?'background:var(--blue);color:#062036;border-bottom-right-radius:4px':'background:var(--card2);color:#E6E8EE;border-bottom-left-radius:4px')+'">'+esc2(m.text)+'<div style="font-size:9px;margin-top:3px;opacity:.7">'+esc2(mine?'Bureau':CHAT.tech)+' &middot; '+chatHm(m.ts)+'</div></div>';}
+function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(function(a,b){return a.id-b.id;});var h='',maxId=0;for(var i=0;i<msgs.length;i++){var m=msgs[i];maxId=Math.max(maxId,Number(m.id));var mine=(m.from==='bureau');h+='<div style="align-self:'+(mine?'flex-end':'flex-start')+';max-width:80%;padding:8px 11px;font-size:12.5px;border-radius:14px;'+(mine?'background:var(--blue);color:#062036;border-bottom-right-radius:4px':'background:var(--card2);color:#E6E8EE;border-bottom-left-radius:4px')+'">'+esc2(m.text)+'<div style="font-size:9px;margin-top:3px;opacity:.7">'+esc2(mine?'Bureau':CHAT.tech)+' &middot; '+chatHm(m.ts)+(mine?(m.lu?' &middot; Lu':' &middot; Envoye'):'')+'</div></div>';}
 var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien.<br>Vous pouvez lui ecrire le premier.</div>';th.scrollTop=th.scrollHeight;
 if(maxId>0)google.script.run.boChatMarkRead(CODE,CHAT.tech,maxId);}
-function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CODE,CHAT.tech,t);}
-function chatDelete(){var t=CHAT.tech;if(!t)return;if(!confirm('Supprimer toute la conversation avec '+t+' ? Action irreversible.'))return;google.script.run.withSuccessHandler(function(){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();}).boChatDelete(CODE,t);}
+function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;
+if(CHAT.tech==='*'){var l=CHAT.tous||[];if(!l.length)return;
+ if(!confirm('Envoyer ce message aux '+l.length+' techniciens ?'))return;
+ inp.value='';google.script.run.withSuccessHandler(function(r){alert('Message envoye a '+((r&&r.envoyes)||l.length)+' techniciens.');chatLoadList();}).boChatBroadcast(CODE,l,t);return;}
+inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CODE,CHAT.tech,t);}
+// La conversation est archivee dans le Drive avant d etre effacee : la
+// corbeille faisait perdre les echanges sans retour possible.
+function chatDelete(){var t=CHAT.tech;if(!t||t==='*')return;if(!confirm('Supprimer la conversation avec '+t+' ?\\n\\nElle sera dabord archivee dans le Drive (dossier Conversations archivees).'))return;
+google.script.run.withSuccessHandler(function(r){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();
+ if(r&&r.url){if(confirm('Conversation archivee. Ouvrir le fichier ?'))window.open(r.url,'_blank');}}).boChatDelete(CODE,t);}
 setInterval(function(){var p=document.getElementById('chatPanel');if(p&&p.style.display!=='none')chatLoadList();},12000);
+// Panneau ferme : la pastille de non-lus ne bougeait plus qu au chargement.
+setInterval(function(){var p=document.getElementById('chatPanel');if(!p||p.style.display==='none')chatLoadList();},60000);
 chatLoadList();
 </script>
 </body></html>
