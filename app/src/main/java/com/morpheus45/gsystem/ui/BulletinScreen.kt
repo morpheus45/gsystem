@@ -436,8 +436,6 @@ private fun BSection(t: String) {
         modifier = Modifier.padding(top = 10.dp))
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 /**
  * Pose (ou retire) le signe en tête de la mensualité. Retape sur le même signe
  * = on l'enlève ; « IDEM » est remplacé, un signe et un mot ne vont pas
@@ -463,6 +461,8 @@ private fun BMiniBtn(texte: String, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun BField(
     label: String, value: String,
     keyboard: KeyboardType = KeyboardType.Text,
