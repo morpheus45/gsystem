@@ -1070,6 +1070,7 @@ setInterval(function(){
 <button id="chatFab" onclick="chatToggle()" style="position:fixed;right:18px;bottom:18px;z-index:30;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#062036;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5)">&#128172;<span id="chatFabBadge" style="display:none;position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;line-height:20px"></span></button>
 <div id="chatPanel" style="display:none;position:fixed;right:18px;bottom:84px;z-index:30;width:340px;max-width:calc(100vw - 24px);height:460px;max-height:calc(100vh - 120px);background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.6)">
   <div style="background:var(--blue);color:#062036;padding:11px 14px;font-weight:700;display:flex;justify-content:space-between;align-items:center">Messagerie techniciens<span style="display:flex;gap:12px;align-items:center"><span onclick="chatDelete()" title="Supprimer la conversation" style="cursor:pointer;font-size:15px">&#128465;</span><span onclick="chatToggle()" style="cursor:pointer;font-size:18px">&#10005;</span></span></div>
+  <div style="padding:9px 10px 0;background:#0f1117"><select id="chatPick" onchange="chatPickTech(this.value)" style="width:100%;background:#14161d;border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--hi);font-size:13px"><option value="">Choisir un technicien…</option></select></div>
   <div id="chatTechs" style="display:flex;gap:6px;padding:9px 10px;overflow-x:auto;border-bottom:1px solid var(--line);background:#0f1117"></div>
   <div id="chatThread" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
   <div id="chatReply" style="display:none;gap:8px;padding:9px 10px;border-top:1px solid var(--line);background:var(--card2)">
@@ -1084,13 +1085,27 @@ function esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function chatHm(ts){var d=new Date(Number(ts||0));function z(n){return(n<10?'0':'')+n;}return z(d.getHours())+':'+z(d.getMinutes());}
 function chatLoadList(){if(!CODE)return;google.script.run.withSuccessHandler(chatRenderList).boChatList(CODE);}
 function chatRenderList(list){CHAT.list=list||[];var tot=0,h='';for(var i=0;i<CHAT.list.length;i++){var t=CHAT.list[i];tot+=t.unread;var sel=(t.tech===CHAT.tech);h+='<span onclick="chatOpenIdx('+i+')" style="cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:16px;border:1px solid var(--line);'+(sel?'background:var(--blue);color:#062036':'background:var(--card2);color:var(--mid)')+'">'+esc2(t.tech)+(t.unread>0?' <b style="background:var(--red);color:#fff;font-size:9px;border-radius:8px;padding:1px 5px">'+t.unread+'</b>':'')+'</span>';}
-document.getElementById('chatTechs').innerHTML=h||'<span style="color:var(--low);font-size:12px">Aucun message</span>';
+document.getElementById('chatTechs').innerHTML=h||'<span style="color:var(--low);font-size:12px">Aucune conversation en cours</span>';
 var b=document.getElementById('chatFabBadge');if(tot>0){b.style.display='block';b.textContent=tot>9?'9+':tot;}else{b.style.display='none';}
+chatFillPicker();
 if(CHAT.tech)chatLoadThread();}
+// Le bureau ne pouvait joindre QUE les techs ayant deja ecrit : la liste des
+// conversations servait de carnet d adresses. Le selecteur reprend tous les
+// techniciens connus du backup (les inactifs sont exclus, sauf s ils ont une
+// conversation ouverte), pour pouvoir engager la discussion en premier.
+function chatFillPicker(){var sel=document.getElementById('chatPick');if(!sel)return;
+var noms={},unread={};
+try{(DATA||[]).forEach(function(t){var n=String(t.tech||'');if(n&&!INACTIVE[n])noms[n]=true;});}catch(e){}
+CHAT.list.forEach(function(t){noms[t.tech]=true;if(t.unread>0)unread[t.tech]=t.unread;});
+var l=Object.keys(noms).sort();
+var h='<option value="">Choisir un technicien…</option>';
+for(var i=0;i<l.length;i++){var n=l[i];h+='<option value="'+esc2(n)+'"'+(n===CHAT.tech?' selected':'')+'>'+esc2(n)+(unread[n]?' ('+unread[n]+')':'')+'</option>';}
+sel.innerHTML=h;}
+function chatPickTech(n){if(!n)return;CHAT.tech=n;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}
 function chatOpenIdx(i){var t=CHAT.list[i];if(t){CHAT.tech=t.tech;document.getElementById('chatReply').style.display='flex';chatLoadThread();chatRenderList(CHAT.list);}}
 function chatLoadThread(){if(CHAT.tech)google.script.run.withSuccessHandler(chatRenderThread).boChatFetch(CODE,CHAT.tech);}
 function chatRenderThread(r){r=r||{};var msgs=(r.messages||[]).slice().sort(function(a,b){return a.id-b.id;});var h='',maxId=0;for(var i=0;i<msgs.length;i++){var m=msgs[i];maxId=Math.max(maxId,Number(m.id));var mine=(m.from==='bureau');h+='<div style="align-self:'+(mine?'flex-end':'flex-start')+';max-width:80%;padding:8px 11px;font-size:12.5px;border-radius:14px;'+(mine?'background:var(--blue);color:#062036;border-bottom-right-radius:4px':'background:var(--card2);color:#E6E8EE;border-bottom-left-radius:4px')+'">'+esc2(m.text)+'<div style="font-size:9px;margin-top:3px;opacity:.7">'+esc2(mine?'Bureau':CHAT.tech)+' &middot; '+chatHm(m.ts)+'</div></div>';}
-var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien</div>';th.scrollTop=th.scrollHeight;
+var th=document.getElementById('chatThread');th.innerHTML=h||'<div style="color:var(--low);font-size:12px;text-align:center;margin-top:20px">Aucun message avec ce technicien.<br>Vous pouvez lui ecrire le premier.</div>';th.scrollTop=th.scrollHeight;
 if(maxId>0)google.script.run.boChatMarkRead(CODE,CHAT.tech,maxId);}
 function chatSend(){var inp=document.getElementById('chatInput');var t=(inp.value||'').trim();if(!t||!CHAT.tech)return;inp.value='';google.script.run.withSuccessHandler(function(){chatLoadThread();chatLoadList();}).boChatSend(CODE,CHAT.tech,t);}
 function chatDelete(){var t=CHAT.tech;if(!t)return;if(!confirm('Supprimer toute la conversation avec '+t+' ? Action irreversible.'))return;google.script.run.withSuccessHandler(function(){CHAT.tech=null;document.getElementById('chatThread').innerHTML='';document.getElementById('chatReply').style.display='none';chatLoadList();}).boChatDelete(CODE,t);}
