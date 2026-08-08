@@ -170,7 +170,16 @@ fun BulletinScreen(
     // total H.T. et une mensualité T.T.C.
     var totalHt by remember { mutableStateOf(false) }
     // --- 2. Nouvelle mensualité ---
+    // Le champ ne garde que le nombre ; le signe et « IDEM » sont des états
+    // séparés, réunis au moment de l'impression.
     var mensualite by remember { mutableStateOf("") }
+    var mensSigne by remember { mutableStateOf("") }      // "", "+" ou "-"
+    var mensIdem by remember { mutableStateOf(false) }
+    val mensualiteFinale = when {
+        mensIdem -> "IDEM"
+        mensualite.isBlank() -> ""
+        else -> mensSigne + mensualite
+    }
     // --- 3. Tests ---
     var testAlarme by remember { mutableStateOf(true) }
     var testLiaison by remember { mutableStateOf(true) }
@@ -303,18 +312,28 @@ fun BulletinScreen(
             }
 
             BSection("2 · Nouvelle mensualité")
-            // Ce qu'on écrit ici est presque toujours un montant signé (+1,5 /
-            // -2) ou « IDEM ». Le clavier est donc NUMÉRIQUE, et les trois
-            // boutons couvrent ce que le pavé de chiffres ne donne pas : le
-            // signe et le mot. Le champ reste libre pour le reste.
+            // Le signe est un ÉTAT à part, pas du texte inséré dans le champ :
+            // écrire « + » dans le champ laissait le curseur devant le signe,
+            // et les chiffres tapés ensuite se plaçaient avant lui (1,5+).
+            // Ici le champ ne contient que le nombre, le signe se pose devant
+            // à l'impression.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BMiniBtn("+") { mensualite = signeMensualite(mensualite, "+") }
-                BMiniBtn("−") { mensualite = signeMensualite(mensualite, "-") }
-                BMiniBtn("IDEM") { mensualite = if (mensualite == "IDEM") "" else "IDEM" }
+                BMiniBtn("+", mensSigne == "+") { mensSigne = if (mensSigne == "+") "" else "+" }
+                BMiniBtn("−", mensSigne == "-") { mensSigne = if (mensSigne == "-") "" else "-" }
+                BMiniBtn("IDEM", mensIdem) { mensIdem = !mensIdem }
             }
             Spacer(Modifier.height(8.dp))
-            BField("Nouvelle mensualité (ex. +1,5 · -2 · IDEM)", mensualite,
-                KeyboardType.Number) { mensualite = it.uppercase() }
+            if (!mensIdem) {
+                BField("Montant de la nouvelle mensualité", mensualite,
+                    KeyboardType.Number) { v ->
+                    mensualite = v.filter { it.isDigit() || it == ',' || it == '.' }
+                }
+                if (mensualite.isNotBlank()) Text("Sera écrit : $mensualiteFinale",
+                    color = BulletinAccent, fontSize = 12.sp)
+            } else {
+                Text("« IDEM » sera écrit sur le bulletin — pas de montant à saisir.",
+                    color = BulletinAccent, fontSize = 12.sp)
+            }
             Text("Cochée en ${if (totalHt) "H.T." else "T.T.C."} — suit le choix du TOTAL.",
                 color = TextLow, fontSize = 11.sp)
 
@@ -393,7 +412,7 @@ fun BulletinScreen(
                                         fraisMontant = if (fraisOui) eur(fraisMontant) else "",
                                         total = if (totalGeneral != 0.0) eur(totalGeneral) else "",
                                         totalHt = totalHt,
-                                        mensualite = mensualite.trim(), mensHt = totalHt,
+                                        mensualite = mensualiteFinale, mensHt = totalHt,
                                         testAlarme = testAlarme, testLiaison = testLiaison,
                                         obsTech = obsTech.trim(), obsClient = obsClient.trim(),
                                         nomTech = nomTech.trim(), nomClient = nomClientSig.trim()
@@ -436,28 +455,20 @@ private fun BSection(t: String) {
         modifier = Modifier.padding(top = 10.dp))
 }
 
-/**
- * Pose (ou retire) le signe en tête de la mensualité. Retape sur le même signe
- * = on l'enlève ; « IDEM » est remplacé, un signe et un mot ne vont pas
- * ensemble.
- */
-internal fun signeMensualite(valeur: String, signe: String): String {
-    val v = if (valeur == "IDEM") "" else valeur
-    val nu = v.trimStart('+', '-', ' ')
-    val actuel = v.trimStart().take(1)
-    return if (actuel == signe) nu else signe + nu
-}
-
-/** Petit bouton d'appoint sous un champ (signe, raccourci de saisie). */
+/** Petit bouton d'appoint à deux états (signe de la mensualité, « IDEM »). */
 @Composable
-private fun BMiniBtn(texte: String, onClick: () -> Unit) {
+private fun BMiniBtn(texte: String, actif: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
-            .background(BulletinStart.copy(alpha = 0.18f), RoundedCornerShape(9.dp))
+            .background(
+                if (actif) BulletinStart else BulletinStart.copy(alpha = 0.18f),
+                RoundedCornerShape(9.dp)
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(texte, color = BulletinAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(texte, color = if (actif) Color.White else BulletinAccent,
+            fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
