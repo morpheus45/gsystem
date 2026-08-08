@@ -303,9 +303,18 @@ fun BulletinScreen(
             }
 
             BSection("2 · Nouvelle mensualité")
-            // Texte LIBRE : un montant, mais aussi « IDEM », « = 1,5 », « sans
-            // changement »… (c'est ce qui est écrit à la main sur le bulletin).
-            BField("Nouvelle mensualité (montant, IDEM, = 1,5 …)", mensualite) { mensualite = it }
+            // Ce qu'on écrit ici est presque toujours un montant signé (+1,5 /
+            // -2) ou « IDEM ». Le clavier est donc NUMÉRIQUE, et les trois
+            // boutons couvrent ce que le pavé de chiffres ne donne pas : le
+            // signe et le mot. Le champ reste libre pour le reste.
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BMiniBtn("+") { mensualite = signeMensualite(mensualite, "+") }
+                BMiniBtn("−") { mensualite = signeMensualite(mensualite, "-") }
+                BMiniBtn("IDEM") { mensualite = if (mensualite == "IDEM") "" else "IDEM" }
+            }
+            Spacer(Modifier.height(8.dp))
+            BField("Nouvelle mensualité (ex. +1,5 · -2 · IDEM)", mensualite,
+                KeyboardType.Number) { mensualite = it.uppercase() }
             Text("Cochée en ${if (totalHt) "H.T." else "T.T.C."} — suit le choix du TOTAL.",
                 color = TextLow, fontSize = 11.sp)
 
@@ -429,6 +438,31 @@ private fun BSection(t: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+/**
+ * Pose (ou retire) le signe en tête de la mensualité. Retape sur le même signe
+ * = on l'enlève ; « IDEM » est remplacé, un signe et un mot ne vont pas
+ * ensemble.
+ */
+internal fun signeMensualite(valeur: String, signe: String): String {
+    val v = if (valeur == "IDEM") "" else valeur
+    val nu = v.trimStart('+', '-', ' ')
+    val actuel = v.trimStart().take(1)
+    return if (actuel == signe) nu else signe + nu
+}
+
+/** Petit bouton d'appoint sous un champ (signe, raccourci de saisie). */
+@Composable
+private fun BMiniBtn(texte: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .background(BulletinStart.copy(alpha = 0.18f), RoundedCornerShape(9.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(texte, color = BulletinAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
 private fun BField(
     label: String, value: String,
     keyboard: KeyboardType = KeyboardType.Text,
