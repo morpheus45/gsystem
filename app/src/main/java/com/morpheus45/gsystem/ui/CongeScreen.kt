@@ -76,6 +76,8 @@ private val CONGE_TO = listOf(
     "cedric.gavend@hotmail.fr"
 )
 private const val CONGE_CC = "istgs54@outlook.com"
+/** Secrétariat : systématiquement en copie, sans rien à saisir. */
+private const val CONGE_CC_SECRETARIAT = "secretariat.gsystems@outlook.fr"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,7 +152,7 @@ fun CongeScreen(
             CDateField("Le", dateDemande) { dateDemande = it }
 
             Text(
-                "Envoi à : Johanna, Gilles Steckler, Cédric Gavend — copie à toi.",
+                "Envoi à : Johanna, Gilles Steckler, Cédric Gavend — copie à toi et au secrétariat.",
                 color = TextLow, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp)
             )
 
@@ -204,7 +206,7 @@ fun CongeScreen(
                             EmailSender.sendPdf(
                                 context = context,
                                 toList = CONGE_TO,
-                                cc = listOf(CONGE_CC),
+                                cc = listOf(CONGE_CC, CONGE_CC_SECRETARIAT),
                                 subject = "Demande de congés — ${nom.trim()}",
                                 body = "Bonjour,\n\nVeuillez trouver ci-joint ma demande de $typeTxt " +
                                     "du ${maskDate(du)} au ${maskDate(au)}" +

@@ -113,7 +113,7 @@ fun SettingsScreen(
             }
 
             SectionTitle("Responsable secteur (obligatoire)")
-            Text("Les destinataires G-Systems et EPS (feuille de temps, GSM SEUL, GESTE CO, frais, compteur) sont intégrés à l'app : rien à saisir. En revanche l'email de TON responsable de secteur est obligatoire — il diffère selon le secteur, donc à toi de saisir le tien. Il est mis en copie des envois GSM SEUL et GESTE CO.",
+            Text("Les destinataires G-Systems et EPS (feuille de temps, GSM SEUL, GESTE CO, frais, compteur) sont intégrés à l'app : rien à saisir. En revanche l'email de TON responsable de secteur est obligatoire — il diffère selon le secteur, donc à toi de saisir le tien. Il est mis en copie des envois GSM SEUL et GESTE CO, aux côtés de Johanna et du secrétariat.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))

@@ -194,7 +194,7 @@ fun GesteCoRecapScreen(
                         EmailSender.send(
                             context = context,
                             to = settings.effectiveEpsTo,
-                            cc = listOf(settings.effectiveEpsCc1, settings.effectiveEpsCc2),
+                            cc = settings.epsCcList,
                             subject = "RÉCAP GESTE CO ${DateUtil.fr(start)} → ${DateUtil.fr(end)}  —  %.2f €".format(grandTotal),
                             body = buildString {
                                 append("Bonjour,\n\n")
