@@ -341,6 +341,10 @@ data class AppSettings(
     val effectiveEpsCc1: String get() = FIXED_EPS_CC1
     /** Responsable secteur : seul destinataire EPS éditable (vide par défaut). */
     val effectiveEpsCc2: String get() = emailEpsCc2
+    val effectiveEpsCc3: String get() = FIXED_EPS_CC3
+    /** Les copies de tout envoi EPS, dans l'ordre : Johanna, responsable, secrétariat. */
+    val epsCcList: List<String>
+        get() = listOf(effectiveEpsCc1, effectiveEpsCc2, effectiveEpsCc3)
 
     val isReady: Boolean
         get() = effectiveGsTo.isNotBlank() &&
@@ -357,6 +361,8 @@ data class AppSettings(
         const val FIXED_GS_TO = "fdt@fggestion.fr"
         const val FIXED_EPS_TO = "epsinfotechline@eps.e-i.com"
         const val FIXED_EPS_CC1 = "johanna@fggestion.fr"
+        /** Secrétariat : en copie de tous les envois EPS, rien à saisir. */
+        const val FIXED_EPS_CC3 = "secretariat.gsystems@outlook.fr"
     }
 }
 

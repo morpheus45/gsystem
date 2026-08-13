@@ -178,7 +178,7 @@ internal fun sendCameraEmail(
     EmailSender.send(
         context = context,
         to = settings.effectiveEpsTo,
-        cc = listOf(settings.effectiveEpsCc1, settings.effectiveEpsCc2),
+        cc = settings.epsCcList,
         subject = subject,
         body = body
     )
