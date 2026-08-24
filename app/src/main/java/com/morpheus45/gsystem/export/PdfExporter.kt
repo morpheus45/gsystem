@@ -182,6 +182,33 @@ object PdfExporter {
         if (settings.nomUtilisateur.isNotBlank()) b.text(settings.nomUtilisateur, pSub, gapBefore = 1f)
         b.space(12f)
 
+        // TAUX DE NR en tête : c'est le chiffre qu'on vient chercher en premier.
+        // Il est TOUJOURS écrit — sans installation sur le mois, la ligne
+        // disparaissait entièrement du récap.
+        run {
+            val nrOk = nrTechPct != null && nrTechPct <= 8.0
+            val couleur = when {
+                nrTechPct == null -> GREY_TXT
+                nrOk -> green
+                else -> Color.rgb(0xDC, 0x26, 0x26)
+            }
+            b.text("TAUX DE NR", pSection, gapBefore = 2f)
+            b.text(
+                if (nrTechPct == null)
+                    "Aucune installation sur $nrPeriodLabel — taux non calculable."
+                else
+                    "${"%.1f".format(nrTechPct)} %   " +
+                        (if (nrOk) "✓ conforme (≤ 8 %)" else "✗ hors seuil (> 8 %)"),
+                paint(couleur, 16f, bold = true), gapBefore = 5f
+            )
+            b.text(
+                "Périmètre technicien ($nrPeriodLabel) : NR client + NR technique " +
+                    "sur $nrInstReal installation(s) réalisée(s).",
+                pSub, gapBefore = 3f
+            )
+            b.space(14f)
+        }
+
         // Synthèse
         b.text("RÉCAP", pSection, gapBefore = 2f)
         b.text("• Feuille TEMPS : $tempsCount interventions", pCell, gapBefore = 4f)
@@ -207,19 +234,7 @@ object PdfExporter {
             b.space(14f)
         }
 
-        // Taux de NR du MOIS CIVIL (périmètre tech : NR client + NR technique
-        // / installations réalisées). Vert si ≤ 8 %, rouge sinon.
-        if (nrTechPct != null) {
-            val nrOk = nrTechPct <= 8.0
-            val pNr = paint(if (nrOk) green else Color.rgb(0xDC, 0x26, 0x26), 12f, bold = true)
-            b.text(
-                "Taux de NR ($nrPeriodLabel) : ${"%.1f".format(nrTechPct)} %  " +
-                    (if (nrOk) "✓ conforme (≤ 8 %)" else "✗ hors seuil (> 8 %)") +
-                    "  ·  $nrInstReal install. réalisées",
-                pNr, gapBefore = 2f
-            )
-            b.space(14f)
-        }
+        // (Le taux de NR est désormais en tête du récap, plus ici.)
 
         // Frais (TTC / HT / TVA / à rembourser)
         if (fraisPeriod.isNotEmpty()) {
