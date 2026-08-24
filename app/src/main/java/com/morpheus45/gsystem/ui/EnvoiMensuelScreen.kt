@@ -7,9 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
@@ -20,11 +20,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.BackupUploader
+import com.morpheus45.gsystem.backup.StatsUploader
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.CompteurEntry
 import com.morpheus45.gsystem.data.EntriesRepository
@@ -32,16 +38,13 @@ import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.excel.ExcelFiller
+import com.morpheus45.gsystem.export.PdfExporter
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
-import com.morpheus45.gsystem.backup.BackupConfig
-import com.morpheus45.gsystem.backup.BackupUploader
-import com.morpheus45.gsystem.backup.StatsUploader
-import com.morpheus45.gsystem.export.PdfExporter
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
 
 private val EnvoiColor = Color(0xFF22C55E) // vert (couleur de la tuile ENVOI MENSUEL)
 
@@ -64,20 +67,43 @@ fun EnvoiMensuelScreen(
     // Capture de la photo compteur directement ici (la tuile COMPTEUR a été
     // fusionnée dans ENVOI MENSUEL). Crée une CompteurEntry → alimente la période.
     var pendingCompteurFile by remember { mutableStateOf<java.io.File?>(null) }
+    // Date à inscrire sur la photo et photo qu'elle vient remplacer : fixées au
+    // moment du clic, quand la période affichée est connue. Sans ça la photo
+    // était datée du JOUR : prise après la fin du cycle, elle tombait hors de la
+    // période, l'envoi restait bloqué et on la reprenait en boucle.
+    var compteurDateCible by remember { mutableStateOf<String?>(null) }
+    var compteurRemplaceIds by remember { mutableStateOf<List<String>>(emptyList()) }
     val takeCompteurPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
         val file = pendingCompteurFile
+        val date = compteurDateCible ?: DateUtil.today().toString()
+        val remplaces = compteurRemplaceIds
         pendingCompteurFile = null
+        compteurDateCible = null
+        compteurRemplaceIds = emptyList()
         if (success && file != null && file.exists() && file.length() > 0) {
             scope.launch {
+                // Une seule photo compteur par période : la nouvelle remplace
+                // TOUTES les précédentes, fichiers compris — ce qui nettoie au
+                // passage les doublons déjà accumulés.
+                remplaces.forEach { id ->
+                    store.compteur.firstOrNull { it.id == id }?.let { vieille ->
+                        runCatching { PhotoStorage.fileFor(context, vieille.fileName).delete() }
+                    }
+                    repo.removeCompteur(id)
+                }
                 repo.addCompteur(CompteurEntry(
                     id = EntriesRepository.newId(),
-                    date = DateUtil.today().toString(),
+                    date = date,
                     timestamp = System.currentTimeMillis(),
                     fileName = file.name
                 ))
             }
+        } else if (!success && file != null) {
+            // Prise annulée : sans ça le fichier vide créé pour l'appareil photo
+            // reste dans le dossier photos.
+            runCatching { file.delete() }
         }
     }
     val requestCameraPermission = rememberLauncherForActivityResult(
@@ -167,6 +193,15 @@ fun EnvoiMensuelScreen(
     // n'est présente sur la période. La photo est jointe automatiquement (nommée
     // <PLAQUE>-<MM>-<AAAA>.jpg) — le tech n'a rien à renseigner sur la photo.
     val hasCompteurPhoto = compteurPeriod.isNotEmpty()
+    /** La photo compteur de la période (la plus récente si plusieurs, héritage). */
+    val photoCompteur = compteurPeriod.maxByOrNull { it.timestamp }
+    /**
+     * Date à inscrire sur une nouvelle photo : aujourd'hui si le jour tombe dans
+     * la période, sinon le dernier jour de la période. Une photo prise après la
+     * clôture appartient au cycle qu'on est en train d'envoyer.
+     */
+    fun dateCompteurPourPeriode(): String =
+        (if (DateUtil.today() in start..end) DateUtil.today() else end).toString()
 
     // Répartition des interventions TEMPS par type, recalculée à chaque période.
     // Rendue en camembert « texte » (barres) dans le corps du mail mensuel.
@@ -314,18 +349,58 @@ fun EnvoiMensuelScreen(
             AccentCard(EnvoiColor, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        if (hasCompteurPhoto) "✓ ${compteurPeriod.size} photo(s) compteur sur la période."
-                        else "Aucune photo compteur — obligatoire pour envoyer.",
+                        when {
+                            photoCompteur == null -> "Aucune photo compteur — obligatoire pour envoyer."
+                            compteurPeriod.size > 1 ->
+                                "✓ Photo compteur enregistrée (${compteurPeriod.size} sur la période — seule la dernière sera jointe)."
+                            else -> "✓ Photo compteur enregistrée le ${DateUtil.fr(DateUtil.parseIso(photoCompteur.date))}."
+                        },
                         fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                         color = if (hasCompteurPhoto) EnvoiColor else MaterialTheme.colorScheme.error
                     )
+                    if (photoCompteur != null) {
+                        Spacer(Modifier.height(8.dp))
+                        AsyncImage(
+                            model = PhotoStorage.fileFor(context, photoCompteur.fileName),
+                            contentDescription = "Photo du compteur",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth().height(150.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                        )
+                    }
                     Spacer(Modifier.height(6.dp))
-                    OutlinedButton(onClick = { startCompteurCapture() },
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = EnvoiColor)) {
-                        Icon(Icons.Filled.CameraAlt, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Photo du compteur", maxLines = 1)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                // Remplace la photo de la période au lieu d'en ajouter une.
+                                compteurDateCible = dateCompteurPourPeriode()
+                                compteurRemplaceIds = compteurPeriod.map { it.id }
+                                startCompteurCapture()
+                            },
+                            modifier = Modifier.weight(1f).height(46.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EnvoiColor)
+                        ) {
+                            Icon(Icons.Filled.CameraAlt, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (photoCompteur == null) "Photo du compteur" else "Remplacer",
+                                maxLines = 1)
+                        }
+                        if (photoCompteur != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            PhotoStorage.fileFor(context, photoCompteur.fileName).delete()
+                                        }
+                                        repo.removeCompteur(photoCompteur.id)
+                                    }
+                                },
+                                modifier = Modifier.height(46.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) { Text("Supprimer", maxLines = 1) }
+                        }
                     }
                     Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le kilométrage est lu directement sur la photo.",
                         fontSize = 11.sp,
