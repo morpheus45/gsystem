@@ -1,0 +1,22 @@
+{
+  "@context": {
+    "tdm": "http://www.w3.org/ns/tdmrep#"
+  },
+  "@type": "tdm:Policy",
+  "tdm:reservation": 1,
+  "tdm:policyName": "G-Systems — reservation of rights for text and data mining",
+  "tdm:rightsHolder": "Cedric LAGO-GOMEZ",
+  "tdm:contact": "https://github.com/morpheus45/gsystem",
+  "tdm:license": "https://github.com/morpheus45/gsystem/blob/main/LICENSE",
+  "tdm:statement": {
+    "fr": "Reserve expresse au titre de l'article 4.3 de la directive (UE) 2019/790 et de l'article L.122-5-3 III du Code de la propriete intellectuelle. La collecte automatisee, la fouille de textes et de donnees, ainsi que l'utilisation pour l'entrainement, l'affinage ou l'evaluation de tout systeme d'intelligence artificielle sont interdites sans autorisation ecrite du titulaire des droits.",
+    "en": "Rights expressly reserved under Article 4(3) of Directive (EU) 2019/790. Automated collection, text and data mining, and any use for training, fine-tuning or evaluating an artificial intelligence system are prohibited without the rights holder's written permission."
+  },
+  "tdm:prohibitedUses": [
+    "text-and-data-mining",
+    "ai-training",
+    "ai-fine-tuning",
+    "dataset-inclusion",
+    "automated-crawling"
+  ]
+}

@@ -1,0 +1,109 @@
+G-SYSTEMS — LICENCE PROPRIÉTAIRE
+Tous droits réservés / All rights reserved
+
+Copyright (c) 2026 Cédric LAGO-GOMEZ
+
+--------------------------------------------------------------------------
+1. TITULARITÉ
+--------------------------------------------------------------------------
+
+Le logiciel « G-Systems », son code source, son code objet, ses interfaces,
+ses maquettes, ses documents générés (procès-verbaux, bulletins
+d'intervention, récapitulatifs), sa documentation et l'ensemble des éléments
+qui le composent (ci-après « le Logiciel ») sont la propriété exclusive de
+Cédric LAGO-GOMEZ (ci-après « l'Auteur »).
+
+Le Logiciel est protégé par le droit d'auteur au titre des articles L.111-1
+et L.112-2 13° du Code de la propriété intellectuelle français, ainsi que
+par les conventions internationales relatives au droit d'auteur.
+
+La mise à disposition du code sur une plateforme d'hébergement, quelle que
+soit sa visibilité, ne vaut EN AUCUN CAS renonciation aux droits d'auteur ni
+concession de licence. L'absence de licence libre est délibérée.
+
+--------------------------------------------------------------------------
+2. INTERDICTIONS
+--------------------------------------------------------------------------
+
+Sont interdits, sans autorisation écrite préalable et expresse de l'Auteur :
+
+  a) la reproduction, totale ou partielle, du Logiciel ou de son code ;
+  b) la distribution, la mise à disposition, la revente ou la location ;
+  c) la modification, l'adaptation, la traduction, la création d'œuvres
+     dérivées ;
+  d) la décompilation, le désassemblage et l'ingénierie inverse, hors les
+     cas strictement prévus par l'article L.122-6-1 IV du Code de la
+     propriété intellectuelle ;
+  e) le retrait, l'altération ou le masquage des mentions de propriété, des
+     signatures numériques et des dispositifs de contrôle d'intégrité ;
+  f) la republication du Logiciel sous un autre nom, une autre marque ou une
+     autre identité d'éditeur.
+
+--------------------------------------------------------------------------
+3. RÉSERVE EXPRESSE POUR LA FOUILLE DE TEXTES ET DE DONNÉES (TDM)
+   ET L'ENTRAÎNEMENT DE SYSTÈMES D'INTELLIGENCE ARTIFICIELLE
+--------------------------------------------------------------------------
+
+Conformément à l'article 4, paragraphe 3, de la directive (UE) 2019/790 et à
+l'article L.122-5-3 III du Code de la propriété intellectuelle, l'Auteur
+RÉSERVE EXPRESSÉMENT ses droits sur le Logiciel et en interdit toute
+utilisation aux fins de fouille de textes et de données.
+
+Cette réserve, formulée de manière expresse et lisible par machine, écarte
+l'exception légale de fouille de textes et de données. En conséquence, sont
+interdits sans autorisation écrite de l'Auteur :
+
+  a) la collecte, l'extraction ou l'indexation automatisée du Logiciel, y
+     compris par robot d'exploration (« crawler ») ou agent automatisé ;
+  b) l'utilisation du Logiciel, en tout ou partie, pour l'entraînement,
+     le pré-entraînement, l'affinage (« fine-tuning »), l'évaluation ou
+     l'alignement d'un modèle d'apprentissage automatique ou d'un système
+     d'intelligence artificielle générative ;
+  c) la constitution d'un corpus, d'un jeu de données ou d'une base
+     d'exemples incorporant le Logiciel ;
+  d) la génération, par un système d'intelligence artificielle, de code ou
+     de documents reproduisant tout ou partie du Logiciel.
+
+Cette réserve s'applique à tout opérateur, personne physique ou morale,
+quelle que soit sa localisation, dès lors que le Logiciel ou ses dérivés
+sont exploités sur le territoire de l'Union européenne.
+
+--------------------------------------------------------------------------
+4. USAGE AUTORISÉ
+--------------------------------------------------------------------------
+
+L'Auteur concède aux seuls techniciens expressément désignés par lui un
+droit d'usage personnel, non exclusif, non transférable et révocable à tout
+moment, limité à l'exécution du Logiciel dans le cadre de leur activité
+professionnelle, sur les versions officielles distribuées par l'Auteur.
+
+Ce droit d'usage ne confère aucun droit sur le code source.
+
+--------------------------------------------------------------------------
+5. ABSENCE DE GARANTIE
+--------------------------------------------------------------------------
+
+Le Logiciel est fourni « en l'état », sans garantie d'aucune sorte, expresse
+ou implicite. L'Auteur ne saurait être tenu responsable d'un quelconque
+dommage résultant de son utilisation.
+
+--------------------------------------------------------------------------
+6. SANCTIONS
+--------------------------------------------------------------------------
+
+Toute violation de la présente licence constitue un délit de contrefaçon,
+sanctionné par les articles L.335-2 et L.335-3 du Code de la propriété
+intellectuelle, sans préjudice des dommages et intérêts pouvant être
+réclamés devant les juridictions civiles.
+
+--------------------------------------------------------------------------
+7. CONTACT
+--------------------------------------------------------------------------
+
+Toute demande d'autorisation doit être adressée à l'Auteur via le dépôt
+officiel : https://github.com/morpheus45/gsystem
+
+--------------------------------------------------------------------------
+
+EN RÉSUMÉ : ce logiciel n'est pas libre, pas open source, et ne peut être ni
+copié, ni réutilisé, ni servir à entraîner une intelligence artificielle.
