@@ -1,3 +1,12 @@
+/*
+ * G-Systems — Copyright (c) 2026 Cedric LAGO-GOMEZ. Tous droits reserves.
+ *
+ * Logiciel proprietaire. Reproduction, distribution, modification et
+ * ingenierie inverse interdites sans autorisation ecrite. Reserve expresse
+ * au titre de l'article 4.3 de la directive (UE) 2019/790 : toute fouille
+ * de textes et de donnees, et tout usage pour l'entrainement d'un systeme
+ * d'intelligence artificielle, sont interdits. Voir le fichier LICENSE.
+ */
 package com.morpheus45.gsystem.export
 
 import android.content.Context
