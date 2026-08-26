@@ -205,10 +205,25 @@ fun AppNav() {
 
     // Tuile ARRIVÉE SUR SITE : note l'heure d'arrivée + appelle la techline.
     // Appel direct (permission CALL_PHONE) ; repli sur le numéroteur si refusée.
+    // Le numéro est mémorisé AVANT la demande de permission : le launcher
+    // composait ARRIVAL_PHONE en dur, donc une tuile appelant un autre numéro
+    // aurait joint la techline tant que la permission n'était pas accordée.
+    var numeroADemander by remember { mutableStateOf(ARRIVAL_PHONE) }
     val callPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) placeCall(context, ARRIVAL_PHONE) else dialNumber(context, ARRIVAL_PHONE)
+        val n = numeroADemander
+        if (granted) placeCall(context, n) else dialNumber(context, n)
+    }
+    /** Appelle un numéro : direct si la permission est là, sinon on la demande. */
+    val appeler = { numero: String ->
+        numeroADemander = numero
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+            == PackageManager.PERMISSION_GRANTED) {
+            placeCall(context, numero)
+        } else {
+            callPermLauncher.launch(Manifest.permission.CALL_PHONE)
+        }
     }
     // Pointe l'arrivée : note l'heure + appelle la techline.
     val recordArrival = {
@@ -218,12 +233,7 @@ fun AppNav() {
             context, "Arrivée notée : ${DateUtil.hm(now)}",
             android.widget.Toast.LENGTH_SHORT
         ).show()
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
-            == PackageManager.PERMISSION_GRANTED) {
-            placeCall(context, ARRIVAL_PHONE)
-        } else {
-            callPermLauncher.launch(Manifest.permission.CALL_PHONE)
-        }
+        appeler(ARRIVAL_PHONE)
     }
     // 1er appui = pointer ; 2e appui (arrivée déjà en attente) = popup annuler/repointer.
     var showArrivalDialog by remember { mutableStateOf(false) }
@@ -231,14 +241,9 @@ fun AppNav() {
         if (settings.pendingArrivalMs > 0L) showArrivalDialog = true else recordArrival()
     }
     // Tuile APPEL TECHLINE : appel direct, sans pointer l'heure ni Viber.
-    val onAppelTechline = {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
-            == PackageManager.PERMISSION_GRANTED) {
-            placeCall(context, ARRIVAL_PHONE)
-        } else {
-            callPermLauncher.launch(Manifest.permission.CALL_PHONE)
-        }
-    }
+    val onAppelTechline = { appeler(ARRIVAL_PHONE) }
+    // Tuile PROBLEME LOGISTIQUE : meme principe, autre numero.
+    val onProblemeLogistique = { appeler(LOGISTIQUE_PHONE) }
 
     // Synchro Drive TEMPS RÉEL : à chaque changement de données (clôture, frais,
     // geste, compteur), on repousse les stats du cycle. Le point + « OPÉRATIONNEL »
@@ -292,6 +297,7 @@ fun AppNav() {
                 onChat = { navController.navigate("chat") },
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
+                onProblemeLogistique = onProblemeLogistique,
                 onTemps = { navController.navigate("temps") },
                 onNewIntervention = { navController.navigate("temps_new") },
                 onArrivalCancel = { showArrivalDialog = true },
@@ -523,6 +529,9 @@ fun AppNav() {
 
 /** Numéro techline appelé par la tuile ARRIVÉE SUR SITE. */
 private const val ARRIVAL_PHONE = "0388398894"
+
+/** Numéro appelé par la tuile PROBLÈME LOGISTIQUE. */
+private const val LOGISTIQUE_PHONE = "0369740780"
 
 /** Lance directement l'appel (permission CALL_PHONE requise) ; repli numéroteur en cas d'échec. */
 private fun placeCall(context: Context, number: String) {
