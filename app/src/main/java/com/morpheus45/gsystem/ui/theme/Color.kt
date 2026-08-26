@@ -93,10 +93,17 @@ val TechlineStart  = Color(0xFF6366F1)
 val TechlineEnd    = Color(0xFF7C3AED)
 val TechlineAccent = Color(0xFFC7D2FE)
 
-// COURRIER — violet -> bleu. Déplacé dans l'onglet « Sur site » SOUS APPEL
-// TECHLINE : son départ reprend donc la fin de TECHLINE (#7C3AED) pour ne pas
-// casser la waterfall de la pile.
-val CourrierStart  = Color(0xFF7C3AED)
+// PROBLÈME LOGISTIQUE — violet -> indigo. Intercalée entre APPEL TECHLINE et
+// COURRIER : elle démarre sur la fin de TECHLINE (#7C3AED) et s'arrête à
+// mi-chemin de l'ancienne fin de COURRIER (#3B82F6), qui reprend là.
+val LogistiqueStart  = Color(0xFF7C3AED)
+val LogistiqueEnd    = Color(0xFF5C5EF2)
+val LogistiqueAccent = Color(0xFFC7D2FE)
+
+// COURRIER — indigo -> bleu. Il suit désormais PROBLÈME LOGISTIQUE dans
+// l'onglet « Sur site » : son départ reprend la fin de celle-ci (#5C5EF2)
+// pour ne pas casser la waterfall de la pile.
+val CourrierStart  = Color(0xFF5C5EF2)
 val CourrierEnd    = Color(0xFF3B82F6)
 val CourrierAccent = Color(0xFFC7D2FE)
 

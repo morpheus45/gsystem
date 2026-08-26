@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.Outbox
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Timer
@@ -82,6 +83,9 @@ import com.morpheus45.gsystem.ui.theme.CourrierStart
 import com.morpheus45.gsystem.ui.theme.CongeAccent
 import com.morpheus45.gsystem.ui.theme.CongeEnd
 import com.morpheus45.gsystem.ui.theme.CongeStart
+import com.morpheus45.gsystem.ui.theme.LogistiqueAccent
+import com.morpheus45.gsystem.ui.theme.LogistiqueEnd
+import com.morpheus45.gsystem.ui.theme.LogistiqueStart
 import com.morpheus45.gsystem.ui.theme.TechlineAccent
 import com.morpheus45.gsystem.ui.theme.TechlineEnd
 import com.morpheus45.gsystem.ui.theme.TechlineStart
@@ -127,6 +131,7 @@ fun HomeScreen(
     onChat: () -> Unit = {},
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
+    onProblemeLogistique: () -> Unit,
     onTemps: () -> Unit,
     // Fusion : ouvre directement « Nouvelle intervention ».
     onNewIntervention: () -> Unit = {},
@@ -326,39 +331,42 @@ fun HomeScreen(
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
                 onClick = onAppelTechline),
-            HomeTile("04", "COURRIER", "Viber « courrier ok »",
+            HomeTile("04", "PROBLÈME LOGISTIQUE", "Appel direct du service logistique",
+                Icons.Outlined.LocalShipping, LogistiqueStart, LogistiqueEnd,
+                LogistiqueAccent, HomeGroup.SITE, onClick = onProblemeLogistique),
+            HomeTile("05", "COURRIER", "Viber « courrier ok »",
                 Icons.Outlined.Email, CourrierStart, CourrierEnd, CourrierAccent, HomeGroup.SITE,
                 onClick = onCourrier),
-            HomeTile("05", "CLÔTURE", "Clôture d'intervention",
+            HomeTile("06", "CLÔTURE", "Clôture d'intervention",
                 Icons.Outlined.Assignment, TempsStart, TempsEnd, TempsAccent, HomeGroup.INTERV,
                 liveValue = if (countTemps > 0) countTemps.toString() else null,
                 liveLabel = if (countTemps > 0) "ce cycle" else null,
                 onClick = onTemps),
-            HomeTile("06", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
+            HomeTile("07", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
                 Icons.Outlined.FactCheck, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onPvCameras),
-            HomeTile("07", "BULLETIN INTER", "Intervention sur site · signé client",
+            HomeTile("08", "BULLETIN INTER", "Intervention sur site · signé client",
                 Icons.Outlined.Description, BulletinStart, BulletinEnd, BulletinAccent, HomeGroup.INTERV,
                 onClick = onBulletin),
-            HomeTile("08", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
+            HomeTile("09", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onDemandeCamera),
-            HomeTile("09", "RÉCAP", "Cumul du cycle · total euros",
+            HomeTile("10", "RÉCAP", "Cumul du cycle · total euros",
                 Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
                 onClick = onGesteCoRecap),
-            HomeTile("10", "FRAIS", fraisSub,
+            HomeTile("11", "FRAIS", fraisSub,
                 Icons.Outlined.Receipt, FraisStart, FraisEnd, FraisAccent, HomeGroup.FIN,
                 liveValue = if (countFrais > 0) countFrais.toString() else null,
                 liveLabel = if (countFrais > 0) "tickets" else null,
                 onClick = onFrais),
-            HomeTile("11", "ENVOI MENSUEL", "Excel + tickets + compteur",
+            HomeTile("12", "ENVOI MENSUEL", "Excel + tickets + compteur",
                 Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
                 pulse = endOfCycleApproaching,
                 onClick = onEnvoiMensuel),
-            HomeTile("12", "PRIME À VENIR", "Historique · versement à +2 mois",
+            HomeTile("13", "PRIME À VENIR", "Historique · versement à +2 mois",
                 Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
                 onClick = onPrimeAVenir),
-            HomeTile("13", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
+            HomeTile("14", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
                 onClick = onConge)
         )
