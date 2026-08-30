@@ -42,6 +42,7 @@ let padTech = null;            // bulletin : signature du technicien
 let padClient = null;          // bulletin : signature du client
 let bulletin = null;           // bulletin en cours de saisie
 let pv = null;                 // PV cameras en cours
+let demandeCam = null;         // demande de rappel camera
 let padAb = null;              // PV : signature de l'abonne
 let padPvTech = null;          // PV : signature du technicien
 
@@ -681,12 +682,128 @@ function vuePv() {
   </div>`;
 }
 
+
+// ================================================== DEMANDE CAMERA
+/** Destinataires EPS - identiques a data/Models.kt. */
+const EPS_TO = 'epsinfotechline@eps.e-i.com';
+const EPS_CC_JOHANNA = 'johanna@fggestion.fr';
+const EPS_CC_SECRETARIAT = 'secretariat.gsystems@outlook.fr';
+
+function vueDemandeCam() {
+  const d = demandeCam;
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">DEMANDE CAM\u00c9RA</span>
+  </div>
+  <div class="form">
+    <div class="note">Envoie \u00e0 EPS une demande de rappel pour installer des
+      cam\u00e9ras. Johanna, votre responsable et le secr\u00e9tariat sont mis en copie.</div>
+    <div class="champ requis"><label for="d_site">N\u00b0 de site</label>
+      <input id="d_site" inputmode="numeric" value="${ech(d.site)}" /></div>
+    <div class="champ requis"><label for="d_nb">Nombre de cam\u00e9ras souhait\u00e9es</label>
+      <input id="d_nb" inputmode="numeric" value="${ech(d.nb)}" /></div>
+    <div class="champ"><label for="d_prec">Pr\u00e9cisions</label>
+      <input id="d_prec" value="${ech(d.precisions)}" /></div>
+    <button class="btn" id="d_valider"
+            style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
+      Ouvrir le mail</button>
+  </div>`;
+}
+
+// ============================================================ RECAP
+function vueRecap() {
+  const t = entrees.temps;
+  const f = entrees.frais;
+  const parType = {};
+  t.forEach((e) => { parType[e.typeMission] = (parType[e.typeMission] || 0) + 1; });
+  const totalFrais = f.reduce((a, x) => a + (Number(x.montantEur) || 0), 0);
+  const rembourse = f.reduce(
+    (a, x) => a + remboursable(Number(x.montantEur) || 0, x.categorie), 0);
+
+  // NR sur les installations, comme le bandeau de l'accueil Android.
+  const inst = t.filter((e) => (e.typeMission || '').toUpperCase() === 'INST');
+  const realisees = inst.filter((e) => !e.observationType
+    || e.observationType === 'NR_CLIENT' || e.observationType === 'NR_TECHNIQUE');
+  const nr = realisees.filter((e) => e.observationType).length;
+  const taux = realisees.length ? (nr * 100 / realisees.length) : null;
+
+  const lignes = Object.keys(parType).sort().map((k) => `
+    <div class="ligne"><div class="corps">
+      <div class="haut">${ech(k)}</div></div>
+      <span class="etiquette ok">${parType[k]}</span></div>`).join('');
+
+  const blocNr = taux === null
+    ? '<div class="note">Aucune installation enregistr\u00e9e : le taux de NR '
+      + "n'est pas calculable.</div>"
+    : '<div class="total-bloc"><div class="l fort"><span>Taux de NR</span>'
+      + '<span style="color:' + (taux <= 8 ? '#4ADE80' : '#FF3D5A') + '">'
+      + taux.toFixed(1).replace('.', ',') + ' % ' + (taux <= 8 ? '\u2713' : '\u2717')
+      + '</span></div><div class="aide">' + realisees.length
+      + ' installation(s) r\u00e9alis\u00e9e(s). Seuil \u00e0 8 %.</div></div>';
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">R\u00c9CAP</span>
+  </div>
+  <div class="form">
+    <div class="total-bloc">
+      <div class="l"><span>Interventions</span><span>${t.length}</span></div>
+      <div class="l"><span>Tickets de frais</span><span>${f.length}</span></div>
+      <div class="l"><span>Total pay\u00e9</span><span>${eur2(totalFrais)} \u20ac</span></div>
+      <div class="l fort"><span>\u00c0 rembourser</span>
+        <span>${eur2(rembourse)} \u20ac</span></div>
+    </div>
+    ${blocNr}
+    <div class="jour"><span class="d">PAR TYPE</span></div>
+    ${lignes || '<div class="vide">Aucune intervention.</div>'}
+  </div>`;
+}
+
+// ====================================================== PRIME A VENIR
+function vuePrime() {
+  // Les primes sont versees a M+2 : on regroupe par mois de cloture.
+  const parMois = {};
+  entrees.temps.forEach((e) => {
+    const m = String(e.date || '').slice(0, 7);
+    if (m) parMois[m] = (parMois[m] || 0) + 1;
+  });
+  const mois = Object.keys(parMois).sort().reverse();
+
+  const lignes = mois.map((m) => {
+    const a = m.slice(0, 4);
+    const mo = m.slice(5, 7);
+    const versement = new Date(Number(a), Number(mo) - 1 + 2, 1);
+    const nomMois = versement.toLocaleDateString('fr-FR',
+      { month: 'long', year: 'numeric' });
+    return `
+      <div class="ligne"><div class="corps">
+        <div class="haut">${mo}/${a} \u00b7 ${parMois[m]} intervention(s)</div>
+        <div class="bas">Versement attendu : ${nomMois}</div>
+      </div></div>`;
+  }).join('');
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#10B981,#0A3025)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">PRIME \u00c0 VENIR</span>
+  </div>
+  <div class="form">
+    <div class="note">Les primes sont vers\u00e9es \u00e0 <b>M+2</b> : le travail d'un
+      mois est pay\u00e9 deux mois plus tard. Le d\u00e9tail des gestes commerciaux
+      arrivera avec la synchronisation.</div>
+    ${lignes || '<div class="vide">Aucune intervention enregistr\u00e9e.</div>'}
+  </div>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
     bulletin: vueBulletin, pv: vuePv,
+    demandecam: vueDemandeCam, recap: vueRecap, prime: vuePrime,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
@@ -710,6 +827,9 @@ function aller(ou) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
     ecran = 'formulaire';
+  } else if (ou === 'demandecam') {
+    demandeCam = { site: '', nb: '', precisions: '' };
+    ecran = 'demandecam';
   } else if (ou === 'pv') {
     pv = {
       conv: '', site: '', dateSous: aujourdhuiIso(), nom: '', adr: '',
@@ -789,6 +909,9 @@ async function ouvrir(cible) {
   if (cible === 'conge') { aller('conge'); return; }
   if (cible === 'bulletin') { aller('bulletin'); return; }
   if (cible === 'pv') { aller('pv'); return; }
+  if (cible === 'demandecam') { aller('demandecam'); return; }
+  if (cible === 'recap') { aller('recap'); return; }
+  if (cible === 'prime') { aller('prime'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -1085,8 +1208,33 @@ async function validerPv() {
   toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le au mail du client.', 5000);
 }
 
+
+/** Ouvre l'app mail avec destinataires, sujet et corps deja remplis. */
+function envoyerDemandeCam() {
+  const v = (id) => { const n = $(id); return n ? n.value.trim() : ''; };
+  demandeCam = { site: v('#d_site'), nb: v('#d_nb'), precisions: v('#d_prec') };
+  if (!demandeCam.site) { toast('Indiquez le n\u00b0 de site.'); return; }
+  if (!demandeCam.nb) { toast('Indiquez le nombre de cam\u00e9ras.'); return; }
+
+  // Sujet repris tel quel de l'Android : EPS trie ses demandes dessus.
+  const sujet = 'HD-100 - ' + (reglages.siteCodeFixe || '')
+              + ' - Site num\u00e9ro ' + demandeCam.site;
+  let corps = 'Bonjour,\n\nDEMANDE DE RAPPEL POUR INSTALLATION CAM\u00c9RA(S).\n\n'
+            + 'Site num\u00e9ro : ' + demandeCam.site + '\n'
+            + 'Nombre de cam\u00e9ras souhait\u00e9es : ' + demandeCam.nb + '\n';
+  if (demandeCam.precisions) corps += 'Pr\u00e9cisions : ' + demandeCam.precisions + '\n';
+  corps += '\nCordialement,\n' + (reglages.nomUtilisateur || '');
+
+  const cc = [EPS_CC_JOHANNA, reglages.emailEpsCc2, EPS_CC_SECRETARIAT]
+    .filter((x) => x && x.trim()).join(',');
+  location.href = 'mailto:' + EPS_TO + '?cc=' + encodeURIComponent(cc)
+    + '&subject=' + encodeURIComponent(sujet)
+    + '&body=' + encodeURIComponent(corps);
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  if (e.target.closest('#d_valider')) { envoyerDemandeCam(); return; }
   if (e.target.closest('#p_eff_ab')) { if (padAb) padAb.effacer(); return; }
   if (e.target.closest('#p_eff_tech')) { if (padPvTech) padPvTech.effacer(); return; }
   if (e.target.closest('#p_valider')) { validerPv(); return; }
