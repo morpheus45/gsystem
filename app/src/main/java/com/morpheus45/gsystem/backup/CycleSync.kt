@@ -42,10 +42,48 @@ object CycleSync {
         else -> "image/jpeg"
     }
 
+    // ---------------------------------------------------------------------
+    // Index des photos DÉJÀ envoyées.
+    //
+    // Sans lui, chaque synchro renvoyait TOUTES les photos du cycle : une photo
+    // d'appareil pèse 3 à 5 Mo, l'encodage Base64 ajoute 33 %, et la synchro se
+    // déclenche à chaque saisie. Un cycle à dix tickets remontait donc ~50 Mo à
+    // chaque clôture — d'où le voyant qui restait rouge plusieurs minutes.
+    //
+    // Clé = nom du fichier local, valeur = "<nom sur le Drive>|<taille>". Une
+    // photo retouchée change de taille et repart donc bien.
+    // ---------------------------------------------------------------------
+    private fun indexFile(context: Context) = java.io.File(context.filesDir, "sync_photos.json")
+
+    private fun lireIndex(context: Context): MutableMap<String, String> {
+        val f = indexFile(context)
+        if (!f.exists()) return mutableMapOf()
+        return runCatching {
+            val o = JSONObject(f.readText())
+            val m = mutableMapOf<String, String>()
+            o.keys().forEach { k -> m[k] = o.getString(k) }
+            m
+        }.getOrDefault(mutableMapOf())
+    }
+
+    private fun ecrireIndex(context: Context, index: Map<String, String>) {
+        runCatching {
+            val o = JSONObject()
+            index.forEach { (k, v) -> o.put(k, v) }
+            indexFile(context).writeText(o.toString())
+        }
+    }
+
     /** Pousse UN cycle dans son dossier mois-de-fin. */
     suspend fun pushCycle(
         context: Context, settings: AppSettings, store: EntriesStore,
-        start: LocalDate, end: LocalDate
+        start: LocalDate, end: LocalDate,
+        /**
+         * true = renvoie les photos même si l'index les croit déjà en ligne.
+         * Utilisé par la sauvegarde complète : c'est le filet de sécurité si le
+         * Drive a été vidé à la main, sinon ces photos ne repartiraient jamais.
+         */
+        forcerPhotos: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext false
         runCatching {
@@ -61,6 +99,17 @@ object CycleSync {
 
             val keep = ArrayList<String>()
             val photoMap = JSONObject()   // nom de fichier local -> nom propre sur le Drive
+            // Index des photos déjà en ligne : on ne renvoie que ce qui a changé.
+            val dejaEnvoyees = lireIndex(context)
+            var indexModifie = false
+            /** Envoie la photo SEULEMENT si elle n'est pas déjà en ligne à l'identique. */
+            suspend fun envoyerSiNouvelle(src: java.io.File, driveName: String, mime: String) {
+                val empreinte = "$driveName|${src.length()}"
+                if (!forcerPhotos && dejaEnvoyees[src.name] == empreinte) return
+                BackupUploader.uploadBytes(user, month, driveName, mime, src.readBytes())
+                dejaEnvoyees[src.name] = empreinte
+                indexModifie = true
+            }
 
             // Frais : noms propres FRAIS-CATÉGORIE-N.ext (même logique que l'envoi).
             val catCount = HashMap<String, Int>()
@@ -72,7 +121,9 @@ object CycleSync {
                     catCount[cat.uppercase()] = idx
                     val ext = t.fileName.substringAfterLast('.', "jpg")
                     val driveName = PhotoStorage.fraisAttachmentName(cat, ext, idx)
-                    BackupUploader.uploadBytes(user, month, driveName, mimeFor(driveName), src.readBytes())
+                    envoyerSiNouvelle(src, driveName, mimeFor(driveName))
+                    // keep/photoMap TOUJOURS renseignés, même sans renvoi : sinon
+                    // cyclePrune supprimerait du Drive les photos non re-poussées.
                     keep.add(driveName); photoMap.put(t.fileName, driveName)
                 }
             }
@@ -81,7 +132,7 @@ object CycleSync {
                 val src = PhotoStorage.fileFor(context, entry.fileName)
                 if (src.exists()) {
                     val driveName = PhotoStorage.compteurAttachmentName(settings.plaqueVoiture, entry.date, i + 1)
-                    BackupUploader.uploadBytes(user, month, driveName, "image/jpeg", src.readBytes())
+                    envoyerSiNouvelle(src, driveName, "image/jpeg")
                     keep.add(driveName); photoMap.put(entry.fileName, driveName)
                 }
             }
@@ -101,6 +152,7 @@ object CycleSync {
             // Supprime l'obsolète : frais/compteur/donnees plus référencés. Ne touche
             // JAMAIS aux livrables d'envoi (_stats.json, *.xlsm, Recap-*, mail-*).
             DriveSync.cyclePrune(user, month, keep)
+            if (indexModifie) ecrireIndex(context, dejaEnvoyees)
             true
         }.getOrElse { e ->
             // Ne jamais avaler l'annulation de la coroutine (sinon push partiel
@@ -123,7 +175,9 @@ object CycleSync {
             val cycles = DateUtil.cyclesFor(
                 dates, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
             )
-            cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
+            cycles.forEach { (cs, ce) ->
+                pushCycle(context, settings, store, cs, ce, forcerPhotos = true)
+            }
             cycles.size
         }
 
