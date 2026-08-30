@@ -6,13 +6,18 @@
 import { GROUPES, TUILES } from './tuiles.js';
 import {
   lireReglages, ecrireReglages, reglagesComplets, heureDe,
-  lireEntrees, ecrireEntrees, aujourdhuiIso,
+  lireEntrees, ecrireEntrees, aujourdhuiIso, idUnique,
 } from './donnees.js';
 import { messageCloture, messageAttente, RAPPEL_ATTENTE, partager } from './viber.js';
 import { heuresDuJour, expliquerHeures } from './heures.js';
 import {
   TYPES, TYPES_JOURNEE, OBSERVATIONS, MOTIFS_RETARD, entreeVide, manques,
 } from './cloture.js';
+import {
+  CATEGORIES, htDepuisTtc, tvaDepuisTtc, remboursable, eur,
+} from './frais.js';
+import { photo, enregistrerPhoto, supprimerPhoto, reduire, nomTicket }
+  from './photos.js';
 
 const TEL_TECHLINE = '0388398894';
 const TEL_LOGISTIQUE = '0369740780';
@@ -25,6 +30,7 @@ let ecran = 'accueil';
 let reglages = lireReglages();
 let entrees = lireEntrees();
 let brouillon = null;          // intervention en cours de saisie
+let ticket = null;             // ticket de frais en cours de saisie
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -255,9 +261,126 @@ function vueFormulaire() {
   </div>`;
 }
 
+
+// ============================================================= FRAIS
+function totauxFrais(liste) {
+  let ttc = 0, ht = 0, tva = 0, remb = 0;
+  liste.forEach((t) => {
+    const m = Number(t.montantEur) || 0;
+    ttc += m;
+    ht += htDepuisTtc(m, t.categorie, t.sansTva);
+    tva += tvaDepuisTtc(m, t.categorie, t.sansTva);
+    remb += remboursable(m, t.categorie);
+  });
+  return { ttc, ht, tva, remb };
+}
+
+function vueFrais() {
+  const liste = entrees.frais.slice().sort((a, b) => b.timestamp - a.timestamp);
+  const t = totauxFrais(liste);
+
+  const lignes = liste.length ? liste.map((f) => {
+    const img = photo(f.fileName);
+    const plafonne = f.categorie === 'MOBILE'
+      && remboursable(f.montantEur, 'MOBILE') < f.montantEur;
+    return `
+      <div class="ligne">
+        ${img ? '<img class="vignette" src="' + img + '" alt="" />'
+              : '<div class="vignette"></div>'}
+        <div class="corps">
+          <div class="haut">${ech(f.categorie)} \u00b7 ${eur(f.montantEur)}</div>
+          <div class="bas">${dateFr(f.date)}
+            ${f.sansTva ? '\u00b7 sans TVA' : ''}
+            ${plafonne ? '\u00b7 rembours\u00e9 ' + eur(remboursable(f.montantEur, 'MOBILE')) : ''}
+            ${f.observations ? '\u00b7 ' + ech(f.observations) : ''}</div>
+        </div>
+        <button class="etiquette an" data-suppr-frais="${ech(f.id)}">Suppr.</button>
+      </div>`;
+  }).join('') : '<div class="vide">Aucun ticket enregistr\u00e9.<br />'
+    + 'Touchez \u00ab + Ticket \u00bb pour photographier le premier.</div>';
+
+  const totaux = liste.length ? `
+    <div class="total-bloc">
+      <div class="l"><span>Total pay\u00e9 (TTC)</span><span>${eur(t.ttc)}</span></div>
+      <div class="l"><span>Dont TVA</span><span>${eur(t.tva)}</span></div>
+      <div class="l"><span>Total HT</span><span>${eur(t.ht)}</span></div>
+      <div class="l fort"><span>\u00c0 rembourser</span><span>${eur(t.remb)}</span></div>
+    </div>` : '';
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#06B6D4,#14B8A6)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">FRAIS</span>
+  </div>
+  <div class="form">${totaux}${lignes}</div>
+  <button class="fab" data-va="nouveauFrais"
+          style="background:linear-gradient(135deg,#06B6D4,#14B8A6)">+ Ticket</button>`;
+}
+
+function vueTicket() {
+  const f = ticket;
+  const img = f.apercu;
+  const m = Number(String(f.montantEur).replace(',', '.')) || 0;
+  const detail = m > 0 ? `
+    <div class="total-bloc">
+      <div class="l"><span>TVA (${f.sansTva ? '0' : '20'} %)</span>
+        <span>${eur(tvaDepuisTtc(m, f.categorie, f.sansTva))}</span></div>
+      <div class="l"><span>Montant HT</span>
+        <span>${eur(htDepuisTtc(m, f.categorie, f.sansTva))}</span></div>
+      <div class="l fort"><span>\u00c0 rembourser</span>
+        <span>${eur(remboursable(m, f.categorie))}</span></div>
+      ${f.categorie === 'MOBILE'
+        ? '<div class="aide">Forfait t\u00e9l\u00e9phonique : 50 % plafonn\u00e9s \u00e0 20 \u20ac.</div>'
+        : ''}
+    </div>` : '';
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#06B6D4,#14B8A6)">
+    <button class="retour" data-va="frais">\u2190</button>
+    <span class="t">NOUVEAU TICKET</span>
+  </div>
+  <div class="form">
+    <div class="champ requis"><label>Photo du justificatif</label>
+      ${img ? '<img class="apercu-photo" src="' + img + '" alt="Ticket" />' : ''}
+      <input id="t_photo" type="file" accept="image/*" capture="environment" />
+      <div class="aide">La photo est r\u00e9duite avant d'\u00eatre gard\u00e9e :
+        une photo brute saturerait la m\u00e9moire du navigateur.</div></div>
+
+    <div class="champ"><label for="t_date">Date</label>
+      <input id="t_date" type="date" value="${ech(f.date)}" /></div>
+
+    <div class="champ"><label>Cat\u00e9gorie</label>
+      <div class="segment" id="t_cat">
+        ${CATEGORIES.map((c) => '<button type="button" data-cat="' + c + '" aria-pressed="'
+          + (f.categorie === c) + '">' + c + '</button>').join('')}
+      </div></div>
+
+    <div class="champ requis"><label for="t_montant">Montant pay\u00e9 (TTC)</label>
+      <input id="t_montant" inputmode="decimal" value="${ech(f.montantEur)}" /></div>
+
+    ${f.categorie === 'PARKING' ? `
+    <div class="bascule">
+      <input type="checkbox" id="t_sanstva" ${f.sansTva ? 'checked' : ''} />
+      <label for="t_sanstva">Ticket sans TVA (PayByPhone\u2026)</label>
+    </div>` : ''}
+
+    <div class="champ"><label for="t_note">Observations</label>
+      <input id="t_note" value="${ech(f.observations)}" /></div>
+
+    ${detail}
+
+    <button class="btn" id="valider-frais"
+            style="background:linear-gradient(135deg,#06B6D4,#14B8A6)">
+      Enregistrer le ticket</button>
+  </div>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
-  const vues = { reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire };
+  const vues = {
+    reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
+    frais: vueFrais, ticket: vueTicket,
+  };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
 }
@@ -269,6 +392,12 @@ function aller(ou) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
     ecran = 'formulaire';
+  } else if (ou === 'nouveauFrais') {
+    ticket = {
+      date: aujourdhuiIso(), categorie: 'PARKING', montantEur: '',
+      observations: '', sansTva: false, apercu: null,
+    };
+    ecran = 'ticket';
   } else {
     ecran = ou;
   }
@@ -309,6 +438,7 @@ async function ouvrir(cible) {
   if (cible === 'techline') { location.href = 'tel:' + TEL_TECHLINE; return; }
   if (cible === 'logistique') { location.href = 'tel:' + TEL_LOGISTIQUE; return; }
   if (cible === 'cloture' || cible === 'nouvelle') { aller(cible); return; }
+  if (cible === 'frais') { aller('frais'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -371,8 +501,76 @@ async function validerCloture() {
                       : 'Intervention enregistr\u00e9e.', 5000);
 }
 
+
+/** Recopie le formulaire de ticket avant tout rendu ou enregistrement. */
+function lireTicket() {
+  if (ecran !== 'ticket' || !ticket) return;
+  const v = (id) => { const n = $(id); return n ? n.value : ''; };
+  ticket.date = v('#t_date') || ticket.date;
+  ticket.montantEur = v('#t_montant');
+  ticket.observations = v('#t_note');
+  const c = $('#t_sanstva');
+  ticket.sansTva = c ? c.checked : false;
+}
+
+/** Recalcule le bloc des montants sans redessiner le formulaire : un rendu
+ *  complet ferait perdre le focus et refermerait le clavier a chaque chiffre. */
+function rendreMontants() {
+  const m = Number(String(ticket.montantEur).replace(',', '.')) || 0;
+  const bloc = document.querySelector('.total-bloc');
+  if (!bloc || !m) { rendre(); return; }
+  const l = bloc.querySelectorAll('.l span:last-child');
+  if (l.length >= 3) {
+    l[0].textContent = eur(tvaDepuisTtc(m, ticket.categorie, ticket.sansTva));
+    l[1].textContent = eur(htDepuisTtc(m, ticket.categorie, ticket.sansTva));
+    l[2].textContent = eur(remboursable(m, ticket.categorie));
+  }
+}
+
+function validerTicket() {
+  lireTicket();
+  const montant = Number(String(ticket.montantEur).replace(',', '.'));
+  if (!ticket.apercu) { toast('Photographiez le justificatif.'); return; }
+  if (!montant || montant <= 0) { toast('Indiquez le montant pay\u00e9.'); return; }
+
+  // Nom de fichier propre, numerote par categorie comme sur Android.
+  const memeCat = entrees.frais.filter((f) => f.categorie === ticket.categorie).length;
+  const nom = nomTicket(ticket.categorie, memeCat + 1);
+
+  if (!enregistrerPhoto(nom, ticket.apercu)) {
+    toast('M\u00e9moire du navigateur pleine : envoyez les frais du cycle, '
+        + 'puis reprenez.', 6000);
+    return;
+  }
+
+  entrees.frais.push({
+    id: idUnique(), date: ticket.date, timestamp: Date.now(), fileName: nom,
+    categorie: ticket.categorie, montantEur: montant,
+    observations: ticket.observations, sansTva: ticket.sansTva,
+  });
+  ecrireEntrees(entrees);
+  ticket = null;
+  aller('frais');
+  toast('Ticket enregistr\u00e9.');
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  const cat = e.target.closest('#t_cat button');
+  if (cat) { lireTicket(); ticket.categorie = cat.dataset.cat; rendre(); return; }
+
+  const suppr = e.target.closest('[data-suppr-frais]');
+  if (suppr) {
+    const id = suppr.dataset.supprFrais;
+    const t = entrees.frais.find((x) => x.id === id);
+    if (t) supprimerPhoto(t.fileName);
+    entrees.frais = entrees.frais.filter((x) => x.id !== id);
+    ecrireEntrees(entrees); rendre(); toast('Ticket supprim\u00e9.');
+    return;
+  }
+
+  if (e.target.closest('#valider-frais')) { validerTicket(); return; }
+
   const slot = e.target.closest('#f_slot button');
   if (slot) { lireFormulaire(); brouillon.slotMidi = slot.dataset.slot; rendre(); return; }
 
@@ -408,13 +606,20 @@ document.addEventListener('click', (e) => {
 });
 
 // Le type change la forme du formulaire ; l'observation change l'apercu.
-document.addEventListener('change', (e) => {
+document.addEventListener('change', async (e) => {
+  if (e.target.id === 't_photo' && e.target.files && e.target.files[0]) {
+    lireTicket();
+    try { ticket.apercu = await reduire(e.target.files[0]); rendre(); }
+    catch (err) { toast('Photo illisible, reprenez-la.'); }
+    return;
+  }
   if (ecran !== 'formulaire') return;
   if (e.target.matches('#f_type, #f_obs')) { lireFormulaire(); rendre(); }
 });
 
 // Apercu du message tenu a jour pendant la frappe.
 document.addEventListener('input', () => {
+  if (ecran === 'ticket') { lireTicket(); rendreMontants(); return; }
   if (ecran !== 'formulaire') return;
   lireFormulaire();
   const a = $('#apercu');

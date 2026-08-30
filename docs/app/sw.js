@@ -5,9 +5,10 @@
 
 // Cache applicatif : l'app s'ouvre et s'affiche sans reseau, ce qui arrive
 // souvent en intervention (sous-sol, zone blanche).
-const CACHE = 'gsystems-v2';
+const CACHE = 'gsystems-v3';
 const FICHIERS = ['.', 'index.html', 'theme.css', 'app.js', 'tuiles.js',
                   'donnees.js', 'viber.js', 'heures.js', 'cloture.js',
+                  'frais.js', 'photos.js',
                   'manifest.webmanifest', 'icone-180.png', 'icone-512.png'];
 
 self.addEventListener('install', (e) => {

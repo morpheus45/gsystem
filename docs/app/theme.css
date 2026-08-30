@@ -279,3 +279,25 @@ input, select, textarea, button { font-size: 16px; font-family: inherit; }
   background: linear-gradient(135deg,#7C3AED,#1A0B36);
   box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
+
+/* ------------------------------------------------------------- Frais */
+.vignette {
+  width: 62px; height: 62px; border-radius: 10px; object-fit: cover;
+  background: var(--lift2); flex: none;
+}
+.apercu-photo {
+  width: 100%; max-height: 220px; object-fit: contain; border-radius: 12px;
+  background: var(--lift2); display: block;
+}
+.total-bloc {
+  background: var(--lift1); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px; display: flex; flex-direction: column; gap: 7px;
+}
+.total-bloc .l { display: flex; justify-content: space-between; font-size: 13px; }
+.total-bloc .l span:first-child { color: var(--mid); }
+.total-bloc .l.fort { font-size: 15px; font-weight: 800; }
+.total-bloc .l.fort span:last-child { color: #14B8A6; }
+
+.bascule { display: flex; align-items: center; gap: 10px; }
+.bascule input { width: 20px; height: 20px; accent-color: #06B6D4; }
+.bascule label { font-size: 13px; color: var(--hi); }
