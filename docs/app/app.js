@@ -21,6 +21,7 @@ import { photo, enregistrerPhoto, supprimerPhoto, reduire, nomTicket }
 import { genererConge, nomFichierConge } from './docConge.js';
 import { genererBulletin, refFormatee, eur2, FRAIS_INTERVENTION }
   from './docBulletin.js';
+import { genererPv, totalPv } from './docPv.js';
 import { creerPad } from './signature.js';
 
 const TEL_TECHLINE = '0388398894';
@@ -40,6 +41,9 @@ let pad = null;                // pad de signature (conge)
 let padTech = null;            // bulletin : signature du technicien
 let padClient = null;          // bulletin : signature du client
 let bulletin = null;           // bulletin en cours de saisie
+let pv = null;                 // PV cameras en cours
+let padAb = null;              // PV : signature de l'abonne
+let padPvTech = null;          // PV : signature du technicien
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -597,12 +601,92 @@ function vueBulletin() {
   </div>`;
 }
 
+
+// =============================================================== PV
+function vuePv() {
+  const v = pv;
+  const t = totalPv(v);
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">PV CAM\u00c9RAS</span>
+  </div>
+  <div class="form">
+    <div class="deux">
+      <div class="champ requis"><label for="p_conv">Convention n\u00b0</label>
+        <input id="p_conv" inputmode="numeric" value="${ech(v.conv)}" /></div>
+      <div class="champ requis"><label for="p_site">Site n\u00b0</label>
+        <input id="p_site" inputmode="numeric" value="${ech(v.site)}" /></div>
+    </div>
+    <div class="champ"><label for="p_datesous">Date de souscription</label>
+      <input id="p_datesous" type="date" value="${ech(v.dateSous)}" /></div>
+    <div class="champ requis"><label for="p_nom">Nom et pr\u00e9nom</label>
+      <input id="p_nom" value="${ech(v.nom)}" /></div>
+    <div class="champ"><label for="p_adr">Adresse</label>
+      <input id="p_adr" value="${ech(v.adr)}" /></div>
+
+    <div class="jour"><span class="d">\u00c9QUIPEMENT</span>
+      <span class="h">nombre seulement</span></div>
+    <div class="champ"><label for="p_ext">HD-100 ext\u00e9rieure (179,00 \u20ac)</label>
+      <input id="p_ext" inputmode="numeric" value="${ech(v.nbExt)}" /></div>
+    <div class="champ"><label for="p_int">HD-100 int\u00e9rieure (149,00 \u20ac)</label>
+      <input id="p_int" inputmode="numeric" value="${ech(v.nbInt)}" /></div>
+    <div class="champ"><label for="p_torus">TORUS int\u00e9rieure (89,00 \u20ac)</label>
+      <input id="p_torus" inputmode="numeric" value="${ech(v.nbTorus)}" /></div>
+
+    <div class="bascule">
+      <input type="checkbox" id="p_mint" ${v.miseServInt ? 'checked' : ''} />
+      <label for="p_mint">Mise en service int\u00e9rieure (40,00 \u20ac)</label></div>
+    <div class="bascule">
+      <input type="checkbox" id="p_mext" ${v.miseServExt ? 'checked' : ''} />
+      <label for="p_mext">Mise en service ext\u00e9rieure (70,00 \u20ac)</label></div>
+    ${v.miseServInt && v.miseServExt
+      ? '<div class="aide">Les deux ne se cumulent pas : seul le plus \u00e9lev\u00e9'
+        + ' (70,00 \u20ac) est factur\u00e9.</div>' : ''}
+
+    <div class="total-bloc">
+      <div class="l"><span>\u00c9quipement</span><span>${eur2(t.equip)} \u20ac</span></div>
+      <div class="l"><span>Mise en service</span><span>${eur2(t.mes)} \u20ac</span></div>
+      <div class="l fort"><span>MONTANT TOTAL</span>
+        <span>${eur2(t.total)} \u20ac TTC</span></div>
+    </div>
+
+    <div class="bascule">
+      <input type="checkbox" id="p_antic" ${v.miseServAnticipee ? 'checked' : ''} />
+      <label for="p_antic">Mise en service anticip\u00e9e</label></div>
+
+    <div class="champ"><label for="p_obs">Observations</label>
+      <input id="p_obs" value="${ech(v.observations)}" /></div>
+
+    <div class="deux">
+      <div class="champ"><label for="p_faitle">Fait le</label>
+        <input id="p_faitle" type="date" value="${ech(v.faitLe)}" /></div>
+      <div class="champ"><label for="p_nomtech">Nom du technicien</label>
+        <input id="p_nomtech" value="${ech(v.nomTech)}" /></div>
+    </div>
+
+    <div class="champ requis"><label>Signature de l'abonn\u00e9</label>
+      <canvas class="pad" id="p_pad_ab"></canvas>
+      <div class="pad-actions"><span class="aide">Faites signer le client.</span>
+        <button type="button" id="p_eff_ab">Effacer</button></div></div>
+
+    <div class="champ requis"><label>Signature du technicien</label>
+      <canvas class="pad" id="p_pad_tech"></canvas>
+      <div class="pad-actions"><span class="aide">Signez avec le doigt.</span>
+        <button type="button" id="p_eff_tech">Effacer</button></div></div>
+
+    <button class="btn" id="p_valider"
+            style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
+      G\u00e9n\u00e9rer et envoyer</button>
+  </div>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
-    bulletin: vueBulletin,
+    bulletin: vueBulletin, pv: vuePv,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
@@ -613,6 +697,10 @@ function rendre() {
   const tC = $('#b_pad_client');
   padTech = tT ? creerPad(tT) : null;
   padClient = tC ? creerPad(tC) : null;
+  const pA = $('#p_pad_ab');
+  const pT = $('#p_pad_tech');
+  padAb = pA ? creerPad(pA) : null;
+  padPvTech = pT ? creerPad(pT) : null;
 }
 
 function aller(ou) {
@@ -622,6 +710,15 @@ function aller(ou) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
     ecran = 'formulaire';
+  } else if (ou === 'pv') {
+    pv = {
+      conv: '', site: '', dateSous: aujourdhuiIso(), nom: '', adr: '',
+      nbExt: '', nbInt: '', nbTorus: '',
+      miseServInt: false, miseServExt: false, miseServAnticipee: false,
+      observations: '', faitLe: aujourdhuiIso(),
+      nomTech: (reglages.nomUtilisateur || '').toUpperCase(),
+    };
+    ecran = 'pv';
   } else if (ou === 'bulletin') {
     bulletin = {
       date: aujourdhuiIso(), numMission: '', lieuProtege: '',
@@ -691,6 +788,7 @@ async function ouvrir(cible) {
   if (cible === 'frais') { aller('frais'); return; }
   if (cible === 'conge') { aller('conge'); return; }
   if (cible === 'bulletin') { aller('bulletin'); return; }
+  if (cible === 'pv') { aller('pv'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -938,8 +1036,61 @@ async function validerBulletin() {
   toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le au mail du client.', 5000);
 }
 
+
+function lirePv() {
+  if (ecran !== 'pv' || !pv) return;
+  const v = (id) => { const n = $(id); return n ? n.value : ''; };
+  const c = (id) => { const n = $(id); return n ? n.checked : false; };
+  pv.conv = v('#p_conv'); pv.site = v('#p_site');
+  pv.dateSous = v('#p_datesous') || pv.dateSous;
+  pv.nom = v('#p_nom'); pv.adr = v('#p_adr');
+  pv.nbExt = v('#p_ext'); pv.nbInt = v('#p_int'); pv.nbTorus = v('#p_torus');
+  pv.miseServInt = c('#p_mint'); pv.miseServExt = c('#p_mext');
+  pv.miseServAnticipee = c('#p_antic');
+  pv.observations = v('#p_obs');
+  pv.faitLe = v('#p_faitle') || pv.faitLe;
+  pv.nomTech = v('#p_nomtech');
+}
+
+async function validerPv() {
+  lirePv();
+  if (!pv.conv.trim() || !pv.site.trim()) {
+    toast('Indiquez la convention et le site.'); return;
+  }
+  if (!pv.nom.trim()) { toast('Indiquez le nom du client.'); return; }
+  if (!padAb || padAb.vide()) { toast("Signature de l'abonn\u00e9 manquante."); return; }
+  if (!padPvTech || padPvTech.vide()) { toast('Signature du technicien manquante.'); return; }
+
+  const donnees = Object.assign({}, pv, {
+    dateSous: versFr(pv.dateSous), faitLe: versFr(pv.faitLe),
+    tracesAbonne: padAb.traces(), tracesTech: padPvTech.traces(),
+    tracesParapheTech: padPvTech.traces(), tracesParapheClient: padAb.traces(),
+  });
+  const blob = genererPv(donnees);
+  const nomFichier = 'PV_CAMERAS_'
+    + (pv.site.replace(/[^A-Za-z0-9_-]/g, '_') || 'site') + '.pdf';
+  const fichier = new File([blob], nomFichier, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+    try {
+      await navigator.share({ files: [fichier], title: 'PV cameras' });
+      toast('PV partag\u00e9.');
+      return;
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomFichier; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le au mail du client.', 5000);
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  if (e.target.closest('#p_eff_ab')) { if (padAb) padAb.effacer(); return; }
+  if (e.target.closest('#p_eff_tech')) { if (padPvTech) padPvTech.effacer(); return; }
+  if (e.target.closest('#p_valider')) { validerPv(); return; }
+
   const nat = e.target.closest('#b_natures button');
   if (nat) {
     lireBulletin();
@@ -1038,6 +1189,10 @@ document.addEventListener('change', async (e) => {
     catch (err) { toast('Photo illisible, reprenez-la.'); }
     return;
   }
+  if (ecran === 'pv') {
+    if (e.target.matches('#p_mint, #p_mext, #p_antic')) { lirePv(); rendre(); }
+    return;
+  }
   if (ecran === 'bulletin') {
     if (e.target.matches('[data-champ="detail"], #b_frais, #b_ht')) {
       lireBulletin(); rendre();
@@ -1051,6 +1206,10 @@ document.addEventListener('change', async (e) => {
 // Apercu du message tenu a jour pendant la frappe.
 document.addEventListener('input', () => {
   if (ecran === 'ticket') { lireTicket(); rendreMontants(); return; }
+  if (ecran === 'pv') {
+    if (e.target.matches('#p_ext, #p_int, #p_torus')) { lirePv(); rendre(); }
+    return;
+  }
   if (ecran !== 'formulaire') return;
   lireFormulaire();
   const a = $('#apercu');
