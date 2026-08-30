@@ -184,3 +184,51 @@ input, select, textarea, button { font-size: 16px; font-family: inherit; }
   background: var(--lift1); border: 1px dashed var(--line);
   color: var(--mid); font-size: 13px; line-height: 1.6;
 }
+
+/* ------------------------------------------------------- Ecrans internes */
+.barre-titre {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; position: sticky; top: 0; z-index: 5;
+}
+.barre-titre .retour {
+  background: rgba(255,255,255,.15); border: 0; color: #fff;
+  width: 34px; height: 34px; border-radius: 50%; font-size: 17px; cursor: pointer;
+}
+.barre-titre .t { font-size: 17px; font-weight: 800; color: #fff; }
+
+.reglage-btn {
+  background: var(--lift2); border: 1px solid var(--line); color: var(--mid);
+  width: 34px; height: 34px; border-radius: 50%; font-size: 15px; cursor: pointer;
+  flex: none;
+}
+
+.form { padding: 4px 18px 40px; display: flex; flex-direction: column; gap: 14px; }
+.champ { display: flex; flex-direction: column; gap: 5px; }
+.champ label { font-size: 11px; color: var(--mid); font-weight: 600; letter-spacing: .3px; }
+.champ input, .champ select, .champ textarea {
+  background: var(--lift1); border: 1px solid var(--line); border-radius: 11px;
+  padding: 12px 13px; color: var(--hi); width: 100%;
+}
+.champ input:focus, .champ select:focus, .champ textarea:focus {
+  outline: none; border-color: var(--mid);
+}
+.champ .aide { font-size: 11px; color: var(--low); line-height: 1.45; }
+.champ.requis label::after { content: ' *'; color: var(--signal); }
+
+.btn {
+  border: 0; border-radius: 13px; padding: 15px; font-size: 15px;
+  font-weight: 800; color: #fff; cursor: pointer; width: 100%;
+}
+.note {
+  font-size: 12px; color: var(--mid); line-height: 1.55;
+  background: var(--lift1); border: 1px solid var(--line);
+  border-radius: 11px; padding: 12px 14px;
+}
+
+/* Bandeau de confirmation en bas d'ecran */
+.toast {
+  position: fixed; left: 18px; right: 18px; bottom: calc(18px + var(--pad-bas));
+  background: var(--lift3); color: var(--hi); border: 1px solid var(--line);
+  border-radius: 13px; padding: 13px 15px; font-size: 13px; z-index: 40;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); line-height: 1.5;
+}

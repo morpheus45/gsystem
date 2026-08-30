@@ -9,7 +9,6 @@
 <meta name="robots" content="noindex, nofollow, noarchive" />
 <meta name="noai" content="true" />
 
-<!-- Installation sur l'écran d'accueil iPhone -->
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -21,30 +20,7 @@
 <link rel="stylesheet" href="theme.css" />
 </head>
 <body>
-
-<header class="entete">
-  <div>
-    <div class="marque"><span class="g">g</span>systems</div>
-    <div class="sous-marque">
-      <span class="pastille" id="pastille"></span><span id="etat">HORS LIGNE</span>
-    </div>
-  </div>
-</header>
-
-<div class="bandeau-nr" id="nr">NR TECH — &middot; BRUT — &middot; 0 INST</div>
-
-<div class="install" id="install">
-  <b>Installer sur l'iPhone</b><br />
-  Dans Safari, touchez <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.
-  L'application s'ouvrira ensuite en plein écran, avec son icône, comme une
-  application installée.
-  <br /><button class="fermer">J'ai compris</button>
-</div>
-
-<nav class="onglets" id="onglets" role="tablist"></nav>
-<div class="groupe" id="groupe"></div>
-<main class="tuiles" id="tuiles"></main>
-
+<div id="app"></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>
