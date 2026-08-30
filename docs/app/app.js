@@ -19,6 +19,8 @@ import {
 import { photo, enregistrerPhoto, supprimerPhoto, reduire, nomTicket }
   from './photos.js';
 import { genererConge, nomFichierConge } from './docConge.js';
+import { genererBulletin, refFormatee, eur2, FRAIS_INTERVENTION }
+  from './docBulletin.js';
 import { creerPad } from './signature.js';
 
 const TEL_TECHLINE = '0388398894';
@@ -34,7 +36,10 @@ let entrees = lireEntrees();
 let brouillon = null;          // intervention en cours de saisie
 let ticket = null;             // ticket de frais en cours de saisie
 let conge = null;              // demande de conge en cours
-let pad = null;                // pad de signature de l'ecran courant
+let pad = null;                // pad de signature (conge)
+let padTech = null;            // bulletin : signature du technicien
+let padClient = null;          // bulletin : signature du client
+let bulletin = null;           // bulletin en cours de saisie
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -432,17 +437,182 @@ function vueConge() {
   </div>`;
 }
 
+
+// ========================================================== BULLETIN
+const PRESTATIONS = ['D\u00c9TECTEUR DE MOUVEMENT', 'D\u00c9TECTEUR OUVERTURE',
+  'CLAVIER', 'SIR\u00c8NE INT\u00c9RIEURE', 'SIR\u00c8NE EXT\u00c9RIEURE', 'BOUTON ALERTE',
+  'D\u00c9TECTEUR DE FUM\u00c9E', 'D\u00c9TECTEUR DE MONOXYDE', 'T\u00c9L\u00c9COMMANDE', 'CAM\u00c9RA'];
+
+const NATURES = [['MIGR', 'Migration'], ['AJOU', 'Ajout'], ['REPA', 'R\u00e9paration'],
+  ['VISI', 'Visite/Devis'], ['RESI', 'D\u00e9montage'], ['PILE', 'Remplac. piles'],
+  ['CONT', 'Contr\u00f4le'], ['INTE', 'V\u00e9rification'], ['DECL', 'Demande client']];
+
+/** Total d'une ligne ; la quantite peut etre signee (+1 / -1). */
+function totalLigne(l) {
+  const q = Number(String(l.qte || '').replace(',', '.')) || 0;
+  const pu = Number(String(l.pu || '').replace(',', '.')) || 0;
+  return q * pu;
+}
+
+function totalBulletin(b) {
+  return b.lignes.reduce((acc, l) => acc + totalLigne(l), 0)
+       + (b.fraisOui ? FRAIS_INTERVENTION : 0);
+}
+
+function vueBulletin() {
+  const b = bulletin;
+  const tot = totalBulletin(b);
+
+  const lignes = b.lignes.map((l, i) => `
+    <div class="champ">
+      <label>Ligne ${i + 1}</label>
+      <select data-ligne="${i}" data-champ="detail">
+        <option value="">\u2014</option>
+        ${PRESTATIONS.map((p) => '<option' + (l.detail === p ? ' selected' : '')
+          + '>' + p + '</option>').join('')}
+      </select>
+      <input data-ligne="${i}" data-champ="reference" placeholder="R\u00e9f\u00e9rence (IR-C08-12)"
+             value="${ech(refFormatee(l.reference))}" />
+      <div class="deux">
+        <input data-ligne="${i}" data-champ="qte"
+               placeholder="Quantit\u00e9 (+1 / -1)" value="${ech(l.qte)}" />
+        <input data-ligne="${i}" data-champ="pu" inputmode="decimal"
+               placeholder="Prix unitaire" value="${ech(l.pu)}" />
+      </div>
+      ${totalLigne(l) ? '<div class="aide">Prix total : ' + eur2(totalLigne(l))
+        + ' \u20ac</div>' : ''}
+    </div>`).join('');
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#8A5CF6,#9168F0)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">BULLETIN INTER</span>
+  </div>
+  <div class="form">
+    <div class="deux">
+      <div class="champ"><label for="b_date">Date</label>
+        <input id="b_date" type="date" value="${ech(b.date)}" /></div>
+      <div class="champ requis"><label for="b_mission">N\u00b0 de mission</label>
+        <input id="b_mission" inputmode="numeric" value="${ech(b.numMission)}" /></div>
+    </div>
+    <div class="champ"><label for="b_lieu">Lieu prot\u00e9g\u00e9 n\u00b0</label>
+      <input id="b_lieu" inputmode="numeric" value="${ech(b.lieuProtege)}" /></div>
+
+    <div class="champ requis"><label for="b_nom">Nom et pr\u00e9nom du client</label>
+      <input id="b_nom" value="${ech(b.nom)}" /></div>
+    <div class="champ"><label for="b_adresse">Adresse</label>
+      <input id="b_adresse" value="${ech(b.adresse)}" /></div>
+    <div class="deux">
+      <div class="champ"><label for="b_cp">Code postal</label>
+        <input id="b_cp" inputmode="numeric" value="${ech(b.cp)}" /></div>
+      <div class="champ"><label for="b_ville">Ville</label>
+        <input id="b_ville" value="${ech(b.ville)}" /></div>
+    </div>
+
+    <div class="champ"><label>Nature de l'intervention</label>
+      <div class="segment" id="b_natures">
+        ${NATURES.map((n) => '<button type="button" data-nature="' + n[0]
+          + '" aria-pressed="' + (!!b.natures[n[0]]) + '">' + n[1]
+          + '</button>').join('')}
+      </div></div>
+
+    <div class="deux">
+      <div class="champ"><label for="b_marque">Marque</label>
+        <input id="b_marque" value="${ech(b.marque)}" /></div>
+      <div class="champ"><label for="b_type">Type</label>
+        <input id="b_type" value="${ech(b.typeMat)}" /></div>
+    </div>
+
+    <div class="jour"><span class="d">PRESTATIONS</span>
+      <span class="h">${b.lignes.length} ligne(s)</span></div>
+    ${lignes}
+    <button class="btn" id="b_ajout_ligne"
+            style="background:var(--lift2);color:var(--mid)">+ Ajouter une ligne</button>
+
+    <div class="champ"><label>Forfait d'intervention</label>
+      <div class="segment" id="b_forfait">
+        <button type="button" data-forfait="loc" aria-pressed="${b.forfaitLocatif}">
+          Locatif</button>
+        <button type="button" data-forfait="acq" aria-pressed="${b.forfaitAcquisition}">
+          Acquisition</button>
+      </div></div>
+
+    <div class="bascule">
+      <input type="checkbox" id="b_frais" ${b.fraisOui ? 'checked' : ''} />
+      <label for="b_frais">Frais d'intervention (+ 65,00 \u20ac)</label>
+    </div>
+    <div class="bascule">
+      <input type="checkbox" id="b_ht" ${b.totalHt ? 'checked' : ''} />
+      <label for="b_ht">Tout le bulletin en H.T. (d\u00e9coch\u00e9 = T.T.C.)</label>
+    </div>
+
+    <div class="total-bloc">
+      <div class="l fort"><span>TOTAL</span>
+        <span>${eur2(tot)} \u20ac ${b.totalHt ? 'H.T.' : 'T.T.C.'}</span></div>
+    </div>
+
+    <div class="champ"><label>Nouvelle mensualit\u00e9</label>
+      <div class="segment" id="b_signe">
+        <button type="button" data-signe="+" aria-pressed="${b.mensSigne === '+'}">+</button>
+        <button type="button" data-signe="-" aria-pressed="${b.mensSigne === '-'}">\u2212</button>
+        <button type="button" data-signe="IDEM" aria-pressed="${b.mensIdem}">IDEM</button>
+      </div>
+      ${b.mensIdem ? '<div class="aide">\u00ab IDEM \u00bb sera \u00e9crit sur le bulletin.</div>'
+        : '<input id="b_mens" inputmode="decimal" placeholder="Montant" value="'
+          + ech(b.mensualite) + '" />'}
+    </div>
+
+    <div class="bascule">
+      <input type="checkbox" id="b_alarme" ${b.testAlarme ? 'checked' : ''} />
+      <label for="b_alarme">Bon fonctionnement du syst\u00e8me d'alarme</label>
+    </div>
+    <div class="bascule">
+      <input type="checkbox" id="b_liaison" ${b.testLiaison ? 'checked' : ''} />
+      <label for="b_liaison">Bon fonctionnement des moyens de liaison</label>
+    </div>
+
+    <div class="champ"><label for="b_obs">Observations du technicien</label>
+      <input id="b_obs" value="${ech(b.obsTech)}" /></div>
+
+    <div class="deux">
+      <div class="champ"><label for="b_nomtech">Nom du technicien</label>
+        <input id="b_nomtech" value="${ech(b.nomTech)}" /></div>
+      <div class="champ"><label for="b_nomclient">Nom du client</label>
+        <input id="b_nomclient" value="${ech(b.nomClient)}" /></div>
+    </div>
+
+    <div class="champ requis"><label>Signature du technicien</label>
+      <canvas class="pad" id="b_pad_tech"></canvas>
+      <div class="pad-actions"><span class="aide">Signez avec le doigt.</span>
+        <button type="button" id="b_eff_tech">Effacer</button></div></div>
+
+    <div class="champ requis"><label>Signature du client</label>
+      <canvas class="pad" id="b_pad_client"></canvas>
+      <div class="pad-actions"><span class="aide">Faites signer le client.</span>
+        <button type="button" id="b_eff_client">Effacer</button></div></div>
+
+    <button class="btn" id="b_valider"
+            style="background:linear-gradient(135deg,#8A5CF6,#9168F0)">
+      G\u00e9n\u00e9rer et envoyer</button>
+  </div>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
+    bulletin: vueBulletin,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
   // Le canvas n'existe qu'apres le rendu : le pad est recree a chaque fois.
   const toile = $('#c_pad');
   pad = toile ? creerPad(toile) : null;
+  const tT = $('#b_pad_tech');
+  const tC = $('#b_pad_client');
+  padTech = tT ? creerPad(tT) : null;
+  padClient = tC ? creerPad(tC) : null;
 }
 
 function aller(ou) {
@@ -452,6 +622,19 @@ function aller(ou) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
     ecran = 'formulaire';
+  } else if (ou === 'bulletin') {
+    bulletin = {
+      date: aujourdhuiIso(), numMission: '', lieuProtege: '',
+      nom: '', adresse: '', cp: '', ville: '',
+      natures: {}, marque: 'BIRDIE', typeMat: 'V5',
+      lignes: [{ detail: '', reference: '', qte: '', pu: '' }],
+      forfaitLocatif: true, forfaitAcquisition: false,
+      reglPrelevement: true, fraisOui: false, totalHt: false,
+      mensualite: '', mensSigne: '', mensIdem: false,
+      testAlarme: true, testLiaison: true, obsTech: '',
+      nomTech: (reglages.nomUtilisateur || '').toUpperCase(), nomClient: '',
+    };
+    ecran = 'bulletin';
   } else if (ou === 'conge') {
     conge = {
       nom: (reglages.nomUtilisateur || '').toUpperCase(),
@@ -507,6 +690,7 @@ async function ouvrir(cible) {
   if (cible === 'cloture' || cible === 'nouvelle') { aller(cible); return; }
   if (cible === 'frais') { aller('frais'); return; }
   if (cible === 'conge') { aller('conge'); return; }
+  if (cible === 'bulletin') { aller('bulletin'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -674,8 +858,122 @@ async function validerConge() {
   toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le \u00e0 votre mail.', 5000);
 }
 
+
+/** Reference : 3 lettres puis 4 chiffres ; les tirets sont poses a l'affichage. */
+function refSaisie(v) {
+  let out = '';
+  for (const c of String(v || '').toUpperCase()) {
+    if (out.length < 3) { if (/[A-Z]/.test(c)) out += c; }
+    else if (out.length < 7) { if (/[0-9]/.test(c)) out += c; }
+    else break;
+  }
+  return out;
+}
+
+function lireBulletin() {
+  if (ecran !== 'bulletin' || !bulletin) return;
+  const v = (id) => { const n = $(id); return n ? n.value : ''; };
+  const c = (id) => { const n = $(id); return n ? n.checked : false; };
+  const b = bulletin;
+  b.date = v('#b_date') || b.date;
+  b.numMission = v('#b_mission'); b.lieuProtege = v('#b_lieu');
+  b.nom = v('#b_nom'); b.adresse = v('#b_adresse');
+  b.cp = v('#b_cp'); b.ville = v('#b_ville');
+  b.marque = v('#b_marque'); b.typeMat = v('#b_type');
+  b.fraisOui = c('#b_frais'); b.totalHt = c('#b_ht');
+  b.testAlarme = c('#b_alarme'); b.testLiaison = c('#b_liaison');
+  b.obsTech = v('#b_obs');
+  b.nomTech = v('#b_nomtech'); b.nomClient = v('#b_nomclient');
+  if (!b.mensIdem) b.mensualite = v('#b_mens');
+  document.querySelectorAll('[data-ligne]').forEach((n) => {
+    const l = b.lignes[Number(n.dataset.ligne)];
+    if (!l) return;
+    const ch = n.dataset.champ;
+    l[ch] = ch === 'reference' ? refSaisie(n.value) : n.value;
+  });
+}
+
+async function validerBulletin() {
+  lireBulletin();
+  const b = bulletin;
+  if (!b.numMission.trim()) { toast('Indiquez le n\u00b0 de mission.'); return; }
+  if (!b.nom.trim()) { toast('Indiquez le nom du client.'); return; }
+  if (!padTech || padTech.vide()) { toast('Signature du technicien manquante.'); return; }
+  if (!padClient || padClient.vide()) { toast('Signature du client manquante.'); return; }
+
+  const total = totalBulletin(b);
+  const donnees = {
+    date: versFr(b.date), numMission: b.numMission, lieuProtege: b.lieuProtege,
+    nom: b.nom, adresse: b.adresse, cp: b.cp, ville: b.ville,
+    natures: b.natures, marque: b.marque, typeMat: b.typeMat,
+    lignes: b.lignes.map((l) => ({
+      detail: l.detail, reference: refFormatee(l.reference), qte: l.qte,
+      pu: l.pu, total: totalLigne(l) ? eur2(totalLigne(l)) : '',
+    })),
+    forfaitLocatif: b.forfaitLocatif, forfaitAcquisition: b.forfaitAcquisition,
+    reglPrelevement: b.reglPrelevement, fraisOui: b.fraisOui,
+    total: total ? eur2(total) : '', totalHt: b.totalHt,
+    mensualite: b.mensIdem ? 'IDEM' : (b.mensualite ? b.mensSigne + b.mensualite : ''),
+    testAlarme: b.testAlarme, testLiaison: b.testLiaison,
+    obsTech: b.obsTech, nomTech: b.nomTech, nomClient: b.nomClient,
+    tracesTech: padTech.traces(), tracesClient: padClient.traces(),
+  };
+
+  const blob = genererBulletin(donnees);
+  const nomFichier = 'BULLETIN_INTER_'
+    + (b.numMission.replace(/[^A-Za-z0-9_-]/g, '_') || 'bulletin') + '.pdf';
+  const fichier = new File([blob], nomFichier, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+    try {
+      await navigator.share({ files: [fichier], title: "Bulletin d'intervention" });
+      toast('Bulletin partag\u00e9.');
+      return;
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomFichier; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le au mail du client.', 5000);
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  const nat = e.target.closest('#b_natures button');
+  if (nat) {
+    lireBulletin();
+    const k = nat.dataset.nature;
+    bulletin.natures[k] = !bulletin.natures[k];
+    rendre(); return;
+  }
+  const forf = e.target.closest('#b_forfait button');
+  if (forf) {
+    lireBulletin();
+    bulletin.forfaitLocatif = forf.dataset.forfait === 'loc';
+    bulletin.forfaitAcquisition = !bulletin.forfaitLocatif;
+    rendre(); return;
+  }
+  const sg = e.target.closest('#b_signe button');
+  if (sg) {
+    lireBulletin();
+    const val = sg.dataset.signe;
+    if (val === 'IDEM') { bulletin.mensIdem = !bulletin.mensIdem; }
+    else {
+      bulletin.mensIdem = false;
+      bulletin.mensSigne = bulletin.mensSigne === val ? '' : val;
+    }
+    rendre(); return;
+  }
+  if (e.target.closest('#b_ajout_ligne')) {
+    lireBulletin();
+    bulletin.lignes.push({ detail: '', reference: '', qte: '', pu: '' });
+    rendre(); return;
+  }
+  if (e.target.closest('#b_eff_tech')) { if (padTech) padTech.effacer(); return; }
+  if (e.target.closest('#b_eff_client')) { if (padClient) padClient.effacer(); return; }
+  if (e.target.closest('#b_valider')) { validerBulletin(); return; }
+
   const typeC = e.target.closest('#c_type button');
   if (typeC) {
     lireConge(); conge.congesPayes = typeC.dataset.paye === '1'; rendre(); return;
@@ -738,6 +1036,12 @@ document.addEventListener('change', async (e) => {
     lireTicket();
     try { ticket.apercu = await reduire(e.target.files[0]); rendre(); }
     catch (err) { toast('Photo illisible, reprenez-la.'); }
+    return;
+  }
+  if (ecran === 'bulletin') {
+    if (e.target.matches('[data-champ="detail"], #b_frais, #b_ht')) {
+      lireBulletin(); rendre();
+    }
     return;
   }
   if (ecran !== 'formulaire') return;
