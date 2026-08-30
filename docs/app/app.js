@@ -18,6 +18,8 @@ import {
 } from './frais.js';
 import { photo, enregistrerPhoto, supprimerPhoto, reduire, nomTicket }
   from './photos.js';
+import { genererConge, nomFichierConge } from './docConge.js';
+import { creerPad } from './signature.js';
 
 const TEL_TECHLINE = '0388398894';
 const TEL_LOGISTIQUE = '0369740780';
@@ -31,6 +33,8 @@ let reglages = lireReglages();
 let entrees = lireEntrees();
 let brouillon = null;          // intervention en cours de saisie
 let ticket = null;             // ticket de frais en cours de saisie
+let conge = null;              // demande de conge en cours
+let pad = null;                // pad de signature de l'ecran courant
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -375,14 +379,70 @@ function vueTicket() {
   </div>`;
 }
 
+
+// ============================================================= CONGE
+function vueConge() {
+  const c = conge;
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#F59E0B,#3A2606)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">DEMANDE DE CONG\u00c9</span>
+  </div>
+  <div class="form">
+    <div class="champ requis"><label for="c_nom">Nom et pr\u00e9nom</label>
+      <input id="c_nom" value="${ech(c.nom)}" /></div>
+
+    <div class="champ"><label>Type de cong\u00e9s</label>
+      <div class="segment" id="c_type">
+        <button type="button" data-paye="1" aria-pressed="${c.congesPayes}">
+          Cong\u00e9s pay\u00e9s</button>
+        <button type="button" data-paye="0" aria-pressed="${!c.congesPayes}">
+          Sans solde</button>
+      </div></div>
+
+    <div class="deux">
+      <div class="champ requis"><label for="c_du">Du</label>
+        <input id="c_du" type="date" value="${ech(c.du)}" /></div>
+      <div class="champ requis"><label for="c_au">Au</label>
+        <input id="c_au" type="date" value="${ech(c.au)}" /></div>
+    </div>
+
+    <div class="bascule">
+      <input type="checkbox" id="c_inclus" ${c.inclus ? 'checked' : ''} />
+      <label for="c_inclus">Dernier jour inclus</label>
+    </div>
+    <div class="aide">D\u00e9coch\u00e9, le document porte la mention
+      \u00ab dernier jour NON inclus \u00bb.</div>
+
+    <div class="champ"><label for="c_date">Date de la demande</label>
+      <input id="c_date" type="date" value="${ech(c.date)}" /></div>
+
+    <div class="champ requis"><label>Signature</label>
+      <canvas class="pad" id="c_pad"></canvas>
+      <div class="pad-actions">
+        <span class="aide">Signez avec le doigt.</span>
+        <button type="button" id="c_effacer">Effacer</button>
+      </div></div>
+
+    <button class="btn" id="c_valider"
+            style="background:linear-gradient(135deg,#F59E0B,#3A2606)">
+      G\u00e9n\u00e9rer et envoyer</button>
+    <div class="note">Le PDF part par la feuille de partage : choisissez votre
+      application mail, puis saisissez les destinataires.</div>
+  </div>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
-    frais: vueFrais, ticket: vueTicket,
+    frais: vueFrais, ticket: vueTicket, conge: vueConge,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
+  // Le canvas n'existe qu'apres le rendu : le pad est recree a chaque fois.
+  const toile = $('#c_pad');
+  pad = toile ? creerPad(toile) : null;
 }
 
 function aller(ou) {
@@ -392,6 +452,13 @@ function aller(ou) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
     ecran = 'formulaire';
+  } else if (ou === 'conge') {
+    conge = {
+      nom: (reglages.nomUtilisateur || '').toUpperCase(),
+      congesPayes: true, du: '', au: '', inclus: true,
+      date: aujourdhuiIso(),
+    };
+    ecran = 'conge';
   } else if (ou === 'nouveauFrais') {
     ticket = {
       date: aujourdhuiIso(), categorie: 'PARKING', montantEur: '',
@@ -439,6 +506,7 @@ async function ouvrir(cible) {
   if (cible === 'logistique') { location.href = 'tel:' + TEL_LOGISTIQUE; return; }
   if (cible === 'cloture' || cible === 'nouvelle') { aller(cible); return; }
   if (cible === 'frais') { aller('frais'); return; }
+  if (cible === 'conge') { aller('conge'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -554,8 +622,67 @@ function validerTicket() {
   toast('Ticket enregistr\u00e9.');
 }
 
+
+/** jj/mm/aaaa attendu par le document ; le champ date fournit de l'ISO. */
+function versFr(iso) {
+  const p = String(iso || '').split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '';
+}
+
+function lireConge() {
+  if (ecran !== 'conge' || !conge) return;
+  const v = (id) => { const n = $(id); return n ? n.value : ''; };
+  conge.nom = v('#c_nom');
+  conge.du = v('#c_du');
+  conge.au = v('#c_au');
+  conge.date = v('#c_date') || conge.date;
+  const i = $('#c_inclus');
+  conge.inclus = i ? i.checked : true;
+}
+
+async function validerConge() {
+  lireConge();
+  if (!conge.nom.trim()) { toast('Indiquez votre nom.'); return; }
+  if (!conge.du || !conge.au) { toast('Indiquez les dates du et au.'); return; }
+  if (conge.au < conge.du) { toast('La date de fin doit suivre le d\u00e9but.'); return; }
+  if (!pad || pad.vide()) { toast('Signez la demande.'); return; }
+
+  const donnees = {
+    nom: conge.nom.toUpperCase(),
+    congesPayes: conge.congesPayes,
+    du: versFr(conge.du), au: versFr(conge.au),
+    inclus: conge.inclus, date: versFr(conge.date),
+    traces: pad.traces(),
+  };
+  const blob = genererConge(donnees);
+  const fichier = new File([blob], nomFichierConge(donnees), { type: 'application/pdf' });
+
+  // Partage natif avec piece jointe : c'est ainsi qu'on atteint l'app mail sur
+  // iPhone. Si le partage de fichier n'est pas gere, on retombe sur un
+  // telechargement plutot que de laisser le technicien sans document.
+  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+    try {
+      await navigator.share({ files: [fichier], title: 'Demande de conges' });
+      toast('Demande partag\u00e9e.');
+      return;
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fichier.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('PDF t\u00e9l\u00e9charg\u00e9 : joignez-le \u00e0 votre mail.', 5000);
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  const typeC = e.target.closest('#c_type button');
+  if (typeC) {
+    lireConge(); conge.congesPayes = typeC.dataset.paye === '1'; rendre(); return;
+  }
+  if (e.target.closest('#c_effacer')) { if (pad) pad.effacer(); return; }
+  if (e.target.closest('#c_valider')) { validerConge(); return; }
+
   const cat = e.target.closest('#t_cat button');
   if (cat) { lireTicket(); ticket.categorie = cat.dataset.cat; rendre(); return; }
 
