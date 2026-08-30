@@ -232,3 +232,50 @@ input, select, textarea, button { font-size: 16px; font-family: inherit; }
   border-radius: 13px; padding: 13px 15px; font-size: 13px; z-index: 40;
   box-shadow: 0 10px 30px rgba(0,0,0,.55); line-height: 1.5;
 }
+
+/* ------------------------------------------------- Liste des interventions */
+.ligne {
+  background: var(--lift1); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start;
+  margin-bottom: 8px;
+}
+.ligne .corps { flex: 1; min-width: 0; }
+.ligne .haut { font-size: 13px; font-weight: 700; }
+.ligne .bas { font-size: 11px; color: var(--low); margin-top: 3px; }
+.etiquette {
+  font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 20px;
+  white-space: nowrap; flex: none;
+}
+.etiquette.ok { background: rgba(74,222,128,.15); color: var(--success); }
+.etiquette.nr { background: rgba(255,61,90,.15); color: var(--signal); }
+.etiquette.an { background: rgba(255,179,71,.15); color: var(--warning); }
+
+.jour {
+  margin: 16px 0 8px; display: flex; justify-content: space-between;
+  align-items: baseline;
+}
+.jour .d { font-size: 12px; font-weight: 700; color: var(--mid); }
+.jour .h { font-size: 12px; font-weight: 800; color: #A78BFA; }
+
+.vide { text-align: center; color: var(--low); font-size: 13px; padding: 34px 10px; }
+
+.deux { display: flex; gap: 10px; }
+.deux > * { flex: 1; min-width: 0; }
+
+.segment { display: flex; gap: 6px; flex-wrap: wrap; }
+.segment button {
+  border: 1px solid var(--line); background: var(--lift1); color: var(--mid);
+  border-radius: 9px; padding: 9px 13px; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.segment button[aria-pressed="true"] {
+  background: #7C3AED; border-color: #7C3AED; color: #fff;
+}
+
+.fab {
+  position: fixed; right: 18px; bottom: calc(18px + var(--pad-bas));
+  border: 0; border-radius: 28px; padding: 15px 20px; font-size: 14px;
+  font-weight: 800; color: #fff; cursor: pointer; z-index: 20;
+  background: linear-gradient(135deg,#7C3AED,#1A0B36);
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
