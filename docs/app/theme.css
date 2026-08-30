@@ -1,0 +1,186 @@
+/*
+ * G-Systems — Copyright (c) 2026 Cedric LAGO-GOMEZ. Tous droits reserves.
+ * Voir le fichier LICENSE a la racine du depot.
+ *
+ * Theme « Obsidian » — valeurs reprises telles quelles de l'application
+ * Android (ui/theme/Color.kt) pour que les deux versions soient identiques.
+ */
+
+:root {
+  /* Fonds */
+  --obsidian: #07080D;
+  --lift1: #12141B;
+  --lift2: #1A1D26;
+  --lift3: #252834;
+  --line: #2F3340;
+
+  /* Textes */
+  --hi: #F7F7F2;
+  --mid: #B8BECC;
+  --low: #7A8094;
+
+  /* Etats */
+  --signal: #FF3D5A;
+  --success: #4ADE80;
+  --warning: #FFB347;
+
+  /* Marque */
+  --rouge-g: #ee2322;
+
+  /* Securite encoche / barre du bas iPhone */
+  --pad-haut: env(safe-area-inset-top, 0px);
+  --pad-bas: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--obsidian);
+  color: var(--hi);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Empeche le rebond elastique iOS qui laisse voir du blanc sous la page */
+  overscroll-behavior: none;
+}
+
+body {
+  padding-top: var(--pad-haut);
+  padding-bottom: var(--pad-bas);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Pas de zoom involontaire : sous 16px, iOS zoome sur les champs a la saisie */
+input, select, textarea, button { font-size: 16px; font-family: inherit; }
+
+/* ---------------------------------------------------------------- En-tete */
+.entete {
+  padding: 14px 18px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.marque { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.marque .g { color: var(--rouge-g); }
+.sous-marque {
+  font-size: 10px;
+  color: var(--mid);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.pastille { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); flex: none; }
+.pastille.ok { background: var(--success); }
+
+.bandeau-nr {
+  margin: 0 18px 4px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--success);
+}
+.bandeau-nr.hors { background: rgba(255, 61, 90, 0.12); color: var(--signal); }
+
+/* --------------------------------------------------------------- Onglets */
+.onglets {
+  display: flex;
+  gap: 4px;
+  margin: 10px 18px 4px;
+  padding: 4px;
+  background: var(--lift1);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+.onglet {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--mid);
+  padding: 9px 4px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: background .18s, color .18s;
+}
+.onglet .ic { font-size: 15px; line-height: 1; }
+.onglet[aria-selected="true"] { color: #fff; font-weight: 700; }
+
+/* --------------------------------------------------------------- Groupes */
+.groupe { margin: 14px 18px 4px; display: flex; align-items: flex-start; gap: 10px; }
+.groupe .barre { width: 5px; height: 30px; border-radius: 3px; flex: none; }
+.groupe .titre { font-size: 15px; font-weight: 800; letter-spacing: 1px; line-height: 1.1; }
+.groupe .desc { font-size: 10px; color: var(--low); margin-top: 2px; }
+
+/* --------------------------------------------------------------- Tuiles */
+.tuiles { padding: 4px 18px 28px; display: flex; flex-direction: column; gap: 10px; }
+
+.tuile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 16px 16px 16px 14px;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  /* Le degrade est pose en style inline : chaque tuile reprend la couleur de
+     fin de la precedente (waterfall identique a l'application Android). */
+  transition: transform .12s ease;
+}
+.tuile:active { transform: scale(0.985); }
+
+.tuile .rond {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px; flex: none;
+}
+.tuile .txt { min-width: 0; }
+.tuile .nom {
+  font-size: 16px; font-weight: 800; letter-spacing: -0.2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tuile .sous { font-size: 11px; opacity: 0.82; margin-top: 3px; }
+.tuile .num {
+  position: absolute; top: 10px; right: 14px;
+  font-size: 10px; font-weight: 700; opacity: 0.5; letter-spacing: 1px;
+}
+
+/* ------------------------------------------------------- Bandeau install */
+.install {
+  margin: 0 18px 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--lift1);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--mid);
+  line-height: 1.5;
+}
+.install b { color: var(--hi); }
+.install .fermer {
+  margin-top: 8px; background: transparent; border: 1px solid var(--line);
+  color: var(--mid); border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+
+/* ------------------------------------------------------------ Ecran vide */
+.a-venir {
+  margin: 18px; padding: 18px; border-radius: 12px;
+  background: var(--lift1); border: 1px dashed var(--line);
+  color: var(--mid); font-size: 13px; line-height: 1.6;
+}
