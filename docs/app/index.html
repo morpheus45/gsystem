@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
+<title>G-Systems</title>
+<meta name="copyright" content="Copyright (c) 2026 Cédric LAGO-GOMEZ — Tous droits réservés" />
+<meta name="tdm-reservation" content="1" />
+<meta name="robots" content="noindex, nofollow, noarchive" />
+<meta name="noai" content="true" />
+
+<!-- Installation sur l'écran d'accueil iPhone -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="G-Systems" />
+<meta name="theme-color" content="#07080D" />
+<link rel="apple-touch-icon" href="icone-180.png" />
+<link rel="icon" href="icone-180.png" />
+
+<link rel="stylesheet" href="theme.css" />
+</head>
+<body>
+
+<header class="entete">
+  <div>
+    <div class="marque"><span class="g">g</span>systems</div>
+    <div class="sous-marque">
+      <span class="pastille" id="pastille"></span><span id="etat">HORS LIGNE</span>
+    </div>
+  </div>
+</header>
+
+<div class="bandeau-nr" id="nr">NR TECH — &middot; BRUT — &middot; 0 INST</div>
+
+<div class="install" id="install">
+  <b>Installer sur l'iPhone</b><br />
+  Dans Safari, touchez <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>.
+  L'application s'ouvrira ensuite en plein écran, avec son icône, comme une
+  application installée.
+  <br /><button class="fermer">J'ai compris</button>
+</div>
+
+<nav class="onglets" id="onglets" role="tablist"></nav>
+<div class="groupe" id="groupe"></div>
+<main class="tuiles" id="tuiles"></main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
