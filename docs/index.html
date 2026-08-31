@@ -104,6 +104,19 @@
     .meta { margin-top: 12px; font-size: 13px; color: var(--muted); }
     .meta strong { color: var(--accent); font-weight: 700; }
 
+    /* Les deux versions, côte à côte */
+    .deux-versions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .deux-versions .download-card { margin-bottom: 0; display: flex; flex-direction: column; }
+    .deux-versions .meta { margin-top: auto; padding-top: 12px; }
+    .v-titre { font-size: 12.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .btn-apple { background: var(--text); color: #07080D; box-shadow: 0 3px 12px rgba(247,247,242,.22); }
+    .v-apple .meta strong { color: var(--text); }
+    .colonnes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+    .colonnes .col { background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .colonnes .col-h { display: block; font-size: 13.5px; margin-bottom: 4px; }
+    .colonnes p { margin: 4px 0; }
+    @media (max-width: 620px) { .deux-versions, .colonnes { grid-template-columns: 1fr; } }
+
     /* Étapes numérotées */
     .steps { display: grid; gap: 12px; margin: 14px 0; }
     .step { display: flex; gap: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; align-items: flex-start; }
@@ -157,19 +170,45 @@
       <path class="bl-g" d="M158,58 Q158,38 138,38 L62,38 Q38,38 38,62 L38,138 Q38,162 62,162 L138,162 Q162,162 162,138 L162,108 L112,108"/>
       <g clip-path="url(#mouthH)"><text class="bl-word" x="178" y="128">systems</text></g>
     </svg>
-    <p class="subtitle">L'appli des techniciens · Android</p>
+    <p class="subtitle">L'appli des techniciens · Android et iPhone</p>
   </header>
 
   <!-- Téléchargement -->
-  <div class="download-card">
-    <a class="download-btn" href="Gsystem-GooglePlay-1.9.77.apk" id="dl-btn" download>
-      📲 Télécharger l'appli
-    </a>
-    <div class="meta">Version <strong>1.9.77</strong> &nbsp;·&nbsp; <strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
+  <div class="deux-versions">
+    <div class="download-card">
+      <div class="v-titre">🤖 Android</div>
+      <a class="download-btn" href="Gsystem-GooglePlay-1.9.77.apk" id="dl-btn" download>
+        📲 Télécharger l'appli
+      </a>
+      <div class="meta">Version <strong>1.9.77</strong> &nbsp;·&nbsp; <strong>Signée Google Play</strong> &nbsp;·&nbsp; Android 8+ &nbsp;·&nbsp; ~19 Mo</div>
+    </div>
+    <div class="download-card v-apple">
+      <div class="v-titre">🍎 iPhone</div>
+      <a class="download-btn btn-apple" href="app/">
+        📱 Ouvrir l'appli iPhone
+      </a>
+      <div class="meta"><strong>À poser sur l'écran d'accueil</strong> &nbsp;·&nbsp; iOS 16.4+ &nbsp;·&nbsp; rien à télécharger</div>
+    </div>
   </div>
 
   <div class="card green">
-    <p style="margin:0"><b>✅ Application signée Google Play</b> — installation sûre. <b>Cette page est à ouvrir depuis le téléphone</b> (et non l'ordinateur) : le bouton installe l'application directement sur le mobile.</p>
+    <p style="margin:0"><b>✅ Cette page est à ouvrir depuis le téléphone</b> (et non l'ordinateur). Sur Android, le bouton installe l'application signée Google Play — installation sûre, aucune manipulation de sécurité. Sur iPhone, le bouton ouvre l'application dans Safari : posez-la sur l'écran d'accueil et elle s'ouvre ensuite comme n'importe quelle autre app.</p>
+  </div>
+
+  <!-- LES DEUX VERSIONS -->
+  <div class="card">
+    <p style="font-size:17px; margin:0 0 8px"><b>📱 Deux versions, le même travail</b></p>
+    <p style="margin:0 0 8px">Les deux versions produisent <b>exactement les mêmes documents</b> : même feuille de temps Excel (macros intactes), mêmes messages Viber, mêmes mails, mêmes bulletins, PV et récaps signés. Le bureau reçoit la même chose, quel que soit votre téléphone.</p>
+    <div class="colonnes">
+      <div class="col">
+        <b class="col-h">🤖 Android</b>
+        <p class="small">Application installée depuis cette page. Le fichier Excel est désigné une fois pour toutes. Les mails partent avec destinataires, objet et pièces jointes déjà remplis.</p>
+      </div>
+      <div class="col">
+        <b class="col-h">🍎 iPhone</b>
+        <p class="small">Application posée sur l'écran d'accueil depuis Safari. Le fichier Excel est choisi à chaque envoi. Les pièces jointes passent par le bouton <b>Partager</b> d'iOS : vous choisissez Mail, et vous collez les destinataires avec le bouton prévu dans l'écran d'envoi.</p>
+      </div>
+    </div>
   </div>
 
   <!-- C'EST QUOI -->
@@ -186,8 +225,18 @@
       <div class="n">1</div>
       <div class="t">
         <b class="h">📲 Installer l'application</b>
-        <p>Appuyez sur le gros bouton ci-dessus : le navigateur télécharge le fichier.</p>
-        <p class="small">Ouvrez le fichier téléchargé et appuyez sur <b>Installer</b>. L'application est <b>signée Google Play</b> — aucune manipulation de sécurité à faire.</p>
+        <div class="colonnes">
+          <div class="col">
+            <b class="col-h">🤖 Android</b>
+            <p>Appuyez sur <b>Télécharger l'appli</b> ci-dessus : le navigateur télécharge le fichier.</p>
+            <p class="small">Ouvrez le fichier téléchargé et appuyez sur <b>Installer</b>. L'application est <b>signée Google Play</b> — aucune manipulation de sécurité à faire.</p>
+          </div>
+          <div class="col">
+            <b class="col-h">🍎 iPhone</b>
+            <p>Appuyez sur <b>Ouvrir l'appli iPhone</b> ci-dessus, <b>depuis Safari</b>. Touchez ensuite <b>Partager</b> (le carré avec la flèche, en bas de l'écran), puis <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</p>
+            <p class="small">L'icône G-Systems se pose sur l'écran d'accueil et s'ouvre en plein écran, comme une application installée. <b>Safari est obligatoire pour cette étape</b> : Chrome sur iPhone ne propose pas « Sur l'écran d'accueil ». Une fois posée, l'application s'ouvre même sans réseau.</p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -208,6 +257,16 @@
         <p style="margin:6px 0"><a href="Trame-GSYSTEMS-FDT.xlsm" download style="display:inline-block;background:var(--card2);border:1px solid var(--accent);color:var(--accent);text-decoration:none;font-weight:700;font-size:13.5px;padding:9px 14px;border-radius:10px">⬇️ Télécharger la trame officielle (.xlsm)</a></p>
         <p><b>⚠ La trame est à ouvrir UNE FOIS sur un ordinateur</b> (vrai Excel, pas le téléphone) : ouvrez-la, <b>signez-la</b> et <b>enregistrez</b>. Cette première ouverture <b>active les macros</b> — sans elle, le remplissage automatique ne fonctionne pas.</p>
         <p class="small">Placez ensuite le fichier sur votre téléphone (OneDrive, Drive ou Téléchargements). Son nom n'a pas d'importance.</p>
+        <div class="colonnes">
+          <div class="col">
+            <b class="col-h">🤖 Android</b>
+            <p class="small">Vous désignez le fichier une seule fois, dans <b>Envoi mensuel</b>. L'application le retrouve ensuite toute seule à chaque envoi.</p>
+          </div>
+          <div class="col">
+            <b class="col-h">🍎 iPhone</b>
+            <p class="small">Vous choisissez le fichier <b>à chaque envoi mensuel</b>, dans Fichiers, OneDrive ou Drive. iOS n'autorise pas une application web à garder l'accès à un fichier d'un envoi sur l'autre.</p>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -3,17 +3,22 @@
  * Voir le fichier LICENSE a la racine du depot.
  */
 
-// PV d'installation cameras, recree en vectoriel.
-// La version Android surimprime une trame officielle ; ici tout est redessine,
-// donc rien a telecharger et le document se genere hors ligne.
+// PV d'installation cameras - miroir de export/PvPdfGenerator.kt.
+//
+// Le PV officiel (trame-pv.pdf, la meme que assets/pv_cameras.pdf cote Android)
+// est repris tel quel, sur ses DEUX pages, et les champs sont ajoutes par-dessus
+// aux coordonnees exactes de l'Android. Le client signe le document qu'il
+// connait, et l'abonnement y figure aux memes lignes.
+//
+// L'Android rasterise la trame a 180 dpi avant de dessiner ; ici la
+// surimpression reste vectorielle. Voir fond.js.
 
-import { creerPage, construire } from './pdf.js';
+import { creerPage } from './pdf.js';
+import { pageDeFond, surimprimerPages } from './fond.js';
 
-const W = 595, H = 842, M = 40;
 const NOIR = [0, 0, 0];
-const GRIS = [0.5, 0.5, 0.5];
-const BLEU = [0.12, 0.31, 0.61];
-const BLEU_FOND = [0.86, 0.90, 0.95];
+const BLANC = [1, 1, 1];
+const TRAME = 'trame-pv.pdf';
 
 /** Tarifs - repris de ui/PvCameraScreen.kt. */
 export const PRIX = { EXT: 179.0, INT: 149.0, TORUS: 89.0, MES_INT: 40.0, MES_EXT: 70.0 };
@@ -38,115 +43,116 @@ export function totalPv(d) {
   return { equip: equip, mes: mes, total: equip + mes };
 }
 
-function ligneEquip(p, y, libelle, prix, nb, montant) {
-  p.cadre(M, y, W - M, y + 20, 0.6, GRIS);
-  p.trait(390, y, 390, y + 20, 0.6, GRIS);
-  p.trait(462, y, 462, y + 20, 0.6, GRIS);
-  p.texte(libelle, M + 6, y + 14, 8.5, false, NOIR);
-  p.texte(eur2(prix) + ' \u20ac', 300, y + 14, 8.5, false, GRIS);
-  p.texte(nb || '', 420, y + 14, 9, true, NOIR);
-  p.texte(montant ? eur2(montant) : '', 470, y + 14, 9, true, NOIR);
+let cache = null;
+
+async function trame() {
+  if (!cache) {
+    const r = await fetch(TRAME);
+    if (!r.ok) throw new Error('Trame du PV introuvable.');
+    cache = new Uint8Array(await r.arrayBuffer());
+  }
+  return cache;
 }
 
-export function genererPv(d) {
-  const p = creerPage(W, H);
+/** Croix d'une case a cocher, rayon 4,5 pt et trait 1,4 pt comme l'Android. */
+function croix(p, cx, cy) {
+  const r = 4.5;
+  p.trait(cx - r, cy - r, cx + r, cy + r, 1.4, NOIR);
+  p.trait(cx - r, cy + r, cx + r, cy - r, 1.4, NOIR);
+}
+
+/**
+ * Decoupe les observations comme wrapObs : la 1re ligne demarre a droite du
+ * libelle imprime (92 caracteres), les suivantes occupent toute la largeur.
+ */
+function couperObservations(s) {
+  const texte = String(s || '').trim();
+  if (!texte) return [];
+  const out = [];
+  let courant = '';
+  let limite = 92;
+  texte.split(/\s+/).forEach((mot) => {
+    const essai = courant ? courant + ' ' + mot : mot;
+    if (essai.length <= limite) {
+      courant = essai;
+    } else {
+      out.push(courant);
+      courant = mot;
+      limite = 150;
+    }
+  });
+  if (courant) out.push(courant);
+  return out;
+}
+
+/**
+ * d : { conv, site, dateSous, nom, adr, nbExt, nbInt, nbTorus,
+ *       miseServInt, miseServExt, miseServAnticipee, observations, faitLe,
+ *       nomTech, tracesAbonne, tracesTech, tracesParapheTech,
+ *       tracesParapheClient }
+ * Les dates arrivent deja en jj/mm/aaaa.
+ */
+export async function genererPv(d) {
+  const octets = await trame();
   const t = totalPv(d);
   const q = (v) => Number(String(v || '').replace(',', '.')) || 0;
+  const montant = (nb, prix) => (q(nb) ? eur2(q(nb) * prix) + ' €' : '');
 
-  p.rempli(M, 40, W - M, 92, BLEU_FOND);
-  p.texte("PROC\u00c8S-VERBAL D'INSTALLATION", M + 12, 68, 15, true, BLEU);
-  p.texte('CAM\u00c9RAS', M + 12, 84, 10, true, BLEU);
+  const couches = [];
+  for (let i = 0; i < 2; i++) {
+    const page = pageDeFond(octets, i);
+    const p = creerPage(page.largeur, page.hauteur);
 
-  p.texte('Convention n\u00b0', M, 122, 8, false, GRIS);
-  p.texte(d.conv || '', M + 80, 122, 10, true, NOIR);
-  p.trait(M + 76, 126, M + 230, 126, 0.5, GRIS);
-  p.texte('Site n\u00b0', M + 250, 122, 8, false, GRIS);
-  p.texte(d.site || '', M + 300, 122, 10, true, NOIR);
-  p.trait(M + 296, 126, W - M, 126, 0.5, GRIS);
+    // En-tete, repete sur les deux pages comme sur la trame.
+    p.texte(d.conv, 78, 45, 9.5, true, NOIR);
+    p.texte(d.site, 210, 45, 9.5, true, NOIR);
+    p.texte(d.dateSous, 392, 45, 9.5, true, NOIR);
+    p.texte(d.nom, 144, 66, 9.5, true, NOIR);
+    p.texte(d.adr, 126, 92, 9, true, NOIR);
 
-  p.texte('Date de souscription', M, 148, 8, false, GRIS);
-  p.texte(d.dateSous || '', M + 110, 148, 10, true, NOIR);
-  p.trait(M + 106, 152, M + 230, 152, 0.5, GRIS);
+    if (i === 0) {
+      p.texte(d.nbExt, 481, 372, 10, true, NOIR);
+      p.texte(montant(d.nbExt, PRIX.EXT), 512, 372, 10, true, NOIR);
+      p.texte(d.nbInt, 481, 392, 10, true, NOIR);
+      p.texte(montant(d.nbInt, PRIX.INT), 512, 392, 10, true, NOIR);
+      p.texte(d.nbTorus, 481, 410, 10, true, NOIR);
+      p.texte(montant(d.nbTorus, PRIX.TORUS), 512, 410, 10, true, NOIR);
+      p.texte(t.equip ? eur2(t.equip) + ' €' : '', 512, 427, 10, true, NOIR);
 
-  p.texte('Nom et pr\u00e9nom', M, 174, 8, false, GRIS);
-  p.texte(d.nom || '', M + 80, 174, 10, true, NOIR);
-  p.trait(M + 76, 178, W - M, 178, 0.5, GRIS);
+      if (d.miseServInt) croix(p, 14, 508);
+      if (d.miseServExt) croix(p, 14, 519);
+      p.texte(t.total ? eur2(t.total) + ' €' : '', 512, 565, 10, true, NOIR);
 
-  p.texte('Adresse', M, 200, 8, false, GRIS);
-  p.texte(d.adr || '', M + 52, 200, 9.5, true, NOIR);
-  p.trait(M + 48, 204, W - M, 204, 0.5, GRIS);
+      let oy = 578;
+      couperObservations(d.observations).slice(0, 4).forEach((ligne, idx) => {
+        p.texte(ligne, idx === 0 ? 200 : 10, oy, 9, false, NOIR);
+        oy += 13;
+      });
 
-  p.texte('\u00c9QUIPEMENT VID\u00c9O', M, 240, 11, true, BLEU);
-  let y = 250;
-  p.rempli(M, y, W - M, y + 18, BLEU_FOND);
-  p.cadre(M, y, W - M, y + 18, 0.6, GRIS);
-  p.trait(390, y, 390, y + 18, 0.6, GRIS);
-  p.trait(462, y, 462, y + 18, 0.6, GRIS);
-  p.texte('D\u00e9signation', M + 6, y + 13, 8.5, true);
-  p.texte('Nombre', 400, y + 13, 8.5, true);
-  p.texte('Total \u20ac', 470, y + 13, 8.5, true);
-  y += 18;
+      p.signature(d.tracesParapheClient, 513, 805, 593, 839, 1.2);
+      p.signature(d.tracesParapheTech, 5, 805, 106, 839, 1.2);
+    }
 
-  ligneEquip(p, y, 'HOMIRIS HD-100 ext\u00e9rieure', PRIX.EXT, d.nbExt,
-             q(d.nbExt) * PRIX.EXT); y += 20;
-  ligneEquip(p, y, 'HOMIRIS HD-100 int\u00e9rieure', PRIX.INT, d.nbInt,
-             q(d.nbInt) * PRIX.INT); y += 20;
-  ligneEquip(p, y, 'TORUS int\u00e9rieure', PRIX.TORUS, d.nbTorus,
-             q(d.nbTorus) * PRIX.TORUS); y += 20;
+    if (i === 1) {
+      if (d.miseServAnticipee) croix(p, 16, 342);
+      // La trame porte deja une date imprimee a cet endroit : on la couvre
+      // avant d'ecrire la notre, exactement comme le mask() de l'Android.
+      p.rempli(33, 437, 110, 450, BLANC);
+      p.texte(d.faitLe, 36, 447, 9.5, true, NOIR);
+      p.texte(d.nomTech, 452, 467, 8.5, true, NOIR);
+      p.texte(d.site, 533, 751, 8.5, true, NOIR);
+      p.signature(d.tracesAbonne, 92, 457, 304, 505.5, 1.2);
+      p.signature(d.tracesTech, 308, 468, 548, 505.5, 1.2);
+    }
 
-  p.cadre(M, y, W - M, y + 20, 0.6, GRIS);
-  p.trait(462, y, 462, y + 20, 0.6, GRIS);
-  p.texte('TOTAL \u00c9QUIPEMENT', M + 6, y + 14, 9, true);
-  p.texte(t.equip ? eur2(t.equip) : '', 470, y + 14, 9, true);
-  y += 34;
-
-  p.texte('MISE EN SERVICE', M, y, 11, true, BLEU);
-  y += 12;
-  p.cadre(M, y, M + 11, y + 11, 0.7, NOIR);
-  if (d.miseServInt) p.croix(M, y, 11);
-  p.texte('Int\u00e9rieure (' + eur2(PRIX.MES_INT) + ' \u20ac TTC)', M + 20, y + 9, 9);
-  p.cadre(M + 220, y, M + 231, y + 11, 0.7, NOIR);
-  if (d.miseServExt) p.croix(M + 220, y, 11);
-  p.texte('Ext\u00e9rieure (' + eur2(PRIX.MES_EXT) + ' \u20ac TTC)', M + 240, y + 9, 9);
-  y += 30;
-
-  p.cadre(M, y, W - M, y + 26, 0.8, NOIR);
-  p.texte('MONTANT TOTAL', M + 8, y + 17, 11, true);
-  p.texte(eur2(t.total) + ' \u20ac TTC', W - M - 110, y + 17, 12, true);
-  y += 44;
-
-  p.cadre(M, y, M + 11, y + 11, 0.7, NOIR);
-  if (d.miseServAnticipee) p.croix(M, y, 11);
-  p.texte('Mise en service anticip\u00e9e demand\u00e9e par le client', M + 20, y + 9, 9);
-  y += 30;
-
-  p.texte('OBSERVATIONS', M, y, 10, true, BLEU);
-  y += 10;
-  const obs = String(d.observations || '').match(/.{1,95}(\s|$)/g) || [];
-  for (let i = 0; i < 3; i++) {
-    p.trait(M, y + 12, W - M, y + 12, 0.4, GRIS);
-    if (obs[i]) p.texte(obs[i].trim(), M + 3, y + 10, 8.5, false, NOIR);
-    y += 18;
+    couches.push({ page: page, flux: p.flux() });
   }
 
-  y += 16;
-  p.texte('Fait le', M, y, 9, false, GRIS);
-  p.texte(d.faitLe || '', M + 40, y, 10, true, NOIR);
-  p.trait(M + 36, y + 4, M + 160, y + 4, 0.5, GRIS);
+  return surimprimerPages(octets, couches);
+}
 
-  const sy = y + 24;
-  const mid = W / 2;
-  p.cadre(M, sy, mid - 8, sy + 100, 0.6, GRIS);
-  p.cadre(mid + 8, sy, W - M, sy + 100, 0.6, GRIS);
-  p.texte("Signature de l'abonn\u00e9", M + 8, sy + 14, 8.5, true);
-  p.texte('Signature du technicien', mid + 16, sy + 14, 8.5, true);
-  p.texte(d.nomTech || '', mid + 16, sy + 26, 8.5, true);
-  p.signature(d.tracesAbonne, M + 8, sy + 30, mid - 16, sy + 94, 1.1);
-  p.signature(d.tracesTech, mid + 16, sy + 34, W - M - 8, sy + 94, 1.1);
-
-  p.texte('Paraphes :', W - M - 150, H - 34, 7.5, false, GRIS);
-  p.signature(d.tracesParapheTech, M, H - 52, M + 70, H - 22, 1.0);
-  p.signature(d.tracesParapheClient, W - M - 100, H - 52, W - M, H - 22, 1.0);
-
-  return construire([p]);
+/** Nom de la piece jointe, identique a celui de l'APK. */
+export function nomFichierPv(site) {
+  const sur = String(site || '').replace(/[^A-Za-z0-9_-]/g, '_') || 'cameras';
+  return 'PV_CAMERAS_' + sur + '.pdf';
 }

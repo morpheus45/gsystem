@@ -3,75 +3,76 @@
  * Voir le fichier LICENSE a la racine du depot.
  */
 
-// Demande de conges, recreee en vectoriel.
+// Demande de conges - miroir de export/CongePdfGenerator.kt.
 //
-// La version Android surimprime sur une trame PDF embarquee dans ses assets.
-// Ici le document est redessine entierement : rien a telecharger, donc il
-// fonctionne hors ligne, et la page reste nette a l'impression.
+// La trame officielle (trame-conge.pdf, la meme que assets/demande_conge.pdf
+// cote Android) est reprise telle quelle et les champs sont ajoutes par-dessus,
+// aux coordonnees exactes de l'Android. Le bureau recoit le formulaire qu'il
+// connait, rempli aux memes endroits.
+//
+// Seule difference de fabrication : l'Android rasterise la trame a 180 dpi et
+// dessine sur l'image ; ici la surimpression reste vectorielle, donc le
+// document est plus net et bien plus leger. Voir fond.js.
 
-import { creerPage, construire, A4 } from './pdf.js';
+import { creerPage } from './pdf.js';
+import { pageDeFond, surimprimer } from './fond.js';
 
 const NOIR = [0, 0, 0];
-const GRIS = [0.45, 0.45, 0.45];
-const BLEU = [0.12, 0.31, 0.61];
-const BLEU_FOND = [0.86, 0.90, 0.95];
-const ROUGE = [0.70, 0.15, 0.15];
+const TRAME = 'trame-conge.pdf';
 
-/** d : { nom, congesPayes, du, au, inclus, date, traces } */
-export function genererConge(d) {
-  const p = creerPage(A4.l, A4.h);
-  const M = 56;
-  const DROITE = A4.l - M;
+let cache = null;
 
-  p.rempli(M, 50, DROITE, 104, BLEU_FOND);
-  p.texte('DEMANDE DE CONGÉS', M + 14, 84, 20, true, BLEU);
-
-  p.texte('Nom et prénom du salarié', M, 150, 9, false, GRIS);
-  p.texte(d.nom || '', M, 172, 13, true, NOIR);
-  p.trait(M, 178, DROITE, 178, 0.6, GRIS);
-
-  // Une seule case cochee, comme sur le formulaire papier.
-  p.texte('Type de congés', M, 214, 9, false, GRIS);
-  p.cadre(M, 224, M + 12, 236, 0.8, NOIR);
-  if (d.congesPayes) p.croix(M, 224, 12);
-  p.texte('Congés payés', M + 22, 234, 11, false, NOIR);
-
-  p.cadre(M + 180, 224, M + 192, 236, 0.8, NOIR);
-  if (!d.congesPayes) p.croix(M + 180, 224, 12);
-  p.texte('Congés sans solde', M + 202, 234, 11, false, NOIR);
-
-  p.texte('Période demandée', M, 282, 9, false, GRIS);
-  p.texte('Du', M, 308, 11, false, NOIR);
-  p.texte(d.du || '', M + 34, 308, 13, true, NOIR);
-  p.trait(M + 30, 313, M + 190, 313, 0.6, GRIS);
-
-  p.texte('au', M + 210, 308, 11, false, NOIR);
-  p.texte(d.au || '', M + 244, 308, 13, true, NOIR);
-  p.trait(M + 240, 313, M + 400, 313, 0.6, GRIS);
-
-  // Mention imprimee telle quelle sur le papier : sans elle, le bureau ne sait
-  // pas si le dernier jour est travaille.
-  p.texte(d.inclus ? '(dernier jour inclus)' : '(dernier jour NON inclus)',
-          M, 334, 10, true, d.inclus ? NOIR : ROUGE);
-
-  p.cadre(M, 372, DROITE, 560, 0.6, GRIS);
-  p.texte('Signature du salarié', M + 14, 396, 9, false, GRIS);
-  p.signature(d.traces, M + 14, 406, M + 250, 500, 1.2);
-
-  p.texte('Date de la demande', DROITE - 190, 396, 9, false, GRIS);
-  p.texte(d.date || '', DROITE - 190, 420, 12, true, NOIR);
-  p.trait(DROITE - 194, 426, DROITE - 14, 426, 0.6, GRIS);
-
-  p.texte('Visa du responsable', DROITE - 190, 470, 9, false, GRIS);
-  p.trait(DROITE - 194, 530, DROITE - 14, 530, 0.6, GRIS);
-
-  p.texte("Document généré par l'application G-Systems.", M, 600, 8, false, GRIS);
-
-  return construire([p]);
+/** La trame, chargee une fois puis gardee en memoire. */
+async function trame() {
+  if (!cache) {
+    const r = await fetch(TRAME);
+    if (!r.ok) throw new Error('Trame de congés introuvable.');
+    cache = new Uint8Array(await r.arrayBuffer());
+  }
+  return cache;
 }
 
-/** Nom de fichier lisible dans la boite mail du bureau. */
+/**
+ * Croix d'une case a cocher : deux diagonales centrees, comme cross() cote
+ * Android (rayon 5 pt, trait 1,4 pt).
+ */
+function croix(p, cx, cy, r) {
+  const t = r || 5;
+  p.trait(cx - t, cy - t, cx + t, cy + t, 1.4, NOIR);
+  p.trait(cx - t, cy + t, cx + t, cy - t, 1.4, NOIR);
+}
+
+/** d : { nom, congesPayes, du, au, inclus, date, traces } */
+export async function genererConge(d) {
+  const octets = await trame();
+  const page = pageDeFond(octets, 0);
+  const p = creerPage(page.largeur, page.hauteur);
+
+  // Nom de l'employe, sur la ligne pointillee.
+  p.texte(d.nom, 182, 130, 10, true, NOIR);
+
+  // Type de conges : une seule case cochee.
+  if (d.congesPayes) croix(p, 183, 184);
+  else croix(p, 183, 200);
+
+  p.texte(d.du, 112, 276, 10, false, NOIR);
+  p.texte(d.au, 112, 291, 10, false, NOIR);
+
+  // La mention « inclus. » est deja imprimee sur la trame. Si le dernier jour
+  // n'est PAS inclus, on la barre et on le precise dessous.
+  if (!d.inclus) {
+    p.trait(350, 287, 382, 287, 1.4, NOIR);
+    p.texte('→ dernier jour NON inclus', 300, 307, 8, false, NOIR);
+  }
+
+  p.signature(d.traces, 80, 395, 300, 470, 1.2);
+  p.texte(d.date, 452, 407, 9, false, NOIR);
+
+  return surimprimer(octets, page, p.flux());
+}
+
+/** Nom de la piece jointe, identique a celui de l'APK. */
 export function nomFichierConge(d) {
-  const chiffres = (s) => String(s || '').replace(/[^0-9]/g, '');
-  return 'Conge_' + chiffres(d.du) + '_au_' + chiffres(d.au) + '.pdf';
+  const sur = String(d.nom || '').replace(/[^A-Za-z0-9_-]/g, '_') || 'employe';
+  return 'Demande_conges_' + sur + '.pdf';
 }

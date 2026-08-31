@@ -316,3 +316,28 @@ input, select, textarea, button { font-size: 16px; font-family: inherit; }
   background: transparent; border: 1px solid var(--line); color: var(--mid);
   border-radius: 9px; padding: 7px 13px; font-size: 12px; cursor: pointer;
 }
+
+/* --------------------------------------------------------- GESTE CO */
+/* Douze types sur un ecran de telephone : une grille serree, deux petits
+   champs par ligne, pour tout voir sans faire defiler la page. */
+.geste {
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--lift1); padding: 6px 10px; margin: 8px 0;
+}
+.geste-l {
+  display: grid; grid-template-columns: 1fr 64px 64px; gap: 8px;
+  align-items: center; padding: 3px 0;
+}
+.geste-l + .geste-l { border-top: 1px solid var(--line); }
+.geste-l > span:first-child { font-size: 13px; color: var(--hi); }
+.geste-l input {
+  width: 100%; box-sizing: border-box; text-align: center;
+  background: var(--lift2); border: 1px solid var(--line); color: var(--hi);
+  border-radius: 8px; padding: 7px 4px; font-size: 15px;
+}
+.geste-l input:disabled { opacity: .35; }
+.geste-tete > span {
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--low); text-align: center;
+}
+.geste-tete > span:first-child { text-align: left; }

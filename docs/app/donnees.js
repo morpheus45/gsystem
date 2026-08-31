@@ -19,6 +19,11 @@ export const REGLAGES_DEFAUT = {
   departementDefaut: '34',
   plaqueVoiture: '',
   cycleStartDay: 21,
+  // Dernier envoi mensuel : c'est lui qui fait demarrer le cycle suivant, le
+  // lendemain. L'historique (24 envois) garde la trace des cycles reellement
+  // clotures, pour ne pas re-ranger l'ancien selon une fenetre theorique.
+  lastEnvoiDateIso: '',
+  envoiHistoryIso: [],
   // Pointage d'arrivee en cours (0 = aucun), et son origine.
   pendingArrivalMs: 0,
   pendingArrivalSource: '',
