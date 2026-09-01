@@ -23,6 +23,9 @@ import {
 } from './photos.js';
 import { cycleCourant, dansPeriode, memoriserEnvoi } from './cycle.js';
 import { remplirClasseur } from './xlsm.js';
+import {
+  lireClasseur, memoriserClasseur, oublierClasseur,
+} from './classeur.js';
 import { deposerEnvoi } from './backup.js';
 import {
   TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
@@ -985,15 +988,29 @@ function vueEnvoi() {
         + '\u21ba Revenir au cycle par d\u00e9faut</button>' : ''}
 
     <div class="jour"><span class="d">MON FICHIER TEMPS .XLSM</span></div>
+    ${(e.memoire && !e.fichier) ? `
+    <div class="total-bloc">
+      <div class="l fort"><span>Classeur mémorisé</span>
+        <span style="color:#4ADE80">✓ ${ech(e.memoire.nom)}</span></div>
+      <div class="l"><span>Dernier cycle écrit</span><span>${e.memoire.debut
+        ? dateFr(e.memoire.debut) + ' → ' + dateFr(e.memoire.fin)
+        : '—'}</span></div>
+    </div>
+    <div class="aide">Rien à choisir : l'envoi repart de ce classeur et y
+      ajoute le cycle en cours. C'est la même feuille de temps qui se
+      complète de mois en mois.</div>
+    <button class="btn" id="e_oublier" style="background:#3A1218">
+      Repartir d'un autre fichier</button>` : `
     <div class="champ">
       <label for="e_xlsm">${e.nomFichier
         ? ech(e.nomFichier) : 'Aucun fichier choisi'}</label>
       <input id="e_xlsm" type="file"
              accept=".xlsm,.xlsx,application/vnd.ms-excel.sheet.macroEnabled.12" />
       <div class="aide">Choisissez votre fichier TEMPS personnel (depuis Fichiers,
-        OneDrive ou Drive). Il est rempli sans jamais perdre ses macros : le
-        classeur d'origine reste intact, l'app en produit une copie remplie.</div>
-    </div>
+        OneDrive ou Drive). Il est rempli sans jamais perdre ses macros. Ce choix
+        ne se fait qu'une fois : le classeur rempli est mémorisé, et les
+        envois suivants repartent de lui.</div>
+    </div>`}
 
     <div class="jour"><span class="d">R\u00c9CAP DU CYCLE</span></div>
     <div class="total-bloc">
@@ -1038,8 +1055,8 @@ function vueEnvoi() {
     ${e.etat ? '<div class="aide" style="color:#4ADE80">' + ech(e.etat) + '</div>' : ''}
     <div class="aide" id="e_drive"></div>
     ${e.erreur ? '<div class="note" style="color:#FF3D5A">' + ech(e.erreur) + '</div>' : ''}
-    <div class="aide">Sans fichier Excel choisi, seuls les tickets et la photo du
-      compteur partent.</div>
+    ${(e.fichier || e.memoire) ? '' : '<div class="aide">Sans fichier Excel '
+      + 'choisi, seuls les tickets et la photo du compteur partent.</div>'}
   </div>`;
 }
 
@@ -1079,15 +1096,24 @@ function aller(ou) {
     demandeCam = { site: '', nb: '', precisions: '' };
     ecran = 'demandecam';
   } else if (ou === 'envoi') {
-    // Le fichier .xlsm ne survit pas a la fermeture de l'app : Safari ne sait
-    // pas garder l'acces a un fichier choisi. Il est redemande a chaque envoi.
+    // Safari ne sait pas garder l'acces au FICHIER choisi, mais l'app en garde
+    // le CONTENU : le classeur rempli au cycle precedent sert de base au
+    // suivant. Le technicien ne redesigne donc rien, et la feuille de temps
+    // s'accumule de cycle en cycle comme sur Android (voir classeur.js).
     const cycle = cycleCourant(
       aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
     envoi = {
       debut: cycle[0], fin: cycle[1], fichier: null, nomFichier: '',
-      etat: '', erreur: '', occupe: false,
+      memoire: null, etat: '', erreur: '', occupe: false,
     };
     ecran = 'envoi';
+    // IndexedDB ne repond qu'apres le premier rendu : on redessine a sa reponse.
+    lireClasseur().then((ref) => {
+      if (ecran !== 'envoi' || !envoi || envoi.fichier || !ref) return;
+      envoi.memoire = ref;
+      envoi.nomFichier = ref.nom;
+      rendre();
+    }).catch(() => {});
   } else if (ou === 'pv') {
     pv = {
       conv: '', site: '', dateSous: aujourdhuiIso(), nom: '', adr: '',
@@ -1604,18 +1630,36 @@ async function validerEnvoi() {
   // verifie en priorite, et le message final ne doit pas l'effacer.
   let rapportExcel = '';
   try {
-    if (v.fichier) {
+    // Le classeur de depart : celui qu'on vient de choisir, sinon celui garde
+    // du cycle precedent. C'est cette reprise qui fait l'accumulation.
+    const source = v.fichier || (v.memoire ? v.memoire.octets : null);
+    if (source) {
       v.etat = 'Remplissage du fichier Excel\u2026';
       rendre();
-      const res = await remplirClasseur(v.fichier, lot.temps, lot.frais);
-      const base = (v.nomFichier || 'TEMPS.xlsm').replace(/\.[^.]*$/, '')
+      const res = await remplirClasseur(source, lot.temps, lot.frais);
+      const nomBase = v.nomFichier || (v.memoire ? v.memoire.nom : '') || 'TEMPS.xlsm';
+      const base = nomBase.replace(/\.[^.]*$/, '')
         .replace(/[^A-Za-z0-9_.-]/g, '_') || 'TEMPS';
       pieces.push(new File([res.blob], base + '_' + v.debut + '.xlsm',
         { type: 'application/vnd.ms-excel.sheet.macroEnabled.12' }));
+
+      // Le classeur rempli devient la reference du prochain cycle : c'est
+      // l'equivalent iOS de la reecriture sur place d'Android. Un echec de
+      // memorisation (quota, stockage refuse) n'arrete pas l'envoi, il est
+      // seulement signale - le tech saura qu'il devra rechoisir son fichier.
+      const garde = await memoriserClasseur(nomBase, res.blob, v.debut, v.fin);
+      if (garde) {
+        v.memoire = garde;
+        v.fichier = null;
+        v.nomFichier = nomBase;
+      }
       rapportExcel = 'Excel : ' + res.rapport.ecrites + ' ligne(s) \u00e9crite(s)'
         + (res.rapport.ajoutees
           ? ', ' + res.rapport.ajoutees + ' ligne(s) ajout\u00e9e(s)' : '')
-        + ' sur ' + (res.rapport.feuilles.join(', ') || 'aucune feuille') + '. ';
+        + ' sur ' + (res.rapport.feuilles.join(', ') || 'aucune feuille') + '. '
+        + (garde ? 'Classeur m\u00e9moris\u00e9 pour le prochain cycle. '
+                 : 'Classeur non m\u00e9moris\u00e9 : il sera \u00e0 rechoisir '
+                   + 'au prochain envoi. ');
       v.etat = rapportExcel;
       if (res.rapport.avertissements.length) {
         v.erreur = res.rapport.avertissements.join(' ');
@@ -1658,9 +1702,14 @@ async function validerEnvoi() {
 
     const resultat = await partagerPieces(pieces, sujet, corps);
     if (resultat === 'annule') {
-      // Rien n'est memorise sur un partage annule : dater un envoi qui n'a pas
-      // eu lieu ferait demarrer le cycle suivant trop tot, et le cycle en cours
-      // deviendrait impossible a envoyer.
+      // Aucune DATE d'envoi n'est memorisee sur un partage annule : dater un
+      // envoi qui n'a pas eu lieu ferait demarrer le cycle suivant trop tot, et
+      // le cycle en cours deviendrait impossible a envoyer.
+      //
+      // Le classeur, lui, garde ce qui vient d'y etre ecrit - exactement comme
+      // Android, qui remplit l'URI avant d'ouvrir le partage. Reenvoyer le meme
+      // cycle est sans danger : les memes lignes retombent sur les memes
+      // cellules, et les jours ont deja la place qu'il leur faut.
       v.etat = rapportExcel + 'Envoi annul\u00e9 : le cycle reste ouvert.';
     } else {
       // La periode reellement envoyee, avant que l'ecran ne passe au cycle
@@ -1673,8 +1722,10 @@ async function validerEnvoi() {
         aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
       v.debut = suivant[0];
       v.fin = suivant[1];
+      // Le fichier choisi a la main a fait son office ; le classeur memorise,
+      // lui, reste en place : c'est la base du cycle qui commence.
       v.fichier = null;
-      v.nomFichier = '';
+      v.nomFichier = v.memoire ? v.memoire.nom : '';
       v.etat = rapportExcel + pieces.length + ' pi\u00e8ce(s) '
         + (resultat === 'partage' ? 'transmises au partage' : 't\u00e9l\u00e9charg\u00e9es')
         + '. Prochain cycle : ' + dateFr(suivant[0]) + ' \u2192 ' + dateFr(suivant[1]) + '.';
@@ -1709,6 +1760,18 @@ document.addEventListener('click', (e) => {
     envoi.debut = c[0];
     envoi.fin = c[1];
     rendre(); return;
+  }
+  if (e.target.closest('#e_oublier')) {
+    // Changement de trame (nouvelle annee, classeur reparti a neuf) : on rend
+    // la main au selecteur de fichier, la reference actuelle est jetee.
+    oublierClasseur().then(() => {
+      envoi.memoire = null;
+      envoi.nomFichier = '';
+      envoi.fichier = null;
+      rendre();
+      toast('Classeur oublié : choisissez le fichier à reprendre.');
+    }).catch(() => {});
+    return;
   }
   if (e.target.closest('#e_suppr_compteur')) {
     supprimerCompteur();

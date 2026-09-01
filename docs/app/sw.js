@@ -5,11 +5,11 @@
 
 // Cache applicatif : l'app s'ouvre et s'affiche sans reseau, ce qui arrive
 // souvent en intervention (sous-sol, zone blanche).
-const CACHE = 'gsystems-v14';
+const CACHE = 'gsystems-v15';
 const FICHIERS = ['.', 'index.html', 'theme.css', 'app.js', 'tuiles.js',
                   'donnees.js', 'viber.js', 'heures.js', 'cloture.js',
                   'frais.js', 'photos.js', 'pdf.js', 'signature.js', 'docConge.js', 'docBulletin.js', 'docPv.js',
-                  'cycle.js', 'zip.js', 'xlsm.js', 'docRecap.js', 'gesteco.js', 'fond.js', 'backup.js',
+                  'cycle.js', 'zip.js', 'xlsm.js', 'classeur.js', 'docRecap.js', 'gesteco.js', 'fond.js', 'backup.js',
                   'trame-conge.pdf', 'trame-pv.pdf',
                   'manifest.webmanifest', 'icone-180.png', 'icone-512.png'];
 

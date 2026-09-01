@@ -353,13 +353,26 @@ async function cheminFeuille(entrees, nom) {
 }
 
 /**
+ * Les octets de la source, qu'elle vienne d'un fichier choisi (input
+ * type="file") ou de la reference gardee en base (voir classeur.js).
+ */
+async function tampon(source) {
+  if (source instanceof ArrayBuffer) return source;
+  if (ArrayBuffer.isView(source)) {
+    return source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength);
+  }
+  return source.arrayBuffer();
+}
+
+/**
  * Remplit le classeur et renvoie { blob, rapport }.
  *
- * `fichier` est le .xlsm choisi par le technicien (input type="file"). Le
- * fichier d'origine n'est pas modifie : on rend un nouveau classeur.
+ * `source` est le .xlsm de depart : le fichier que le technicien vient de
+ * choisir, ou le classeur deja rempli aux cycles precedents. Elle n'est jamais
+ * modifiee - on rend un nouveau classeur, que l'appelant remet en reference.
  */
-export async function remplirClasseur(fichier, temps, frais) {
-  const entrees = await lireArchive(await fichier.arrayBuffer());
+export async function remplirClasseur(source, temps, frais) {
+  const entrees = await lireArchive(await tampon(source));
   const rapport = { ecrites: 0, ajoutees: 0, feuilles: [], avertissements: [] };
 
   const partageesXml = (await lireTexte(entrees, 'xl/sharedStrings.xml')) || '';
