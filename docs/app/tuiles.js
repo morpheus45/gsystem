@@ -126,6 +126,16 @@ export const TUILES = [
   },
   {
     "num": "10",
+    "nom": "DIAGNOSTIC SÉCURITÉ",
+    "sous": "Fiche EPS · pro et particulier",
+    "ic": "🛡️",
+    "debut": "#8A5CF6",
+    "fin": "#6366F1",
+    "groupe": "INTERV",
+    "ecran": "diagnostic"
+  },
+  {
+    "num": "11",
     "nom": "RÉCAP",
     "sous": "Cumul du cycle · total euros",
     "ic": "📊",
@@ -135,7 +145,7 @@ export const TUILES = [
     "ecran": "recap"
   },
   {
-    "num": "11",
+    "num": "12",
     "nom": "FRAIS",
     "sous": "Tickets du cycle",
     "ic": "🧾",
@@ -145,7 +155,7 @@ export const TUILES = [
     "ecran": "frais"
   },
   {
-    "num": "12",
+    "num": "13",
     "nom": "ENVOI MENSUEL",
     "sous": "Excel + tickets + compteur",
     "ic": "📤",
@@ -155,7 +165,7 @@ export const TUILES = [
     "ecran": "envoi"
   },
   {
-    "num": "13",
+    "num": "14",
     "nom": "PRIME À VENIR",
     "sous": "Historique · versement à +2 mois",
     "ic": "💰",
@@ -165,7 +175,7 @@ export const TUILES = [
     "ecran": "prime"
   },
   {
-    "num": "14",
+    "num": "15",
     "nom": "DEMANDE DE CONGÉ",
     "sous": "Formulaire signé · envoi bureau",
     "ic": "🏖️",

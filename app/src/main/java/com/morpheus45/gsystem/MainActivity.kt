@@ -49,6 +49,7 @@ import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.BulletinScreen
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
+import com.morpheus45.gsystem.ui.DiagnosticScreen
 import com.morpheus45.gsystem.ui.CongeScreen
 import com.morpheus45.gsystem.ui.PrimeAVenirScreen
 import com.morpheus45.gsystem.ui.PvCameraScreen
