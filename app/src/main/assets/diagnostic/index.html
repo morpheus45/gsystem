@@ -406,6 +406,23 @@
   .rendu-pdf { background: #fff; }
   .rendu-pdf .toolbar { display: none !important; }
   .rendu-pdf .sig button { display: none !important; }
+      /* Les listes deroulantes sont des commandes d ecran. Sur le document
+         remis au client, seule la valeur choisie doit rester : ni cadre, ni
+         fleche. Sans ces regles elles s impriment avec leur habillage natif. */
+  .rendu-pdf select.cell, .rendu-pdf select.cell-choix {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        border: none !important;
+        background: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+        text-align-last: center !important;
+        font-family: 'Caveat', 'Comic Sans MS', cursive !important;
+        font-size: 13pt !important;
+        color: #0a2858 !important;
+      }
   .rendu-pdf .page {
     margin: 0; box-shadow: none;
     width: 210mm; height: 297mm; min-height: 0; overflow: hidden;
@@ -460,6 +477,24 @@
     /* Les boutons d effacement des signatures sont des commandes d ecran :
        ils n ont rien a faire sur le document remis au client. */
     .sig button { display: none !important; }
+    /* Les listes deroulantes sont des commandes d ecran. Sur le document
+       remis au client, seule la valeur choisie doit rester : ni cadre, ni
+       fleche. Sans ces regles elles s impriment avec leur habillage natif. */
+    select.cell, select.cell-choix {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      border: none !important;
+      background: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      width: 100% !important;
+      text-align: center !important;
+      text-align-last: center !important;
+      font-family: 'Caveat', 'Comic Sans MS', cursive !important;
+      font-size: 13pt !important;
+      color: #0a2858 !important;
+    }
+
     .champ, table.tab input.cell, table.tab td.piece input,
     table.ext input.cell, table.ext input.lab-input, textarea.zone {
       color: #0a2858 !important;
