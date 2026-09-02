@@ -1060,6 +1060,27 @@ function vueEnvoi() {
   </div>`;
 }
 
+
+// ================================================== DIAGNOSTIC
+/**
+ * La fiche EPS (386 champs, 2 pages A4) est affichee dans un cadre plutot que
+ * reecrite : elle reste la SEULE source, partagee avec la version Android.
+ * Meme origine que l'application, donc son localStorage fonctionne et ses
+ * formulaires se conservent d'une ouverture a l'autre.
+ */
+function vueDiagnostic() {
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#8A5CF6,#6366F1)">
+    <button class="retour" data-va="accueil">←</button>
+    <span class="t">DIAGNOSTIC SÉCURITÉ</span>
+    <button class="reglage-btn" id="diag_imprimer" style="margin-left:auto"
+            title="Imprimer ou enregistrer en PDF">\u{1F5A8}</button>
+  </div>
+  <iframe id="diag_cadre" src="diagnostic/index.html"
+          style="width:100%;height:calc(100dvh - 62px);border:0;background:#fff">
+  </iframe>`;
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
@@ -1067,6 +1088,7 @@ function rendre() {
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
     bulletin: vueBulletin, pv: vuePv,
     demandecam: vueDemandeCam, recap: vueRecap, prime: vuePrime,
+    diagnostic: vueDiagnostic,
     envoi: vueEnvoi,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
@@ -1213,6 +1235,7 @@ async function ouvrir(cible) {
   if (cible === 'bulletin') { aller('bulletin'); return; }
   if (cible === 'pv') { aller('pv'); return; }
   if (cible === 'demandecam') { aller('demandecam'); return; }
+  if (cible === 'diagnostic') { aller('diagnostic'); return; }
   if (cible === 'recap') { aller('recap'); return; }
   if (cible === 'prime') { aller('prime'); return; }
   if (cible === 'envoi') { aller('envoi'); return; }
@@ -1786,6 +1809,13 @@ document.addEventListener('click', (e) => {
   }
   if (e.target.closest('#e_envoyer')) { validerEnvoi(); return; }
 
+  if (e.target.closest('#diag_imprimer')) {
+    // L'impression doit partir du CADRE, sinon c'est la coquille de
+    // l'application qui s'imprime a la place de la fiche.
+    const c = $('#diag_cadre');
+    if (c && c.contentWindow) c.contentWindow.print();
+    return;
+  }
   if (e.target.closest('#d_valider')) { envoyerDemandeCam(); return; }
   if (e.target.closest('#p_eff_ab')) { if (padAb) padAb.effacer(); return; }
   if (e.target.closest('#p_eff_tech')) { if (padPvTech) padPvTech.effacer(); return; }
