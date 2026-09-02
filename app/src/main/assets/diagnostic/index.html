@@ -49,6 +49,13 @@
   }
   .toolbar button:hover { background: #ffe7d4; }
   .toolbar button.danger { background: #ffd5d5; color: #8a1a1a; }
+  /* L e-mail du client sert a transmettre la fiche, il ne fait pas partie du
+     formulaire EPS : sa place est dans la barre d outils, qui ne s imprime
+     pas. Il est tout de meme enregistre avec la fiche (data-key). */
+  .toolbar input.mail-client {
+    border: none; border-radius: 6px; padding: 7px 10px;
+    font-size: 13px; min-width: 190px;
+  }
 
   /* Page A4 */
   .page {
@@ -391,6 +398,38 @@
   /* Charge la police manuscrite */
   @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
 
+
+  /* Mise en page d impression, mais appliquee a l ecran. C est ainsi que
+     l application Android dessine la fiche pour en faire un PDF : elle charge
+     cette page hors ecran, pose la classe, et dessine. Sans cela elle
+     capturerait la mise en page d ecran, qui ne tient pas sur une A4. */
+  .rendu-pdf { background: #fff; }
+  .rendu-pdf .toolbar { display: none !important; }
+  .rendu-pdf .sig button { display: none !important; }
+  .rendu-pdf .page {
+    margin: 0; box-shadow: none;
+    width: 210mm; height: 297mm; min-height: 0; overflow: hidden;
+    transform: none !important;
+  }
+  .rendu-pdf .page-inner {
+    transform: scale(var(--k, 1));
+    transform-origin: top left;
+    width: calc(100% / var(--k, 1));
+  }
+
+  /* Case sans objet : croix pleine sur toute la case. Une transmission GSM ou
+     une sirene exterieure ne se rattachent ni a une piece ni a un niveau ;
+     barrer vaut mieux que laisser vide, qui se lit comme un oubli. */
+  td.sans-objet {
+    background-image:
+      linear-gradient(to top right, transparent calc(50% - 0.6px), #000 calc(50% - 0.6px),
+                      #000 calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+      linear-gradient(to bottom right, transparent calc(50% - 0.6px), #000 calc(50% - 0.6px),
+                      #000 calc(50% + 0.6px), transparent calc(50% + 0.6px));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+
   /* Impression */
   @media print {
     body { background: #fff; }
@@ -399,10 +438,28 @@
       margin: 0;
       box-shadow: none;
       page-break-after: always;
+      page-break-inside: avoid;
       width: 210mm;
-      min-height: 297mm;
+      height: 297mm;
+      min-height: 0;
+      overflow: hidden;
+      /* La mise a l echelle pour petit ecran pose un transform en style inline,
+         qui suivrait jusque sur le papier. Le papier, lui, est toujours A4. */
+      transform: none !important;
+      margin-bottom: 0 !important;
     }
     .page:last-child { page-break-after: auto; }
+    /* La fiche est plus haute qu une A4 (~386 mm) : sans reduction, chaque page
+       deborde sur une seconde feuille et le document sort en 4 pages au lieu de
+       2. Le facteur est mesure page par page (voir calibrerImpression). */
+    .page-inner {
+      transform: scale(var(--k, 1));
+      transform-origin: top left;
+      width: calc(100% / var(--k, 1));
+    }
+    /* Les boutons d effacement des signatures sont des commandes d ecran :
+       ils n ont rien a faire sur le document remis au client. */
+    .sig button { display: none !important; }
     .champ, table.tab input.cell, table.tab td.piece input,
     table.ext input.cell, table.ext input.lab-input, textarea.zone {
       color: #0a2858 !important;
@@ -430,6 +487,9 @@
   <h2>Fiche Diagnostic Sécurité — <b>Pro</b> (A4 / 2 pages)</h2>
   <a class="btn btn-switch" href="particulier.html">↔ Particulier</a>
   <button onclick="window.print()">🖨️ Imprimer / PDF</button>
+  <input class="mail-client" id="mail_client" type="email" inputmode="email"
+         autocomplete="email" placeholder="e-mail du client" data-key="mail_client">
+  <button onclick="envoyerAuClient()">📧 Envoyer au client</button>
   <button onclick="exportJSON()">💾 Sauver JSON</button>
   <button onclick="document.getElementById('imp').click()">📂 Charger</button>
   <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -843,6 +903,10 @@ const EXTENSIONS_DEFAUT = [
   'Autre, préciser', 'Autre, préciser', 'Autre, préciser', 'Autre, préciser'
 ];
 
+/* Extensions qui ne se posent ni dans une piece ni a un niveau donne : les
+   colonnes PIECE et NIVEAU y sont barrees plutot que laissees vides. */
+const SANS_PIECE_NI_NIVEAU = ['Transmission GSM', 'Sirène extérieure'];
+
 function buildExtRows() {
   const tbody = document.getElementById('tbody-ext');
   EXTENSIONS_DEFAUT.forEach((nom, idx) => {
@@ -858,6 +922,12 @@ function buildExtRows() {
     /* 4 colonnes : reco, pièce, niveau, pose */
     for (let c = 0; c < 4; c++) {
       const td = document.createElement('td');
+      /* PIECE et NIVEAU sans objet pour ces extensions : la case est barree. */
+      if (SANS_PIECE_NI_NIVEAU.indexOf(nom) >= 0 && (c === 1 || c === 2)) {
+        td.className = 'sans-objet';
+        tr.appendChild(td);
+        continue;
+      }
       const inp = cellule(c === 0 ? 'on' : (c === 1 ? '' : 'num'),
                           'ext_' + idx + '_c' + c);
       td.appendChild(inp);
@@ -917,14 +987,22 @@ document.addEventListener('change', e => {
   if (e.target.dataset && e.target.dataset.key) saveAll();
 });
 
-/* synchroniser les 2 lignes de cases lieu N° entre page 1 et page 2 */
+/* Un meme champ present sur les deux pages (le « Lieu protege N° ») doit se
+   remplir des deux cotes en une seule saisie.
+   L ancien garde testait startsWith('lieu_n_') alors que la cle vaut 'lieu_num' :
+   il ne correspondait jamais. Pire, saveAll() parcourt tous les [data-key] et le
+   dernier ecrase le premier — la case restee vide en page 2 effacait donc la
+   saisie de la page 1. On propage a tout champ homonyme, sans liste a tenir. */
 document.addEventListener('input', e => {
-  if (e.target.dataset && e.target.dataset.key && e.target.dataset.key.startsWith('lieu_n_')) {
-    const k = e.target.dataset.key;
-    document.querySelectorAll('[data-key="' + k + '"]').forEach(inp => {
-      if (inp !== e.target) inp.value = e.target.value;
-    });
-  }
+  const k = e.target.dataset && e.target.dataset.key;
+  if (!k) return;
+  const jumeaux = document.querySelectorAll('[data-key="' + k + '"]');
+  if (jumeaux.length < 2) return;
+  jumeaux.forEach(inp => {
+    if (inp === e.target) return;
+    if (inp.type === 'checkbox') inp.checked = e.target.checked;
+    else inp.value = e.target.value;
+  });
 });
 
 /* charger au démarrage */
@@ -1063,6 +1141,124 @@ function resetForm() {
   window.addEventListener('resize', adapter);
   window.addEventListener('orientationchange', adapter);
 })();
+/* ====================================================================== */
+/* Nom du technicien-conseil                                              */
+/*                                                                        */
+/* Il est deja connu : c est celui des reglages de l application. Le       */
+/* ressaisir sur chaque fiche est une perte de temps et une source de      */
+/* fautes de frappe. En PWA la fiche partage l origine — donc le           */
+/* localStorage — de l application ; dans l APK la WebView est isolee et   */
+/* c est l application qui pose window.__gsysTech au chargement.           */
+/* Le champ reste modifiable : on ne remplit que s il est vide.            */
+/* ====================================================================== */
+function remplirNomTech() {
+  var nom = '';
+  if (window.__gsysTech) {
+    nom = String(window.__gsysTech);
+  } else {
+    try {
+      nom = String(JSON.parse(localStorage.getItem('gsys.reglages') || '{}').nomUtilisateur || '');
+    } catch (e) { nom = ''; }
+  }
+  if (!nom) return;
+  var pose = false;
+  document.querySelectorAll('[data-key="tech_nom"]').forEach(function (el) {
+    if (!el.value) { el.value = nom; pose = true; }
+  });
+  if (pose && typeof saveAll === 'function') saveAll();
+}
+remplirNomTech();
+
+/* ====================================================================== */
+/* Impression : une page de la fiche = une feuille A4                     */
+/*                                                                        */
+/* Le contenu mesure environ 386 mm de haut pour une A4 de 297 : tel quel, */
+/* chaque page deborde sur une seconde feuille et l impression sort en 4   */
+/* pages au lieu de 2. On enveloppe le contenu et on le reduit juste ce    */
+/* qu il faut, page par page — la fiche reste fidele au document EPS, en   */
+/* plus petit. Mesure a l ouverture ET avant impression : certains moteurs */
+/* n emettent pas beforeprint (impression systeme d iOS, WebView Android). */
+/* ====================================================================== */
+function calibrerImpression() {
+  var HAUTEUR_UTILE = 283;               /* 297 mm d A4 - 2 x 7 mm de marge */
+  var jauge = document.createElement('div');
+  jauge.style.cssText = 'height:100mm;position:absolute;visibility:hidden;top:0';
+  document.body.appendChild(jauge);
+  var pxParMm = jauge.offsetHeight / 100;
+  jauge.remove();
+  if (!pxParMm) return;
+
+  document.querySelectorAll('.page').forEach(function (p) {
+    var inner = p.querySelector(':scope > .page-inner');
+    if (!inner) {
+      inner = document.createElement('div');
+      inner.className = 'page-inner';
+      while (p.firstChild) inner.appendChild(p.firstChild);
+      p.appendChild(inner);
+    }
+    /* offsetHeight ignore les transform : la hauteur mesuree est la hauteur
+       naturelle, meme quand l ecran applique deja une reduction. */
+    var hMm = inner.offsetHeight / pxParMm;
+    var k = hMm > HAUTEUR_UTILE ? (HAUTEUR_UTILE / hMm) : 1;
+    p.style.setProperty('--k', k.toFixed(4));
+  });
+}
+
+window.addEventListener('DOMContentLoaded', calibrerImpression);
+window.addEventListener('beforeprint', calibrerImpression);
+
+/* ====================================================================== */
+/* Envoi de la fiche au client                                            */
+/*                                                                        */
+/* Android sait fabriquer le PDF lui-meme : si l application a pose son    */
+/* pont, on lui passe la main et elle joint le fichier au mail.            */
+/* Safari, lui, n a aucune API pour produire un PDF. Sur iPhone on lance   */
+/* donc l impression - le technicien enregistre la fiche - puis on ouvre   */
+/* le mail deja redige, ou il ne reste qu a joindre le fichier.            */
+/* ====================================================================== */
+function champ(cle) {
+  var n = document.querySelector('[data-key="' + cle + '"]');
+  return n ? String(n.value || '').trim() : '';
+}
+
+function envoyerAuClient() {
+  var boite = document.getElementById('mail_client');
+  var mail = (boite.value || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) {
+    alert('Indiquez l\'e-mail du client avant d\'envoyer.');
+    boite.focus();
+    return;
+  }
+  var client = champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
+  var site = champ('lieu_num');
+  var date = champ('date');
+  var tech = champ('tech_nom');
+
+  var sujet = 'Diagnostic s\u00e9curit\u00e9'
+    + (site ? ' - lieu prot\u00e9g\u00e9 n\u00b0 ' + site : '')
+    + (client ? ' - ' + client : '');
+  var corps = 'Bonjour,\n\nVous trouverez ci-joint votre diagnostic s\u00e9curit\u00e9'
+    + (date ? ' r\u00e9alis\u00e9 le ' + date : '')
+    + '.\n\nMerci de v\u00e9rifier les informations qu\'il contient et de nous '
+    + 'signaler toute erreur.\n\nCordialement,\n' + tech;
+
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
+    window.__gsysEnvoiClient.envoyer(mail, sujet, corps);
+    return;
+  }
+
+  if (!confirm('La fen\u00eatre d\'impression va s\'ouvrir : enregistrez la fiche '
+             + 'en PDF.\n\nLe mail au client s\'ouvrira ensuite - il ne restera '
+             + 'qu\'\u00e0 y joindre le fichier enregistr\u00e9.')) return;
+  window.print();
+  /* Le mail n est ouvert qu apres la fenetre d impression : les deux se
+     bousculeraient si on les declenchait ensemble. */
+  setTimeout(function () {
+    location.href = 'mailto:' + encodeURIComponent(mail)
+      + '?subject=' + encodeURIComponent(sujet)
+      + '&body=' + encodeURIComponent(corps);
+  }, 1000);
+}
 </script>
 </body>
 </html>
