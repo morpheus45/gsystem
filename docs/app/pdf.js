@@ -11,7 +11,7 @@
 // des documents qui n'utilisent que du texte, des traits et des rectangles.
 //
 // Repere PDF : origine en BAS a gauche, l'inverse de l'ecran. On expose donc
-// des coordonnees « ecran » (origine en haut) et on convertit a l'ecriture.
+// des coordonnees \u00ab ecran \u00bb (origine en haut) et on convertit a l'ecriture.
 
 export const A4 = { l: 595, h: 842 };
 
@@ -26,16 +26,51 @@ function esc(s) {
  * mais a des positions differentes de l'UTF-16 du navigateur. Sans conversion,
  * les caracteres hors Latin-1 sortiraient faux.
  */
-function versWinAnsi(s) {
-  const table = {
-    '\u2019': "'", '\u2018': "'", '\u201c': '"', '\u201d': '"',
-    '\u2013': '-', '\u2014': '-', '\u20ac': '\u0080', '\u2026': '...',
-    '\u0152': '\u008c', '\u0153': '\u009c', '\u2192': '->',
-  };
-  let out = '';
+const WINANSI = {
+  '\u2019': "'", '\u2018': "'", '\u201c': '"', '\u201d': '"',
+  '\u2013': '\u0096', '\u2014': '\u0097', '\u20ac': '\u0080',
+  '\u2026': '\u0085', '\u0152': '\u008c', '\u0153': '\u009c',
+  '\u2022': '\u0095', '\u00a0': ' ',
+};
+
+/**
+ * Glyphes absents de WinAnsi mais presents dans les polices standard Symbol et
+ * ZapfDingbats, que tout lecteur PDF possede : rien a embarquer. La position du
+ * texte avance toute seule apres chaque Tj, donc changer de police en cours de
+ * ligne ne demande aucune mesure de largeur.
+ *
+ * Le code envoye est arbitraire : c'est /Differences qui le relie a un nom de
+ * glyphe (voir construire), ce qui evite de dependre de l'encodage natif.
+ */
+const SPECIAUX = {
+  '\u2264': ['FS', 'A'],   // <=
+  '\u2265': ['FS', 'B'],   // >=
+  '\u2192': ['FS', 'C'],   // ->
+  '\u2713': ['FD', 'A'],   // coche
+  '\u2717': ['FD', 'B'],   // croix
+};
+
+/** Un caractere, tel qu'il doit etre ecrit dans la police courante. */
+function unWinAnsi(c) {
+  if (c.codePointAt(0) < 256) return c;
+  return WINANSI[c] || '?';
+}
+
+/**
+ * Decoupe une chaine en segments homogenes : une police par segment, la police
+ * par defaut (null) etant Helvetica.
+ */
+function segments(s) {
+  const out = [];
+  let courant = null;
   for (const c of String(s == null ? '' : s)) {
-    if (c.codePointAt(0) < 256) { out += c; continue; }
-    out += table[c] || '?';
+    const spe = SPECIAUX[c];
+    const police = spe ? spe[0] : null;
+    if (!courant || courant.police !== police) {
+      courant = { police, t: '' };
+      out.push(courant);
+    }
+    courant.t += spe ? spe[1] : unWinAnsi(c);
   }
   return out;
 }
@@ -50,11 +85,75 @@ export function creerPage(largeur, hauteur) {
     /** Texte. y est la LIGNE DE BASE, comptee depuis le HAUT de la page. */
     texte(s, x, y, taille, gras, couleur) {
       if (s === undefined || s === null || String(s).trim() === '') return api;
+      return api.suite([{ t: s, taille, gras, couleur }], x, y);
+    },
+
+    /**
+     * Plusieurs morceaux a la suite sur une meme ligne de base, chacun avec sa
+     * taille, sa graisse et sa couleur. Comme la position avance toute seule
+     * apres chaque Tj, les morceaux se collent exactement comme le ferait un
+     * drawText decale de measureText cote Android : aucune largeur a mesurer.
+     */
+    suite(morceaux, x, y) {
+      const utiles = morceaux.filter(
+        (m) => m && m.t !== undefined && m.t !== null && String(m.t) !== '');
+      if (!utiles.length) return api;
+      const lignes = ['q', 'BT',
+        '1 0 0 1 ' + x.toFixed(2) + ' ' + (H - y).toFixed(2) + ' Tm'];
+      let policeCourante = null;
+      let couleurCourante = null;
+      utiles.forEach((m) => {
+        const taille = m.taille || 10;
+        const c = (m.couleur || [0, 0, 0]).join(' ');
+        if (c !== couleurCourante) { lignes.push(c + ' rg'); couleurCourante = c; }
+        segments(m.t).forEach((seg) => {
+          const nom = seg.police || (m.gras ? 'FB' : 'FR');
+          const cle = nom + ' ' + taille;
+          if (cle !== policeCourante) {
+            lignes.push('/' + nom + ' ' + taille + ' Tf');
+            policeCourante = cle;
+          }
+          lignes.push('(' + esc(seg.t) + ') Tj');
+        });
+      });
+      lignes.push('ET', 'Q');
+      ops.push(...lignes);
+      return api;
+    },
+
+    /**
+     * Part de camembert : un secteur plein, angles en degres, 0 = est et sens
+     * horaire, comme Canvas.drawArc cote Android. L'arc est approche par des
+     * courbes de Bezier de 90 degres au plus, l'erreur y est indecelable.
+     */
+    secteur(cx, cy, rayon, debut, balayage, couleur) {
+      if (!balayage) return api;
       const c = couleur || [0, 0, 0];
-      ops.push('q', c.join(' ') + ' rg', 'BT',
-        '/' + (gras ? 'FB' : 'FR') + ' ' + (taille || 10) + ' Tf',
-        '1 0 0 1 ' + x.toFixed(2) + ' ' + (H - y).toFixed(2) + ' Tm',
-        '(' + esc(versWinAnsi(s)) + ') Tj', 'ET', 'Q');
+      const rad = (a) => a * Math.PI / 180;
+      const px = (a) => cx + rayon * Math.cos(rad(a));
+      const py = (a) => H - (cy + rayon * Math.sin(rad(a)));
+      const morceaux = Math.max(1, Math.ceil(Math.abs(balayage) / 90));
+      const pas = balayage / morceaux;
+      const k = 4 / 3 * Math.tan(rad(pas) / 4);
+
+      const l = ['q', c.join(' ') + ' rg',
+        cx.toFixed(2) + ' ' + (H - cy).toFixed(2) + ' m',
+        px(debut).toFixed(2) + ' ' + py(debut).toFixed(2) + ' l'];
+      let a = debut;
+      for (let i = 0; i < morceaux; i++) {
+        const b = a + pas;
+        // Tangentes aux extremites, mises a l'echelle du facteur de Bezier.
+        const c1x = px(a) - k * rayon * Math.sin(rad(a));
+        const c1y = py(a) - k * rayon * Math.cos(rad(a));
+        const c2x = px(b) + k * rayon * Math.sin(rad(b));
+        const c2y = py(b) + k * rayon * Math.cos(rad(b));
+        l.push(c1x.toFixed(2) + ' ' + c1y.toFixed(2) + ' '
+             + c2x.toFixed(2) + ' ' + c2y.toFixed(2) + ' '
+             + px(b).toFixed(2) + ' ' + py(b).toFixed(2) + ' c');
+        a = b;
+      }
+      l.push('h', 'f', 'Q');
+      ops.push(...l);
       return api;
     },
 
@@ -136,6 +235,8 @@ export function construire(pages) {
   const idPages = 2;
   const idPolice = 3;
   const idGras = 4;
+  const idSymbole = 5;
+  const idPicto = 6;
 
   ajouter('<< /Type /Catalog /Pages ' + idPages + ' 0 R >>');
   ajouter('');   // renseigne plus bas, une fois les pages numerotees
@@ -143,6 +244,17 @@ export function construire(pages) {
         + '/Encoding /WinAnsiEncoding >>');
   ajouter('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold '
         + '/Encoding /WinAnsiEncoding >>');
+  // Symbol et ZapfDingbats font partie des 14 polices que tout lecteur PDF
+  // possede : les glyphes hors WinAnsi passent par elles, sans rien embarquer.
+  // Les codes A/B/C sont relies au glyphe par /Differences, donc l'encodage
+  // natif de ces polices n'entre pas en jeu.
+  ajouter('<< /Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding '
+        + '<< /Type /Encoding /Differences [65 /lessequal /greaterequal '
+        + '/arrowright] >> >>');
+  // a19 et a23 sont les glyphes d'Unicode 2713 et 2717, ceux qu'affiche
+  // l'Android ; a20 et a24 en sont les variantes grasses (verifie a l'ecran).
+  ajouter('<< /Type /Font /Subtype /Type1 /BaseFont /ZapfDingbats /Encoding '
+        + '<< /Type /Encoding /Differences [65 /a19 /a23] >> >>');
 
   const idsPages = [];
   pages.forEach((p) => {
@@ -152,6 +264,7 @@ export function construire(pages) {
     idsPages.push(ajouter('<< /Type /Page /Parent ' + idPages + ' 0 R '
       + '/MediaBox [0 0 ' + p.largeur + ' ' + p.hauteur + '] '
       + '/Resources << /Font << /FR ' + idPolice + ' 0 R /FB ' + idGras
+      + ' 0 R /FS ' + idSymbole + ' 0 R /FD ' + idPicto
       + ' 0 R >> >> /Contents ' + idFlux + ' 0 R >>'));
   });
 

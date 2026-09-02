@@ -16,16 +16,34 @@ import {
 import {
   CATEGORIES, htDepuisTtc, tvaDepuisTtc, remboursable, eur,
 } from './frais.js';
-import { photo, enregistrerPhoto, supprimerPhoto, reduire, nomTicket }
-  from './photos.js';
+import {
+  photo, enregistrerPhoto, supprimerPhoto, chargerPhotos, reduire, nomTicket,
+  nomCompteur,
+  fichierDepuisDataUrl,
+} from './photos.js';
+import { cycleCourant, dansPeriode, memoriserEnvoi } from './cycle.js';
+import { remplirClasseur } from './xlsm.js';
+import {
+  lireClasseur, memoriserClasseur, oublierClasseur,
+} from './classeur.js';
+import { deposerEnvoi } from './backup.js';
+import {
+  TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
+  raisonInvalide, construireGeste, totalInstalle, totalOffert, totalCadeau,
+  totalPrime, primesParType, datesInstallation,
+} from './gesteco.js';
 import { genererConge, nomFichierConge } from './docConge.js';
 import { genererBulletin, refFormatee, eur2, FRAIS_INTERVENTION }
   from './docBulletin.js';
 import { genererPv, totalPv } from './docPv.js';
+import { genererRecap, nomFichierRecap } from './docRecap.js';
 import { creerPad } from './signature.js';
 
 const TEL_TECHLINE = '0388398894';
 const TEL_LOGISTIQUE = '0369740780';
+
+// Destinataire de l'envoi mensuel, fixe pour toute l'equipe (Models.kt).
+const GS_TO = 'fdt@fggestion.fr';
 
 const $ = (s) => document.querySelector(s);
 const app = () => $('#app');
@@ -45,6 +63,8 @@ let pv = null;                 // PV cameras en cours
 let demandeCam = null;         // demande de rappel camera
 let padAb = null;              // PV : signature de l'abonne
 let padPvTech = null;          // PV : signature du technicien
+let envoi = null;              // envoi mensuel en preparation
+let geste = null;              // GESTE CO de la cloture en cours
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -217,6 +237,71 @@ function optionsHtml(paires, valeur) {
   }).join('');
 }
 
+/** Vrai quand la cloture ouvre droit a un GESTE CO (installation ou SAV). */
+function gesteVisible() {
+  const t = String(brouillon.typeMission || '').toUpperCase();
+  return t === 'INST' || TYPES_SAV_GESTE.indexOf(t) >= 0;
+}
+
+/** Vrai en mode SAV : cadeau seul, sans extension installee. */
+function gesteSav() {
+  return String(brouillon.typeMission || '').toUpperCase() !== 'INST';
+}
+
+/** Le bloc des totaux, redessine seul pendant la frappe. */
+function totauxGeste() {
+  const sav = gesteSav();
+  const raison = raisonInvalide(geste, sav);
+  return `
+    <div class="l"><span>Install\u00e9es</span><span>${totalInstalle(geste)}</span></div>
+    <div class="l"><span>Offertes</span><span>${totalOffert(geste)}</span></div>
+    <div class="l"><span>Co\u00fbt client</span><span>${eur(totalCadeau(geste))}</span></div>
+    <div class="l fort"><span>Prime</span><span>${eur(totalPrime(geste))}</span></div>
+    ${raison ? '<div class="aide" style="color:#FF3D5A">' + ech(raison) + '</div>'
+             : '<div class="aide">Plafonds respect\u00e9s.</div>'}`;
+}
+
+/** Section GESTE CO de la cloture - miroir de InstallExtrasSection. */
+function sectionGeste() {
+  if (!gesteVisible()) return '';
+  const sav = gesteSav();
+  const lignes = TYPES_GESTE.map((t) => `
+    <div class="geste-l">
+      <span>${t.nom}</span>
+      <input inputmode="numeric" data-geste="installe" data-cle="${t.cle}"
+             ${sav ? 'disabled' : ''}
+             value="${ech(geste.installe[t.cle] || '')}" />
+      <input inputmode="numeric" data-geste="offert" data-cle="${t.cle}"
+             value="${ech(geste.offert[t.cle] || '')}" />
+    </div>`).join('');
+
+  return `
+    <div class="bascule">
+      <input type="checkbox" id="g_actif" ${geste.actif ? 'checked' : ''} />
+      <label for="g_actif">GESTE CO ${sav
+        ? '(geste commercial offert)' : '(extensions install\u00e9es ou offertes)'}</label>
+    </div>
+    ${!geste.actif ? '' : `
+    <div class="geste">
+      <div class="geste-l geste-tete">
+        <span>Type</span><span>Install\u00e9</span><span>Offert</span></div>
+      ${lignes}
+    </div>
+    <div class="total-bloc" id="g_totaux">${totauxGeste()}</div>
+    ${sav ? '' : `
+    <div class="bascule">
+      <input type="checkbox" id="g_eps" ${geste.eps ? 'checked' : ''} />
+      <label for="g_eps">D\u00e9rogation EPS accord\u00e9e</label>
+    </div>`}
+    <div class="champ ${besoinSite(geste) ? 'requis' : ''}" id="g_champ_site">
+      <label for="f_site">N\u00b0 de site${besoinSite(geste)
+        ? '' : ' (facultatif)'}</label>
+      <input id="f_site" inputmode="numeric" value="${ech(geste.site || '')}" />
+      <div class="aide">Obligatoire d\u00e8s qu'une extension est offerte :
+        c'est la r\u00e9f\u00e9rence du mail EPS.</div>
+    </div>`}`;
+}
+
 function vueFormulaire() {
   const e = brouillon;
   const journee = TYPES_JOURNEE.indexOf(e.typeMission) >= 0;
@@ -257,6 +342,7 @@ function vueFormulaire() {
       <div class="aide">Sert au calcul automatique des heures.</div></div>
 
     ${bloc}
+    ${sectionGeste()}
 
     <div class="champ"><label for="f_obs">Observation</label>
       <select id="f_obs">${optionsHtml(OBSERVATIONS, e.observationType)}</select></div>
@@ -289,8 +375,19 @@ function totauxFrais(liste) {
   return { ttc, ht, tva, remb };
 }
 
+/** Le cycle en cours, tel que l'ecran ENVOI le proposera. */
+function cycleAffiche() {
+  return cycleCourant(aujourdhuiIso(), reglages.cycleStartDay,
+    reglages.lastEnvoiDateIso);
+}
+
 function vueFrais() {
-  const liste = entrees.frais.slice().sort((a, b) => b.timestamp - a.timestamp);
+  // Perimetre = le cycle en cours, comme FraisScreen.periodTickets. Cumuler
+  // depuis toujours ferait grossir la liste sans fin et fausserait le total a
+  // rembourser des le premier envoi passe.
+  const c = cycleAffiche();
+  const liste = entrees.frais.filter((f) => dansPeriode(f.date, c[0], c[1]))
+    .sort((a, b) => b.timestamp - a.timestamp);
   const t = totauxFrais(liste);
 
   const lignes = liste.length ? liste.map((f) => {
@@ -713,8 +810,12 @@ function vueDemandeCam() {
 
 // ============================================================ RECAP
 function vueRecap() {
-  const t = entrees.temps;
-  const f = entrees.frais;
+  // \u00ab Cumul du CYCLE \u00bb, comme l'annonce la tuile : sans ce bornage, l'ecran
+  // additionnerait les cycles deja envoyes et le technicien lirait un total
+  // qui ne correspond a aucun mensuel.
+  const c = cycleAffiche();
+  const t = entrees.temps.filter((x) => dansPeriode(x.date, c[0], c[1]));
+  const f = entrees.frais.filter((x) => dansPeriode(x.date, c[0], c[1]));
   const parType = {};
   t.forEach((e) => { parType[e.typeMission] = (parType[e.typeMission] || 0) + 1; });
   const totalFrais = f.reduce((a, x) => a + (Number(x.montantEur) || 0), 0);
@@ -763,25 +864,37 @@ function vueRecap() {
 
 // ====================================================== PRIME A VENIR
 function vuePrime() {
-  // Les primes sont versees a M+2 : on regroupe par mois de cloture.
+  // Historique des primes GESTE CO, mois par mois - miroir de
+  // PrimeAVenirScreen : on regroupe les GESTES par mois de pose, avec le
+  // detail par type. Regrouper les interventions ne donnait aucun montant.
+  const dates = datesInstallation(entrees.temps);
   const parMois = {};
-  entrees.temps.forEach((e) => {
-    const m = String(e.date || '').slice(0, 7);
-    if (m) parMois[m] = (parMois[m] || 0) + 1;
+  (entrees.gesteCo || []).forEach((g) => {
+    const m = String(g.date || '').slice(0, 7);
+    if (!m) return;
+    if (!parMois[m]) parMois[m] = [];
+    parMois[m].push(g);
   });
   const mois = Object.keys(parMois).sort().reverse();
 
   const lignes = mois.map((m) => {
-    const a = m.slice(0, 4);
-    const mo = m.slice(5, 7);
-    const versement = new Date(Number(a), Number(mo) - 1 + 2, 1);
+    const primes = primesParType(parMois[m], dates);
+    const total = primes.reduce((a, p) => a + p.total, 0);
+    const versement = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) + 1, 1);
     const nomMois = versement.toLocaleDateString('fr-FR',
       { month: 'long', year: 'numeric' });
+    const detail = primes.length
+      ? primes.map((p) => `
+        <div class="l"><span>${ech(p.type)} \u00d7${p.nb}</span>
+          <span>${eur2(p.total)} \u20ac</span></div>`).join('')
+      : '<div class="aide">Aucun mat\u00e9riel pos\u00e9 ce mois-ci.</div>';
     return `
-      <div class="ligne"><div class="corps">
-        <div class="haut">${mo}/${a} \u00b7 ${parMois[m]} intervention(s)</div>
-        <div class="bas">Versement attendu : ${nomMois}</div>
-      </div></div>`;
+      <div class="jour"><span class="d">${m.slice(5, 7)}/${m.slice(0, 4)}</span></div>
+      <div class="total-bloc">
+        ${detail}
+        <div class="l fort"><span>TOTAL</span><span>${eur2(total)} \u20ac</span></div>
+        <div class="aide">Versement attendu : ${nomMois}.</div>
+      </div>`;
   }).join('');
 
   return `
@@ -791,9 +904,159 @@ function vuePrime() {
   </div>
   <div class="form">
     <div class="note">Les primes sont vers\u00e9es \u00e0 <b>M+2</b> : le travail d'un
-      mois est pay\u00e9 deux mois plus tard. Le d\u00e9tail des gestes commerciaux
-      arrivera avec la synchronisation.</div>
-    ${lignes || '<div class="vide">Aucune intervention enregistr\u00e9e.</div>'}
+      mois est pay\u00e9 deux mois plus tard. Seules les cam\u00e9ras pos\u00e9es le jour
+      d'une installation comptent.</div>
+    ${lignes || '<div class="vide">Aucune prime enregistr\u00e9e.<br />'
+      + 'Elles appara\u00eetront ici, mois par mois.</div>'}
+  </div>`;
+}
+
+// ===================================================== ENVOI MENSUEL
+
+/** Ce que le cycle affiche contient : temps, tickets, photo du compteur. */
+function contenuPeriode(debut, fin) {
+  const dans = (x) => dansPeriode(x.date, debut, fin);
+  const parDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  return {
+    temps: entrees.temps.filter(dans).slice().sort(parDate),
+    frais: entrees.frais.filter(dans).slice().sort(parDate),
+    compteur: (entrees.compteur || []).filter(dans),
+    gesteCo: (entrees.gesteCo || []).filter(dans),
+  };
+}
+
+/** La photo du compteur du cycle : la plus recente si l'historique en a plusieurs. */
+function compteurDuCycle(liste) {
+  return liste.slice().sort((a, b) => b.timestamp - a.timestamp)[0] || null;
+}
+
+/**
+ * Date a inscrire sur une nouvelle photo : aujourd'hui s'il tombe dans le
+ * cycle, sinon le dernier jour du cycle. Une photo prise apres la cloture
+ * appartient au cycle qu'on est en train d'envoyer : sans ca elle sort de la
+ * periode, l'envoi reste bloque et on la reprend en boucle.
+ */
+function dateCompteurCycle(debut, fin) {
+  const today = aujourdhuiIso();
+  return dansPeriode(today, debut, fin) ? today : fin;
+}
+
+function destinatairesEnvoi() {
+  return [GS_TO].concat([reglages.emailMoi].filter((x) => x && x.trim()));
+}
+
+function vueEnvoi() {
+  const e = envoi;
+  const lot = contenuPeriode(e.debut, e.fin);
+  const valide = !!(e.debut && e.fin && e.debut <= e.fin);
+  const totalFrais = lot.frais.reduce((a, x) => a + (Number(x.montantEur) || 0), 0);
+  const rembourse = lot.frais.reduce(
+    (a, x) => a + remboursable(Number(x.montantEur) || 0, x.categorie), 0);
+  const compteur = compteurDuCycle(lot.compteur);
+  const img = compteur ? photo(compteur.fileName) : null;
+  const primes = primesParType(lot.gesteCo, datesInstallation(entrees.temps));
+  const totalPrimes = primes.reduce((a, p) => a + p.total, 0);
+  const totalExt = primes.reduce((a, p) => a + p.nb, 0);
+  const [cycleD, cycleF] = cycleCourant(
+    aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
+
+  const blocCompteur = compteur
+    ? '<div class="l fort"><span>Photo du compteur</span>'
+      + '<span style="color:#4ADE80">\u2713 ' + dateFr(compteur.date) + '</span></div>'
+    : '<div class="l fort"><span>Photo du compteur</span>'
+      + '<span style="color:#FF3D5A">manquante</span></div>';
+
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#22C55E,#15803D)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">ENVOI MENSUEL</span>
+  </div>
+  <div class="form">
+    <div class="jour"><span class="d">P\u00c9RIODE DU MENSUEL</span></div>
+    <div class="deux">
+      <div class="champ"><label for="e_du">Du</label>
+        <input id="e_du" type="date" value="${ech(e.debut)}" /></div>
+      <div class="champ"><label for="e_au">Au</label>
+        <input id="e_au" type="date" value="${ech(e.fin)}" /></div>
+    </div>
+    ${valide ? '' : '<div class="note">La date de fin doit suivre celle de d\u00e9but.</div>'}
+    <div class="aide">Pr\u00e9-rempli sur le cycle en cours (${dateFr(cycleD)}
+      \u2192 ${dateFr(cycleF)}). Le cycle suivant d\u00e9marrera le lendemain de
+      cet envoi.</div>
+    ${(e.debut !== cycleD || e.fin !== cycleF)
+      ? '<button class="btn" id="e_cycle" style="background:#1B2430">'
+        + '\u21ba Revenir au cycle par d\u00e9faut</button>' : ''}
+
+    <div class="jour"><span class="d">MON FICHIER TEMPS .XLSM</span></div>
+    ${(e.memoire && !e.fichier) ? `
+    <div class="total-bloc">
+      <div class="l fort"><span>Classeur mémorisé</span>
+        <span style="color:#4ADE80">✓ ${ech(e.memoire.nom)}</span></div>
+      <div class="l"><span>Dernier cycle écrit</span><span>${e.memoire.debut
+        ? dateFr(e.memoire.debut) + ' → ' + dateFr(e.memoire.fin)
+        : '—'}</span></div>
+    </div>
+    <div class="aide">Rien à choisir : l'envoi repart de ce classeur et y
+      ajoute le cycle en cours. C'est la même feuille de temps qui se
+      complète de mois en mois.</div>
+    <button class="btn" id="e_oublier" style="background:#3A1218">
+      Repartir d'un autre fichier</button>` : `
+    <div class="champ">
+      <label for="e_xlsm">${e.nomFichier
+        ? ech(e.nomFichier) : 'Aucun fichier choisi'}</label>
+      <input id="e_xlsm" type="file"
+             accept=".xlsm,.xlsx,application/vnd.ms-excel.sheet.macroEnabled.12" />
+      <div class="aide">Choisissez votre fichier TEMPS personnel (depuis Fichiers,
+        OneDrive ou Drive). Il est rempli sans jamais perdre ses macros. Ce choix
+        ne se fait qu'une fois : le classeur rempli est mémorisé, et les
+        envois suivants repartent de lui.</div>
+    </div>`}
+
+    <div class="jour"><span class="d">R\u00c9CAP DU CYCLE</span></div>
+    <div class="total-bloc">
+      <div class="l"><span>Interventions</span><span>${lot.temps.length}</span></div>
+      <div class="l"><span>Tickets de frais</span><span>${lot.frais.length}
+        \u00b7 ${eur2(totalFrais)} \u20ac</span></div>
+      <div class="l"><span>\u00c0 rembourser</span>
+        <span>${eur2(rembourse)} \u20ac</span></div>
+      <div class="l"><span>Primes GESTE CO</span><span>${totalExt} ext.
+        \u00b7 ${eur2(totalPrimes)} \u20ac</span></div>
+      ${blocCompteur}
+    </div>
+
+    <div class="jour"><span class="d">PHOTO DU COMPTEUR</span></div>
+    <div class="champ requis">
+      <label for="e_compteur">${compteur
+        ? 'Remplacer la photo' : 'Photo du compteur'}</label>
+      ${img ? '<img class="apercu-photo" src="' + img + '" alt="Compteur" />' : ''}
+      <input id="e_compteur" type="file" accept="image/*" capture="environment" />
+      <div class="aide">V\u00e9hicule : ${ech(reglages.plaqueVoiture
+        || '<plaque non saisie dans les r\u00e9glages>')}. Le kilom\u00e9trage est
+        lu directement sur la photo. Une seule photo par cycle : la nouvelle
+        remplace la pr\u00e9c\u00e9dente.</div>
+    </div>
+    ${compteur ? '<button class="btn" id="e_suppr_compteur" '
+      + 'style="background:#3A1218">Supprimer la photo</button>' : ''}
+
+    <div class="jour"><span class="d">ENVOYER</span></div>
+    <div class="note">Destinataires : <b>${ech(destinatairesEnvoi().join(', '))}</b>.
+      Le partage d'iPhone ne peut pas les remplir tout seul : touchez
+      \u00ab Copier les destinataires \u00bb, puis collez-les dans le champ
+      \u00ab \u00c0 \u00bb de Mail.</div>
+    <button class="btn" id="e_copier" style="background:#1B2430">
+      Copier les destinataires</button>
+    ${compteur ? '' : '<div class="note" style="color:#FF3D5A">\u26d4 Envoi bloqu\u00e9 : '
+      + 'aucune photo du compteur sur la p\u00e9riode. Prenez-la ci-dessus avant '
+      + 'd\'envoyer le mensuel.</div>'}
+    <button class="btn" id="e_envoyer"
+            ${(!valide || !compteur || e.occupe) ? 'disabled' : ''}
+            style="background:linear-gradient(135deg,#22C55E,#15803D)">
+      ${e.occupe ? 'Pr\u00e9paration\u2026' : 'Envoyer le mensuel'}</button>
+    ${e.etat ? '<div class="aide" style="color:#4ADE80">' + ech(e.etat) + '</div>' : ''}
+    <div class="aide" id="e_drive"></div>
+    ${e.erreur ? '<div class="note" style="color:#FF3D5A">' + ech(e.erreur) + '</div>' : ''}
+    ${(e.fichier || e.memoire) ? '' : '<div class="aide">Sans fichier Excel '
+      + 'choisi, seuls les tickets et la photo du compteur partent.</div>'}
   </div>`;
 }
 
@@ -804,6 +1067,7 @@ function rendre() {
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
     bulletin: vueBulletin, pv: vuePv,
     demandecam: vueDemandeCam, recap: vueRecap, prime: vuePrime,
+    envoi: vueEnvoi,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
@@ -823,6 +1087,7 @@ function rendre() {
 function aller(ou) {
   if (ou === 'nouvelle') {
     brouillon = entreeVide(reglages);
+    geste = gesteVide();
     if (reglages.pendingArrivalMs > 0) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
     }
@@ -830,6 +1095,25 @@ function aller(ou) {
   } else if (ou === 'demandecam') {
     demandeCam = { site: '', nb: '', precisions: '' };
     ecran = 'demandecam';
+  } else if (ou === 'envoi') {
+    // Safari ne sait pas garder l'acces au FICHIER choisi, mais l'app en garde
+    // le CONTENU : le classeur rempli au cycle precedent sert de base au
+    // suivant. Le technicien ne redesigne donc rien, et la feuille de temps
+    // s'accumule de cycle en cycle comme sur Android (voir classeur.js).
+    const cycle = cycleCourant(
+      aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
+    envoi = {
+      debut: cycle[0], fin: cycle[1], fichier: null, nomFichier: '',
+      memoire: null, etat: '', erreur: '', occupe: false,
+    };
+    ecran = 'envoi';
+    // IndexedDB ne repond qu'apres le premier rendu : on redessine a sa reponse.
+    lireClasseur().then((ref) => {
+      if (ecran !== 'envoi' || !envoi || envoi.fichier || !ref) return;
+      envoi.memoire = ref;
+      envoi.nomFichier = ref.nom;
+      rendre();
+    }).catch(() => {});
   } else if (ou === 'pv') {
     pv = {
       conv: '', site: '', dateSous: aujourdhuiIso(), nom: '', adr: '',
@@ -886,6 +1170,25 @@ function lireFormulaire() {
     brouillon.nomClient = v('#f_client');
     brouillon.ville = v('#f_ville');
   }
+  lireGeste();
+}
+
+/** Recopie la grille GESTE CO dans son etat, sans redessiner le formulaire. */
+function lireGeste() {
+  if (!geste) return;
+  const a = $('#g_actif');
+  geste.actif = a ? a.checked : geste.actif;
+  const e = $('#g_eps');
+  geste.eps = e ? e.checked : geste.eps;
+  const s = $('#f_site');
+  if (s) geste.site = s.value;
+  document.querySelectorAll('[data-geste]').forEach((n) => {
+    const ou = n.dataset.geste;
+    if (!geste[ou]) geste[ou] = {};
+    const val = String(n.value || '').trim();
+    if (val) geste[ou][n.dataset.cle] = val;
+    else delete geste[ou][n.dataset.cle];
+  });
 }
 
 // ============================================================ ACTIONS
@@ -912,6 +1215,7 @@ async function ouvrir(cible) {
   if (cible === 'demandecam') { aller('demandecam'); return; }
   if (cible === 'recap') { aller('recap'); return; }
   if (cible === 'prime') { aller('prime'); return; }
+  if (cible === 'envoi') { aller('envoi'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -948,11 +1252,36 @@ async function validerCloture() {
   const m = manques(brouillon);
   if (m.length) { toast('Il manque : ' + m.join(', ') + '.'); return; }
 
+  // GESTE CO : les plafonds bloquent la cloture, comme sur Android. Le n\u00b0 de
+  // site n'est exige que si quelque chose est offert, donc qu'un mail part.
+  const sav = gesteSav();
+  if (gesteVisible()) {
+    if (!gesteValide(geste, sav)) {
+      toast(raisonInvalide(geste, sav), 6000);
+      return;
+    }
+    if (besoinSite(geste) && !String(geste.site || '').trim()) {
+      toast('Indiquez le n\u00b0 de site : une extension est offerte.');
+      return;
+    }
+  }
+
   brouillon.heureFin = heureDe(Date.now());
   const duJour = entrees.temps.filter((x) => x.date === brouillon.date).concat([brouillon]);
   brouillon.heures = heuresDuJour(duJour);
 
   entrees.temps.push(brouillon);
+  if (gesteVisible()) {
+    const g = construireGeste(geste, {
+      id: idUnique(), tempsId: brouillon.id, date: brouillon.date,
+      siteNumber: geste.site, nomClient: brouillon.nomClient,
+      observations: brouillon.observations,
+    }, sav);
+    if (g) {
+      if (!entrees.gesteCo) entrees.gesteCo = [];
+      entrees.gesteCo.push(g);
+    }
+  }
   ecrireEntrees(entrees);
 
   // L'arrivee en attente est consommee par la cloture.
@@ -1000,7 +1329,7 @@ function rendreMontants() {
   }
 }
 
-function validerTicket() {
+async function validerTicket() {
   lireTicket();
   const montant = Number(String(ticket.montantEur).replace(',', '.'));
   if (!ticket.apercu) { toast('Photographiez le justificatif.'); return; }
@@ -1010,7 +1339,7 @@ function validerTicket() {
   const memeCat = entrees.frais.filter((f) => f.categorie === ticket.categorie).length;
   const nom = nomTicket(ticket.categorie, memeCat + 1);
 
-  if (!enregistrerPhoto(nom, ticket.apercu)) {
+  if (!await enregistrerPhoto(nom, ticket.apercu)) {
     toast('M\u00e9moire du navigateur pleine : envoyez les frais du cycle, '
         + 'puis reprenez.', 6000);
     return;
@@ -1059,7 +1388,7 @@ async function validerConge() {
     inclus: conge.inclus, date: versFr(conge.date),
     traces: pad.traces(),
   };
-  const blob = genererConge(donnees);
+  const blob = await genererConge(donnees);
   const fichier = new File([blob], nomFichierConge(donnees), { type: 'application/pdf' });
 
   // Partage natif avec piece jointe : c'est ainsi qu'on atteint l'app mail sur
@@ -1189,7 +1518,7 @@ async function validerPv() {
     tracesAbonne: padAb.traces(), tracesTech: padPvTech.traces(),
     tracesParapheTech: padPvTech.traces(), tracesParapheClient: padAb.traces(),
   });
-  const blob = genererPv(donnees);
+  const blob = await genererPv(donnees);
   const nomFichier = 'PV_CAMERAS_'
     + (pv.site.replace(/[^A-Za-z0-9_-]/g, '_') || 'site') + '.pdf';
   const fichier = new File([blob], nomFichier, { type: 'application/pdf' });
@@ -1232,8 +1561,231 @@ function envoyerDemandeCam() {
     + '&body=' + encodeURIComponent(corps);
 }
 
+/** La photo du compteur du cycle : la nouvelle remplace toutes les anciennes. */
+async function enregistrerCompteur(dataUrl) {
+  const date = dateCompteurCycle(envoi.debut, envoi.fin);
+  const nom = nomCompteur(reglages.plaqueVoiture, date);
+  if (!await enregistrerPhoto(nom, dataUrl)) {
+    toast('M\u00e9moire du navigateur pleine : envoyez le mensuel, puis reprenez.', 6000);
+    return false;
+  }
+  // Une seule photo par cycle : les precedentes sont retirees, fichier compris,
+  // ce qui nettoie au passage les doublons deja accumules.
+  contenuPeriode(envoi.debut, envoi.fin).compteur.forEach((c) => {
+    if (c.fileName !== nom) supprimerPhoto(c.fileName);
+  });
+  const autres = (entrees.compteur || []).filter(
+    (c) => !dansPeriode(c.date, envoi.debut, envoi.fin));
+  autres.push({ id: idUnique(), date: date, timestamp: Date.now(), fileName: nom });
+  entrees.compteur = autres;
+  ecrireEntrees(entrees);
+  return true;
+}
+
+async function supprimerCompteur() {
+  contenuPeriode(envoi.debut, envoi.fin).compteur
+    .forEach((c) => supprimerPhoto(c.fileName));
+  entrees.compteur = (entrees.compteur || []).filter(
+    (c) => !dansPeriode(c.date, envoi.debut, envoi.fin));
+  ecrireEntrees(entrees);
+}
+
+/** Feuille de partage d'iOS avec les pieces jointes ; telechargement en secours. */
+async function partagerPieces(pieces, sujet, corps) {
+  if (navigator.canShare && navigator.canShare({ files: pieces })) {
+    try {
+      await navigator.share({ files: pieces, title: sujet, text: corps });
+      return 'partage';
+    } catch (err) { if (err && err.name === 'AbortError') return 'annule'; }
+  }
+  for (const p of pieces) {
+    const url = URL.createObjectURL(p);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = p.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return 'telecharge';
+}
+
+async function validerEnvoi() {
+  const v = envoi;
+  if (!(v.debut && v.fin && v.debut <= v.fin)) {
+    toast('La date de fin doit suivre celle de d\u00e9but.'); return;
+  }
+  const lot = contenuPeriode(v.debut, v.fin);
+  if (!lot.compteur.length) {
+    toast('La photo du compteur est obligatoire pour envoyer.'); return;
+  }
+
+  v.occupe = true;
+  v.erreur = '';
+  v.etat = '';
+  rendre();
+
+  const pieces = [];
+  // Le compte-rendu du remplissage est garde a part : c'est ce que le tech
+  // verifie en priorite, et le message final ne doit pas l'effacer.
+  let rapportExcel = '';
+  try {
+    // Le classeur de depart : celui qu'on vient de choisir, sinon celui garde
+    // du cycle precedent. C'est cette reprise qui fait l'accumulation.
+    const source = v.fichier || (v.memoire ? v.memoire.octets : null);
+    if (source) {
+      v.etat = 'Remplissage du fichier Excel\u2026';
+      rendre();
+      const res = await remplirClasseur(source, lot.temps, lot.frais);
+      const nomBase = v.nomFichier || (v.memoire ? v.memoire.nom : '') || 'TEMPS.xlsm';
+      const base = nomBase.replace(/\.[^.]*$/, '')
+        .replace(/[^A-Za-z0-9_.-]/g, '_') || 'TEMPS';
+      pieces.push(new File([res.blob], base + '_' + v.debut + '.xlsm',
+        { type: 'application/vnd.ms-excel.sheet.macroEnabled.12' }));
+
+      // Le classeur rempli devient la reference du prochain cycle : c'est
+      // l'equivalent iOS de la reecriture sur place d'Android. Un echec de
+      // memorisation (quota, stockage refuse) n'arrete pas l'envoi, il est
+      // seulement signale - le tech saura qu'il devra rechoisir son fichier.
+      const garde = await memoriserClasseur(nomBase, res.blob, v.debut, v.fin);
+      if (garde) {
+        v.memoire = garde;
+        v.fichier = null;
+        v.nomFichier = nomBase;
+      }
+      rapportExcel = 'Excel : ' + res.rapport.ecrites + ' ligne(s) \u00e9crite(s)'
+        + (res.rapport.ajoutees
+          ? ', ' + res.rapport.ajoutees + ' ligne(s) ajout\u00e9e(s)' : '')
+        + ' sur ' + (res.rapport.feuilles.join(', ') || 'aucune feuille') + '. '
+        + (garde ? 'Classeur m\u00e9moris\u00e9 pour le prochain cycle. '
+                 : 'Classeur non m\u00e9moris\u00e9 : il sera \u00e0 rechoisir '
+                   + 'au prochain envoi. ');
+      v.etat = rapportExcel;
+      if (res.rapport.avertissements.length) {
+        v.erreur = res.rapport.avertissements.join(' ');
+      }
+    }
+    // Les tickets gardent le nom qu'ils ont a la prise de vue (FRAIS-CAT-N) :
+    // meme nom d'un envoi a l'autre, donc ecrasement propre cote bureau.
+    lot.frais.forEach((t) => {
+      const d = photo(t.fileName);
+      if (d) pieces.push(fichierDepuisDataUrl(d, t.fileName));
+    });
+    const c = compteurDuCycle(lot.compteur);
+    const dc = c ? photo(c.fileName) : null;
+    if (dc) pieces.push(fichierDepuisDataUrl(dc, c.fileName));
+
+    // Recap PDF en derniere piece, comme Android : le bureau l'ouvre sans
+    // navigateur, et il porte le taux de NR du mois.
+    // Primes du cycle : la regle CAM se juge sur TOUTES les interventions, pas
+    // seulement celles du cycle, sinon une camera posee la veille du cycle
+    // perdrait sa prime.
+    const primes = primesParType(lot.gesteCo, datesInstallation(entrees.temps));
+    const recap = genererRecap({
+      nom: reglages.nomUtilisateur, plaque: reglages.plaqueVoiture,
+      debut: v.debut, fin: v.fin,
+      temps: lot.temps, frais: lot.frais, compteurs: lot.compteur,
+      tempsTous: entrees.temps,
+      primes: primes,
+      totalPrimes: primes.reduce((a, p) => a + p.total, 0),
+      totalExtensions: primes.reduce((a, p) => a + p.nb, 0),
+    });
+    pieces.push(new File([recap], nomFichierRecap(v.debut),
+      { type: 'application/pdf' }));
+
+    const sujet = 'FEUILLES DE TEMPS ' + dateFr(v.debut) + ' -> ' + dateFr(v.fin)
+      + (reglages.plaqueVoiture ? ' - ' + reglages.plaqueVoiture : '');
+    let corps = 'Bonjour,\n\nVeuillez trouver ci-joint, pour la p\u00e9riode du '
+      + dateFr(v.debut) + ' au ' + dateFr(v.fin) + ' :\n\n';
+    pieces.forEach((p) => { corps += '  - ' + p.name + '\n'; });
+    corps += '\nCordialement,\n' + (reglages.nomUtilisateur || '');
+
+    const resultat = await partagerPieces(pieces, sujet, corps);
+    if (resultat === 'annule') {
+      // Aucune DATE d'envoi n'est memorisee sur un partage annule : dater un
+      // envoi qui n'a pas eu lieu ferait demarrer le cycle suivant trop tot, et
+      // le cycle en cours deviendrait impossible a envoyer.
+      //
+      // Le classeur, lui, garde ce qui vient d'y etre ecrit - exactement comme
+      // Android, qui remplit l'URI avant d'ouvrir le partage. Reenvoyer le meme
+      // cycle est sans danger : les memes lignes retombent sur les memes
+      // cellules, et les jours ont deja la place qu'il leur faut.
+      v.etat = rapportExcel + 'Envoi annul\u00e9 : le cycle reste ouvert.';
+    } else {
+      // La periode reellement envoyee, avant que l'ecran ne passe au cycle
+      // suivant : c'est elle qui nomme le dossier Drive.
+      const debutEnvoye = v.debut;
+      const finEnvoyee = v.fin;
+      reglages = memoriserEnvoi(reglages, aujourdhuiIso());
+      ecrireReglages(reglages);
+      const suivant = cycleCourant(
+        aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
+      v.debut = suivant[0];
+      v.fin = suivant[1];
+      // Le fichier choisi a la main a fait son office ; le classeur memorise,
+      // lui, reste en place : c'est la base du cycle qui commence.
+      v.fichier = null;
+      v.nomFichier = v.memoire ? v.memoire.nom : '';
+      v.etat = rapportExcel + pieces.length + ' pi\u00e8ce(s) '
+        + (resultat === 'partage' ? 'transmises au partage' : 't\u00e9l\u00e9charg\u00e9es')
+        + '. Prochain cycle : ' + dateFr(suivant[0]) + ' \u2192 ' + dateFr(suivant[1]) + '.';
+
+      // Copie sur le Drive partage + stats du tableau de bord. Volontairement
+      // non attendu : le technicien a deja son mail, et une coupure reseau ne
+      // doit pas retenir l'ecran.
+      deposerEnvoi(reglages, entrees, lot, debutEnvoye, finEnvoyee, pieces, corps)
+        .then((n) => {
+          const bloc = $('#e_drive');
+          if (bloc) {
+            bloc.textContent = n
+              ? n + ' \u00e9l\u00e9ment(s) d\u00e9pos\u00e9s sur le Drive partag\u00e9.'
+              : 'D\u00e9p\u00f4t Drive impossible pour l\'instant : il se refera '
+                + 'au prochain envoi.';
+          }
+        })
+        .catch(() => {});
+    }
+  } catch (err) {
+    v.erreur = 'Erreur : ' + ((err && err.message) ? err.message : String(err));
+  }
+  v.occupe = false;
+  rendre();
+}
+
 // ======================================================= INTERACTIONS
 document.addEventListener('click', (e) => {
+  if (e.target.closest('#e_cycle')) {
+    const c = cycleCourant(
+      aujourdhuiIso(), reglages.cycleStartDay, reglages.lastEnvoiDateIso);
+    envoi.debut = c[0];
+    envoi.fin = c[1];
+    rendre(); return;
+  }
+  if (e.target.closest('#e_oublier')) {
+    // Changement de trame (nouvelle annee, classeur reparti a neuf) : on rend
+    // la main au selecteur de fichier, la reference actuelle est jetee.
+    oublierClasseur().then(() => {
+      envoi.memoire = null;
+      envoi.nomFichier = '';
+      envoi.fichier = null;
+      rendre();
+      toast('Classeur oublié : choisissez le fichier à reprendre.');
+    }).catch(() => {});
+    return;
+  }
+  if (e.target.closest('#e_suppr_compteur')) {
+    supprimerCompteur();
+    rendre(); toast('Photo du compteur supprim\u00e9e.'); return;
+  }
+  if (e.target.closest('#e_copier')) {
+    const liste = destinatairesEnvoi().join(', ');
+    navigator.clipboard.writeText(liste)
+      .then(() => toast('Destinataires copi\u00e9s : collez-les dans le champ \u00ab \u00c0 \u00bb.'))
+      .catch(() => toast(liste, 8000));
+    return;
+  }
+  if (e.target.closest('#e_envoyer')) { validerEnvoi(); return; }
+
   if (e.target.closest('#d_valider')) { envoyerDemandeCam(); return; }
   if (e.target.closest('#p_eff_ab')) { if (padAb) padAb.effacer(); return; }
   if (e.target.closest('#p_eff_tech')) { if (padPvTech) padPvTech.effacer(); return; }
@@ -1337,6 +1889,36 @@ document.addEventListener('change', async (e) => {
     catch (err) { toast('Photo illisible, reprenez-la.'); }
     return;
   }
+  if (ecran === 'envoi') {
+    if (e.target.id === 'e_xlsm') {
+      const f = e.target.files && e.target.files[0];
+      if (f) {
+        envoi.fichier = f;
+        envoi.nomFichier = f.name;
+        envoi.etat = '';
+        envoi.erreur = '';
+        rendre();
+      }
+      return;
+    }
+    if (e.target.id === 'e_compteur') {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      try {
+        if (await enregistrerCompteur(await reduire(f))) {
+          rendre(); toast('Photo du compteur enregistr\u00e9e.');
+        }
+      } catch (err) { toast('Photo illisible, reprenez-la.'); }
+      return;
+    }
+    if (e.target.matches('#e_du, #e_au')) {
+      envoi.debut = $('#e_du').value || envoi.debut;
+      envoi.fin = $('#e_au').value || envoi.fin;
+      rendre();
+      return;
+    }
+    return;
+  }
   if (ecran === 'pv') {
     if (e.target.matches('#p_mint, #p_mext, #p_antic')) { lirePv(); rendre(); }
     return;
@@ -1348,11 +1930,13 @@ document.addEventListener('change', async (e) => {
     return;
   }
   if (ecran !== 'formulaire') return;
-  if (e.target.matches('#f_type, #f_obs')) { lireFormulaire(); rendre(); }
+  if (e.target.matches('#f_type, #f_obs, #g_actif, #g_eps')) {
+    lireFormulaire(); rendre();
+  }
 });
 
 // Apercu du message tenu a jour pendant la frappe.
-document.addEventListener('input', () => {
+document.addEventListener('input', (e) => {
   if (ecran === 'ticket') { lireTicket(); rendreMontants(); return; }
   if (ecran === 'pv') {
     if (e.target.matches('#p_ext, #p_int, #p_torus')) { lirePv(); rendre(); }
@@ -1362,10 +1946,28 @@ document.addEventListener('input', () => {
   lireFormulaire();
   const a = $('#apercu');
   if (a) a.innerHTML = 'Message : <b>' + ech(messageCloture(brouillon)) + '</b>';
+  // Les totaux GESTE CO seuls sont redessines : un rendu complet fermerait le
+  // clavier a chaque chiffre saisi dans la grille.
+  const t = $('#g_totaux');
+  if (t) t.innerHTML = totauxGeste();
+  // Le n\u00b0 de site devient obligatoire des la premiere extension offerte : son
+  // etoile doit suivre la frappe, pas attendre le rendu suivant.
+  const c = $('#g_champ_site');
+  if (c) {
+    const requis = besoinSite(geste);
+    c.classList.toggle('requis', requis);
+    const l = c.querySelector('label');
+    if (l) l.textContent = 'N\u00b0 de site' + (requis ? '' : ' (facultatif)');
+  }
 });
 
 window.addEventListener('online', rendre);
 window.addEventListener('offline', rendre);
+
+// Les vignettes sont lues en memoire pendant le rendu, qui est synchrone : la
+// base doit etre chargee avant le premier affichage, sinon les photos
+// manqueraient a l'ecran jusqu'au rendu suivant.
+await chargerPhotos();
 
 ecran = reglagesComplets(reglages) ? 'accueil' : 'reglages';
 rendre();

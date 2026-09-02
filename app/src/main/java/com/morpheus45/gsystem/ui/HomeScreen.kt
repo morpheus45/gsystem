@@ -66,6 +66,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.outlined.Shield
 import com.morpheus45.gsystem.BuildConfig
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
@@ -77,6 +78,9 @@ import com.morpheus45.gsystem.ui.components.LiveStatusBar
 import com.morpheus45.gsystem.ui.theme.AttenteAccent
 import com.morpheus45.gsystem.ui.theme.AttenteEnd
 import com.morpheus45.gsystem.ui.theme.AttenteStart
+import com.morpheus45.gsystem.ui.theme.DiagAccent
+import com.morpheus45.gsystem.ui.theme.DiagEnd
+import com.morpheus45.gsystem.ui.theme.DiagStart
 import com.morpheus45.gsystem.ui.theme.CourrierAccent
 import com.morpheus45.gsystem.ui.theme.CourrierEnd
 import com.morpheus45.gsystem.ui.theme.CourrierStart
@@ -138,6 +142,7 @@ fun HomeScreen(
     // Appui long sur une tuile 01/02 transformée : annuler / repointer l'arrivée.
     onArrivalCancel: () -> Unit = {},
     onDemandeCamera: () -> Unit,
+    onDiagnostic: () -> Unit,
     onPvCameras: () -> Unit,
     onGesteCoRecap: () -> Unit,
     onFrais: () -> Unit,
@@ -351,22 +356,25 @@ fun HomeScreen(
             HomeTile("09", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onDemandeCamera),
-            HomeTile("10", "RÉCAP", "Cumul du cycle · total euros",
+            HomeTile("10", "DIAGNOSTIC SÉCURITÉ", "Fiche EPS · pro et particulier",
+                Icons.Outlined.Shield, DiagStart, DiagEnd, DiagAccent, HomeGroup.INTERV,
+                onClick = onDiagnostic),
+            HomeTile("11", "RÉCAP", "Cumul du cycle · total euros",
                 Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
                 onClick = onGesteCoRecap),
-            HomeTile("11", "FRAIS", fraisSub,
+            HomeTile("12", "FRAIS", fraisSub,
                 Icons.Outlined.Receipt, FraisStart, FraisEnd, FraisAccent, HomeGroup.FIN,
                 liveValue = if (countFrais > 0) countFrais.toString() else null,
                 liveLabel = if (countFrais > 0) "tickets" else null,
                 onClick = onFrais),
-            HomeTile("12", "ENVOI MENSUEL", "Excel + tickets + compteur",
+            HomeTile("13", "ENVOI MENSUEL", "Excel + tickets + compteur",
                 Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
                 pulse = endOfCycleApproaching,
                 onClick = onEnvoiMensuel),
-            HomeTile("13", "PRIME À VENIR", "Historique · versement à +2 mois",
+            HomeTile("14", "PRIME À VENIR", "Historique · versement à +2 mois",
                 Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
                 onClick = onPrimeAVenir),
-            HomeTile("14", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
+            HomeTile("15", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
                 onClick = onConge)
         )

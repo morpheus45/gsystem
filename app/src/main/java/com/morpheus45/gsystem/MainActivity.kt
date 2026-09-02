@@ -302,6 +302,7 @@ fun AppNav() {
                 onNewIntervention = { navController.navigate("temps_new") },
                 onArrivalCancel = { showArrivalDialog = true },
                 onDemandeCamera = { navController.navigate("demande_camera") },
+                onDiagnostic = { navController.navigate("diagnostic") },
                 onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
                 onFrais = { navController.navigate("frais") },
@@ -473,6 +474,9 @@ fun AppNav() {
                 settings = settings,
                 onBack = { navController.popBackStack() }
             )
+        }
+        composable("diagnostic") {
+            DiagnosticScreen(onBack = { navController.popBackStack() })
         }
         composable("conge") {
             CongeScreen(
