@@ -477,7 +477,10 @@ fun AppNav() {
             )
         }
         composable("diagnostic") {
-            DiagnosticScreen(onBack = { navController.popBackStack() })
+            DiagnosticScreen(
+                onBack = { navController.popBackStack() },
+                nomTech = settings.nomUtilisateur
+            )
         }
         composable("conge") {
             CongeScreen(
