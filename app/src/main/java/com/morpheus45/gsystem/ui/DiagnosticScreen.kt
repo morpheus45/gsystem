@@ -10,7 +10,9 @@
 package com.morpheus45.gsystem.ui
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Canvas
 // android.graphics.Color n'est pas importe : le nom est deja pris par
@@ -21,6 +23,7 @@ import android.os.Looper
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -209,43 +212,86 @@ class PontEnvoi(
         // Les méthodes d'un pont JS arrivent sur un thread de travail ; tout ce
         // qui touche à une vue doit repasser par le thread principal.
         principal.post {
-            val w = vue() ?: return@post
-            fabriquerPdf(context, w.url ?: return@post) { fichier ->
-                if (fichier != null) {
-                    EmailSender.sendPdf(
-                        context = context,
-                        toList = listOf(mail),
-                        subject = sujet,
-                        body = corps,
-                        attachment = fichier,
-                        chooserTitle = "Envoyer le diagnostic au client"
-                    )
-                } else {
+            // RÈGLE : le mail s'ouvre TOUJOURS. Le PDF est un plus. Si sa
+            // fabrication échoue ou n'aboutit pas, le technicien reçoit quand
+            // même son brouillon prérempli et joint la fiche à la main.
+            // Ne rien faire du tout — ce que faisait la version précédente
+            // dès qu'un maillon ne répondait pas — est le pire des résultats.
+            val ouvrirMail = { fichier: File? ->
+                if (fichier == null) {
                     Toast.makeText(
                         context,
-                        "PDF impossible à générer : enregistrez-le depuis " +
-                            "l'impression, puis joignez-le au mail.",
+                        "PDF indisponible : le mail s'ouvre sans pièce jointe. " +
+                            "Utilisez « Imprimer / PDF », enregistrez, puis joignez-le.",
                         Toast.LENGTH_LONG
                     ).show()
-                    ouvrirImpression(context, w)
                 }
+                EmailSender.send(
+                    context = context,
+                    to = mail,
+                    subject = sujet,
+                    body = corps,
+                    attachment = fichier,
+                    mimeType = "application/pdf",
+                    chooserTitle = "Envoyer le diagnostic au client"
+                )
             }
+            val w = vue()
+            if (w == null) ouvrirMail(null) else fabriquerPdf(context, w, ouvrirMail)
         }
     }
 }
 
+/** L'Activity derrière le Context de Compose, qui peut être un wrapper. */
+private fun activite(depart: Context): Activity? {
+    var c: Context = depart
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
+
 /**
- * Fabrique le PDF de la fiche dans cacheDir/exports/.
+ * Fabrique le PDF de la fiche dans cacheDir/exports/, puis rend la main.
  *
- * On passe par une SECONDE WebView, hors écran : celle que le technicien a
- * sous les yeux fait la taille de son téléphone, la dessiner ne donnerait que
- * la portion visible. Celle-ci est posée à la largeur A4 et on lui demande sa
- * mise en page d'impression (classe « rendu-pdf »), pour dessiner exactement
- * ce qui sortirait de l'imprimante.
+ * On passe par une SECONDE WebView : celle que le technicien a sous les yeux
+ * fait la taille de son téléphone, la dessiner ne donnerait que la portion
+ * visible. Celle-ci est posée à la largeur A4 et on lui demande sa mise en
+ * page d'impression (classe « rendu-pdf »).
+ *
+ * Elle est RATTACHÉE à la fenêtre, invisible : une WebView détachée n'exécute
+ * pas son JavaScript de façon fiable — le callback d'evaluateJavascript peut
+ * ne jamais arriver — et ne peint rien.
+ *
+ * `onFini` est appelé exactement une fois, y compris si rien ne répond : un
+ * garde-temps s'en assure.
  */
 @SuppressLint("SetJavaScriptEnabled")
-private fun fabriquerPdf(context: Context, url: String, onFini: (File?) -> Unit) {
+private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> Unit) {
+    val url = source.url
+    if (url.isNullOrBlank()) { onFini(null); return }
+
+    val principal = Handler(Looper.getMainLooper())
     val hors = WebView(context)
+    val racine = activite(context)?.window?.decorView as? ViewGroup
+    var fini = false
+    var garde: Runnable? = null
+
+    fun terminer(fichier: File?) {
+        if (fini) return
+        fini = true
+        garde?.let { principal.removeCallbacks(it) }
+        try { racine?.removeView(hors) } catch (e: Exception) { /* deja retiree */ }
+        try { hors.destroy() } catch (e: Exception) { /* deja liberee */ }
+        onFini(fichier)
+    }
+
+    // Filet : chargement bloqué, JavaScript muet, fiche introuvable — quoi
+    // qu'il arrive on rend la main, et le mail s'ouvre sans pièce jointe.
+    garde = Runnable { terminer(null) }
+    principal.postDelayed(garde, 8000)
+
     hors.settings.javaScriptEnabled = true
     // La fiche relit ses saisies dans localStorage : sans ça, le PDF serait vierge.
     hors.settings.domStorageEnabled = true
@@ -253,7 +299,7 @@ private fun fabriquerPdf(context: Context, url: String, onFini: (File?) -> Unit)
     hors.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
     hors.webViewClient = object : WebViewClient() {
         override fun onPageFinished(v: WebView?, u: String?) {
-            v ?: return
+            if (v == null) { terminer(null); return }
             v.evaluateJavascript(
                 "document.documentElement.classList.add('rendu-pdf');" +
                     "if(window.calibrerImpression)calibrerImpression();" +
@@ -263,16 +309,15 @@ private fun fabriquerPdf(context: Context, url: String, onFini: (File?) -> Unit)
                 poser(v, pages)
                 // La réduction posée par calibrerImpression doit être peinte
                 // avant qu'on dessine : un tour de boucle ne suffit pas.
-                v.postDelayed({
-                    val fichier = dessiner(context, v, pages)
-                    // Une WebView non liberee reste en memoire : le technicien
-                    // envoie plusieurs fiches par jour sans quitter l ecran.
-                    v.destroy()
-                    onFini(fichier)
-                }, 400)
+                v.postDelayed({ terminer(dessiner(context, v, pages)) }, 400)
             }
         }
     }
+
+    // Invisible mais bien dans la hiérarchie, à la taille A4 : c'est la seule
+    // façon d'obtenir un rendu fidèle sans montrer quoi que ce soit.
+    hors.alpha = 0f
+    racine?.addView(hors, ViewGroup.LayoutParams(LARGEUR_PX, HAUTEUR_PX * 2))
     poser(hors, 2)
     hors.loadUrl(url)
 }
