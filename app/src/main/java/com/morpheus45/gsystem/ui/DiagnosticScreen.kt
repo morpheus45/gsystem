@@ -11,6 +11,10 @@ package com.morpheus45.gsystem.ui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+// android.graphics.Color n'est pas importe : le nom est deja pris par
+// androidx.compose.ui.graphics.Color, utilise par la barre de titre.
 import android.graphics.pdf.PdfDocument
 import android.os.Handler
 import android.os.Looper
@@ -247,7 +251,13 @@ private fun fabriquerPdf(context: Context, url: String, onFini: (File?) -> Unit)
                 poser(v, pages)
                 // La réduction posée par calibrerImpression doit être peinte
                 // avant qu'on dessine : un tour de boucle ne suffit pas.
-                v.postDelayed({ onFini(dessiner(context, v, pages)) }, 400)
+                v.postDelayed({
+                    val fichier = dessiner(context, v, pages)
+                    // Une WebView non liberee reste en memoire : le technicien
+                    // envoie plusieurs fiches par jour sans quitter l ecran.
+                    v.destroy()
+                    onFini(fichier)
+                }, 400)
             }
         }
     }
@@ -265,27 +275,57 @@ private fun poser(v: WebView, pages: Int) {
     v.layout(0, 0, LARGEUR_PX, hauteur)
 }
 
-private fun dessiner(context: Context, v: WebView, pages: Int): File? = try {
-    val doc = PdfDocument()
-    val echelle = LARGEUR_PT.toFloat() / LARGEUR_PX
-    for (i in 0 until pages) {
-        val page = doc.startPage(
-            PdfDocument.PageInfo.Builder(LARGEUR_PT, HAUTEUR_PT, i + 1).create()
-        )
-        page.canvas.scale(echelle, echelle)
-        page.canvas.translate(0f, -(i * HAUTEUR_PX).toFloat())
-        v.draw(page.canvas)
-        doc.finishPage(page)
-    }
-    val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
-    val fichier = File(dossier, "Diagnostic_securite.pdf")
-    FileOutputStream(fichier).use { doc.writeTo(it) }
-    doc.close()
-    // Un PDF de quelques centaines d'octets est une page blanche : mieux vaut
-    // l'impression système que d'envoyer ça au client.
-    if (fichier.length() > 5_000L) fichier else null
+/**
+ * Y a-t-il de l'encre sur la page ?
+ *
+ * Une WebView qui n'a jamais été rattachée à une fenêtre peut ne rien peindre :
+ * le dessin réussit, le PDF se crée, et le client reçoit deux pages blanches.
+ * On dessine donc d'abord une vignette et on compte les pixels non blancs.
+ * Mieux vaut retomber sur l'impression système que d'envoyer ça.
+ */
+private fun contientQuelqueChose(v: WebView): Boolean = try {
+    if (v.width <= 0 || v.height <= 0) throw IllegalStateException("vue non posee")
+    val large = 160
+    val ratio = large.toFloat() / v.width
+    val haut = (v.height * ratio).toInt().coerceIn(1, 4000)
+    val vignette = Bitmap.createBitmap(large, haut, Bitmap.Config.ARGB_8888)
+    val toile = Canvas(vignette)
+    toile.drawColor(android.graphics.Color.WHITE)
+    toile.scale(ratio, ratio)
+    v.draw(toile)
+    val pixels = IntArray(large * haut)
+    vignette.getPixels(pixels, 0, large, 0, 0, large, haut)
+    vignette.recycle()
+    // La fiche est dense : bien au-dela de 1 % de la surface est encre.
+    pixels.count { it != android.graphics.Color.WHITE } > pixels.size / 100
 } catch (e: Exception) {
-    null
+    false
+}
+
+private fun dessiner(context: Context, v: WebView, pages: Int): File? {
+    if (!contientQuelqueChose(v)) return null
+    return try {
+        val doc = PdfDocument()
+        val echelle = LARGEUR_PT.toFloat() / LARGEUR_PX
+        for (i in 0 until pages) {
+            val page = doc.startPage(
+                PdfDocument.PageInfo.Builder(LARGEUR_PT, HAUTEUR_PT, i + 1).create()
+            )
+            page.canvas.scale(echelle, echelle)
+            page.canvas.translate(0f, -(i * HAUTEUR_PX).toFloat())
+            v.draw(page.canvas)
+            doc.finishPage(page)
+        }
+        val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
+        val fichier = File(dossier, "Diagnostic_securite.pdf")
+        FileOutputStream(fichier).use { doc.writeTo(it) }
+        doc.close()
+        // Ceinture et bretelles : un PDF de quelques centaines d'octets ne
+        // contient rien non plus.
+        if (fichier.length() > 5_000L) fichier else null
+    } catch (e: Exception) {
+        null
+    }
 }
 
 /**
