@@ -22,6 +22,7 @@ import android.print.PrintAttributes
 import android.print.PrintManager
 import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -35,7 +36,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,11 +95,6 @@ fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
                         Icon(Icons.Filled.ArrowBack, "Retour")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { imprimer(context, vue.value) }) {
-                        Icon(Icons.Filled.Print, "Imprimer ou enregistrer en PDF")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = DiagStart,
                     titleContentColor = Color.White,
@@ -149,6 +144,13 @@ fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
                                 return !url.startsWith("file:///android_asset/")
                             }
                         }
+                        // Sans WebChromeClient, la WebView IGNORE purement
+                        // alert(), confirm() et prompt() : les messages de la
+                        // fiche ne s'affichaient nulle part, et « Envoyer au
+                        // client » semblait ne rien faire quand l'e-mail
+                        // manquait. L'implémentation de base suffit : elle
+                        // laisse la WebView poser ses propres boîtes.
+                        webChromeClient = WebChromeClient()
                         // La fiche appelle ce pont pour transmettre le
                         // diagnostic au client, PDF joint.
                         addJavascriptInterface(
@@ -192,6 +194,16 @@ class PontEnvoi(
     private val vue: () -> WebView?,
     private val principal: Handler
 ) {
+    /**
+     * Impression demandée depuis la fiche. `window.print()` n'existe pas dans
+     * une WebView Android : sans ce relais, le bouton de la fiche restait
+     * totalement sans effet dans l'application.
+     */
+    @JavascriptInterface
+    fun imprimer() {
+        principal.post { ouvrirImpression(context, vue()) }
+    }
+
     @JavascriptInterface
     fun envoyer(mail: String, sujet: String, corps: String) {
         // Les méthodes d'un pont JS arrivent sur un thread de travail ; tout ce
@@ -215,7 +227,7 @@ class PontEnvoi(
                             "l'impression, puis joignez-le au mail.",
                         Toast.LENGTH_LONG
                     ).show()
-                    imprimer(context, w)
+                    ouvrirImpression(context, w)
                 }
             }
         }
@@ -332,7 +344,7 @@ private fun dessiner(context: Context, v: WebView, pages: Int): File? {
  * Impression système : c'est aussi par là qu'on obtient un PDF sur Android
  * (« Enregistrer au format PDF » dans la liste des imprimantes).
  */
-private fun imprimer(context: Context, vue: WebView?) {
+private fun ouvrirImpression(context: Context, vue: WebView?) {
     val w = vue ?: return
     val service = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
     val nom = "Diagnostic_securite"

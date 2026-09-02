@@ -353,7 +353,7 @@
 <div class="toolbar no-print">
   <h2>Fiche Diagnostic Sécurité — <b>Particulier</b> (A4 / 2 pages)</h2>
   <a class="btn btn-switch" href="index.html">↔ Pro</a>
-  <button onclick="window.print()">🖨️ Imprimer / PDF</button>
+  <button onclick="imprimerFiche()">🖨️ Imprimer / PDF</button>
   <input class="mail-client" id="mail_client" type="email" inputmode="email"
          autocomplete="email" placeholder="e-mail du client" data-key="mail_client">
   <button onclick="envoyerAuClient()">📧 Envoyer au client</button>
@@ -1111,6 +1111,17 @@ window.addEventListener('beforeprint', calibrerImpression);
 function champ(cle) {
   var n = document.querySelector('[data-key="' + cle + '"]');
   return n ? String(n.value || '').trim() : '';
+}
+
+/* window.print() n'est pas implemente dans la WebView Android : le bouton y
+   restait sans effet. Quand l'application a pose son pont, c'est elle qui
+   ouvre l'impression systeme ; sinon on garde le comportement du navigateur. */
+function imprimerFiche() {
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.imprimer) {
+    window.__gsysEnvoiClient.imprimer();
+    return;
+  }
+  window.print();
 }
 
 function envoyerAuClient() {
