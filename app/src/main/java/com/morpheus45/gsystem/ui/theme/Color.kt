@@ -114,6 +114,13 @@ val BulletinEnd    = Color(0xFF9168F0)
 val BulletinAccent = Color(0xFFDDD6FE)
 
 // 04 RECAP — bleu
+// DIAGNOSTIC SECURITE - derniere tuile d'INTERVENTION : elle demarre sur la
+// fin de DEMANDE CAMERA (#8A5CF6) et glisse vers l'indigo, qui amene au bleu
+// du groupe FIN DE CYCLE. La waterfall reste continue d'un groupe a l'autre.
+val DiagStart      = Color(0xFF8A5CF6)
+val DiagEnd        = Color(0xFF6366F1)
+val DiagAccent     = Color(0xFFDDD6FE)
+
 val RecapStart     = Color(0xFF3B82F6)
 val RecapEnd       = Color(0xFF06B6D4)
 val RecapAccent    = Color(0xFFBFDBFE)
