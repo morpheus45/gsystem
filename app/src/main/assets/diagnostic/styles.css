@@ -794,3 +794,46 @@ table.ext tbody td.ext-name input { text-align: left; }
   .page { padding: 2mm 1.5mm; font-size: 6pt; }
   .digit-box { width: 12px !important; height: 16px; }
 }
+
+
+/* Numero de lieu protege : un seul champ, saisi d un trait plutot que case
+   par case (on tape le numero comme on le lit). */
+.lieu-num {
+  border: 1px solid #333;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 2px;
+  width: 130px;
+  text-align: center;
+  background: #fff;
+}
+.lieu-num:focus { outline: 2px solid #1F4E9C; outline-offset: 1px; }
+
+/* A l impression la fiche reprend sa taille A4 exacte : la mise a l echelle
+   ne concerne que l affichage a l ecran. */
+@media print {
+  .page { transform: none !important; margin-bottom: 0 !important; }
+}
+
+
+/* Menus deroulants des cellules : meme gabarit qu un champ, sans la fleche
+   native qui mangerait la largeur dans des colonnes aussi etroites. */
+select.cell-choix {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: center;
+  text-align-last: center;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  color: inherit;
+}
+select.cell-choix:focus { outline: 2px solid #1F4E9C; outline-offset: -2px; }
+
+@media print {
+  select.cell-choix { color: #000; }
+}

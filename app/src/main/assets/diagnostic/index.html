@@ -445,7 +445,7 @@
     <h1>DIAGNOSTIC SÉCURITÉ</h1>
     <div class="lieu-protege">
       <span>Lieu protégé N°</span>
-      <span class="cases-row" id="cases-num"></span>
+      <input class="lieu-num" id="lieu-num" inputmode="numeric" data-key="lieu_num" data-saisie="num" maxlength="12" />
     </div>
   </div>
 
@@ -575,8 +575,8 @@
       <tr>
         <th colspan="2" style="font-size:7pt">Chiffre / Nombre / V.S, RM</th>
         <th colspan="5" style="font-size:7pt">O / N*</th>
-        <th colspan="4" style="font-size:7pt">Nombre</th>
-        <th colspan="2" style="font-size:7pt">P / T</th>
+        <th colspan="5" style="font-size:7pt">Nombre</th>
+        <th colspan="1" style="font-size:7pt">P / T</th>
       </tr>
       <tr>
         <th class="vert">Niveaux</th>
@@ -627,7 +627,7 @@
 
   <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin-bottom:4px; font-size:9pt">
     <span>Lieu protégé N°</span>
-    <span class="cases-row" id="cases-num-2"></span>
+    <input class="lieu-num" id="lieu-num-2" inputmode="numeric" data-key="lieu_num" data-saisie="num" maxlength="12" />
   </div>
 
   <div class="bandeau">Extensions</div>
@@ -742,21 +742,6 @@
 </section>
 
 <script>
-/* ====================================================================== */
-/* Construction des cases du N° de lieu protégé (10 cases)                 */
-/* ====================================================================== */
-function buildCases(containerId, prefix) {
-  const c = document.getElementById(containerId);
-  for (let i = 0; i < 10; i++) {
-    const inp = document.createElement('input');
-    inp.className = 'case-chiffre';
-    inp.maxLength = 1;
-    inp.dataset.key = prefix + '_' + i;
-    c.appendChild(inp);
-  }
-}
-buildCases('cases-num', 'lieu_n');
-buildCases('cases-num-2', 'lieu_n');  // même clé : valeurs synchronisées
 
 /* ====================================================================== */
 /* Liste des pièces page 1 (configurable)                                  */
@@ -769,6 +754,50 @@ const PIECES_DEFAUT = [
 ];
 
 const COLS_INTRUSION = 13;  /* 7 constat + 6 reco */
+
+
+/* ====================================================================== */
+/* Cellules du tableau                                                    */
+/*                                                                        */
+/* Les colonnes n acceptent qu un jeu de valeurs connu : un chiffre, O/N  */
+/* ou P/T. Un menu deroulant vaut mieux qu un champ libre — au doigt sur  */
+/* un telephone, viser une case et taper la bonne lettre est penible et   */
+/* source d erreurs. La valeur enregistree reste identique (el.value),    */
+/* donc les fiches deja sauvegardees se rechargent sans changement.       */
+/* ====================================================================== */
+var CHOIX = {
+  num: ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+  on: ['', 'O', 'N'],
+  pt: ['', 'P', 'T', 'P/T'],
+  onl: ['', 'O', 'N', 'L']
+};
+
+function cellule(type, cle) {
+  var liste = CHOIX[type];
+  if (!liste) {                       /* colonne libre : champ texte */
+    var inp = document.createElement('input');
+    inp.className = 'cell';
+    inp.dataset.key = cle;
+    if (type) inp.dataset.saisie = type;
+    return inp;
+  }
+  var sel = document.createElement('select');
+  sel.className = 'cell cell-choix';
+  sel.dataset.key = cle;
+  liste.forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v;
+    o.textContent = v === '' ? '\u2013' : v;   /* tiret = non renseigne */
+    sel.appendChild(o);
+  });
+  return sel;
+}
+
+/* Fiche Pro, 13 colonnes : 0-1 chiffres, 2-6 O/N, 7-11 chiffres, 12 P/T. */
+function typeColonne(c) {
+  if (c <= 1 || (c >= 7 && c <= 11)) return 'num';
+  return c === 12 ? 'pt' : 'on';
+}
 
 function buildIntrusionRows() {
   const tbody = document.getElementById('tbody-intrusion');
@@ -786,18 +815,14 @@ function buildIntrusionRows() {
     for (let c = 0; c < COLS_INTRUSION; c++) {
       const td = document.createElement('td');
       td.className = 'cellule';
-      const inp = document.createElement('input');
-      inp.className = 'cell';
-      inp.dataset.key = 'piece_' + idx + '_c' + c;
+      const inp = cellule(typeColonne(c), 'piece_' + idx + '_c' + c);
       td.appendChild(inp);
       tr.appendChild(td);
     }
     /* Choix abonné */
     const tdChoix = document.createElement('td');
     tdChoix.className = 'cellule';
-    const inpChoix = document.createElement('input');
-    inpChoix.className = 'cell';
-    inpChoix.dataset.key = 'piece_' + idx + '_choix';
+    const inpChoix = cellule('onl', 'piece_' + idx + '_choix');
     tdChoix.appendChild(inpChoix);
     tr.appendChild(tdChoix);
 
@@ -833,16 +858,13 @@ function buildExtRows() {
     /* 4 colonnes : reco, pièce, niveau, pose */
     for (let c = 0; c < 4; c++) {
       const td = document.createElement('td');
-      const inp = document.createElement('input');
-      inp.className = 'cell';
-      inp.dataset.key = 'ext_' + idx + '_c' + c;
+      const inp = cellule(c === 0 ? 'on' : (c === 1 ? '' : 'num'),
+                          'ext_' + idx + '_c' + c);
       td.appendChild(inp);
       tr.appendChild(td);
     }
     const tdChoix = document.createElement('td');
-    const inpChoix = document.createElement('input');
-    inpChoix.className = 'cell';
-    inpChoix.dataset.key = 'ext_' + idx + '_choix';
+    const inpChoix = cellule('onl', 'ext_' + idx + '_choix');
     tdChoix.appendChild(inpChoix);
     tr.appendChild(tdChoix);
 
@@ -969,5 +991,78 @@ function resetForm() {
 }
 </script>
 
+
+<script>
+/* ====================================================================== */
+/* Filtres de saisie                                                      */
+/*                                                                        */
+/* Chaque colonne n accepte qu un type de valeur : un chiffre, un O/N ou  */
+/* un P/T. Filtrer a la frappe evite les fiches ininterpretables par le    */
+/* bureau, et sur telephone le bon clavier s ouvre directement.           */
+/* ====================================================================== */
+(function () {
+  function filtrer(v, type) {
+    v = String(v || '');
+    if (type === 'num') return v.replace(/[^0-9]/g, '');
+    /* Une seule lettre, la derniere tapee : retaper corrige sans effacer. */
+    if (type === 'on') return v.toUpperCase().replace(/[^ON]/g, '').slice(-1);
+    if (type === 'pt') return v.toUpperCase().replace(/[^PT]/g, '').slice(-1);
+    if (type === 'onl') return v.toUpperCase().replace(/[^ONL]/g, '').slice(-1);
+    return v;
+  }
+
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    var type = el.dataset ? el.dataset.saisie : '';
+    if (!type) return;
+    var net = filtrer(el.value, type);
+    if (net !== el.value) el.value = net;
+  });
+
+  window.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-saisie="num"]').forEach(function (el) {
+      el.setAttribute('inputmode', 'numeric');
+    });
+  });
+})();
+
+/* ====================================================================== */
+/* Adaptation aux ecrans de telephone                                     */
+/*                                                                        */
+/* La fiche est calibree en A4 (210 mm) : sur un telephone elle deborde   */
+/* et se retrouve coupee. On la met a l echelle de la largeur disponible  */
+/* pour qu elle tienne entierement, le zoom restant possible pour viser   */
+/* une case. L impression n est pas touchee : elle sort en A4 reel.       */
+/* ====================================================================== */
+(function () {
+  var LARGEUR_A4 = 794;            /* 210 mm a 96 ppp */
+
+  function adapter() {
+    var dispo = document.documentElement.clientWidth;
+    var ratio = dispo / (LARGEUR_A4 + 24);
+    document.querySelectorAll('.page').forEach(function (p) {
+      if (ratio >= 1) {            /* ecran large : taille reelle */
+        p.style.transform = '';
+        p.style.marginBottom = '';
+        document.body.style.overflowX = '';
+        return;
+      }
+      p.style.transformOrigin = 'top left';
+      p.style.transform = 'scale(' + ratio + ')';
+      /* scale() ne reduit que l affichage : la largeur d origine reste
+         reservee dans la mise en page et provoque un debordement lateral.
+         On masque ce debordement, le contenu tenant desormais a l ecran. */
+      document.body.style.overflowX = 'hidden';
+      /* Sans cette compensation, la place liberee par la reduction reste
+         reservee et laisse un grand vide sous chaque page. */
+      p.style.marginBottom = -(p.offsetHeight * (1 - ratio)) + 'px';
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', adapter);
+  window.addEventListener('resize', adapter);
+  window.addEventListener('orientationchange', adapter);
+})();
+</script>
 </body>
 </html>
