@@ -61,18 +61,20 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          # Canal "sideload" = l'APK GitHub Releases (auto-update + IntegrityGuard).
+          # La variante Play (AAB) est produite par playstore-release.yml.
           if [ -n "$RELEASE_STORE_FILE" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "variant=release" >> "$GITHUB_OUTPUT"
-            ./gradlew :app:assembleRelease --stacktrace
+            ./gradlew :app:assembleSideloadRelease --stacktrace
           else
             echo "variant=debug" >> "$GITHUB_OUTPUT"
-            ./gradlew :app:assembleDebug --stacktrace
+            ./gradlew :app:assembleSideloadDebug --stacktrace
           fi
 
       - name: Locate generated APK
         id: apk
         run: |
-          APK_PATH=$(find "app/build/outputs/apk/${{ steps.build.outputs.variant }}" -name "*.apk" ! -name "*unsigned*" | head -n 1)
+          APK_PATH=$(find "app/build/outputs/apk/sideload/${{ steps.build.outputs.variant }}" -name "*.apk" ! -name "*unsigned*" | head -n 1)
           echo "Found APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
 

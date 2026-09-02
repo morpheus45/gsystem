@@ -78,7 +78,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Garde d'intégrité : une copie modifiée/re-signée ne démarre pas.
-        if (!IntegrityGuard.isGenuine(this)) {
+        // Désactivée sur le canal Play : Google re-signe l'app (Play App Signing),
+        // donc la signature ne correspond JAMAIS au certificat figé -> sinon tous
+        // les utilisateurs Play seraient bloqués par erreur.
+        if (!BuildConfig.PLAY_BUILD && !IntegrityGuard.isGenuine(this)) {
             setContent { GSystemTheme { TamperBlockScreen() } }
             return
         }
@@ -123,6 +126,19 @@ private fun TamperBlockScreen() {
     }
 }
 
+/**
+ * Vrai si l'app a été installée DEPUIS le Play Store (et non par un APK posé à
+ * la main). Permet de laisser le Store gérer ses propres mises à jour, tout en
+ * notifiant les installations manuelles (tuto).
+ */
+private fun installedFromPlayStore(context: Context): Boolean = runCatching {
+    val pm = context.packageManager
+    val installer = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)
+        pm.getInstallSourceInfo(context.packageName).installingPackageName
+    else @Suppress("DEPRECATION") pm.getInstallerPackageName(context.packageName)
+    installer == "com.android.vending"
+}.getOrDefault(false)
+
 @Composable
 fun AppNav() {
     val context = LocalContext.current
@@ -158,8 +174,12 @@ fun AppNav() {
     // Check de mise à jour discret au démarrage (1 fois par session)
     var pendingUpdate by remember { mutableStateOf<UpdateChecker.UpdateAvailable?>(null) }
     var updateCheckedThisSession by remember { mutableStateOf(false) }
+    // On ne vérifie PAS si l'app a réellement été installée depuis le Play Store
+    // (le Store s'en charge). En revanche un APK « play » installé à la main
+    // (tuto) DOIT être notifié : sinon aucune mise à jour n'est jamais proposée.
+    val fromPlayStore = remember { installedFromPlayStore(context) }
     LaunchedEffect(Unit) {
-        if (!updateCheckedThisSession) {
+        if (!fromPlayStore && !updateCheckedThisSession) {
             updateCheckedThisSession = true
             pendingUpdate = checkForUpdateSilently()
         }
