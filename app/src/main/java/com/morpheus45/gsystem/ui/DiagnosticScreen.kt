@@ -120,7 +120,9 @@ fun DiagnosticScreen(onBack: () -> Unit) {
                                 return !url.startsWith("file:///android_asset/")
                             }
                         }
-                        loadUrl("file:///android_asset/diagnostic/index.html")
+                        // Le particulier est le cas le plus frequent : on ouvre dessus,
+                        // le bouton « Pro » de la fiche bascule sur l autre.
+                        loadUrl("file:///android_asset/diagnostic/particulier.html")
                         vue.value = this
                     }
                 }

@@ -1076,7 +1076,7 @@ function vueDiagnostic() {
     <button class="reglage-btn" id="diag_imprimer" style="margin-left:auto"
             title="Imprimer ou enregistrer en PDF">\u{1F5A8}</button>
   </div>
-  <iframe id="diag_cadre" src="diagnostic/index.html"
+  <iframe id="diag_cadre" src="diagnostic/particulier.html"
           style="width:100%;height:calc(100dvh - 62px);border:0;background:#fff">
   </iframe>`;
 }
