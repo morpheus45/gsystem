@@ -1306,5 +1306,141 @@ function envoyerAuClient() {
   }, 1000);
 }
 </script>
+<script>
+/* Fiche Pro : colonnes 7 a 11 (la 12 est le mode P/T, pas un materiel). */
+var RECO_INTRUSION = {
+  7: 'CENTRALE',
+  8: 'SIRÈNE',
+  9: 'CLAVIER',
+  10: 'DÉTECTEUR DE MOUVEMENT',
+  11: "DÉTECTEUR D'OUVERTURE"
+};
+var RECO_DFCO = {};
+</script>
+
+<script>
+/* ====================================================================== */
+/* Recommandations non retenues                                           */
+/*                                                                        */
+/* Quand l abonne repond « N » sur une ligne, il refuse le materiel        */
+/* preconise pour CETTE piece. La zone du bas doit alors les lister, ce    */
+/* qui obligeait a tout recopier a la main en fin de visite — long et      */
+/* source d oublis. On la compose donc automatiquement, sous la forme      */
+/* demandee : le materiel en toutes lettres, suivi de l endroit.           */
+/*                                                                        */
+/* Le « L » (limite) n est pas traite : il signifie que l abonne ne retient */
+/* qu une PARTIE des recommandations de la ligne, et rien dans la fiche ne  */
+/* dit lesquelles. Ces lignes restent donc a completer a la main.          */
+/* ====================================================================== */
+(function () {
+  var ZONE = '[data-key="reco_non_retenues"]';
+
+  function val(cle) {
+    var el = document.querySelector('[data-key="' + cle + '"]');
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  /** Une quantite renseignee et non nulle vaut recommandation. */
+  function quantite(v) {
+    var n = parseInt(v, 10);
+    return isNaN(n) || n <= 0 ? 0 : n;
+  }
+
+  /** « 2 DETECTEURS DE MOUVEMENT SEJOUR » ou « CENTRALE ENTREE ». */
+  function phrase(nb, materiel, endroit) {
+    /* Le pluriel se pose sur le PREMIER mot, pas a la fin : « 2 DETECTEURS
+       D'OUVERTURE » et non « 2 DETECTEUR D'OUVERTURES ». */
+    var t = nb > 1 ? nb + ' ' + materiel.replace(/^(\S+)/, '$1S') : materiel;
+    return endroit ? t + ' ' + endroit.toUpperCase() : t;
+  }
+
+  function composer() {
+    var refus = [];
+
+    /* Tableau principal : une ligne = une piece. */
+    document.querySelectorAll('#tbody-intrusion tr').forEach(function (tr, i) {
+      if (val('piece_' + i + '_choix') !== 'N') return;
+      var piece = val('piece_' + i + '_nom');
+      Object.keys(RECO_INTRUSION).forEach(function (c) {
+        var nb = quantite(val('piece_' + i + '_c' + c));
+        if (nb) refus.push(phrase(nb, RECO_INTRUSION[c], piece));
+      });
+    });
+
+    /* Tableau fumee / monoxyde, quand la fiche en comporte un. */
+    document.querySelectorAll('#tbody-dfco tr').forEach(function (tr, i) {
+      if (val('dfco_' + i + '_choix') !== 'N') return;
+      var piece = val('dfco_' + i + '_nom');
+      Object.keys(RECO_DFCO).forEach(function (c) {
+        var nb = quantite(val('dfco_' + i + '_c' + c));
+        if (nb) refus.push(phrase(nb, RECO_DFCO[c], piece));
+      });
+    });
+
+    /* Extensions : le materiel est le libelle de la ligne, l endroit est
+       saisi dans la colonne « piece ». */
+    document.querySelectorAll('#tbody-ext tr').forEach(function (tr, i) {
+      if (val('ext_' + i + '_choix') !== 'N') return;
+      var materiel = val('ext_' + i + '_nom');
+      if (!materiel) return;
+      var nb = quantite(val('ext_' + i + '_c2')) || 1;
+      refus.push(phrase(nb, materiel.toUpperCase(), val('ext_' + i + '_c1')));
+    });
+
+    return refus.join(', ');
+  }
+
+  /* Dernier texte que NOUS avons ecrit. Sert a distinguer une zone calculee
+     d une zone redigee par le technicien : se fier au seul fait qu elle soit
+     remplie ne marche pas, puisque la fiche restaure le dernier formulaire au
+     chargement — la zone est alors presque toujours pleine, et le mode manuel
+     s activait a tort, si bien que plus rien ne se recalculait. */
+  var dernierGenere = null;
+
+  function rafraichir() {
+    var zone = document.querySelector(ZONE);
+    if (!zone) return;
+    var actuel = zone.value.trim();
+    var calcule = composer();
+    /* On n ecrase que le vide ou notre propre texte : ce que le technicien a
+       redige lui-meme est conserve tel quel. */
+    if (actuel !== '' && dernierGenere !== null && actuel !== dernierGenere.trim()) {
+      return;
+    }
+    zone.value = calcule;
+    dernierGenere = calcule;
+  }
+
+  document.addEventListener('change', function (e) {
+    if (e.target.closest('#tbody-intrusion, #tbody-dfco, #tbody-ext')) rafraichir();
+  });
+  document.addEventListener('input', function (e) {
+    if (e.target.matches(ZONE)) return;   /* saisie manuelle : on n y touche pas */
+    if (e.target.closest('#tbody-intrusion, #tbody-dfco, #tbody-ext')) rafraichir();
+  });
+
+  function demarrer() {
+    var zone = document.querySelector(ZONE);
+    if (!zone) return;
+    zone.placeholder = 'Se remplit tout seul quand un « N » est choisi. '
+      + 'Ecrivez ici pour reprendre la main ; videz la zone pour revenir a la '
+      + 'liste automatique.';
+    /* Si la zone contient exactement ce que le calcul produirait, c est notre
+       texte d une visite precedente : on reprend la main dessus. Sinon, il a
+       ete redige a la main et on n y touche pas. */
+    var calcule = composer();
+    if (zone.value.trim() === '' || zone.value.trim() === calcule.trim()) {
+      dernierGenere = calcule;
+      zone.value = calcule;
+    }
+  }
+
+  /* La fiche restaure le dernier formulaire sur DOMContentLoaded : on passe
+     apres, sinon on lirait des champs encore vides. */
+  window.addEventListener('DOMContentLoaded', function () { setTimeout(demarrer, 0); });
+
+  window.recomposerRefus = rafraichir;
+})();
+</script>
 </body>
 </html>
