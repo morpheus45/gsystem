@@ -219,6 +219,16 @@ function getAllData() {
       .sort(function (x, y) { return (Number(y.maj) || 0) - (Number(x.maj) || 0); });
     const keptRanges = [];
     snaps.forEach(function (s) {
+      // Un snapshot VIDE (stub _stats.json du cycle SUIVANT, créé à l'envoi pour
+      // pré-créer le dossier du mois) n'apporte AUCUNE donnée : il ne doit ni
+      // être compté ni RÉSERVER sa plage de dates. Sinon, comme sa `maj` est plus
+      // récente, il évince par chevauchement le vrai snapshot du cycle clôturé
+      // (cas réel prouvé : stub vide 2026-10 [19/09→18/10] masquant 2026-09
+      // [22/08→21/09] = 54 interventions -> back office vide).
+      var estVide = !(s.clotures && s.clotures.length) &&
+                    !(s.fraisList && s.fraisList.length) &&
+                    !(s.gestes && s.gestes.length);
+      if (estVide) return;
       const r = periodRange(s);
       if (r) {
         const clash = keptRanges.some(function (o) { return r.a <= o.b && o.a <= r.b; });

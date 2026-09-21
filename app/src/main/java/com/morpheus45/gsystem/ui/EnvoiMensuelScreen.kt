@@ -67,6 +67,7 @@ fun EnvoiMensuelScreen(
     periodEnd: LocalDate,
     onPeriodChange: (LocalDate, LocalDate) -> Unit,
     onResetPeriod: () -> Unit,
+    onSent: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -436,7 +437,7 @@ fun EnvoiMensuelScreen(
                         working = true
                         errorMsg = null
                         status = "Remplissage du fichier Excel…"
-                        runCatching {
+                        val sendResult = runCatching {
                             // 1. Remplir le .xlsm avec les TEMPS + les FRAIS (F=TTC remboursable, G=TVA)
                             if (settings.excelFileUri.isNotBlank() &&
                                 (tempsPeriod.isNotEmpty() || fraisPeriod.isNotEmpty())) {
@@ -620,11 +621,15 @@ fun EnvoiMensuelScreen(
                                     StatsUploader.push(settings, store, start, end)
                                 }
                             }
-                        }.onFailure { ex ->
+                        }
+                        sendResult.onFailure { ex ->
                             errorMsg = "Erreur : ${ex.message ?: ex.javaClass.simpleName}"
                             status = null
                         }
                         working = false
+                        // Envoi préparé avec succès : on revient sur l'accueil pour
+                        // éviter un second appui sur « Envoyer » (double envoi).
+                        if (sendResult.isSuccess) onSent()
                     }
                 },
                 enabled = !working && validRange && settings.effectiveGsTo.isNotBlank() && hasCompteurPhoto,

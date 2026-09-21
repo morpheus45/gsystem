@@ -43,6 +43,9 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
     private val DAY_LABELS = listOf("LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI")
     private val ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
+    // Longueur max d'une observation écrite en colonne H (anti-débordement).
+    private val MAX_OBS_LEN = 180
+
     data class FillReport(
         val totalEntries: Int,
         val writtenEntries: Int,
@@ -172,9 +175,14 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             cellOf(row, 2).setCellValue(buildMissionText(item))
             // E (col 4) : heures (auto-calculées), seulement sur la 1ère ligne du jour
             if (i == 0) cellOf(row, 4).setCellValue(dailyHours)
-            // H (col 7) : observations
+            // H (col 7) : observations — retour à la ligne DANS la cellule pour
+            // ne pas déborder sur la zone imprimable / les colonnes voisines.
             val obs = buildObservation(item)
-            if (obs.isNotBlank()) cellOf(row, 7).setCellValue(obs)
+            if (obs.isNotBlank()) {
+                val obsCell = cellOf(row, 7)
+                obsCell.setCellValue(obs)
+                setWrap(sheet, obsCell)
+            }
         }
 
         if (inserted > 0) {
@@ -209,11 +217,34 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             "AUTRE" -> "RETARD : " + e.retardTexte.ifBlank { "AUTRE" }
             else -> ""
         }
-        return listOf(codeLabel, retardLabel, e.observations).filter { it.isNotBlank() }.joinToString(" - ")
+        val full = listOf(codeLabel, retardLabel, e.observations)
+            .filter { it.isNotBlank() }.joinToString(" - ")
+        // Plafond de sécurité : le retour à la ligne (setWrap) garde le texte dans
+        // le cadre, mais on borne quand même la longueur pour éviter un commentaire
+        // démesuré qui repousserait la mise en page.
+        return if (full.length <= MAX_OBS_LEN) full
+               else full.take(MAX_OBS_LEN - 1).trimEnd() + "…"
     }
 
     private fun cellOf(row: org.apache.poi.ss.usermodel.Row, col: Int) =
         row.getCell(col) ?: row.createCell(col)
+
+    // Cache des styles « wrap » dérivés (clé = index du style d'origine) pour ne
+    // pas multiplier les styles du classeur (bordures/police/format préservés).
+    private val wrapStyleCache = HashMap<Short, org.apache.poi.ss.usermodel.CellStyle>()
+
+    /** Active le retour à la ligne sur une cellule en conservant son style. */
+    private fun setWrap(sheet: XSSFSheet, cell: org.apache.poi.ss.usermodel.Cell) {
+        val src = cell.cellStyle ?: return
+        if (src.wrapText) return
+        val wrapped = wrapStyleCache.getOrPut(src.index) {
+            sheet.workbook.createCellStyle().apply {
+                cloneStyleFrom(src)
+                wrapText = true
+            }
+        }
+        cell.cellStyle = wrapped
+    }
 
     /** Renvoie le nom de la feuille pour la semaine ISO de cette date. */
     private fun weekSheetFor(date: LocalDate): String {

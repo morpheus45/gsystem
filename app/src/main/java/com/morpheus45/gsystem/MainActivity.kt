@@ -433,6 +433,11 @@ fun AppNav() {
                 settingsStore = settingsStore,
                 periodStart = periodStart, periodEnd = periodEnd,
                 onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
+                onSent = {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                },
                 onBack = { navController.popBackStack() }
             )
         }
