@@ -62,9 +62,9 @@ import java.time.LocalDate
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
     "FINS", "INTE", "VISI", "MIGR",
-    "VACANCES", "FORMATION", "FERIE", "AUTRE")
+    "VACANCES", "FORMATION", "FERIE", "PLANNING VIDE", "AUTRE")
 /** Types de journée entière : on remplit pas client/ville/etc., heures = 7h fixe. */
-private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION", "FERIE")
+private val WHOLE_DAY_TYPES = setOf("VACANCES", "FORMATION", "FERIE", "PLANNING VIDE")
 
 /** Interventions SAV où un GESTE CO de mise en conformité (cadeau seul, max 3 €)
  *  est autorisé — en plus des INSTALLATIONS. */

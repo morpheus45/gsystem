@@ -175,6 +175,34 @@ function doGet(e) {
     try { return json({ ok: true, data: getAllData() }); }
     catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
   }
+  // Inventaire BRUT des _stats.json (lecture seule) : un résumé par dossier-mois,
+  // AVANT toute fusion/dédup. Sert à diagnostiquer pourquoi un cycle manque au
+  // back office (snapshot vide, chevauchement, périodes en double, maj, etc.).
+  if (e && e.parameter && e.parameter.debug === 'snaps') {
+    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    try {
+      var root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+      var out = []; var users = root.getFolders();
+      while (users.hasNext()) {
+        var u = users.next(); var tname = u.getName();
+        if (tname === '_telechargements') continue;
+        var months = u.getFolders();
+        while (months.hasNext()) {
+          var mf = months.next();
+          var sIt = mf.getFilesByName('_stats.json');
+          if (!sIt.hasNext()) continue;
+          try {
+            var s = JSON.parse(sIt.next().getBlob().getDataAsString('UTF-8'));
+            out.push({ tech: tname, dossier: mf.getName(), periode: s.periode || '', month: s.month || '',
+              maj: s.maj || 0, clot: (s.clotures || []).length,
+              frais: (s.fraisList || []).length, geste: (s.gestes || []).length });
+          } catch (err) { out.push({ tech: tname, dossier: mf.getName(), parseError: String(err) }); }
+        }
+      }
+      out.sort(function (a, b) { return String(a.tech + a.dossier).localeCompare(String(b.tech + b.dossier)); });
+      return json({ ok: true, snaps: out });
+    } catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
+  }
   return HtmlService.createHtmlOutput(DASHBOARD_HTML)
     .setTitle('G-Systems · Espace administratif')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -218,21 +246,38 @@ function getAllData() {
     const snaps = Object.keys(byPeriode).map(function (k) { return byPeriode[k]; })
       .sort(function (x, y) { return (Number(y.maj) || 0) - (Number(x.maj) || 0); });
     const keptRanges = [];
+    // Un jour (date ISO) est « déjà couvert » s'il tombe dans la plage d'un
+    // snapshot PLUS RÉCENT déjà retenu. Les items sans date ne sont jamais couverts.
+    function covered(d) {
+      return !!d && keptRanges.some(function (o) { return d >= o.a && d <= o.b; });
+    }
     snaps.forEach(function (s) {
+      // Un snapshot VIDE (stub _stats.json du cycle SUIVANT, créé à l'envoi pour
+      // pré-créer le dossier du mois) n'apporte AUCUNE donnée : il ne doit ni être
+      // compté ni RÉSERVER sa plage de dates (sinon il masquerait les jours communs
+      // du vrai cycle clôturé).
+      var estVide = !(s.clotures && s.clotures.length) &&
+                    !(s.fraisList && s.fraisList.length) &&
+                    !(s.gestes && s.gestes.length);
+      if (estVide) return;
+      // DÉDUP AU JOUR (et non au snapshot entier). Avec les cycles glissants, deux
+      // snapshots se recouvrent de quelques jours (ex. 2026-10 [19/09→18/10] et
+      // 2026-09 [22/08→21/09] : 3 jours communs). On traite du plus récent (maj max)
+      // au plus ancien et on n'ajoute d'un snapshot que les items dont la DATE n'est
+      // pas déjà couverte par un snapshot plus récent. Les jours communs ne sont donc
+      // comptés qu'une fois SANS jeter tout le cycle plus ancien.
+      // (Bug réel : 1 clôture du cycle 2026-10 faisait perdre les 54 interventions
+      // du cycle 2026-09 -> back office vide sur 21/08→21/09.)
       const r = periodRange(s);
-      if (r) {
-        const clash = keptRanges.some(function (o) { return r.a <= o.b && o.a <= r.b; });
-        if (clash) return;              // périmé : recouvert par un snapshot plus récent
-        keptRanges.push(r);
-      }
       if (!techs[tname]) techs[tname] = { tech: tname, clotures: [], frais: [], gestes: [], prices: {} };
       const T = techs[tname];
-      (s.clotures || []).forEach(function (c) { T.clotures.push(c); });
-      (s.fraisList || []).forEach(function (f) { T.frais.push(f); });
-      // Chaque geste garde le BARÈME de son cycle (g.pr) : l'historique des
-      // primes reste valorisé aux tarifs de l'époque même si le barème change.
-      (s.gestes || []).forEach(function (g) { if (s.prices && !g.pr) g.pr = s.prices; T.gestes.push(g); });
+      (s.clotures || []).forEach(function (c) { if (covered(c.date)) return; T.clotures.push(c); });
+      (s.fraisList || []).forEach(function (f) { if (covered(f.d)) return; T.frais.push(f); });
+      // Chaque geste garde le BARÈME de son cycle (g.pr) : l'historique des primes
+      // reste valorisé aux tarifs de l'époque même si le barème change.
+      (s.gestes || []).forEach(function (g) { if (covered(g.d)) return; if (s.prices && !g.pr) g.pr = s.prices; T.gestes.push(g); });
       if (s.prices) T.prices = s.prices;
+      if (r) keptRanges.push(r);   // réserve la plage pour les snapshots PLUS ANCIENS
     });
   }
   return Object.keys(techs).map(function (k) { return techs[k]; })

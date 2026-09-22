@@ -11,6 +11,7 @@ package com.morpheus45.gsystem.backup
 
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -27,6 +28,13 @@ import java.net.URL
  */
 object BackupUploader {
 
+    // Réessais : un upload Drive peut échouer ponctuellement (réseau instable,
+    // 302/timeout Apps Script). On retente quelques fois avec un délai croissant
+    // avant d'abandonner, pour ne plus « perdre » silencieusement un fichier
+    // (ex. le .xlsm du mensuel).
+    private const val MAX_TRIES = 3
+    private const val RETRY_DELAY_MS = 1500L
+
     suspend fun uploadFile(user: String, month: String, file: File, mimeType: String): Boolean =
         uploadBytes(user, month, file.name, mimeType, file.readBytes())
 
@@ -35,7 +43,19 @@ object BackupUploader {
         mimeType: String, bytes: ByteArray
     ): Boolean = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured) return@withContext false
-        runCatching {
+        repeat(MAX_TRIES) { attempt ->
+            if (attemptUpload(user, month, fileName, mimeType, bytes)) return@withContext true
+            if (attempt < MAX_TRIES - 1) delay(RETRY_DELAY_MS * (attempt + 1))
+        }
+        false
+    }
+
+    /** Une seule tentative d'upload. Retourne true si le script a répondu ok:true. */
+    private fun attemptUpload(
+        user: String, month: String, fileName: String,
+        mimeType: String, bytes: ByteArray
+    ): Boolean {
+        return runCatching {
             val payload = JSONObject().apply {
                 put("token", BackupConfig.TOKEN)
                 put("user", user.ifBlank { "Inconnu" })
