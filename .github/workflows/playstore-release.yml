@@ -36,9 +36,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # Le SDK Android est déjà préinstallé sur ubuntu-latest ; on n'utilise PAS
+      # android-actions/setup-android (comme le workflow APK), car sa v3 tente
+      # d'installer le paquet obsolète `tools` (retiré des cmdline-tools récents)
+      # → « Failed to find package 'tools' » → build cassé. Gradle télécharge au
+      # besoin les composants manquants.
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
