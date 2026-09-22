@@ -8,10 +8,10 @@
 import { idUnique, aujourdhuiIso } from './donnees.js';
 
 export const TYPES = ['INST', 'REPA', 'RESI', 'PILE', 'SAV', 'DECL', 'AJOU',
-  'FINS', 'INTE', 'VISI', 'MIGR', 'VACANCES', 'FORMATION', 'FERIE', 'AUTRE'];
+  'FINS', 'INTE', 'VISI', 'MIGR', 'VACANCES', 'FORMATION', 'FERIE', 'PLANNING VIDE', 'AUTRE'];
 
 /** Journee entiere : ni client, ni ville, ni numero a saisir. */
-export const TYPES_JOURNEE = ['VACANCES', 'FORMATION', 'FERIE'];
+export const TYPES_JOURNEE = ['VACANCES', 'FORMATION', 'FERIE', 'PLANNING VIDE'];
 
 export const OBSERVATIONS = [
   ['', 'OK \u2014 r\u00e9alis\u00e9e'],

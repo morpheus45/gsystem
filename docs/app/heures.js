@@ -7,7 +7,7 @@
 // La regle n'est PAS un cumul d'horaires : elle depend des demi-journees
 // occupees et de celles reellement realisees (observation vide = realisee).
 
-const JOURNEE_ENTIERE = ['VACANCES', 'FORMATION', 'FERIE'];
+const JOURNEE_ENTIERE = ['VACANCES', 'FORMATION', 'FERIE', 'PLANNING VIDE'];
 
 export function estJourneeEntiere(e) {
   return JOURNEE_ENTIERE.indexOf((e.typeMission || '').toUpperCase()) >= 0;

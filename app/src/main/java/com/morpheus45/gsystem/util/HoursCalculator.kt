@@ -15,7 +15,7 @@ import com.morpheus45.gsystem.data.TempsEntry
  * Calcul automatique des heures travaillées d'une journée.
  *
  * Cas spéciaux :
- *   - Si la journée contient une entrée VACANCES, FORMATION ou FERIE → 7h (journée entière)
+ *   - Si la journée contient une entrée VACANCES, FORMATION, FERIE ou PLANNING VIDE → 7h (journée entière)
  *
  * Règle générale (confirmée par l'utilisateur — table à 9 cas) :
  *   - 0 slot actif (rien du tout)            → 0h
@@ -38,7 +38,7 @@ object HoursCalculator {
     fun computeForDay(entries: List<TempsEntry>): Double {
         if (entries.isEmpty()) return 0.0
 
-        // Cas special : si une entree VACANCES, FORMATION ou FERIE existe, journee = 7h
+        // Cas special : si une entree VACANCES, FORMATION, FERIE ou PLANNING VIDE existe, journee = 7h
         if (entries.any { isWholeDayType(it) }) return 7.0
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
@@ -61,7 +61,8 @@ object HoursCalculator {
     private fun isWholeDayType(e: TempsEntry): Boolean =
         e.typeMission.equals("VACANCES", ignoreCase = true) ||
         e.typeMission.equals("FORMATION", ignoreCase = true) ||
-        e.typeMission.equals("FERIE", ignoreCase = true)
+        e.typeMission.equals("FERIE", ignoreCase = true) ||
+        e.typeMission.equals("PLANNING VIDE", ignoreCase = true)
 
     private fun isInSlot(e: TempsEntry, slot: String): Boolean = when (slot) {
         "MATIN" -> e.slotMidi == "MATIN" || e.slotMidi.isBlank()  // legacy fallback
