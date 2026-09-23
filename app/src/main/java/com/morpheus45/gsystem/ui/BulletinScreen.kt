@@ -46,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,7 +60,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
@@ -67,6 +70,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
+import com.morpheus45.gsystem.data.BulletinDraft
+import com.morpheus45.gsystem.data.DraftStore
+import com.morpheus45.gsystem.data.PrestaDraft
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.BulletinPdfGenerator
 import com.morpheus45.gsystem.ui.theme.BulletinAccent
@@ -76,6 +82,7 @@ import com.morpheus45.gsystem.ui.theme.TextHi
 import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.TextMid
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -135,75 +142,112 @@ fun BulletinScreen(
     val scope = rememberCoroutineScope()
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 
+    // Brouillon : la saisie est restaurée à l'ouverture (y compris après avoir
+    // quitté l'écran ou fermé l'app) et EFFACÉE au moment de l'envoi. Les
+    // signatures ne sont pas conservées (redessinées).
+    val drafts = remember { DraftStore(context) }
+    val initial = remember { drafts.loadBulletin() }
+
     // --- En-tête ---
-    var date by remember { mutableStateOf(today) }
-    var numMission by remember { mutableStateOf("") }
-    var lieuProtege by remember { mutableStateOf("") }
+    var date by remember { mutableStateOf(initial?.date?.takeIf { it.isNotBlank() } ?: today) }
+    var numMission by remember { mutableStateOf(initial?.numMission ?: "") }
+    var lieuProtege by remember { mutableStateOf(initial?.lieuProtege ?: "") }
     // --- Coordonnées client ---
-    var nom by remember { mutableStateOf("") }
-    var adresse by remember { mutableStateOf("") }
-    var codePostal by remember { mutableStateOf("") }
-    var ville by remember { mutableStateOf("") }
+    var nom by remember { mutableStateOf(initial?.nom ?: "") }
+    var adresse by remember { mutableStateOf(initial?.adresse ?: "") }
+    var codePostal by remember { mutableStateOf(initial?.codePostal ?: "") }
+    var ville by remember { mutableStateOf(initial?.ville ?: "") }
     // --- Nature de l'intervention (cases) ---
-    var natMigr by remember { mutableStateOf(false) }
-    var natAjou by remember { mutableStateOf(false) }
-    var natRepa by remember { mutableStateOf(false) }
-    var natVisi by remember { mutableStateOf(false) }
-    var natResi by remember { mutableStateOf(false) }
-    var natPile by remember { mutableStateOf(false) }
-    var natCont by remember { mutableStateOf(false) }
-    var natInte by remember { mutableStateOf(false) }
-    var natDecl by remember { mutableStateOf(false) }
-    var natAutre by remember { mutableStateOf(false) }
-    var natAutreTxt by remember { mutableStateOf("") }
+    var natMigr by remember { mutableStateOf(initial?.natMigr ?: false) }
+    var natAjou by remember { mutableStateOf(initial?.natAjou ?: false) }
+    var natRepa by remember { mutableStateOf(initial?.natRepa ?: false) }
+    var natVisi by remember { mutableStateOf(initial?.natVisi ?: false) }
+    var natResi by remember { mutableStateOf(initial?.natResi ?: false) }
+    var natPile by remember { mutableStateOf(initial?.natPile ?: false) }
+    var natCont by remember { mutableStateOf(initial?.natCont ?: false) }
+    var natInte by remember { mutableStateOf(initial?.natInte ?: false) }
+    var natDecl by remember { mutableStateOf(initial?.natDecl ?: false) }
+    var natAutre by remember { mutableStateOf(initial?.natAutre ?: false) }
+    var natAutreTxt by remember { mutableStateOf(initial?.natAutreTxt ?: "") }
     // Matériel prérempli : c'est celui du parc sur la quasi-totalité des
     // interventions, il reste modifiable.
-    var marque by remember { mutableStateOf("BIRDIE") }
-    var typeMat by remember { mutableStateOf("V5") }
+    var marque by remember { mutableStateOf(initial?.marque ?: "BIRDIE") }
+    var typeMat by remember { mutableStateOf(initial?.typeMat ?: "V5") }
     // --- 1. Prestations ---
     val lignes: SnapshotStateList<PrestaLigne> =
-        remember { List(4) { PrestaLigne() }.toMutableStateList() }
+        remember {
+            (initial?.lignes?.map { PrestaLigne(it.detail, it.reference, it.qte, it.pu) }
+                ?: List(4) { PrestaLigne() }).toMutableStateList()
+        }
     // Cases pré-cochées : ce sont celles de la quasi-totalité des bulletins.
     // Toutes restent décochables.
-    var forfaitLocatif by remember { mutableStateOf(true) }
-    var forfaitAcquisition by remember { mutableStateOf(false) }
-    var reglPrelevement by remember { mutableStateOf(true) }
-    var reglCheque by remember { mutableStateOf(false) }
-    var reglAutre by remember { mutableStateOf(false) }
-    var reglAutreTxt by remember { mutableStateOf("") }
-    var fraisOui by remember { mutableStateOf(false) }
-    var conserverOui by remember { mutableStateOf(false) }
-    var conserverNon by remember { mutableStateOf(false) }
+    var forfaitLocatif by remember { mutableStateOf(initial?.forfaitLocatif ?: true) }
+    var forfaitAcquisition by remember { mutableStateOf(initial?.forfaitAcquisition ?: false) }
+    var reglPrelevement by remember { mutableStateOf(initial?.reglPrelevement ?: true) }
+    var reglCheque by remember { mutableStateOf(initial?.reglCheque ?: false) }
+    var reglAutre by remember { mutableStateOf(initial?.reglAutre ?: false) }
+    var reglAutreTxt by remember { mutableStateOf(initial?.reglAutreTxt ?: "") }
+    var fraisOui by remember { mutableStateOf(initial?.fraisOui ?: false) }
+    var conserverOui by remember { mutableStateOf(initial?.conserverOui ?: false) }
+    var conserverNon by remember { mutableStateOf(initial?.conserverNon ?: false) }
     // H.T. / T.T.C. : un SEUL choix pour tout le bulletin (TOTAL et nouvelle
     // mensualité). Deux cases séparées laissaient sortir un bulletin avec un
     // total H.T. et une mensualité T.T.C.
-    var totalHt by remember { mutableStateOf(false) }
+    var totalHt by remember { mutableStateOf(initial?.totalHt ?: false) }
     // --- 2. Nouvelle mensualité ---
     // Le champ ne garde que le nombre ; le signe et « IDEM » sont des états
     // séparés, réunis au moment de l'impression.
-    var mensualite by remember { mutableStateOf("") }
-    var mensSigne by remember { mutableStateOf("") }      // "", "+" ou "-"
-    var mensIdem by remember { mutableStateOf(false) }
+    var mensualite by remember { mutableStateOf(initial?.mensualite ?: "") }
+    var mensSigne by remember { mutableStateOf(initial?.mensSigne ?: "") }      // "", "+" ou "-"
+    var mensIdem by remember { mutableStateOf(initial?.mensIdem ?: false) }
     val mensualiteFinale = when {
         mensIdem -> "IDEM"
         mensualite.isBlank() -> ""
         else -> mensSigne + mensualite
     }
     // --- 3. Tests ---
-    var testAlarme by remember { mutableStateOf(true) }
-    var testLiaison by remember { mutableStateOf(true) }
+    var testAlarme by remember { mutableStateOf(initial?.testAlarme ?: true) }
+    var testLiaison by remember { mutableStateOf(initial?.testLiaison ?: true) }
     // --- 4 & 5. Observations ---
-    var obsTech by remember { mutableStateOf("") }
-    var obsClient by remember { mutableStateOf("") }
+    var obsTech by remember { mutableStateOf(initial?.obsTech ?: "") }
+    var obsClient by remember { mutableStateOf(initial?.obsClient ?: "") }
     // --- Validation ---
-    var nomTech by remember { mutableStateOf(settings.nomUtilisateur) }
-    var nomClientSig by remember { mutableStateOf("") }
-    var emailClient by remember { mutableStateOf("") }
+    var nomTech by remember { mutableStateOf(initial?.nomTech?.takeIf { it.isNotBlank() } ?: settings.nomUtilisateur) }
+    var nomClientSig by remember { mutableStateOf(initial?.nomClientSig ?: "") }
+    var emailClient by remember { mutableStateOf(initial?.emailClient ?: "") }
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
+    // Passe à true à l'envoi : coupe la sauvegarde auto et efface le brouillon.
+    var sent by remember { mutableStateOf(false) }
 
     val sigTech = remember { SignatureController() }
     val sigClient = remember { SignatureController() }
+
+    // Sauvegarde automatique (anti-rebond 500 ms) tant que le bulletin n'est pas
+    // envoyé. À l'envoi, `sent` passe à true et le brouillon est effacé.
+    val currentDraft = BulletinDraft(
+        date = date, numMission = numMission, lieuProtege = lieuProtege,
+        nom = nom, adresse = adresse, codePostal = codePostal, ville = ville,
+        natMigr = natMigr, natAjou = natAjou, natRepa = natRepa, natVisi = natVisi,
+        natResi = natResi, natPile = natPile, natCont = natCont, natInte = natInte,
+        natDecl = natDecl, natAutre = natAutre, natAutreTxt = natAutreTxt,
+        marque = marque, typeMat = typeMat,
+        lignes = lignes.map { PrestaDraft(it.detail, it.reference, it.qte, it.pu) },
+        forfaitLocatif = forfaitLocatif, forfaitAcquisition = forfaitAcquisition,
+        reglPrelevement = reglPrelevement, reglCheque = reglCheque,
+        reglAutre = reglAutre, reglAutreTxt = reglAutreTxt,
+        fraisOui = fraisOui, conserverOui = conserverOui, conserverNon = conserverNon,
+        totalHt = totalHt,
+        mensualite = mensualite, mensSigne = mensSigne, mensIdem = mensIdem,
+        testAlarme = testAlarme, testLiaison = testLiaison,
+        obsTech = obsTech, obsClient = obsClient,
+        nomTech = nomTech, nomClientSig = nomClientSig, emailClient = emailClient
+    )
+    LaunchedEffect(currentDraft, sent) {
+        if (sent) return@LaunchedEffect
+        delay(500)
+        drafts.saveBulletin(currentDraft)
+    }
 
     // Le forfait d'intervention (65 €) s'ajoute au TOTAL quand « Oui » est coché.
     val fraisMontant = if (fraisOui) BulletinPdfGenerator.FRAIS_INTERVENTION_EUR else 0.0
@@ -440,6 +484,9 @@ fun BulletinScreen(
                                 mimeType = "application/pdf"
                             )
                             status = "Bulletin généré. Choisis ton app mail et envoie."
+                            // Envoi validé : on efface le brouillon.
+                            sent = true
+                            drafts.clearBulletin()
                         }.onFailure { e ->
                             status = "Erreur : ${e.message ?: e.javaClass.simpleName}"
                         }
@@ -597,12 +644,32 @@ private fun BPrestaChoice(value: String, onChange: (String) -> Unit) {
     }
 }
 
+/**
+ * Champ multiligne (observations) robuste à la FRAPPE RAPIDE. L'overload `String`
+ * d'OutlinedTextField, combiné à une transformation (`.uppercase()`) appliquée à
+ * chaque frappe, perd des lettres quand on tape vite : l'IME envoie une rafale
+ * d'éditions pendant que la recomposition est en retard, et elles s'appliquent à
+ * un buffer périmé. On gère donc nous-mêmes le `TextFieldValue` (texte + position
+ * du curseur), ce qui préserve la saisie. Le passage en majuscules (FR) conserve
+ * la longueur, donc la sélection reste valide.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BFieldMulti(label: String, value: String, onChange: (String) -> Unit) {
+    var tfv by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    // Resynchronise si la valeur vient de l'extérieur (chargement/effacement d'un
+    // brouillon), sans jamais perturber la frappe en cours (value == tfv.text).
+    LaunchedEffect(value) {
+        if (value != tfv.text) tfv = TextFieldValue(value, TextRange(value.length))
+    }
     OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.uppercase()) },
+        value = tfv,
+        onValueChange = { nv ->
+            val up = nv.text.uppercase()
+            tfv = if (up.length == nv.text.length) nv.copy(text = up)
+                  else TextFieldValue(up, TextRange(up.length))
+            if (up != value) onChange(up)
+        },
         label = { Text(label) },
         singleLine = false,
         minLines = 3,

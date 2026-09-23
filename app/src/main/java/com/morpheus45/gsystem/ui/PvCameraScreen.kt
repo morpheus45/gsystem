@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -62,13 +63,17 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
+import com.morpheus45.gsystem.data.DraftStore
+import com.morpheus45.gsystem.data.PvCameraDraft
 import com.morpheus45.gsystem.email.EmailSender
 import com.morpheus45.gsystem.export.PvPdfGenerator
 import com.morpheus45.gsystem.ui.theme.CameraAccent
@@ -79,6 +84,7 @@ import com.morpheus45.gsystem.ui.theme.TextHi
 import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.TextMid
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -195,34 +201,57 @@ fun PvCameraScreen(
     val scope = rememberCoroutineScope()
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 
-    var convention by remember { mutableStateOf("") }
-    var site by remember { mutableStateOf("") }
+    // Brouillon : la saisie est restaurée à l'ouverture (même après avoir quitté
+    // l'écran ou fermé l'app) et EFFACÉE à l'envoi. Signatures non conservées.
+    val drafts = remember { DraftStore(context) }
+    val initial = remember { drafts.loadPv() }
+
+    var convention by remember { mutableStateOf(initial?.convention ?: "") }
+    var site by remember { mutableStateOf(initial?.site ?: "") }
     // Souscription : pré-remplie à la date du jour (= date de création du PV),
     // modifiable si le client a souscrit un autre jour.
-    var dateSous by remember { mutableStateOf(today) }
-    var nomAbonne by remember { mutableStateOf("") }
-    var adresse by remember { mutableStateOf("") }
-    var faitLe by remember { mutableStateOf(today) }
-    var nomTech by remember { mutableStateOf(settings.nomUtilisateur) }
-    var emailClient by remember { mutableStateOf("") }
+    var dateSous by remember { mutableStateOf(initial?.dateSous?.takeIf { it.isNotBlank() } ?: today) }
+    var nomAbonne by remember { mutableStateOf(initial?.nomAbonne ?: "") }
+    var adresse by remember { mutableStateOf(initial?.adresse ?: "") }
+    var faitLe by remember { mutableStateOf(initial?.faitLe?.takeIf { it.isNotBlank() } ?: today) }
+    var nomTech by remember { mutableStateOf(initial?.nomTech?.takeIf { it.isNotBlank() } ?: settings.nomUtilisateur) }
+    var emailClient by remember { mutableStateOf(initial?.emailClient ?: "") }
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
+    // Passe à true à l'envoi : coupe la sauvegarde auto et efface le brouillon.
+    var sent by remember { mutableStateOf(false) }
 
     // Tableau ÉQUIPEMENT VIDÉO : Nombre + Total € par type de caméra.
     // Le tech ne saisit QUE le nombre de chaque caméra : les prix unitaires sont
     // déjà imprimés sur la trame, donc l'app calcule tout (ligne + total).
-    var nbExt by remember { mutableStateOf("") }
-    var nbInt by remember { mutableStateOf("") }
-    var nbTorus by remember { mutableStateOf("") }
-    var observations by remember { mutableStateOf("") }
-    var miseServInt by remember { mutableStateOf(false) }
-    var miseServExt by remember { mutableStateOf(false) }
-    var miseServAnticipee by remember { mutableStateOf(false) }
+    var nbExt by remember { mutableStateOf(initial?.nbExt ?: "") }
+    var nbInt by remember { mutableStateOf(initial?.nbInt ?: "") }
+    var nbTorus by remember { mutableStateOf(initial?.nbTorus ?: "") }
+    var observations by remember { mutableStateOf(initial?.observations ?: "") }
+    var miseServInt by remember { mutableStateOf(initial?.miseServInt ?: false) }
+    var miseServExt by remember { mutableStateOf(initial?.miseServExt ?: false) }
+    var miseServAnticipee by remember { mutableStateOf(initial?.miseServAnticipee ?: false) }
 
     val sigAbonne = remember { SignatureController() }
     val sigTech = remember { SignatureController() }
     val sigParapheClient = remember { SignatureController() }
     val sigParapheTech = remember { SignatureController() }
+
+    // Sauvegarde automatique (anti-rebond 500 ms) tant que le PV n'est pas envoyé.
+    val currentDraft = PvCameraDraft(
+        convention = convention, site = site, dateSous = dateSous,
+        nomAbonne = nomAbonne, adresse = adresse,
+        nbExt = nbExt, nbInt = nbInt, nbTorus = nbTorus,
+        observations = observations,
+        miseServInt = miseServInt, miseServExt = miseServExt,
+        miseServAnticipee = miseServAnticipee,
+        faitLe = faitLe, nomTech = nomTech, emailClient = emailClient
+    )
+    LaunchedEffect(currentDraft, sent) {
+        if (sent) return@LaunchedEffect
+        delay(500)
+        drafts.savePv(currentDraft)
+    }
 
     // Prix unitaires € TTC imprimés sur la trame.
     val PRIX_EXT = 179.0; val PRIX_INT = 149.0; val PRIX_TORUS = 89.0
@@ -369,6 +398,9 @@ fun PvCameraScreen(
                                 mimeType = "application/pdf"
                             )
                             status = "PV généré. Choisis ton app mail et envoie."
+                            // Envoi validé : on efface le brouillon.
+                            sent = true
+                            drafts.clearPv()
                         }.onFailure { e ->
                             status = "Erreur : ${e.message ?: e.javaClass.simpleName}"
                         }
@@ -415,12 +447,28 @@ private fun Field(
     )
 }
 
+/**
+ * Champ multiligne (observations) robuste à la FRAPPE RAPIDE. L'overload `String`
+ * d'OutlinedTextField, avec une transformation (`.uppercase()`) à chaque frappe,
+ * perd des lettres quand on tape vite (la recomposition est en retard). On gère
+ * donc nous-mêmes le `TextFieldValue` ; le passage en majuscules (FR) conserve la
+ * longueur, donc la position du curseur reste valide.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FieldMulti(label: String, value: String, onChange: (String) -> Unit) {
+    var tfv by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    LaunchedEffect(value) {
+        if (value != tfv.text) tfv = TextFieldValue(value, TextRange(value.length))
+    }
     OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.uppercase()) },
+        value = tfv,
+        onValueChange = { nv ->
+            val up = nv.text.uppercase()
+            tfv = if (up.length == nv.text.length) nv.copy(text = up)
+                  else TextFieldValue(up, TextRange(up.length))
+            if (up != value) onChange(up)
+        },
         label = { Text(label) },
         singleLine = false,
         minLines = 3,
