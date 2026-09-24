@@ -333,35 +333,44 @@ private fun poser(v: WebView, pages: Int) {
 }
 
 /**
- * Y a-t-il de l'encre sur la page ?
- *
- * Une WebView qui n'a jamais été rattachée à une fenêtre peut ne rien peindre :
- * le dessin réussit, le PDF se crée, et le client reçoit deux pages blanches.
- * On dessine donc d'abord une vignette et on compte les pixels non blancs.
- * Mieux vaut retomber sur l'impression système que d'envoyer ça.
+ * Le bitmap contient-il assez d'encre (pixels non blancs) ? Échantillonné pour
+ * rester rapide. Une WebView mal peinte donne un bitmap blanc : mieux vaut alors
+ * ouvrir le mail sans pièce jointe que d'envoyer des pages vides.
  */
-private fun contientQuelqueChose(v: WebView): Boolean = try {
-    if (v.width <= 0 || v.height <= 0) throw IllegalStateException("vue non posee")
-    val large = 160
-    val ratio = large.toFloat() / v.width
-    val haut = (v.height * ratio).toInt().coerceIn(1, 4000)
-    val vignette = Bitmap.createBitmap(large, haut, Bitmap.Config.ARGB_8888)
-    val toile = Canvas(vignette)
-    toile.drawColor(android.graphics.Color.WHITE)
-    toile.scale(ratio, ratio)
-    v.draw(toile)
-    val pixels = IntArray(large * haut)
-    vignette.getPixels(pixels, 0, large, 0, 0, large, haut)
-    vignette.recycle()
-    // La fiche est dense : bien au-dela de 1 % de la surface est encre.
-    pixels.count { it != android.graphics.Color.WHITE } > pixels.size / 100
+private fun bitmapAEncre(bmp: Bitmap): Boolean = try {
+    val pasX = maxOf(1, bmp.width / 160)
+    val pasY = maxOf(1, bmp.height / 400)
+    var total = 0
+    var encre = 0
+    var y = 0
+    while (y < bmp.height) {
+        var x = 0
+        while (x < bmp.width) {
+            total++
+            if (bmp.getPixel(x, y) != android.graphics.Color.WHITE) encre++
+            x += pasX
+        }
+        y += pasY
+    }
+    total > 0 && encre > total / 100
 } catch (e: Exception) {
-    false
+    true   // en cas de doute, on laisse passer plutôt que de bloquer le PDF
 }
 
 private fun dessiner(context: Context, v: WebView, pages: Int): File? {
-    if (!contientQuelqueChose(v)) return null
     return try {
+        val hauteur = HAUTEUR_PX * pages
+        if (v.width <= 0 || hauteur <= 0) return null
+        // Rendre TOUTE la hauteur (les `pages` pages) dans UN SEUL bitmap. Dessiner
+        // directement page par page sur le canvas du PDF (scale + translate) ne
+        // rasterisait que la 1re page — la 2e sortait blanche. Passer par un bitmap
+        // plein force la rasterisation complète, puis on le découpe en pages A4.
+        val plein = Bitmap.createBitmap(LARGEUR_PX, hauteur, Bitmap.Config.ARGB_8888)
+        Canvas(plein).apply {
+            drawColor(android.graphics.Color.WHITE)
+            v.draw(this)
+        }
+        if (!bitmapAEncre(plein)) { plein.recycle(); return null }
         val doc = PdfDocument()
         val echelle = LARGEUR_PT.toFloat() / LARGEUR_PX
         for (i in 0 until pages) {
@@ -369,10 +378,11 @@ private fun dessiner(context: Context, v: WebView, pages: Int): File? {
                 PdfDocument.PageInfo.Builder(LARGEUR_PT, HAUTEUR_PT, i + 1).create()
             )
             page.canvas.scale(echelle, echelle)
-            page.canvas.translate(0f, -(i * HAUTEUR_PX).toFloat())
-            v.draw(page.canvas)
+            // Slice : on place le grand bitmap décalé pour ne montrer que la page i.
+            page.canvas.drawBitmap(plein, 0f, -(i * HAUTEUR_PX).toFloat(), null)
             doc.finishPage(page)
         }
+        plein.recycle()
         val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
         val fichier = File(dossier, "Diagnostic_securite.pdf")
         FileOutputStream(fichier).use { doc.writeTo(it) }
