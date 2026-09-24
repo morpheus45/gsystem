@@ -18,9 +18,15 @@ import android.graphics.Canvas
 // android.graphics.Color n'est pas importe : le nom est deja pris par
 // androidx.compose.ui.graphics.Color, utilise par la barre de titre.
 import android.graphics.pdf.PdfDocument
+import android.os.Bundle
+import android.os.CancellationSignal
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelFileDescriptor
+import android.print.PageRange
 import android.print.PrintAttributes
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import android.view.View
 import android.view.ViewGroup
@@ -290,36 +296,83 @@ private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> U
     // Filet : chargement bloqué, JavaScript muet, fiche introuvable — quoi
     // qu'il arrive on rend la main, et le mail s'ouvre sans pièce jointe.
     garde = Runnable { terminer(null) }
-    principal.postDelayed(garde, 8000)
+    principal.postDelayed(garde, 12000)
 
     hors.settings.javaScriptEnabled = true
     // La fiche relit ses saisies dans localStorage : sans ça, le PDF serait vierge.
     hors.settings.domStorageEnabled = true
-    // Sans couche logicielle, draw() sur une WebView accélérée rend une page blanche.
-    hors.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
     hors.webViewClient = object : WebViewClient() {
         override fun onPageFinished(v: WebView?, u: String?) {
             if (v == null) { terminer(null); return }
+            // Applique la mise en page d'impression (barre d'outils masquée, chaque
+            // page mise à l'échelle A4) AVANT de générer le PDF.
             v.evaluateJavascript(
                 "document.documentElement.classList.add('rendu-pdf');" +
-                    "if(window.calibrerImpression)calibrerImpression();" +
-                    "document.querySelectorAll('.page').length;"
-            ) { res ->
-                val pages = res?.trim('"')?.trim()?.toIntOrNull() ?: 2
-                poser(v, pages)
-                // La réduction posée par calibrerImpression doit être peinte
-                // avant qu'on dessine : un tour de boucle ne suffit pas.
-                v.postDelayed({ terminer(dessiner(context, v, pages)) }, 400)
+                    "if(window.calibrerImpression)calibrerImpression();1;"
+            ) {
+                // Laisser la mise en page se poser, puis générer via le MOTEUR
+                // D'IMPRESSION de la WebView. Il pagine correctement en A4 (les
+                // DEUX pages), là où le dessin manuel ne peignait que la 1re
+                // (une WebView hors-écran ne peint pas sous la ligne de flottaison).
+                v.postDelayed({ ecrirePdfViaImpression(context, v) { f -> terminer(f) } }, 400)
             }
         }
     }
 
-    // Invisible mais bien dans la hiérarchie, à la taille A4 : c'est la seule
-    // façon d'obtenir un rendu fidèle sans montrer quoi que ce soit.
+    // Invisible mais bien dans la hiérarchie, à la taille A4 : une WebView
+    // détachée rend une page blanche.
     hors.alpha = 0f
     racine?.addView(hors, ViewGroup.LayoutParams(LARGEUR_PX, HAUTEUR_PX * 2))
     poser(hors, 2)
     hors.loadUrl(url)
+}
+
+/**
+ * Écrit le PDF de la fiche dans cacheDir/exports/ EN PASSANT PAR LE MOTEUR
+ * D'IMPRESSION de la WebView (createPrintDocumentAdapter), exactement comme le
+ * bouton « Imprimer / PDF ». C'est ce moteur qui pagine fidèlement en A4 : le
+ * client reçoit désormais les DEUX feuilles, pas seulement la première.
+ * `onFini` est appelé exactement une fois.
+ */
+private fun ecrirePdfViaImpression(context: Context, w: WebView, onFini: (File?) -> Unit) {
+    var fini = false
+    val fin: (File?) -> Unit = { f -> if (!fini) { fini = true; onFini(f) } }
+    try {
+        val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
+        val fichier = File(dossier, "Diagnostic_securite.pdf")
+        if (fichier.exists()) fichier.delete()
+        val adapter = w.createPrintDocumentAdapter("Diagnostic_securite")
+        val attrs = PrintAttributes.Builder()
+            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+            .setResolution(PrintAttributes.Resolution("pdf", "pdf", 300, 300))
+            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+            .build()
+        adapter.onLayout(null, attrs, CancellationSignal(),
+            object : PrintDocumentAdapter.LayoutResultCallback() {
+                override fun onLayoutFinished(info: PrintDocumentInfo?, changed: Boolean) {
+                    try {
+                        val pfd = ParcelFileDescriptor.open(
+                            fichier,
+                            ParcelFileDescriptor.MODE_READ_WRITE or
+                                ParcelFileDescriptor.MODE_CREATE or
+                                ParcelFileDescriptor.MODE_TRUNCATE
+                        )
+                        adapter.onWrite(arrayOf(PageRange.ALL_PAGES), pfd, CancellationSignal(),
+                            object : PrintDocumentAdapter.WriteResultCallback() {
+                                override fun onWriteFinished(pages: Array<out PageRange>?) {
+                                    try { pfd.close() } catch (e: Exception) { /* deja ferme */ }
+                                    fin(if (fichier.length() > 5_000L) fichier else null)
+                                }
+                                override fun onWriteFailed(error: CharSequence?) {
+                                    try { pfd.close() } catch (e: Exception) { /* deja ferme */ }
+                                    fin(null)
+                                }
+                            })
+                    } catch (e: Exception) { fin(null) }
+                }
+                override fun onLayoutFailed(error: CharSequence?) { fin(null) }
+            }, Bundle())
+    } catch (e: Exception) { fin(null) }
 }
 
 /** Une vue jamais mesurée ni positionnée ne se dessine pas. */
