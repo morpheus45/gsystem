@@ -40,10 +40,20 @@ export function entreeVide(reglages) {
     observations: '',
     motifRetard: '',
     retardTexte: '',
-    slotMidi: new Date().getHours() < 13 ? 'MATIN' : 'APREM',
+    // Creneau : base sur l'HEURE D'ARRIVEE reellement pointee (= heure de
+    // l'intervention) si presente, sinon l'heure de saisie. Sans ca, une
+    // intervention du matin saisie apres 13h basculait en apres-midi -> 8h.
+    slotMidi: creneauDepuisArrivee(reglages),
     heureDebut: '',
     heureFin: '',
   };
+}
+
+/** Matin / apres-midi depuis l'arrivee pointee (reglages.pendingArrivalMs) ou l'heure courante. */
+export function creneauDepuisArrivee(reglages) {
+  const ms = (reglages && reglages.pendingArrivalMs) || 0;
+  const h = ms > 0 ? new Date(ms).getHours() : new Date().getHours();
+  return h < 13 ? 'MATIN' : 'APREM';
 }
 
 /** Champs obligatoires. Une journee entiere n'exige que la date et le type. */

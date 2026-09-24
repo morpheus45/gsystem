@@ -188,6 +188,7 @@ fun TempsScreen(
             settings = settings,
             existing = null,
             otherCloturesDates = store.temps.map { it.date }.toSet(),
+            daySlotOf = { d -> store.temps.firstOrNull { it.date == d && it.slotMidi.isNotBlank() }?.slotMidi },
             onDismiss = { showAdd = false },
             onSave = { entries, geste, alsoShareViber ->
                 val entry = entries.first()
@@ -215,6 +216,7 @@ fun TempsScreen(
             settings = settings,
             existing = e,
             otherCloturesDates = store.temps.filter { it.id != e.id }.map { it.date }.toSet(),
+            daySlotOf = { d -> store.temps.firstOrNull { it.id != e.id && it.date == d && it.slotMidi.isNotBlank() }?.slotMidi },
             onDismiss = { editingEntry = null },
             onSave = { updatedList, _, alsoShareViber ->
                 val updated = updatedList.first()
@@ -396,6 +398,8 @@ private fun AddTempsDialog(
     settings: AppSettings,
     existing: TempsEntry?,
     otherCloturesDates: Set<String> = emptySet(),
+    /** Créneau déjà utilisé par les entrées d'une date (pour garder le jour cohérent). */
+    daySlotOf: (String) -> String? = { null },
     onDismiss: () -> Unit,
     /** `entries` contient 1 élément, sauf période de congés (1 par jour ouvré). */
     onSave: (entries: List<TempsEntry>, geste: GesteCoEntry?, alsoShareViber: Boolean) -> Unit
@@ -425,7 +429,23 @@ private fun AddTempsDialog(
     var retardOn by remember { mutableStateOf(existing?.motifRetard?.isNotBlank() == true) }
     var typeExpanded by remember { mutableStateOf(false) }
     var obsExpanded by remember { mutableStateOf(false) }
+    // Créneau (matin / après-midi) — défaut EN CASCADE, du plus fiable au moins :
+    //  1. le créneau déjà enregistré (édition d'une entrée existante) ;
+    //  2. l'HEURE D'ARRIVÉE réellement pointée sur site (settings.pendingArrivalMs)
+    //     — c'est l'heure de l'intervention, pas celle de la saisie ;
+    //  3. le créneau des autres entrées du même jour (cohérence : plusieurs
+    //     interventions le même matin restent toutes « matin ») ;
+    //  4. en dernier recours, l'heure actuelle de saisie.
+    // Sans (2) et (3), une intervention du matin saisie APRÈS 13h basculait en
+    // « après-midi » → 2 créneaux comptés → 8h au lieu de 4h.
+    fun slotFromMs(ms: Long): String? =
+        if (ms > 0L)
+            if (java.time.Instant.ofEpochMilli(ms)
+                    .atZone(java.time.ZoneId.systemDefault()).hour < 13) "MATIN" else "APREM"
+        else null
     val defaultSlot = existing?.slotMidi?.takeIf { it.isNotBlank() }
+        ?: slotFromMs(settings.pendingArrivalMs)
+        ?: daySlotOf(date)?.takeIf { it.isNotBlank() }
         ?: if (java.time.LocalTime.now().hour < 13) "MATIN" else "APREM"
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
@@ -553,7 +573,11 @@ private fun AddTempsDialog(
                             MISSION_TYPES.forEach { t ->
                                 DropdownMenuItem(
                                     text = {
-                                        val suffix = if (t in WHOLE_DAY_TYPES) "  (journée 7h)" else ""
+                                        val suffix = when {
+                                            t == "PLANNING VIDE" -> "  (journée 0h)"
+                                            t in WHOLE_DAY_TYPES -> "  (journée 7h)"
+                                            else -> ""
+                                        }
                                         Text("$t$suffix")
                                     },
                                     onClick = { type = t; typeExpanded = false }
@@ -612,7 +636,10 @@ private fun AddTempsDialog(
                                 modifier = Modifier.weight(1.4f).fillMaxWidth(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Journée entière (7h)", fontSize = 12.sp,
+                                Text(
+                                    if (type == "PLANNING VIDE") "Journée sans mission (0h)"
+                                    else "Journée entière (7h)",
+                                    fontSize = 12.sp,
                                     color = ColorTemps, fontWeight = FontWeight.SemiBold)
                             }
                         }

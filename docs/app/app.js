@@ -305,9 +305,11 @@ function sectionGeste() {
 function vueFormulaire() {
   const e = brouillon;
   const journee = TYPES_JOURNEE.indexOf(e.typeMission) >= 0;
+  const planningVide = e.typeMission === 'PLANNING VIDE';
   const bloc = journee
-    ? '<div class="note">Journ\u00e9e enti\u00e8re : 7h, sans client ni num\u00e9ro '
-      + '\u00e0 saisir.</div>'
+    ? '<div class="note">'
+      + (planningVide ? 'Planning vide : 0h' : 'Journ\u00e9e enti\u00e8re : 7h')
+      + ', sans client ni num\u00e9ro \u00e0 saisir.</div>'
     : `
     <div class="deux">
       <div class="champ requis"><label for="f_dept">D\u00e9partement</label>
@@ -1112,6 +1114,12 @@ function aller(ou) {
     geste = gesteVide();
     if (reglages.pendingArrivalMs > 0) {
       brouillon.heureDebut = heureDe(reglages.pendingArrivalMs);
+    } else {
+      // Sans arrivee pointee : garder le meme creneau que les autres
+      // interventions deja saisies le meme jour (coherence -> pas de faux 8h).
+      const memeJour = entrees.temps.find(
+        (t) => t.date === brouillon.date && t.slotMidi);
+      if (memeJour) brouillon.slotMidi = memeJour.slotMidi;
     }
     ecran = 'formulaire';
   } else if (ou === 'demandecam') {
