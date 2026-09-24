@@ -992,6 +992,8 @@ function resetForm() {
     const inp = document.querySelector(`[data-key="ext_${idx}_nom"]`);
     if (inp) inp.value = nom;
   });
+  /* Pieces par defaut renseignees -> CONSTAT O/N pre-rempli « N ». */
+  if (typeof appliquerDefautConstatN === 'function') appliquerDefautConstatN();
   if (typeof clearAllSignatures === 'function') clearAllSignatures();
   saveAll();
 }
@@ -1338,6 +1340,60 @@ var RECO_DFCO = {
   window.addEventListener('DOMContentLoaded', function () { setTimeout(demarrer, 0); });
 
   window.recomposerRefus = rafraichir;
+})();
+</script>
+
+<script>
+/* ====================================================================== */
+/* Champs chiffres fixes -> clavier numerique, et CONSTAT pre-rempli « N ». */
+/* ====================================================================== */
+(function () {
+  /* 1) Clavier numerique + filtre chiffres (mecanisme data-saisie "num"
+     existant) sur les champs chiffres hors tableau. */
+  ['cp', 'surface', 'nb_pieces', 'nb_niveaux', 'nb_personnes',
+   'animaux_nb', 'ap_etage', 'ap_nb_etages'].forEach(function (k) {
+    document.querySelectorAll('[data-key="' + k + '"]').forEach(function (el) {
+      el.dataset.saisie = 'num';
+      el.setAttribute('inputmode', 'numeric');
+    });
+  });
+
+  /* 2) CONSTAT : « N » par defaut dans les colonnes O/N de chaque piece
+     RENSEIGNEE. Colonne O/N = <select> ['', 'O', 'N'] -> on ne touche NI les
+     colonnes chiffrees, NI le P/T, NI le « choix abonne » (O/N/L). On ne remplit
+     que le vide. */
+  function estColonneON(cell) {
+    return !!cell && cell.tagName === 'SELECT' && cell.options.length === 3 &&
+      cell.options[1].value === 'O' && cell.options[2].value === 'N';
+  }
+  function defautN(idx) {
+    var c = 2, cell;
+    while ((cell = document.querySelector('[data-key="piece_' + idx + '_c' + c + '"]'))) {
+      if (estColonneON(cell) && cell.value === '') cell.value = 'N';
+      c++;
+    }
+  }
+  function appliquerDefautConstatN() {
+    var change = false;
+    document.querySelectorAll('#tbody-intrusion tr').forEach(function (tr, idx) {
+      var nom = document.querySelector('[data-key="piece_' + idx + '_nom"]');
+      if (nom && nom.value.trim() !== '') { defautN(idx); change = true; }
+    });
+    if (change && typeof saveAll === 'function') saveAll();
+  }
+  window.appliquerDefautConstatN = appliquerDefautConstatN;
+
+  appliquerDefautConstatN();
+
+  var tb = document.getElementById('tbody-intrusion');
+  if (tb) tb.addEventListener('input', function (e) {
+    var k = (e.target && e.target.dataset) ? e.target.dataset.key : '';
+    var m = /^piece_(\d+)_nom$/.exec(k || '');
+    if (m && e.target.value.trim() !== '') {
+      defautN(m[1]);
+      if (typeof saveAll === 'function') saveAll();
+    }
+  });
 })();
 </script>
 </body>
