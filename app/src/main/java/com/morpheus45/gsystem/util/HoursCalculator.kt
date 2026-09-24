@@ -15,7 +15,8 @@ import com.morpheus45.gsystem.data.TempsEntry
  * Calcul automatique des heures travaillées d'une journée.
  *
  * Cas spéciaux :
- *   - Si la journée contient une entrée VACANCES, FORMATION, FERIE ou PLANNING VIDE → 7h (journée entière)
+ *   - Si la journée contient une entrée VACANCES, FORMATION ou FERIE → 7h (journée entière)
+ *   - Si la journée contient une entrée PLANNING VIDE (journée sans mission) → 0h
  *
  * Règle générale (confirmée par l'utilisateur — table à 9 cas) :
  *   - 0 slot actif (rien du tout)            → 0h
@@ -38,7 +39,9 @@ object HoursCalculator {
     fun computeForDay(entries: List<TempsEntry>): Double {
         if (entries.isEmpty()) return 0.0
 
-        // Cas special : si une entree VACANCES, FORMATION, FERIE ou PLANNING VIDE existe, journee = 7h
+        // PLANNING VIDE : journee sans mission = 0h (aucune heure comptee).
+        if (entries.any { isPlanningVide(it) }) return 0.0
+        // Cas special : si une entree VACANCES, FORMATION ou FERIE existe, journee = 7h
         if (entries.any { isWholeDayType(it) }) return 7.0
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
@@ -61,7 +64,10 @@ object HoursCalculator {
     private fun isWholeDayType(e: TempsEntry): Boolean =
         e.typeMission.equals("VACANCES", ignoreCase = true) ||
         e.typeMission.equals("FORMATION", ignoreCase = true) ||
-        e.typeMission.equals("FERIE", ignoreCase = true) ||
+        e.typeMission.equals("FERIE", ignoreCase = true)
+
+    /** PLANNING VIDE : journée sans mission → 0h (ni 7h ni comptée par créneau). */
+    private fun isPlanningVide(e: TempsEntry): Boolean =
         e.typeMission.equals("PLANNING VIDE", ignoreCase = true)
 
     private fun isInSlot(e: TempsEntry, slot: String): Boolean = when (slot) {
@@ -73,6 +79,8 @@ object HoursCalculator {
     /** Détaille la règle appliquée pour affichage utilisateur. */
     fun explainForDay(entries: List<TempsEntry>): String {
         if (entries.isEmpty()) return "Aucune intervention → 0h"
+        // Planning vide : journee sans mission
+        if (entries.any { isPlanningVide(it) }) return "PLANNING VIDE → 0h (journée sans mission)"
         // Vacances / Formation / Férié : journee entiere
         val whole = entries.firstOrNull { isWholeDayType(it) }
         if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"

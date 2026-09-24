@@ -7,10 +7,15 @@
 // La regle n'est PAS un cumul d'horaires : elle depend des demi-journees
 // occupees et de celles reellement realisees (observation vide = realisee).
 
-const JOURNEE_ENTIERE = ['VACANCES', 'FORMATION', 'FERIE', 'PLANNING VIDE'];
+const JOURNEE_ENTIERE = ['VACANCES', 'FORMATION', 'FERIE'];
 
 export function estJourneeEntiere(e) {
   return JOURNEE_ENTIERE.indexOf((e.typeMission || '').toUpperCase()) >= 0;
+}
+
+/** PLANNING VIDE : journee sans mission -> 0h (ni 7h ni comptee par creneau). */
+export function estPlanningVide(e) {
+  return (e.typeMission || '').toUpperCase() === 'PLANNING VIDE';
 }
 
 /** Un creneau vide compte comme MATIN (entrees anciennes sans creneau). */
@@ -22,6 +27,7 @@ function dansCreneau(e, creneau) {
 
 export function heuresDuJour(entrees) {
   if (!entrees.length) return 0;
+  if (entrees.some(estPlanningVide)) return 0;   // journee sans mission
   if (entrees.some(estJourneeEntiere)) return 7;
 
   const matinOccupe = entrees.some((e) => dansCreneau(e, 'MATIN'));
@@ -39,6 +45,7 @@ export function heuresDuJour(entrees) {
 
 export function expliquerHeures(entrees) {
   if (!entrees.length) return 'Aucune intervention \u2192 0h';
+  if (entrees.some(estPlanningVide)) return 'Planning vide \u2192 0h';
   if (entrees.some(estJourneeEntiere)) return 'Journ\u00e9e enti\u00e8re \u2192 7h';
   const h = heuresDuJour(entrees);
   if (h === 8) return 'Matin et apr\u00e8s-midi r\u00e9alis\u00e9s \u2192 8h';
