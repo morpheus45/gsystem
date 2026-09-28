@@ -156,6 +156,10 @@ dependencies {
     // SLF4J no-op pour éviter les avertissements POI
     implementation("org.slf4j:slf4j-nop:2.0.11")
 
+    // PdfBox-Android : extraction du TEXTE des ordres de mission (PDF) pour
+    // générer les tuiles de tournée. Lecture seule, hors ligne.
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
