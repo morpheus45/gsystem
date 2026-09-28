@@ -38,6 +38,7 @@ import { genererBulletin, refFormatee, eur2, FRAIS_INTERVENTION }
 import { genererPv, totalPv } from './docPv.js';
 import { genererRecap, nomFichierRecap } from './docRecap.js';
 import { creerPad } from './signature.js';
+import { missionsActives, majMission, importerPdf } from './tournee.js';
 
 const TEL_TECHLINE = '0388398894';
 const TEL_LOGISTIQUE = '0369740780';
@@ -65,6 +66,8 @@ let padAb = null;              // PV : signature de l'abonne
 let padPvTech = null;          // PV : signature du technicien
 let envoi = null;              // envoi mensuel en preparation
 let geste = null;              // GESTE CO de la cloture en cours
+let missionChoix = null;       // mission touchee : choix Arrivee / Attente
+let missionEnCours = null;     // n° de la mission dont la cloture est ouverte
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -97,9 +100,35 @@ function vueAccueil() {
     </button>`).join('');
 
   const g = GROUPES.find((x) => x.id === ongletActif);
-  const liste = TUILES.filter((t) => t.groupe === ongletActif);
+  // Tournee : des missions importees (PDF ordre de mission) REMPLACENT les
+  // tuiles 01 ARRIVEE / 02 ATTENTE dans « Sur site ». Sans mission, l'accueil
+  // reste strictement l'ancien.
+  const missions = ongletActif === 'SITE' ? missionsActives() : [];
+  const liste = TUILES.filter((t) => t.groupe === ongletActif
+    && !(missions.length && (t.num === '01' || t.num === '02')));
 
-  const tuiles = liste.map((t) => {
+  // Memes couleurs que 01 (arrivee) puis que la tuile CLOTURER une fois pointee.
+  const tuilesMissions = missions.map((m) => {
+    const pointee = m.arrivalMs > 0;
+    const lieu = m.ville + (m.dept ? ' (' + m.dept + ')' : '');
+    const nom = (pointee ? 'CLÔTURER · ' : '') + (m.nom || m.type || 'MISSION');
+    const sous = pointee
+      ? 'Arrivée ' + heureDe(m.arrivalMs) + ' · ' + lieu
+        + ' · appui long = annuler'
+      : [m.type, m.adresse, lieu].filter(Boolean).join(' · ');
+    const debut = pointee ? '#7C3AED' : '#C026D3';
+    const fin = pointee ? '#1A0B36' : '#3B0A3E';
+    return `
+      <button class="tuile" data-mission="${ech(m.num)}"
+              style="background:linear-gradient(135deg,${debut},${fin})">
+        <span class="num">${ech(m.heure)}</span>
+        <span class="rond">${pointee ? '\u{1F4CB}' : '\u{1F4CD}'}</span>
+        <span class="txt"><div class="nom">${ech(nom)}</div>
+        <div class="sous">${ech(sous)}</div></span>
+      </button>`;
+  }).join('');
+
+  const tuiles = tuilesMissions + liste.map((t) => {
     const bascule = enAttente && t.ecran === reglages.pendingArrivalSource;
     const nom = bascule ? 'CL\u00d4TURER' : t.nom;
     const sous = bascule
@@ -136,16 +165,38 @@ function vueAccueil() {
         <span>${navigator.onLine ? 'OP\u00c9RATIONNEL' : 'HORS LIGNE'}${nom}</span>
       </div>
     </div>
-    <button class="reglage-btn" data-va="reglages" title="R\u00e9glages">\u2699</button>
+    <div class="entete-btns">
+      <label class="reglage-btn" title="Importer un ordre de mission (PDF)">\u{1F4C4}
+        <input type="file" id="om_pdf" accept="application/pdf,.pdf" hidden /></label>
+      <button class="reglage-btn" data-va="reglages" title="R\u00e9glages">\u2699</button>
+    </div>
   </header>
   ${bandeau}
   <nav class="onglets" role="tablist">${onglets}</nav>
   <div class="groupe">
     <span class="barre" style="background:${g.barre}"></span>
     <span><div class="titre" style="color:${g.barre}">${g.titre}</div>
-    <div class="desc">${g.desc} &middot; ${liste.length} actions</div></span>
+    <div class="desc">${g.desc} &middot; ${liste.length + missions.length} actions</div></span>
   </div>
-  <main class="tuiles">${tuiles}</main>`;
+  <main class="tuiles">${tuiles}</main>
+  ${missionChoix ? vueChoixMission(missionChoix) : ''}`;
+}
+
+/** Toucher une mission non pointee : Arrivee sur site OU Attente client. */
+function vueChoixMission(m) {
+  return `
+  <div class="voile" id="m_voile">
+    <div class="boite">
+      <div class="boite-titre">${ech(m.nom || m.type)}</div>
+      <div class="boite-texte">${ech([m.heure, m.type, m.ville].filter(Boolean).join(' \u00b7 '))}
+        <br>Pointer l'arriv\u00e9e et appeler la techline ?</div>
+      <button class="btn" data-choix="arrivee"
+              style="background:linear-gradient(135deg,#C026D3,#3B0A3E)">\u{1F4CD} ARRIV\u00c9E SUR SITE</button>
+      <button class="btn" data-choix="attente"
+              style="background:linear-gradient(135deg,#8A5CF6,#6366F1)">\u23f1\ufe0f ATTENTE CLIENT</button>
+      <button class="lien" data-choix="annuler">Annuler</button>
+    </div>
+  </div>`;
 }
 
 // ========================================================== REGLAGES
@@ -1110,6 +1161,7 @@ function rendre() {
 
 function aller(ou) {
   if (ou === 'nouvelle') {
+    missionEnCours = null;
     brouillon = entreeVide(reglages);
     geste = gesteVide();
     if (reglages.pendingArrivalMs > 0) {
@@ -1221,6 +1273,67 @@ function lireGeste() {
   });
 }
 
+// ============================================================ TOURNEE
+/**
+ * Arrivee ou attente sur une mission : note l'heure SUR la mission (+ l'arrivee
+ * en attente, comme 01/02) puis appelle la techline. La tuile passe en
+ * « Cloturer ». Comme sur Android, l'attente n'envoie pas de Viber.
+ */
+function pointerMission(m, source) {
+  const maintenant = Date.now();
+  majMission(m.num, { arrivalMs: maintenant });
+  reglages.pendingArrivalMs = maintenant;
+  reglages.pendingArrivalSource = source;
+  ecrireReglages(reglages);
+  missionChoix = null;
+  rendre();
+  toast('Arrivée ' + heureDe(maintenant) + ' · ' + (m.nom || m.num)
+      + ' · appel de la techline…');
+  setTimeout(() => { location.href = 'tel:' + TEL_TECHLINE; }, 900);
+}
+
+/** Appui long sur une mission pointee : annule son arrivee. */
+function annulerMission(num) {
+  const m = missionsActives().find((x) => x.num === num);
+  if (!m || !(m.arrivalMs > 0)) return;
+  majMission(num, { arrivalMs: 0 });
+  reglages.pendingArrivalMs = 0;
+  reglages.pendingArrivalSource = '';
+  ecrireReglages(reglages);
+  rendre();
+  toast('Arrivée annulée · ' + (m.nom || m.num));
+}
+
+/** Cloture pre-remplie depuis la mission (type, dept, client, ville, n° OM, site). */
+function cloturerMission(m) {
+  aller('nouvelle');
+  missionEnCours = m.num;
+  brouillon.typeMission = TYPES.indexOf(m.type) >= 0 ? m.type : 'AUTRE';
+  if (m.dept) brouillon.departement = m.dept;
+  brouillon.nomClient = m.nom || '';
+  brouillon.ville = m.ville || '';
+  brouillon.numeroIntervention = m.num;
+  if (m.arrivalMs > 0) {
+    brouillon.heureDebut = heureDe(m.arrivalMs);
+    brouillon.slotMidi = new Date(m.arrivalMs).getHours() < 13 ? 'MATIN' : 'APREM';
+  }
+  if (m.site) geste.site = m.site;
+  rendre();
+}
+
+async function importerOrdreMission(fichier) {
+  toast('Lecture de l’ordre de mission…', 2500);
+  try {
+    const liste = await importerPdf(fichier);
+    if (!liste.length) { toast('Aucune mission trouvée dans ce PDF.', 5000); return; }
+    ongletActif = 'SITE';
+    aller('accueil');
+    toast(liste.length + ' mission(s) importée(s).');
+  } catch (err) {
+    toast('PDF illisible : ' + ((err && err.message) || err), 6000);
+  }
+}
+
 // ============================================================ ACTIONS
 function pointerArrivee(source) {
   if (reglages.pendingArrivalMs > 0) {
@@ -1314,6 +1427,12 @@ async function validerCloture() {
     }
   }
   ecrireEntrees(entrees);
+
+  // Mission de tournee cloturee : elle disparait de l'accueil.
+  if (missionEnCours) {
+    majMission(missionEnCours, { done: true, arrivalMs: 0 });
+    missionEnCours = null;
+  }
 
   // L'arrivee en attente est consommee par la cloture.
   if (reglages.pendingArrivalMs > 0) {
@@ -1894,6 +2013,25 @@ document.addEventListener('click', (e) => {
   const onglet = e.target.closest('.onglet');
   if (onglet) { ongletActif = onglet.dataset.groupe; rendre(); return; }
 
+  const choix = e.target.closest('[data-choix]');
+  if (choix || e.target.id === 'm_voile') {
+    const m = missionChoix;
+    const c = choix ? choix.dataset.choix : 'annuler';
+    if (m && (c === 'arrivee' || c === 'attente')) { pointerMission(m, c); return; }
+    missionChoix = null; rendre(); return;
+  }
+
+  const tMission = e.target.closest('.tuile[data-mission]');
+  if (tMission) {
+    // Le clic qui suit un appui long (annulation) est ignore.
+    if (appuiLongFait) { appuiLongFait = false; return; }
+    const m = missionsActives().find((x) => x.num === tMission.dataset.mission);
+    if (!m) { rendre(); return; }
+    if (m.arrivalMs > 0) cloturerMission(m);
+    else { missionChoix = m; rendre(); }
+    return;
+  }
+
   const tuile = e.target.closest('.tuile');
   if (tuile) { ouvrir(tuile.dataset.ecran); return; }
 
@@ -1919,8 +2057,40 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Appui long (0,6 s) sur une mission pointee = annuler son arrivee, comme
+// l'appui long sur la tuile Android.
+let appuiLongFait = false;
+let minuterieAppui = null;
+function finAppui() { clearTimeout(minuterieAppui); minuterieAppui = null; }
+document.addEventListener('pointerdown', (e) => {
+  const t = e.target.closest('.tuile[data-mission]');
+  if (!t) return;
+  appuiLongFait = false;
+  finAppui();
+  minuterieAppui = setTimeout(() => {
+    minuterieAppui = null;
+    const m = missionsActives().find((x) => x.num === t.dataset.mission);
+    if (m && m.arrivalMs > 0) {
+      appuiLongFait = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      annulerMission(m.num);
+    }
+  }, 600);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach((n) =>
+  document.addEventListener(n, finAppui));
+document.addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.tuile[data-mission]')) e.preventDefault();
+});
+
 // Le type change la forme du formulaire ; l'observation change l'apercu.
 document.addEventListener('change', async (e) => {
+  if (e.target.id === 'om_pdf') {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) importerOrdreMission(f);
+    return;
+  }
   if (e.target.id === 't_photo' && e.target.files && e.target.files[0]) {
     lireTicket();
     try { ticket.apercu = await reduire(e.target.files[0]); rendre(); }

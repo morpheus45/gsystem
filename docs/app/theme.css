@@ -201,6 +201,29 @@ input, select, textarea, button { font-size: 16px; font-family: inherit; }
   width: 34px; height: 34px; border-radius: 50%; font-size: 15px; cursor: pointer;
   flex: none;
 }
+label.reglage-btn { display: flex; align-items: center; justify-content: center; }
+.entete-btns { display: flex; gap: 8px; flex: none; }
+
+/* Tuiles de tournee : l'appui long annule l'arrivee -> pas de menu iOS. */
+.tuile[data-mission] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* Boite de choix Arrivee / Attente (mission de tournee) */
+.voile {
+  position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.6);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 18px 18px calc(18px + var(--pad-bas));
+}
+.boite {
+  width: 100%; max-width: 460px; background: var(--lift1);
+  border: 1px solid var(--line); border-radius: 18px; padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.boite-titre { font-size: 17px; font-weight: 800; }
+.boite-texte { font-size: 13px; color: var(--mid); line-height: 1.5; margin-bottom: 4px; }
+.lien {
+  background: transparent; border: 0; color: var(--mid); padding: 10px;
+  font-size: 14px; cursor: pointer;
+}
 
 .form { padding: 4px 18px 40px; display: flex; flex-direction: column; gap: 14px; }
 .champ { display: flex; flex-direction: column; gap: 5px; }
