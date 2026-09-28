@@ -78,7 +78,15 @@ object OrdreMissionParser {
             val cp = ch(Regex("\\b(\\d{5})\\b"), adr)
             val dept = if (cp.length >= 2) cp.substring(0, 2) else ""
             val ville = Regex("\\b\\d{5}\\b\\s+(.+)$").find(adr)?.groupValues?.getOrNull(1)?.trim().orEmpty()
-            val adresse = adr.replace(Regex("\\s*\\b\\d{5}\\b.*$"), "").trim()
+            // La rue et « CP VILLE » sont souvent sur deux lignes dans le PDF : la
+            // rue est alors la ligne juste au-dessus (sauf la ligne du nom « V : »).
+            var adresse = adr.replace(Regex("\\s*\\b\\d{5}\\b.*$"), "").trim()
+            if (adresse.isBlank() && adr.isNotBlank()) {
+                val idx = b.indexOf(adr)
+                val prec = if (idx > 0) b.substring(0, idx).lines()
+                    .map { it.trim() }.lastOrNull { it.isNotBlank() }.orEmpty() else ""
+                if (prec.isNotBlank() && !Regex("\\bV\\s*:").containsMatchIn(prec)) adresse = prec
+            }
             val site = ch(Regex("\\bSite\\s*:\\s*(\\d+)"), b)
             val conv = ch(Regex("Convention\\s*:\\s*(\\d+)"), b)
             // Portable d'abord (tél de contact) ; « / » stoppe la capture au 1er n°.

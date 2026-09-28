@@ -110,12 +110,13 @@ function vueAccueil() {
   // Memes couleurs que 01 (arrivee) puis que la tuile CLOTURER une fois pointee.
   const tuilesMissions = missions.map((m) => {
     const pointee = m.arrivalMs > 0;
-    const lieu = m.ville + (m.dept ? ' (' + m.dept + ')' : '');
+    // Ligne 1 = rue ; ligne 2 = CP ville (+ type ou heure d'arrivee).
+    const ville = [m.cp, m.ville].filter(Boolean).join(' ');
+    const rue = m.adresse || ville;
     const nom = (pointee ? 'CLÔTURER · ' : '') + (m.nom || m.type || 'MISSION');
-    const sous = pointee
-      ? 'Arrivée ' + heureDe(m.arrivalMs) + ' · ' + lieu
-        + ' · appui long = annuler'
-      : [m.type, m.adresse, lieu].filter(Boolean).join(' · ');
+    const suite = (pointee
+      ? ['Arrivée ' + heureDe(m.arrivalMs), m.adresse ? ville : '', 'appui long = annuler']
+      : [m.type, m.adresse ? ville : '']).filter(Boolean).join(' · ');
     const debut = pointee ? '#7C3AED' : '#C026D3';
     const fin = pointee ? '#1A0B36' : '#3B0A3E';
     return `
@@ -124,7 +125,7 @@ function vueAccueil() {
         <span class="num">${ech(m.heure)}</span>
         <span class="rond">${pointee ? '\u{1F4CB}' : '\u{1F4CD}'}</span>
         <span class="txt"><div class="nom">${ech(nom)}</div>
-        <div class="sous">${ech(sous)}</div></span>
+        <div class="sous">\u{1F4CD} ${ech(rue)}<br>${ech(suite)}</div></span>
       </button>`;
   }).join('');
 
