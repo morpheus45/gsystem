@@ -132,6 +132,9 @@ fun HomeScreen(
     store: EntriesStore,
     synced: Boolean = false,
     chatUnread: Int = 0,
+    // Nombre de missions de tournée en attente (0 = aucune -> accueil inchangé).
+    missionCount: Int = 0,
+    onTournee: () -> Unit = {},
     onChat: () -> Unit = {},
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
@@ -287,6 +290,36 @@ fun HomeScreen(
                     style = MaterialTheme.typography.labelMedium,
                     color = TextMid
                 )
+            }
+        }
+
+        // ============ TOURNÉE DU JOUR — n'apparaît QUE si un PDF a été importé
+        // (missionCount > 0). Sans PDF, l'accueil reste strictement identique.
+        if (missionCount > 0) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(TempsStart)
+                    .clickable(onClick = onTournee)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Assignment, null, tint = Color.White,
+                    modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("TOURNÉE DU JOUR", color = Color.White, fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold)
+                    Text(
+                        "$missionCount mission" + (if (missionCount > 1) "s" else "") +
+                            " · toucher pour ouvrir",
+                        color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp
+                    )
+                }
+                Text("›", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             }
         }
 

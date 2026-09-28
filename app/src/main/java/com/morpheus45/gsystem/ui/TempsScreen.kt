@@ -83,6 +83,8 @@ fun TempsScreen(
     onArrivalConsumed: () -> Unit = {},
     /** TEST (branche fusion) : ouvre d'emblée le formulaire « Nouvelle intervention ». */
     openNew: Boolean = false,
+    /** Mission (ordre de mission PDF) qui pré-remplit la nouvelle clôture. */
+    prefill: com.morpheus45.gsystem.data.Mission? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -187,6 +189,7 @@ fun TempsScreen(
         AddTempsDialog(
             settings = settings,
             existing = null,
+            prefill = prefill,
             otherCloturesDates = store.temps.map { it.date }.toSet(),
             daySlotOf = { d -> store.temps.firstOrNull { it.date == d && it.slotMidi.isNotBlank() }?.slotMidi },
             onDismiss = { showAdd = false },
@@ -397,6 +400,7 @@ private fun reqLabel(text: String, required: Boolean): @Composable () -> Unit = 
 private fun AddTempsDialog(
     settings: AppSettings,
     existing: TempsEntry?,
+    prefill: com.morpheus45.gsystem.data.Mission? = null,
     otherCloturesDates: Set<String> = emptySet(),
     /** Créneau déjà utilisé par les entrées d'une date (pour garder le jour cohérent). */
     daySlotOf: (String) -> String? = { null },
@@ -406,22 +410,31 @@ private fun AddTempsDialog(
 ) {
     val isEditing = existing != null
     var date by remember { mutableStateOf(existing?.date ?: DateUtil.today().toString()) }
-    var dept by remember { mutableStateOf(existing?.departement ?: settings.departementDefaut) }
+    var dept by remember {
+        mutableStateOf(existing?.departement
+            ?: prefill?.dept?.takeIf { it.isNotBlank() }
+            ?: settings.departementDefaut)
+    }
     var type by remember {
         mutableStateOf(
             existing?.typeMission?.let { if (it in MISSION_TYPES) it else "AUTRE" }
+                ?: prefill?.type?.takeIf { it.isNotBlank() }?.let { if (it in MISSION_TYPES) it else "AUTRE" }
                 ?: MISSION_TYPES.first()
         )
     }
     // Texte libre quand le type choisi est "AUTRE".
     var autreText by remember {
-        mutableStateOf(existing?.typeMission?.takeIf { it !in MISSION_TYPES } ?: "")
+        mutableStateOf(
+            existing?.typeMission?.takeIf { it !in MISSION_TYPES }
+                ?: prefill?.type?.takeIf { it.isNotBlank() && it !in MISSION_TYPES }
+                ?: ""
+        )
     }
     // Type effectivement enregistré : le texte libre si "AUTRE", sinon le type tel quel.
     val effectiveType = if (type == "AUTRE") autreText.trim().ifBlank { "AUTRE" } else type
-    var nom by remember { mutableStateOf(existing?.nomClient ?: "") }
-    var ville by remember { mutableStateOf(existing?.ville ?: "") }
-    var numero by remember { mutableStateOf(existing?.numeroIntervention ?: "") }
+    var nom by remember { mutableStateOf(existing?.nomClient ?: prefill?.nom ?: "") }
+    var ville by remember { mutableStateOf(existing?.ville ?: prefill?.ville ?: "") }
+    var numero by remember { mutableStateOf(existing?.numeroIntervention ?: prefill?.num ?: "") }
     var obsType by remember { mutableStateOf(existing?.observationType ?: "") }
     var obs by remember { mutableStateOf(existing?.observations ?: "") }
     var motifRetard by remember { mutableStateOf(existing?.motifRetard ?: "") }
@@ -451,7 +464,7 @@ private fun AddTempsDialog(
     var slotExpanded by remember { mutableStateOf(false) }
 
     // Clôture d'une INSTALLATION (nouvelle saisie) : sections GESTE CO + GSM inline.
-    var siteNumber by remember { mutableStateOf("") }
+    var siteNumber by remember { mutableStateOf(prefill?.site ?: "") }
     val extras = rememberInstallExtrasState()
 
     val isWholeDay = type in WHOLE_DAY_TYPES

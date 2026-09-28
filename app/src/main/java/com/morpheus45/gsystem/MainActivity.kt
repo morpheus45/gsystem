@@ -44,6 +44,8 @@ import com.morpheus45.gsystem.backup.CycleSync
 import com.morpheus45.gsystem.backup.DriveSync
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesRepository
+import com.morpheus45.gsystem.data.Mission
+import com.morpheus45.gsystem.data.MissionStore
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.BulletinScreen
@@ -60,19 +62,27 @@ import com.morpheus45.gsystem.ui.HomeScreen
 import com.morpheus45.gsystem.ui.SettingsScreen
 import com.morpheus45.gsystem.ui.SplashScreen
 import com.morpheus45.gsystem.ui.TempsScreen
+import com.morpheus45.gsystem.ui.TourneeScreen
 import com.morpheus45.gsystem.ui.theme.GSystemTheme
+import com.morpheus45.gsystem.util.OrdreMissionParser
 import com.morpheus45.gsystem.update.UpdateChecker
 import com.morpheus45.gsystem.update.UpdateDialog
 import com.morpheus45.gsystem.update.checkForUpdateSilently
 import com.morpheus45.gsystem.util.DateUtil
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
+
+/** Boîte de réception d'un PDF partagé (SEND) ou ouvert (VIEW). AppNav l'observe. */
+object ShareInbox {
+    val pdfUri = MutableStateFlow<Uri?>(null)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,12 +92,33 @@ class MainActivity : ComponentActivity() {
             setContent { GSystemTheme { TamperBlockScreen() } }
             return
         }
+        handleShare(intent)
         setContent {
             GSystemTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNav()
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShare(intent)
+    }
+
+    /** Récupère l'URI d'un PDF « ordre de mission » (partagé ou ouvert) -> ShareInbox. */
+    private fun handleShare(intent: Intent?) {
+        if (intent == null) return
+        val uri: Uri = when (intent.action) {
+            Intent.ACTION_SEND -> @Suppress("DEPRECATION") intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            Intent.ACTION_VIEW -> intent.data
+            else -> null
+        } ?: return
+        val type = intent.type ?: ""
+        if (type.contains("pdf", ignoreCase = true) || uri.toString().endsWith(".pdf", ignoreCase = true)) {
+            ShareInbox.pdfUri.value = uri
         }
     }
 }
@@ -133,6 +164,12 @@ fun AppNav() {
 
     val settings by settingsStore.settingsFlow.collectAsState(initial = AppSettings())
     val store by repo.store.collectAsState()
+
+    // ---- Tournée : missions importées d'un PDF « ordre de mission » (local only) ----
+    val missionStore = remember { MissionStore(context) }
+    val missions by missionStore.missionsFlow.collectAsState(initial = emptyList())
+    val incomingPdf by ShareInbox.pdfUri.collectAsState()
+    var prefillMission by remember { mutableStateOf<Mission?>(null) }
 
     val navController = rememberNavController()
     val startDestination = if (settings.isReady) "home" else "settings"
@@ -226,6 +263,47 @@ fun AppNav() {
     // Tuile PROBLEME LOGISTIQUE : meme principe, autre numero.
     val onProblemeLogistique = { appeler(LOGISTIQUE_PHONE) }
 
+    // Import d'un PDF « ordre de mission » -> parse -> tuiles -> écran Tournée.
+    LaunchedEffect(incomingPdf) {
+        val uri = incomingPdf ?: return@LaunchedEffect
+        val parsed = withContext(Dispatchers.Default) { OrdreMissionParser.parse(context, uri) }
+        ShareInbox.pdfUri.value = null
+        if (parsed.isEmpty()) {
+            android.widget.Toast.makeText(
+                context, "Aucune mission trouvée dans ce PDF.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        } else {
+            missionStore.replaceAll(parsed)
+            android.widget.Toast.makeText(
+                context, "${parsed.size} mission(s) importée(s).",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            navController.navigate("tournee")
+        }
+    }
+    // Toucher une tuile mission : pointe l'arrivée (comme ARRIVÉE SUR SITE) + appelle le 03.
+    val onTapMission: (Mission) -> Unit = { m ->
+        val now = System.currentTimeMillis()
+        scope.launch {
+            settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = "mission") }
+            missionStore.update(m.num) { it.copy(arrivalMs = now) }
+        }
+        android.widget.Toast.makeText(
+            context, "Arrivée ${DateUtil.hm(now)} · ${m.nom}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        appeler(ARRIVAL_PHONE)
+    }
+    val onCloturerMission: (Mission) -> Unit = { m ->
+        prefillMission = m
+        navController.navigate("temps_prefill")
+    }
+    val onCallClientMission: (Mission) -> Unit = { m ->
+        val digits = m.tel.filter { it.isDigit() }
+        if (digits.isNotBlank()) appeler(digits)
+    }
+
     // Synchro Drive TEMPS RÉEL : à chaque changement de données (clôture, frais,
     // geste, compteur), on repousse les stats du cycle. Le point + « OPÉRATIONNEL »
     // de l'accueil passent au vert quand la remontée a réussi, rouge tant qu'il
@@ -275,6 +353,8 @@ fun AppNav() {
                 store = store,
                 synced = driveSynced,
                 chatUnread = chatUnread,
+                missionCount = missions.count { !it.done },
+                onTournee = { navController.navigate("tournee") },
                 onChat = { navController.navigate("chat") },
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
@@ -320,6 +400,37 @@ fun AppNav() {
                 onBulletin = { navController.navigate("bulletin") },
                 onConge = { navController.navigate("conge") },
                 onSettings = { navController.navigate("settings") }
+            )
+        }
+        composable("tournee") {
+            TourneeScreen(
+                missions = missions,
+                onTapMission = onTapMission,
+                onCloturer = onCloturerMission,
+                onCallClient = onCallClientMission,
+                onClearAll = { scope.launch { missionStore.clearAll() }; navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        // Clôture PRÉ-REMPLIE depuis une mission de la tournée. À l'enregistrement,
+        // onArrivalConsumed sert de signal : on efface l'arrivée ET on marque la
+        // mission clôturée (elle disparaît de la tournée).
+        composable("temps_prefill") {
+            TempsScreen(
+                settings = settings, store = store, repo = repo,
+                periodStart = periodStart, periodEnd = periodEnd,
+                onPeriodChange = onPeriodChange, onResetPeriod = onResetPeriod,
+                openNew = true,
+                prefill = prefillMission,
+                onArrivalConsumed = {
+                    val m = prefillMission
+                    scope.launch {
+                        settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") }
+                        if (m != null) missionStore.update(m.num) { it.copy(done = true, arrivalMs = 0L) }
+                    }
+                    prefillMission = null
+                },
+                onBack = { navController.popBackStack() }
             )
         }
         composable("settings") {
