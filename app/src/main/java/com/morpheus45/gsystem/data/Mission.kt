@@ -16,6 +16,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /**
@@ -51,6 +52,7 @@ private val Context.missionsDataStore by preferencesDataStore(name = "missions_t
  */
 class MissionStore(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
+    private val serializer = ListSerializer(Mission.serializer())
     private val key = stringPreferencesKey("missions_json")
 
     val missionsFlow: Flow<List<Mission>> = context.missionsDataStore.data.map { prefs ->
@@ -59,17 +61,17 @@ class MissionStore(private val context: Context) {
 
     private fun decode(raw: String?): List<Mission> =
         if (raw.isNullOrBlank()) emptyList()
-        else runCatching { json.decodeFromString<List<Mission>>(raw) }.getOrElse { emptyList() }
+        else runCatching { json.decodeFromString(serializer, raw) }.getOrElse { emptyList() }
 
     suspend fun replaceAll(missions: List<Mission>) {
-        context.missionsDataStore.edit { it[key] = json.encodeToString(missions) }
+        context.missionsDataStore.edit { it[key] = json.encodeToString(serializer, missions) }
     }
 
     /** Met à jour UNE mission (repérée par son num) via une transformation. */
     suspend fun update(num: String, transform: (Mission) -> Mission) {
         context.missionsDataStore.edit { prefs ->
             val list = decode(prefs[key]).map { if (it.num == num) transform(it) else it }
-            prefs[key] = json.encodeToString(list)
+            prefs[key] = json.encodeToString(serializer, list)
         }
     }
 
