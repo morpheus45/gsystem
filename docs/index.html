@@ -526,6 +526,39 @@
     <p style="margin:0">Une <b>icône chat</b> est dans l'en-tête de l'accueil, à gauche de l'engrenage. Une <b>pastille rouge</b> signale les messages non lus. Vous écrivez au bureau, le bureau répond en direct ; ses réponses apparaissent dès l'ouverture de l'application.</p>
   </div>
 
+  <!-- ============ TOURNEE ============ -->
+  <h2><span class="ico">🗺️</span>Importer sa tournée (ordre de mission)</h2>
+
+  <div class="card purple">
+    <p style="margin:0">Le PDF <b>« ordre de mission »</b> reçu par mail se transforme en <b>une tuile par intervention</b>, rangées par <b>heure de RDV</b>. Seules les pages titrées <b>ORDRE DE MISSION N°</b> comptent : les PV d'installation et les feuilles de rétractation du même PDF sont ignorés. Ces tuiles <b>remplacent ARRIVÉE SUR SITE et ATTENTE CLIENT</b> dans l'onglet Sur site. Sans PDF importé, l'accueil reste celui que vous connaissez.</p>
+  </div>
+
+  <div class="colonnes">
+    <div class="col">
+      <b class="col-h">🤖 Android</b>
+      <p class="small">Dans votre application mail, ouvrez la pièce jointe → <b>Partager</b> → <b>G-Systems</b>. Les tuiles apparaissent aussitôt sur l'accueil.</p>
+    </div>
+    <div class="col">
+      <b class="col-h">🍎 iPhone</b>
+      <p class="small">Enregistrez d'abord le PDF dans <b>Fichiers</b>. Dans l'application, touchez le bouton <b>📄</b> en haut de l'accueil (à gauche de l'engrenage) et choisissez le PDF. Il faut du réseau au moment de l'import.</p>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile-row"><div class="dot" style="background:#fbe2fe">📍</div><div class="tx"><b>08:56 · DUPONT Jean</b><span>12 RUE DE LA PAIX<br>DECL · 34140 MEZE</span></div></div>
+    <div class="tile-row"><div class="dot" style="background:#ede9fe">📋</div><div class="tx"><b>CLÔTURER · DUPONT Jean</b><span>12 RUE DE LA PAIX<br>Arrivée 09:02 · 34140 MEZE · appui long = annuler</span></div></div>
+  </div>
+  <p class="cap" style="text-align:center">Chaque tuile affiche l'heure du RDV, le client (sans M./Mme) et l'<b>adresse complète</b>. Exemple fictif.</p>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div class="t"><p style="margin:0">Sur place, touchez la tuile du client et choisissez <b>Arrivée sur site</b> ou <b>Attente client</b>. L'heure d'arrivée est notée et la <b>techline est appelée</b> (le numéro habituel, jamais le client).</p></div></div>
+    <div class="step"><div class="n">2</div><div class="t"><p style="margin:0">La tuile passe en <b>CLÔTURER</b>. Pointée par erreur ? <b>Appui long</b> sur la tuile : l'arrivée est annulée.</p></div></div>
+    <div class="step"><div class="n">3</div><div class="t"><p style="margin:0">En fin d'intervention, touchez <b>CLÔTURER</b> : la clôture s'ouvre <b>déjà remplie</b> avec le type, le département, le client, la ville et le <b>N° d'intervention</b> (le N° de l'ordre de mission). Pour une installation, le <b>N° de site</b> est repris dans GESTE CO.</p></div></div>
+    <div class="step"><div class="n">4</div><div class="t"><p style="margin:0">Complétez l'observation, <b>Enregistrer</b>, puis envoyez le Viber comme d'habitude. La tuile <b>disparaît</b>. Quand toute la tournée est clôturée, ARRIVÉE SUR SITE et ATTENTE CLIENT reviennent.</p></div></div>
+  </div>
+
+  <div class="card green"><p style="margin:0"><b>🔒 La tournée reste dans le téléphone.</b> Les missions importées ne partent ni sur le Drive ni au bureau : seules vos clôtures remontent, comme avant. Un nouveau PDF remplace la tournée précédente.</p></div>
+
   <!-- ============ CLOTURER ============ -->
   <h2><span class="ico">📋</span>Clôturer une intervention</h2>
 
