@@ -279,7 +279,10 @@ fun AppNav() {
                 context, "${parsed.size} mission(s) importée(s).",
                 android.widget.Toast.LENGTH_SHORT
             ).show()
-            navController.navigate("tournee")
+            // Les tuiles missions apparaissent directement sur l'accueil (elles
+            // remplacent 01 ARRIVÉE / 02 ATTENTE). On y revient plutôt que d'ouvrir
+            // un écran séparé.
+            navController.navigate("home") { popUpTo("home") { inclusive = true } }
         }
     }
     // Toucher une tuile mission : pointe l'arrivée (comme ARRIVÉE SUR SITE) + appelle le 03.
@@ -302,6 +305,32 @@ fun AppNav() {
     val onCallClientMission: (Mission) -> Unit = { m ->
         val digits = m.tel.filter { it.isDigit() }
         if (digits.isNotBlank()) appeler(digits)
+    }
+    // Accueil : une tuile mission remplace 01/02. Toucher -> choix Arrivée/Attente,
+    // les deux pointent l'heure sur la mission + appellent la techline (03 habituel)
+    // et la tuile bascule en « Clôturer ». L'appui long annule l'arrivée pointée.
+    val pointerMission: (Mission, String) -> Unit = { m, source ->
+        val now = System.currentTimeMillis()
+        scope.launch {
+            settingsStore.update { it.copy(pendingArrivalMs = now, pendingArrivalSource = source) }
+            missionStore.update(m.num) { it.copy(arrivalMs = now) }
+        }
+        android.widget.Toast.makeText(
+            context, "Arrivée ${DateUtil.hm(now)} · ${m.nom}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        appeler(ARRIVAL_PHONE)
+    }
+    val onMissionArrivee: (Mission) -> Unit = { m -> pointerMission(m, "arrivee") }
+    val onMissionAttente: (Mission) -> Unit = { m -> pointerMission(m, "attente") }
+    val onMissionCancel: (Mission) -> Unit = { m ->
+        scope.launch {
+            settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") }
+            missionStore.update(m.num) { it.copy(arrivalMs = 0L) }
+        }
+        android.widget.Toast.makeText(
+            context, "Arrivée annulée · ${m.nom}", android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 
     // Synchro Drive TEMPS RÉEL : à chaque changement de données (clôture, frais,
@@ -353,8 +382,11 @@ fun AppNav() {
                 store = store,
                 synced = driveSynced,
                 chatUnread = chatUnread,
-                missionCount = missions.count { !it.done },
-                onTournee = { navController.navigate("tournee") },
+                missions = missions,
+                onMissionArrivee = onMissionArrivee,
+                onMissionAttente = onMissionAttente,
+                onMissionCloturer = onCloturerMission,
+                onMissionCancel = onMissionCancel,
                 onChat = { navController.navigate("chat") },
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
