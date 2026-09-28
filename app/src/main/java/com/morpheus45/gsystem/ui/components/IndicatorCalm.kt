@@ -93,6 +93,8 @@ fun CategoryTile(
     pulseAccent: Boolean = false,
     /** Appui LONG (2 s) — optionnel. Ex : annuler/repointer l'arrivée. */
     onLongPress: (() -> Unit)? = null,
+    /** Lignes du sous-titre (2 pour les tuiles de tournée : adresse + ville). */
+    subMaxLines: Int = 1,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -217,7 +219,8 @@ fun CategoryTile(
                     text = sub,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.65f),
-                    maxLines = 1
+                    maxLines = subMaxLines,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 

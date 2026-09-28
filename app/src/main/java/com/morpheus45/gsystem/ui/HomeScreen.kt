@@ -399,15 +399,19 @@ fun HomeScreen(
             val arrived = m.arrivalMs > 0L
             val mHm = com.morpheus45.gsystem.util.DateUtil.hm(m.arrivalMs)
             val titre = m.nom.ifBlank { m.type.ifBlank { "MISSION" } }
-            val lieu = "${m.ville}${if (m.dept.isNotBlank()) " (${m.dept})" else ""}"
+            // Ligne 1 = rue ; ligne 2 = CP ville (+ type ou heure d'arrivée).
+            val ville = listOf(m.cp, m.ville).filter { it.isNotBlank() }.joinToString(" ")
+            val rue = m.adresse.ifBlank { ville }
             HomeTile(
                 number = m.heure.ifBlank { "··" },
                 label = if (arrived) "CLÔTURER · $titre" else titre,
-                sub = if (arrived)
-                    "Arrivée $mHm · $lieu · toucher pour clôturer"
+                sub = rue + "\n" + (if (arrived)
+                    listOf("Arrivée $mHm", ville.takeIf { m.adresse.isNotBlank() }.orEmpty(),
+                        "appui long = annuler")
                 else
-                    listOf(m.type, m.adresse.ifBlank { lieu })
-                        .filter { it.isNotBlank() }.joinToString(" · "),
+                    listOf(m.type, ville.takeIf { m.adresse.isNotBlank() }.orEmpty()))
+                    .filter { it.isNotBlank() }.joinToString(" · "),
+                subLines = 2,
                 icon = if (arrived) Icons.Outlined.Assignment else Icons.Outlined.PinDrop,
                 start = if (arrived) TempsStart else ArriveeStart,
                 end = if (arrived) TempsEnd else ArriveeEnd,
@@ -478,6 +482,7 @@ fun HomeScreen(
                     liveLabel = t.liveLabel,
                     pulseAccent = t.pulse,
                     onLongPress = t.longPress,
+                    subMaxLines = t.subLines,
                     onClick = t.onClick
                 )
             }
@@ -525,6 +530,7 @@ private data class HomeTile(
     val liveLabel: String? = null,
     val pulse: Boolean = false,
     val longPress: (() -> Unit)? = null,
+    val subLines: Int = 1,
     val onClick: () -> Unit
 )
 
