@@ -40,8 +40,10 @@ import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -132,9 +134,13 @@ fun HomeScreen(
     store: EntriesStore,
     synced: Boolean = false,
     chatUnread: Int = 0,
-    // Nombre de missions de tournée en attente (0 = aucune -> accueil inchangé).
-    missionCount: Int = 0,
-    onTournee: () -> Unit = {},
+    // Missions de tournée importées d'un PDF (vide = aucune -> accueil inchangé).
+    // Non vides, elles REMPLACENT les tuiles 01 ARRIVÉE / 02 ATTENTE dans « Sur site ».
+    missions: List<com.morpheus45.gsystem.data.Mission> = emptyList(),
+    onMissionArrivee: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
+    onMissionAttente: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
+    onMissionCloturer: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
+    onMissionCancel: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
     onChat: () -> Unit = {},
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
@@ -293,37 +299,9 @@ fun HomeScreen(
             }
         }
 
-        // ============ TOURNÉE DU JOUR — n'apparaît QUE si un PDF a été importé
-        // (missionCount > 0). Sans PDF, l'accueil reste strictement identique.
-        if (missionCount > 0) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(TempsStart)
-                    .clickable(onClick = onTournee)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Outlined.Assignment, null, tint = Color.White,
-                    modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("TOURNÉE DU JOUR", color = Color.White, fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold)
-                    Text(
-                        "$missionCount mission" + (if (missionCount > 1) "s" else "") +
-                            " · toucher pour ouvrir",
-                        color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp
-                    )
-                }
-                Text("›", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
         // ============ TUILES (regroupées par onglet, repli liste plate)
+        // Choix Arrivée / Attente au toucher d'une tuile mission (non encore pointée).
+        var missionChoice by remember { mutableStateOf<com.morpheus45.gsystem.data.Mission?>(null) }
         var selectedGroup by remember {
             mutableStateOf(if (endOfCycleApproaching) HomeGroup.FIN else HomeGroup.SITE)
         }
@@ -341,7 +319,7 @@ fun HomeScreen(
         val arrHm = com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs)
         val cloture01 = arrPending && settings.pendingArrivalSource == "arrivee"
         val cloture02 = arrPending && settings.pendingArrivalSource == "attente"
-        val tiles = listOf(
+        val baseTiles = listOf(
             HomeTile("01",
                 if (cloture01) "CLÔTURER" else "ARRIVÉE SUR SITE",
                 if (cloture01) "Arrivée notée · ouvrir une intervention" else "Note l'heure + appelle la techline",
@@ -411,6 +389,63 @@ fun HomeScreen(
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
                 onClick = onConge)
         )
+
+        // -------- Tournée du jour : 1 tuile par mission (PDF ordre de mission).
+        // Si des missions sont chargées, elles REMPLACENT 01 ARRIVÉE / 02 ATTENTE
+        // dans « Sur site » (même langage couleur : arrivée = Arrivée, pointée =
+        // Temps). Sans mission, l'accueil reste strictement l'ancien (01/02 gardés).
+        val siteMissions = missions.filter { !it.done }.sortedBy { it.heure }
+        val missionTiles = siteMissions.map { m ->
+            val arrived = m.arrivalMs > 0L
+            val mHm = com.morpheus45.gsystem.util.DateUtil.hm(m.arrivalMs)
+            val titre = m.nom.ifBlank { m.type.ifBlank { "MISSION" } }
+            val lieu = "${m.ville}${if (m.dept.isNotBlank()) " (${m.dept})" else ""}"
+            HomeTile(
+                number = m.heure.ifBlank { "··" },
+                label = if (arrived) "CLÔTURER · $titre" else titre,
+                sub = if (arrived)
+                    "Arrivée $mHm · $lieu · toucher pour clôturer"
+                else
+                    listOf(m.type, m.adresse.ifBlank { lieu })
+                        .filter { it.isNotBlank() }.joinToString(" · "),
+                icon = if (arrived) Icons.Outlined.Assignment else Icons.Outlined.PinDrop,
+                start = if (arrived) TempsStart else ArriveeStart,
+                end = if (arrived) TempsEnd else ArriveeEnd,
+                accent = if (arrived) TempsAccent else ArriveeAccent,
+                group = HomeGroup.SITE,
+                liveValue = if (arrived) mHm else null,
+                liveLabel = if (arrived) "arrivée" else null,
+                longPress = if (arrived) ({ onMissionCancel(m) }) else null,
+                onClick = { if (arrived) onMissionCloturer(m) else missionChoice = m }
+            )
+        }
+        val tiles = if (missionTiles.isEmpty()) baseTiles
+            else missionTiles + baseTiles.filterNot { it.number == "01" || it.number == "02" }
+
+        // Boîte de choix au toucher d'une mission non pointée : Arrivée OU Attente.
+        missionChoice?.let { m ->
+            AlertDialog(
+                onDismissRequest = { missionChoice = null },
+                containerColor = Color(0xFF12141B),
+                title = { Text(m.nom.ifBlank { m.type }, color = TextHi) },
+                text = {
+                    Text(
+                        "Pointer l'arrivée pour cette mission et appeler la techline ?",
+                        color = TextMid
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { missionChoice = null; onMissionArrivee(m) }) {
+                        Text("ARRIVÉE SUR SITE", color = ArriveeAccent, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { missionChoice = null; onMissionAttente(m) }) {
+                        Text("ATTENTE CLIENT", color = AttenteAccent, fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
+        }
 
         if (USE_TABBED_HOME) {
             HomeTabs(selected = selectedGroup, onSelect = { selectedGroup = it })
