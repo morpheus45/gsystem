@@ -18,8 +18,8 @@ android {
         // téléphones Android modernes.
         minSdk = 26
         targetSdk = 34
-        versionCode = 171
-        versionName = "1.9.91"
+        versionCode = 172
+        versionName = "1.9.92"
         vectorDrawables { useSupportLibrary = true }
         // Canal sideload : auto-update active. Le flavor "play" (branche playstore)
         // repasse ce flag à true. Défini ici pour que le code partagé (UpdateDialog)
@@ -188,6 +188,10 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-api:2.21.1")
     // SLF4J no-op pour éviter les avertissements POI
     implementation("org.slf4j:slf4j-nop:2.0.11")
+
+    // PdfBox-Android : extraction du TEXTE des ordres de mission (PDF) pour
+    // générer les tuiles de tournée. Lecture seule, hors ligne.
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
