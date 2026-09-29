@@ -92,7 +92,11 @@ class MainActivity : ComponentActivity() {
             setContent { GSystemTheme { TamperBlockScreen() } }
             return
         }
-        handleShare(intent)
+        // Une seule fois par partage : quand Android RECRÉE l'écran (rotation, retour
+        // après que le système a tué l'app pendant l'appel au 03…), getIntent() rend
+        // encore le PDF d'origine. Le relire réimporterait la tournée et effacerait
+        // les arrivées pointées et les clôtures déjà faites.
+        if (savedInstanceState == null) handleShare(intent)
         setContent {
             GSystemTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -267,7 +271,6 @@ fun AppNav() {
     LaunchedEffect(incomingPdf) {
         val uri = incomingPdf ?: return@LaunchedEffect
         val parsed = withContext(Dispatchers.Default) { OrdreMissionParser.parse(context, uri) }
-        ShareInbox.pdfUri.value = null
         if (parsed.isEmpty()) {
             android.widget.Toast.makeText(
                 context, "Aucune mission trouvée dans ce PDF.",
@@ -284,6 +287,12 @@ fun AppNav() {
             // un écran séparé.
             navController.navigate("home") { popUpTo("home") { inclusive = true } }
         }
+        // Boîte vidée EN DERNIER : c'est la clé de cet effet. La vider avant
+        // l'enregistrement relançait la composition, qui annulait l'effet pendant
+        // replaceAll -> DataStore abandonne l'écriture, sans toast ni tuile. À froid
+        // (APK fermée), l'annulation gagnait la course : le partage ne donnait rien.
+        // compareAndSet : ne pas effacer un PDF plus récent arrivé entre-temps.
+        ShareInbox.pdfUri.compareAndSet(uri, null)
     }
     // Toucher une tuile mission : pointe l'arrivée (comme ARRIVÉE SUR SITE) + appelle le 03.
     val onTapMission: (Mission) -> Unit = { m ->
