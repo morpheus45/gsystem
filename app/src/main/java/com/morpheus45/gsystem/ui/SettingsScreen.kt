@@ -344,6 +344,11 @@ fun SettingsScreen(
             Text("Version installée : ${BuildConfig.VERSION_NAME}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text("© 2026 Cédric LAGO-GOMEZ — logiciel propriétaire. Toute reproduction, " +
+                "même partielle, de l'application ou de son code est interdite.",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onCheckUpdate,

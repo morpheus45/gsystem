@@ -27,7 +27,17 @@ concession de licence. L'absence de licence libre est délibérée.
 
 Sont interdits, sans autorisation écrite préalable et expresse de l'Auteur :
 
-  a) la reproduction, totale ou partielle, du Logiciel ou de son code ;
+  a) la reproduction, totale ou partielle, permanente ou provisoire, par
+     quelque moyen et sous quelque forme que ce soit (copie, clonage,
+     « fork », téléchargement, extraction, capture), du Logiciel, et
+     notamment :
+       - du dépôt : code source, historique, versions publiées (« releases »),
+         pages publiées, documentation et notes ;
+       - de l'application Android (APK) : fichier d'installation, code objet
+         et ressources embarquées (textes, images, icônes, trames et gabarits
+         de documents) ;
+       - de l'application web (PWA) et de ses fichiers ;
+     (articles L.122-4 et L.122-6 1° du Code de la propriété intellectuelle) ;
   b) la distribution, la mise à disposition, la revente ou la location ;
   c) la modification, l'adaptation, la traduction, la création d'œuvres
      dérivées ;
