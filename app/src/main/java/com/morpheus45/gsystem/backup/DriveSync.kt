@@ -22,6 +22,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import com.morpheus45.gsystem.auth.Session
 
 /**
  * Pont HTTP avec le web app Apps Script pour la synchro PAR CYCLE et la
@@ -58,6 +59,7 @@ object DriveSync {
         val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
             ?.bufferedReader()?.use { it.readText() }.orEmpty()
         conn.disconnect()
+        Session.verifier(resp)
         if (code in 200..299) JSONObject(resp) else null
     }.getOrNull()
 
@@ -77,7 +79,7 @@ object DriveSync {
     /** Appelé par [CycleSync] : supprime les fichiers obsolètes d'un dossier de cycle. */
     fun cyclePrune(user: String, month: String, keep: List<String>) {
         postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "cycle_prune")
+            put("token", Session.jeton()); put("action", "cycle_prune")
             put("user", user); put("month", month); put("keep", JSONArray(keep))
         })
     }
@@ -99,7 +101,7 @@ object DriveSync {
         try {
         val user = settings.nomUtilisateur
         val list = postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
+            put("token", Session.jeton()); put("action", "restore_list"); put("user", user)
         }) ?: return@withContext "Drive injoignable. Réessaie plus tard."
         if (!list.optBoolean("ok")) return@withContext "Drive injoignable. Réessaie plus tard."
 
@@ -130,7 +132,7 @@ object DriveSync {
                 if (localName in localNames) continue
                 val driveName = photos.optString(localName)
                 val o = postJson(JSONObject().apply {
-                    put("token", BackupConfig.TOKEN); put("action", "photo_pull")
+                    put("token", Session.jeton()); put("action", "photo_pull")
                     put("user", user); put("month", month); put("fileName", driveName)
                 })
                 val b64 = o?.optString("dataBase64", "").orEmpty()

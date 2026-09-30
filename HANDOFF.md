@@ -37,7 +37,7 @@
 - Fichiers par mois : mail mensuel, pièces jointes (Excel, photos, PDF récap),
   `sauvegarde-complete.zip` (écrasé à chaque sauvegarde), `_stats.json`.
 - Récepteur/dashboard = web app Apps Script (`apps-script/Backup.gs`), déployée par
-  l'utilisateur. Token partagé `gsys-backup-2026-7Kq2vR`. Endpoint /exec en dur dans
+  l'utilisateur. Accès par compte (depuis 1.9.96) : feuille privée « Comptes G-Systems », voir l'en-tête de `apps-script/Backup.gs`. Endpoint /exec en dur dans
   `BackupConfig.kt`.
 - `_stats.json` mis à jour à **chaque clôture** (live) et figé à l'**envoi mensuel**.
 - Le comptable a un lien vers le dashboard (période Du/Au + téléchargement zip par tech/mois).

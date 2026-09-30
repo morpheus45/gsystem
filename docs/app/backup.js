@@ -20,10 +20,7 @@
 
 import { remboursable, tvaDepuisTtc, htDepuisTtc } from './frais.js';
 import { primesParType, datesInstallation, totalInstalle } from './gesteco.js';
-
-export const POINT = 'https://script.google.com/macros/s/'
-  + 'AKfycbxJDvoGwgrtlZH5AVrBlHLJy8sYGW7laIKU_AH880C1BRi79_JthDYp2nHgplCP_w9t/exec';
-export const JETON = 'gsys-backup-2026-7Kq2vR';
+import { POINT, jeton, verifierReponse } from './session.js';
 
 const enBase64 = (o) => {
   let s = '';
@@ -53,7 +50,7 @@ export async function envoyerOctets(tech, mois, nomFichier, mime, octets) {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        token: JETON,
+        token: jeton(),
         user: String(tech || '').trim() || 'Inconnu',
         month: mois,
         fileName: nomFichier,
@@ -62,7 +59,9 @@ export async function envoyerOctets(tech, mois, nomFichier, mime, octets) {
       }),
     });
     if (!r.ok) return false;
-    return (await r.text()).indexOf('"ok":true') >= 0;
+    const texte = await r.text();
+    verifierReponse(texte);
+    return texte.indexOf('"ok":true') >= 0;
   } catch (e) {
     return false;   // hors reseau ou script injoignable : jamais bloquant
   }
