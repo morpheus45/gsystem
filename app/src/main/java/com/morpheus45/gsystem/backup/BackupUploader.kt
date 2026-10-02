@@ -17,6 +17,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import com.morpheus45.gsystem.auth.Session
 
 /**
  * Envoie des fichiers sur le Drive partagé via le web app Apps Script.
@@ -57,7 +58,7 @@ object BackupUploader {
     ): Boolean {
         return runCatching {
             val payload = JSONObject().apply {
-                put("token", BackupConfig.TOKEN)
+                put("token", Session.jeton())
                 put("user", user.ifBlank { "Inconnu" })
                 put("month", month)
                 put("fileName", fileName)
@@ -78,6 +79,7 @@ object BackupUploader {
             val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             conn.disconnect()
+            Session.verifier(resp)
             code in 200..299 && resp.contains("\"ok\":true")
         }.getOrDefault(false)
     }

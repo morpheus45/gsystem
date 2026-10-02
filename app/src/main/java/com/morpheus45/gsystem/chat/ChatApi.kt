@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import com.morpheus45.gsystem.auth.Session
 
 /**
  * Chat tech ↔ back office via le même web app Apps Script que les sauvegardes.
@@ -39,6 +40,7 @@ object ChatApi {
             val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
                 ?.bufferedReader()?.use { it.readText() }.orEmpty()
             conn.disconnect()
+            Session.verifier(resp)
             if (code in 200..299) resp else null
         }.getOrNull()
     }
@@ -47,7 +49,7 @@ object ChatApi {
     suspend fun send(tech: String, text: String): Boolean {
         if (tech.isBlank() || text.isBlank()) return false
         val p = JSONObject()
-            .put("token", BackupConfig.TOKEN)
+            .put("token", Session.jeton())
             .put("action", "chat_send")
             .put("tech", tech)
             .put("text", text)
@@ -58,7 +60,7 @@ object ChatApi {
     suspend fun fetch(tech: String): List<ChatMessage> {
         if (tech.isBlank()) return emptyList()
         val p = JSONObject()
-            .put("token", BackupConfig.TOKEN)
+            .put("token", Session.jeton())
             .put("action", "chat_fetch")
             .put("tech", tech)
         val resp = post(p) ?: return emptyList()
@@ -82,7 +84,7 @@ object ChatApi {
     suspend fun deleteConversation(tech: String): Boolean {
         if (tech.isBlank()) return false
         val p = JSONObject()
-            .put("token", BackupConfig.TOKEN)
+            .put("token", Session.jeton())
             .put("action", "chat_delete")
             .put("tech", tech)
         return post(p)?.contains("\"ok\":true") == true
@@ -92,7 +94,7 @@ object ChatApi {
     suspend fun markRead(tech: String, upToId: Long): Boolean {
         if (tech.isBlank() || upToId <= 0L) return false
         val p = JSONObject()
-            .put("token", BackupConfig.TOKEN)
+            .put("token", Session.jeton())
             .put("action", "chat_markRead")
             .put("tech", tech)
             .put("upTo", upToId)

@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.GesteCoClientGifts
 import com.morpheus45.gsystem.data.GesteCoPrices
+import com.morpheus45.gsystem.auth.Session
+import androidx.compose.material.icons.automirrored.filled.Logout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -338,6 +340,39 @@ fun SettingsScreen(
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 4.dp))
+
+            Spacer(Modifier.height(20.dp))
+            SectionTitle("Compte")
+            val compte by Session.courant.collectAsState()
+            val scopeCompte = rememberCoroutineScope()
+            var confirmerDeconnexion by remember { mutableStateOf(false) }
+            Text("Connecté : ${compte?.email.orEmpty()}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { confirmerDeconnexion = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                Text("  Se déconnecter")
+            }
+            if (confirmerDeconnexion) {
+                AlertDialog(
+                    onDismissRequest = { confirmerDeconnexion = false },
+                    title = { Text("Se déconnecter ?") },
+                    text = { Text("Vos données restent sur le téléphone. Pour revenir, il faudra votre e-mail, votre mot de passe et du réseau.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            confirmerDeconnexion = false
+                            scopeCompte.launch { Session.effacer() }
+                        }) { Text("Se déconnecter") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmerDeconnexion = false }) { Text("Annuler") }
+                    }
+                )
+            }
 
             Spacer(Modifier.height(20.dp))
             SectionTitle("Mises à jour")

@@ -78,6 +78,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
+import com.morpheus45.gsystem.auth.Session
+import com.morpheus45.gsystem.ui.ConnexionScreen
 
 /** Boîte de réception d'un PDF partagé (SEND) ou ouvert (VIEW). AppNav l'observe. */
 object ShareInbox {
@@ -97,10 +99,20 @@ class MainActivity : ComponentActivity() {
         // encore le PDF d'origine. Le relire réimporterait la tournée et effacerait
         // les arrivées pointées et les clôtures déjà faites.
         if (savedInstanceState == null) handleShare(intent)
+        Session.charger(this)
         setContent {
             GSystemTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNav()
+                    // Sans compte : écran de connexion. Ensuite l'app s'ouvre
+                    // directement, même hors ligne ; un partage de PDF reçu
+                    // entre-temps attend dans ShareInbox.
+                    val compte by Session.courant.collectAsState()
+                    if (compte == null) {
+                        ConnexionScreen()
+                    } else {
+                        LaunchedEffect(Unit) { Session.renouvelerSiBesoin() }
+                        AppNav()
+                    }
                 }
             }
         }

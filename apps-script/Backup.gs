@@ -10,13 +10,197 @@
  */
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
-const SHARED_TOKEN = 'gsys-backup-2026-7Kq2vR';
-// Code d'accès du TABLEAU DE BORD : exigé par toutes les fonctions appelées via
-// google.script.run et par les endpoints ?debug. Sans lui, l'URL /exec seule ne
-// donne accès à AUCUNE donnée.
-const DASHBOARD_CODE = 'Gsystems';
-function requireCode_(code) {
-  if (String(code) !== DASHBOARD_CODE) throw new Error('Acces refuse : code invalide');
+// ============================================================ COMPTES
+// Connexion par compte (e-mail + mot de passe) : plus AUCUN secret partagé dans
+// l'APK, la PWA ou sur GitHub. Les comptes vivent dans une feuille Google
+// PRIVÉE, hors du dossier partagé ; les mots de passe y sont hachés
+// (PBKDF2-HMAC-SHA256, sel propre à chaque compte). À la connexion, le script
+// remet un jeton signé (HMAC, secret dans les propriétés du script) que l'app
+// renvoie à chaque appel.
+//
+// Rôles : « tech » n'accède qu'à SON dossier (le nom vient du compte, jamais de
+// la requête) ; « bureau » ouvre le tableau de bord.
+//
+// Mise en place, UNE fois : exécuter installerComptes() depuis l'éditeur, ouvrir
+// la feuille dont le lien s'affiche dans le journal, remplir une ligne par
+// personne. « nom » = EXACTEMENT le nom du dossier Drive du technicien.
+// Mot de passe : l'écrire dans « mot_de_passe_provisoire » ; il est haché puis
+// effacé à la 1re connexion (ou tout de suite avec hacherMotsDePasseProvisoires()).
+// Réinitialiser = en écrire un nouveau (les anciennes sessions sont coupées).
+// Couper un accès : « actif » = NON (effet sous 5 min).
+const COMPTES_COLONNES = ['email', 'nom', 'role', 'actif', 'mot_de_passe_provisoire',
+  'hachage', 'version_jeton', 'derniere_connexion'];
+const ITERATIONS_HACHAGE = 5000;
+const DUREE_JETON_MS = 90 * 24 * 3600 * 1000;   // 90 jours : l'app vit hors ligne
+const ESSAIS_MAX = 5;                           // puis 15 min de blocage par e-mail
+const SEL_LEURRE = 'AAAAAAAAAAAAAAAAAAAAAA==';  // e-mail inconnu : même coût de calcul
+
+function installerComptes() {
+  if (!PROP.getProperty('SECRET_JETONS')) {
+    PROP.setProperty('SECRET_JETONS', Utilities.getUuid() + Utilities.getUuid());
+  }
+  let id = PROP.getProperty('COMPTES_ID');
+  if (!id) {
+    const ss = SpreadsheetApp.create('Comptes G-Systems — NE PAS PARTAGER');
+    const sh = ss.getSheets()[0];
+    sh.setName('comptes');
+    sh.getRange(1, 1, 1, COMPTES_COLONNES.length).setValues([COMPTES_COLONNES]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    id = ss.getId();
+    PROP.setProperty('COMPTES_ID', id);
+  }
+  Logger.log('Feuille des comptes : https://docs.google.com/spreadsheets/d/' + id + '/edit');
+}
+
+function feuilleComptes_() {
+  const id = PROP.getProperty('COMPTES_ID');
+  if (!id) throw new Error('Comptes non installés : exécuter installerComptes()');
+  const sh = SpreadsheetApp.openById(id).getSheetByName('comptes');
+  const v = sh.getDataRange().getValues();
+  const col = {};
+  v[0].forEach(function (h, i) { col[String(h).trim()] = i; });
+  return { sh: sh, col: col, lignes: v.slice(1) };
+}
+
+function compteDeLigne_(t, l) {
+  return {
+    email: String(l[t.col.email] || '').trim().toLowerCase(),
+    nom: String(l[t.col.nom] || '').trim(),
+    role: String(l[t.col.role] || '').trim().toLowerCase() === 'bureau' ? 'bureau' : 'tech',
+    actif: String(l[t.col.actif] || '').trim().toUpperCase() !== 'NON',
+    version: Number(l[t.col.version_jeton]) || 0,
+  };
+}
+
+/** Comptes par e-mail, SANS les hachages ; en cache 5 min (révocation sous 5 min). */
+function comptes_() {
+  const cache = CacheService.getScriptCache();
+  const brut = cache.get('comptes');
+  if (brut) return JSON.parse(brut);
+  const t = feuilleComptes_();
+  const parEmail = {};
+  t.lignes.forEach(function (l) { const c = compteDeLigne_(t, l); if (c.email) parEmail[c.email] = c; });
+  cache.put('comptes', JSON.stringify(parEmail), 300);
+  return parEmail;
+}
+
+// --- Hachage : PBKDF2-HMAC-SHA256, un bloc de 32 octets.
+function pbkdf2_(motDePasse, selB64, iterations) {
+  const cle = Utilities.newBlob(String(motDePasse)).getBytes();
+  let u = Utilities.computeHmacSha256Signature(Utilities.base64Decode(selB64).concat([0, 0, 0, 1]), cle);
+  const t = u.slice();
+  for (let i = 1; i < iterations; i++) {
+    u = Utilities.computeHmacSha256Signature(u, cle);
+    for (let j = 0; j < t.length; j++) t[j] ^= u[j];
+  }
+  return Utilities.base64Encode(t);
+}
+function hacher_(motDePasse) {
+  const sel = Utilities.base64Encode(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + Utilities.getUuid()).slice(0, 16));
+  return 'pbkdf2$' + ITERATIONS_HACHAGE + '$' + sel + '$' + pbkdf2_(motDePasse, sel, ITERATIONS_HACHAGE);
+}
+function egal_(a, b) {   // comparaison à temps constant
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+function motDePasseValide_(motDePasse, stocke) {
+  const p = String(stocke || '').split('$');
+  return p.length === 4 && p[0] === 'pbkdf2' && egal_(pbkdf2_(motDePasse, p[2], Number(p[1])), p[3]);
+}
+
+/** À lancer depuis l'éditeur : hache tout de suite les mots de passe provisoires. */
+function hacherMotsDePasseProvisoires() {
+  const t = feuilleComptes_();
+  let n = 0;
+  t.lignes.forEach(function (l, i) { if (hacherProvisoire_(t, l, i)) n++; });
+  if (n) CacheService.getScriptCache().remove('comptes');
+  Logger.log(n + ' mot(s) de passe haché(s).');
+}
+function hacherProvisoire_(t, l, i) {
+  const provisoire = String(l[t.col.mot_de_passe_provisoire] || '');
+  if (!provisoire) return false;
+  const h = hacher_(provisoire);
+  const version = (Number(l[t.col.version_jeton]) || 0) + 1;   // anciennes sessions coupées
+  const ligne = i + 2;
+  t.sh.getRange(ligne, t.col.hachage + 1).setValue(h);
+  t.sh.getRange(ligne, t.col.version_jeton + 1).setValue(version);
+  t.sh.getRange(ligne, t.col.mot_de_passe_provisoire + 1).setValue('');
+  l[t.col.hachage] = h;
+  l[t.col.version_jeton] = version;
+  l[t.col.mot_de_passe_provisoire] = '';
+  return true;
+}
+
+// --- Jetons de session : charge en base64url + '.' + signature HMAC.
+function signer_(texte) {
+  return Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(texte, PROP.getProperty('SECRET_JETONS'))).replace(/=+$/, '');
+}
+function emettreJeton_(c) {
+  const charge = Utilities.base64EncodeWebSafe(JSON.stringify(
+    { e: c.email, v: c.version, x: Date.now() + DUREE_JETON_MS }), Utilities.Charset.UTF_8).replace(/=+$/, '');
+  return charge + '.' + signer_(charge);
+}
+/** Compte actif désigné par un jeton valide, ou null. */
+function session_(jeton) {
+  const p = String(jeton || '').split('.');
+  if (p.length !== 2 || !PROP.getProperty('SECRET_JETONS') || !egal_(signer_(p[0]), p[1])) return null;
+  let o;
+  try {
+    o = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(
+      p[0] + '='.repeat((4 - p[0].length % 4) % 4))).getDataAsString());
+  } catch (e) { return null; }
+  if (!o || !(o.x > Date.now())) return null;
+  const c = comptes_()[String(o.e || '').toLowerCase()];
+  return c && c.actif && c.nom && c.version === o.v ? c : null;
+}
+
+function connexion_(email, motDePasse) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email || !motDePasse) return { ok: false, error: 'identifiants' };
+  const cache = CacheService.getScriptCache();
+  const cleEssais = 'essais:' + email;
+  const essais = Number(cache.get(cleEssais)) || 0;
+  if (essais >= ESSAIS_MAX) return { ok: false, error: 'bloque' };
+  const verrou = LockService.getScriptLock();
+  verrou.waitLock(20000);
+  try {
+    const t = feuilleComptes_();
+    const i = t.lignes.findIndex(function (l) { return String(l[t.col.email] || '').trim().toLowerCase() === email; });
+    const l = i >= 0 ? t.lignes[i] : null;
+    if (l && hacherProvisoire_(t, l, i)) cache.remove('comptes');
+    if (!l) pbkdf2_(motDePasse, SEL_LEURRE, ITERATIONS_HACHAGE);   // pas d'indice par le temps de réponse
+    if (!l || !motDePasseValide_(motDePasse, l[t.col.hachage])) {
+      cache.put(cleEssais, String(essais + 1), 900);
+      return { ok: false, error: 'identifiants' };
+    }
+    cache.remove(cleEssais);
+    const c = compteDeLigne_(t, l);
+    if (!c.actif) return { ok: false, error: 'inactif' };
+    if (!c.nom) return { ok: false, error: 'nom' };
+    t.sh.getRange(i + 2, t.col.derniere_connexion + 1).setValue(new Date());
+    return { ok: true, jeton: emettreJeton_(c), email: c.email, nom: c.nom, role: c.role };
+  } finally {
+    verrou.releaseLock();
+  }
+}
+
+/** Tableau de bord (google.script.run) et ?debug : session « bureau » exigée. */
+function requireCode_(jeton) {
+  if (!estBureau_(jeton)) throw new Error('Acces refuse : connexion bureau requise');
+}
+function estBureau_(jeton) {
+  const c = session_(jeton);
+  return !!c && c.role === 'bureau';
+}
+/** Connexion depuis la page du tableau de bord. */
+function boConnexion(email, motDePasse) {
+  const r = connexion_(email, motDePasse);
+  return r.ok && r.role !== 'bureau' ? { ok: false, error: 'role' } : r;
 }
 const RETENTION_YEARS = 3;               // au-delà : purge (corbeille) des dossiers-mois
 const PROP = PropertiesService.getScriptProperties();
@@ -39,7 +223,16 @@ function setTechActive(code, tech, active) {
 function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
-    if (p.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
+    // --- Connexion : seule action permise sans session ---
+    if (p.action === 'auth_connexion') return json(connexion_(p.email, p.motDePasse));
+    const compte = session_(p.token);
+    if (!compte) return json({ ok: false, error: 'session' });
+    if (p.action === 'auth_renouveler') {
+      return json({ ok: true, jeton: emettreJeton_(compte), email: compte.email, nom: compte.nom, role: compte.role });
+    }
+    // Le technicien est CELUI DE LA SESSION, jamais celui qu'annonce la requête :
+    // un compte « tech » ne lit et n'écrit que son propre dossier.
+    if (compte.role !== 'bureau') { p.user = compte.nom; p.tech = compte.nom; }
 
     // --- Chat tech <-> bureau (pas d'upload de fichier) ---
     if (p.action === 'chat_send')     return chatSend_(p.tech, 'tech', p.text);
@@ -163,7 +356,7 @@ function cyclePrune_(user, month, keep) {
 function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
   if (e && e.parameter && e.parameter.debug === 'data') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
     var t0 = Date.now();
     try { var d = getAllData(); var s = JSON.stringify(d);
       return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
@@ -171,7 +364,7 @@ function doGet(e) {
     } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
   }
   if (e && e.parameter && e.parameter.debug === 'full') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
     try { return json({ ok: true, data: getAllData() }); }
     catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
   }
@@ -179,7 +372,7 @@ function doGet(e) {
   // AVANT toute fusion/dédup. Sert à diagnostiquer pourquoi un cycle manque au
   // back office (snapshot vide, chevauchement, périodes en double, maj, etc.).
   if (e && e.parameter && e.parameter.debug === 'snaps') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
     try {
       var root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
       var out = []; var users = root.getFolders();
@@ -865,6 +1058,8 @@ input[type=date]{padding:8px 10px;border:1px solid var(--line);border-radius:9px
 .sec.open .chev{transform:rotate(90deg)}
 .secb{padding:2px 14px 14px;border-top:1px solid var(--line);background:var(--card)}
 </style></head><body>
+<div id="cx" style="display:none;position:fixed;inset:0;z-index:99;background:rgba(7,8,13,.94);align-items:center;justify-content:center;padding:20px"><form onsubmit="seConnecter(event)" style="width:100%;max-width:340px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px"><div style="font-size:18px;font-weight:700;margin-bottom:4px">Connexion bureau</div><div style="color:var(--low);font-size:13px;margin-bottom:16px">Compte créé par l’administrateur G-Systems.</div><input id="cxEmail" type="email" autocomplete="username" placeholder="E-mail" required style="width:100%;padding:12px 14px;margin:0 0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--hi);font-size:15px"><input id="cxMdp" type="password" autocomplete="current-password" placeholder="Mot de passe" required style="width:100%;padding:12px 14px;margin:0 0 10px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--hi);font-size:15px"><button id="cxBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer">Se connecter</button><div id="cxMsg" style="color:var(--red);font-size:13px;margin-top:10px;min-height:18px"></div></form></div>
+<button onclick="seDeconnecter()" style="position:fixed;top:10px;right:10px;z-index:50;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--mid);font-size:12px;cursor:pointer">Se déconnecter</button>
 <div class="head">
   <svg class="logo" viewBox="0 0 470 200" xmlns="http://www.w3.org/2000/svg" aria-label="gsystems">
     <defs><clipPath id="m"><rect x="168" y="0" width="302" height="200"/></clipPath></defs>
@@ -895,10 +1090,18 @@ function money(v){return (Number(v)||0).toFixed(2)+' €';}
 function remb(f){var m=Number(f.m)||0;return ((f.cat||'').toUpperCase()==='MOBILE')?Math.min(m*0.5,20):m;}
 function iso(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
 function setR(f,t){document.getElementById('from').value=f;document.getElementById('to').value=t;}
-var CODE=localStorage.getItem('gsysCode')||'';
-function askCode(){var c=prompt("Code d'accès du tableau de bord :");if(c===null)return false;CODE=(c||'').trim();localStorage.setItem('gsysCode',CODE);return true;}
+var CODE=localStorage.getItem('gsysJeton')||'';
+/* Connexion bureau : le jeton de session remplace l'ancien code partagé. */
+function askCode(){document.getElementById('cx').style.display='flex';document.getElementById('cxEmail').focus();return false;}
+var CX_ERREURS={identifiants:"E-mail ou mot de passe incorrect.",bloque:"Trop d’essais : réessayez dans 15 minutes.",inactif:"Compte désactivé.",role:"Ce compte n’a pas accès au tableau de bord.",nom:"Compte incomplet : nom manquant."};
+function seConnecter(ev){ev.preventDefault();var b=document.getElementById('cxBtn'),m=document.getElementById('cxMsg');b.disabled=true;m.textContent='Connexion…';
+  google.script.run.withFailureHandler(function(e){b.disabled=false;m.textContent='Erreur : '+((e&&e.message)||e);}).withSuccessHandler(function(r){
+    if(r&&r.ok){localStorage.setItem('gsysJeton',r.jeton);location.reload();return;}
+    b.disabled=false;m.textContent=CX_ERREURS[r&&r.error]||'Connexion impossible.';
+  }).boConnexion(document.getElementById('cxEmail').value,document.getElementById('cxMdp').value);}
+function seDeconnecter(){localStorage.removeItem('gsysJeton');location.reload();}
 function loadErr(e){var m=String((e&&e.message)||e);
-  if(m.indexOf('refuse')>=0){localStorage.removeItem('gsysCode');CODE='';if(askCode()){location.reload();}return;}
+  if(m.indexOf('refuse')>=0){localStorage.removeItem('gsysJeton');CODE='';askCode();return;}
   var tc=document.getElementById('techs');if(tc)tc.innerHTML='<div class="empty">⚠ Erreur de chargement des données :<br><b>'+esc(String((e&&e.message)||e))+'</b><br><small>Réessaie de recharger. Si ça persiste, préviens.</small></div>';}
 function init(){
   if(!CODE&&!askCode())return;

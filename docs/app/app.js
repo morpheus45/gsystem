@@ -39,6 +39,7 @@ import { genererPv, totalPv } from './docPv.js';
 import { genererRecap, nomFichierRecap } from './docRecap.js';
 import { creerPad } from './signature.js';
 import { missionsActives, majMission, importerPdf } from './tournee.js';
+import { session, seConnecter, effacerSession, renouvelerSiBesoin } from './session.js';
 
 const TEL_TECHLINE = '0388398894';
 const TEL_LOGISTIQUE = '0369740780';
@@ -210,6 +211,65 @@ function champ(id, label, valeur, aide, requis, type) {
     </div>`;
 }
 
+// =========================================================== CONNEXION
+// Compte cree par le responsable (feuille « Comptes G-Systems ») : pas
+// d'inscription ici. Une fois connecte, l'app s'ouvre meme hors ligne.
+let cxEmail = '';
+let cxMessage = '';
+let cxEnCours = false;
+const MESSAGES_CX = {
+  identifiants: 'E-mail ou mot de passe incorrect.',
+  bloque: 'Trop d\u2019essais : r\u00e9essayez dans 15 minutes.',
+  inactif: 'Ce compte est d\u00e9sactiv\u00e9. Contactez votre responsable.',
+  nom: 'Compte incomplet : pr\u00e9venez votre responsable.',
+  reseau: 'Pas de r\u00e9seau : la premi\u00e8re connexion demande Internet.',
+  inconnu: 'Connexion impossible pour le moment. R\u00e9essayez.',
+};
+
+function vueConnexion() {
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#7C3AED,#C026D3)">
+    <span class="t">CONNEXION</span>
+  </div>
+  <form class="form" id="cx_form">
+    <div class="note">Votre compte est cr\u00e9\u00e9 par votre responsable. La premi\u00e8re
+      connexion demande du r\u00e9seau ; ensuite l'app s'ouvre m\u00eame hors ligne.</div>
+    <div class="champ requis">
+      <label for="cx_email">E-mail</label>
+      <input id="cx_email" type="email" inputmode="email" autocomplete="username" value="${ech(cxEmail)}" />
+    </div>
+    <div class="champ requis">
+      <label for="cx_mdp">Mot de passe</label>
+      <input id="cx_mdp" type="password" autocomplete="current-password" />
+    </div>
+    ${cxMessage ? '<div class="note" role="alert" style="color:#FF6B7A">' + ech(cxMessage) + '</div>' : ''}
+    <button class="btn" id="cx_valider" type="submit" ${cxEnCours ? 'disabled' : ''}
+            style="background:linear-gradient(135deg,#7C3AED,#C026D3)">${cxEnCours ? 'Connexion\u2026' : 'Se connecter'}</button>
+    <div class="aide" style="margin-top:14px;font-size:12px;color:#8B8FA3">Mot de passe oubli\u00e9 ? Demandez-en un nouveau \u00e0 votre responsable.</div>
+  </form>`;
+}
+
+async function connecter() {
+  if (cxEnCours) return;
+  cxEmail = $('#cx_email').value.trim();
+  const motDePasse = $('#cx_mdp').value;
+  if (!cxEmail || !motDePasse) { cxMessage = 'Indiquez votre e-mail et votre mot de passe.'; rendre(); return; }
+  cxEnCours = true;
+  cxMessage = '';
+  rendre();
+  let refus;
+  try { refus = await seConnecter(cxEmail, motDePasse); } catch (e) { refus = 'reseau'; }
+  cxEnCours = false;
+  if (refus) { cxMessage = MESSAGES_CX[refus] || MESSAGES_CX.inconnu; rendre(); return; }
+  // Telephone neuf : le nom du compte pre-remplit les reglages.
+  const s = session();
+  if (s && s.nom && !reglages.nomUtilisateur.trim()) {
+    reglages = Object.assign({}, reglages, { nomUtilisateur: s.nom });
+    ecrireReglages(reglages);
+  }
+  aller(reglagesComplets(reglages) ? 'accueil' : 'reglages');
+}
+
 function vueReglages() {
   const r = reglages;
   return `
@@ -236,6 +296,8 @@ function vueReglages() {
             '21 par d\u00e9faut.', false, 'number')}
     <button class="btn" id="enregistrer"
             style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">Enregistrer</button>
+    <div class="note" style="margin-top:22px">Connect\u00e9 : ${ech((session() || {}).email || '')}</div>
+    <button class="btn" id="cx_deconnexion" style="background:#2A2D3A">Se d\u00e9connecter</button>
   </div>`;
 }
 
@@ -1138,6 +1200,7 @@ function vueDiagnostic() {
 // ============================================================== RENDU
 function rendre() {
   const vues = {
+    connexion: vueConnexion,
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
     bulletin: vueBulletin, pv: vuePv,
@@ -2038,6 +2101,15 @@ document.addEventListener('click', (e) => {
 
   if (e.target.closest('#valider')) { validerCloture(); return; }
 
+  if (e.target.closest('#cx_deconnexion')) {
+    if (confirm('Se d\u00e9connecter ? Vos donn\u00e9es restent sur le t\u00e9l\u00e9phone ; '
+      + 'pour revenir, il faudra votre e-mail, votre mot de passe et du r\u00e9seau.')) {
+      effacerSession();
+      aller('connexion');
+    }
+    return;
+  }
+
   if (e.target.closest('#enregistrer')) {
     reglages = Object.assign({}, reglages, {
       nomUtilisateur: $('#r_nom').value.trim(),
@@ -2178,8 +2250,18 @@ window.addEventListener('offline', rendre);
 // manqueraient a l'ecran jusqu'au rendu suivant.
 await chargerPhotos();
 
-ecran = reglagesComplets(reglages) ? 'accueil' : 'reglages';
+// Sans compte : ecran de connexion. Ensuite l'app s'ouvre directement, meme hors ligne.
+document.addEventListener('submit', (e) => {
+  if (e.target.id !== 'cx_form') return;
+  e.preventDefault();
+  connecter();
+});
+// Compte coupe, mot de passe reinitialise ou jeton expire : retour a la connexion.
+window.addEventListener('gsys-session', () => aller('connexion'));
+
+ecran = !session() ? 'connexion' : reglagesComplets(reglages) ? 'accueil' : 'reglages';
 rendre();
+renouvelerSiBesoin();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
