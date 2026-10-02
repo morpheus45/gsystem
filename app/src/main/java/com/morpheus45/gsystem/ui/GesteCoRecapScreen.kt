@@ -39,6 +39,10 @@ import com.morpheus45.gsystem.ui.common.PeriodHeader
 import com.morpheus45.gsystem.ui.theme.RecapStart
 import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.components.DangerStart
+import com.morpheus45.gsystem.ui.components.DangerEnd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -278,22 +282,15 @@ fun GesteCoRecapScreen(
     }
 
     toDelete?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { toDelete = null },
-            title = { Text("Supprimer ce site ?") },
-            text = {
-                Text("Site ${entry.siteNumber} — ${DateUtil.fr(DateUtil.parseIso(entry.date))}. " +
-                    "Cette entrée GESTE CO sera retirée du récap et des primes.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { repo.removeGesteCo(entry.id) }
-                    toDelete = null
-                }) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { toDelete = null }) { Text("Annuler") }
-            }
+        FeuilleChoix(
+            titre = "Supprimer ce site ?",
+            texte = "Site ${entry.siteNumber} — ${DateUtil.fr(DateUtil.parseIso(entry.date))}. " +
+                "Cette entrée GESTE CO sera retirée du récap et des primes.",
+            onFermer = { toDelete = null },
+            actions = listOf(ActionFeuille("🗑️ SUPPRIMER", DangerStart, DangerEnd) {
+                scope.launch { repo.removeGesteCo(entry.id) }
+                toDelete = null
+            })
         )
     }
 }

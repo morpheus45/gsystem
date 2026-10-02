@@ -67,6 +67,10 @@ import com.morpheus45.gsystem.ui.theme.Obsidian
 import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.components.DangerStart
+import com.morpheus45.gsystem.ui.components.DangerEnd
 
 private val ChatBlue = Color(0xFF4FA3FF)
 private val BureauBubble = Color(0xFF1A1D26)
@@ -226,21 +230,16 @@ fun ChatScreen(
     }
 
     if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Supprimer la conversation ?") },
-            text = { Text("Tout le fil avec le bureau sera effacé des deux côtés. Action irréversible.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    scope.launch {
-                        if (ChatApi.deleteConversation(tech)) ChatStore.refresh(tech)
-                    }
-                }) { Text("Supprimer", color = Color(0xFFFF6B6B)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Annuler") }
-            }
+        FeuilleChoix(
+            titre = "Supprimer la conversation ?",
+            texte = "Tout le fil avec le bureau sera effacé des deux côtés. Action irréversible.",
+            onFermer = { confirmDelete = false },
+            actions = listOf(ActionFeuille("🗑️ SUPPRIMER", DangerStart, DangerEnd) {
+                confirmDelete = false
+                scope.launch {
+                    if (ChatApi.deleteConversation(tech)) ChatStore.refresh(tech)
+                }
+            })
         )
     }
 }

@@ -59,6 +59,10 @@ import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.theme.TempsStart
+import com.morpheus45.gsystem.ui.theme.TempsEnd
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
     "FINS", "INTE", "VISI", "MIGR",
@@ -240,31 +244,19 @@ fun TempsScreen(
     if (showDispatch) {
         val total = if (mailGeste != null) 1 else 0
         val done = if (mailGeste != null && gesteSent) 1 else 0
-        AlertDialog(
-            onDismissRequest = { showDispatch = false },
-            title = { Text("Envois EPS à faire") },
-            text = {
-                Column {
-                    Text("Le Viber de clôture est parti. Envoie chaque mail ci-dessous.")
-                    Spacer(Modifier.height(4.dp))
-                    Text("$done / $total envoyé", fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-            },
-            confirmButton = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    mailGeste?.let { g ->
-                        EpsMailRow("Mail GESTE CO", gesteSent) {
-                            sendGesteCoEmail(context, settings, g)
-                            gesteSent = true
-                        }
-                    }
-                    TextButton(onClick = { showDispatch = false },
-                        modifier = Modifier.align(Alignment.End)) {
-                        Text("Terminé")
+        FeuilleChoix(
+            titre = "Envois EPS à faire",
+            texte = "Le Viber de clôture est parti. Envoie chaque mail ci-dessous.",
+            onFermer = { showDispatch = false },
+            libelleFermer = null,
+            actions = listOf(ActionFeuille("TERMINÉ", TempsStart, TempsEnd) { showDispatch = false }),
+            contenu = {
+                Text("$done / $total envoyé", fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                mailGeste?.let { g ->
+                    EpsMailRow("Mail GESTE CO", gesteSent) {
+                        sendGesteCoEmail(context, settings, g)
+                        gesteSent = true
                     }
                 }
             }
