@@ -1013,13 +1013,6 @@ function verifierEnvoi() {
 }
 document.addEventListener('visibilitychange', verifierEnvoi);
 window.addEventListener('load', verifierEnvoi);
-/* Anciennes cles d une version retiree de la fiche (app.js) : des donnees
-   client orphelines, que plus rien ne lit ni n efface. */
-try {
-  Object.keys(localStorage).forEach(function (k) {
-    if (k.indexOf('eps_form_') === 0) localStorage.removeItem(k);
-  });
-} catch (e) {}
 
 function resetForm() {
   if (!confirm('Réinitialiser toute la fiche particulier ? Les saisies et signatures seront perdues.')) return;
@@ -1033,7 +1026,7 @@ function viderFiche() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
   if (typeof clearAllSignatures === 'function') clearAllSignatures();
   /* Le PDF envoye au client n a plus a rester dans le cache de l APK. */
-  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.oublierPdf) window.__gsysEnvoiClient.oublierPdf();
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.oublierPdf) window.__gsysEnvoiClient.oublierPdf('particulier');
   location.reload();
 }
 </script>
