@@ -31,6 +31,12 @@ function feuille(nom) {
 
 const globaux = {
   Logger: { log: () => {} },
+  // Le propriétaire, dans l'éditeur : les fonctions de maintenance l'exigent.
+  Session: {
+    getActiveUser: () => ({ getEmail: () => 'proprietaire@exemple.fr' }),
+    getEffectiveUser: () => ({ getEmail: () => 'proprietaire@exemple.fr' }),
+    getScriptTimeZone: () => 'Europe/Paris',
+  },
   PropertiesService: { getScriptProperties: () => ({
     getProperty: (k) => (k in proprietes ? proprietes[k] : null),
     setProperty: (k, v) => { proprietes[k] = String(v); },

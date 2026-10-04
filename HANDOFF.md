@@ -38,7 +38,9 @@
   refusent donc de tourner ailleurs que dans l'éditeur, lancées par le propriétaire ;
   `getAllData_` est privée. Ce contrôle lit l'adresse de l'utilisateur : au premier
   lancement d'une de ces fonctions, Google demande une autorisation de plus
-  (« voir votre adresse e-mail ») — l'accepter.
+  (« voir votre adresse e-mail ») — l'accepter, **AVANT** « Nouvelle version » :
+  sinon l'app et le tableau de bord pourraient répondre « Autorisation requise ».
+  La purge mensuelle n'accepte que son propre déclencheur, ou le propriétaire.
 - **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
   encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
   par-dessus, sans désinstaller ni perdre les données.

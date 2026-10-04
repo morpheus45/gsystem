@@ -289,7 +289,7 @@ function synchroniserVersions_() {
   // Le verrou ne sert qu'à RÉSERVER la tâche : le téléchargement (≈ 37 Mo) se fait
   // hors verrou, pour ne pas bloquer les connexions et les envois qui le partagent.
   const verrou = LockService.getScriptLock();
-  if (!verrou.tryLock(1000)) return 'un autre appel s\'en occupe';
+  if (!verrou.tryLock(1000)) return 'verrou du script occupé : nouvel essai au prochain appel';
   try {
     if (cache.get('maj_github_vu')) return 'déjà vérifié il y a moins de 15 min';
     cache.put('maj_github_vu', '1', 15 * 60);
@@ -322,12 +322,14 @@ function synchroniserVersions_() {
     }
     if (rep.getResponseCode() !== 200) throw new Error('téléchargement de ' + nom + ' : code ' + rep.getResponseCode());
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-    const f = getOrCreateFolder(root, DOSSIER_VERSIONS).createFile(rep.getBlob().setName(nom));
+    // Nom provisoire : invisible pour versions_() (NOM_APK) tant que la taille
+    // n'est pas vérifiée — aucun téléphone ne peut voir un APK incomplet.
+    const f = getOrCreateFolder(root, DOSSIER_VERSIONS).createFile(rep.getBlob().setName(nom + '.partiel'));
     if (f.getSize() !== asset.size) {
       f.setTrashed(true);
       throw new Error(nom + ' tronqué (' + f.getSize() + ' octets sur ' + asset.size + ') : réessai dans 15 min');
     }
-    f.setDescription(String(r.body || '').slice(0, 2000));
+    f.setDescription(String(r.body || '').slice(0, 2000)).setName(nom);
     nettoyerVersions_();
     return 'rapatriée : ' + r.tag_name;
   } catch (e) {
@@ -338,10 +340,16 @@ function synchroniserVersions_() {
 function entetesGitHub_(jeton, accept) {
   return { Authorization: 'Bearer ' + jeton, Accept: accept, 'X-GitHub-Api-Version': '2022-11-28' };
 }
-/** Ne garde que les GARDER_VERSIONS APK les plus récents : les anciens ne servent plus. */
+/** Une seule copie par version, puis seulement les GARDER_VERSIONS plus récentes :
+ *  les anciennes ne servent plus, et un doublon ne doit pas en évincer une vraie. */
 function nettoyerVersions_() {
+  const vues = {};
   versions_()
     .sort(function (a, b) { return plusRecente_(a.version, b.version) ? -1 : plusRecente_(b.version, a.version) ? 1 : 0; })
+    .filter(function (v) {
+      if (vues[v.version]) { v.fichier.setTrashed(true); return false; }
+      vues[v.version] = true; return true;
+    })
     .slice(GARDER_VERSIONS)
     .forEach(function (v) { v.fichier.setTrashed(true); });
 }
@@ -984,10 +992,13 @@ function durHM(a, b) {
 }
 
 /** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
-// Pas de garde ici : c'est la fonction du déclencheur mensuel, et la doc ne dit pas
-// quelle identité y voit getActiveUser. L'appeler en avance ne purge rien de plus
-// que le 1er du mois : seuls les dossiers de plus de RETENTION_YEARS ans partent.
-function purgeOldData() {
+/** Purge mensuelle. Lancée par SON déclencheur (e.triggerUid, documenté pour les
+ *  déclencheurs temporels) ou par le propriétaire depuis l'éditeur — jamais par un
+ *  visiteur de la page publique : elle renvoie des noms de techniciens. */
+function purgeOldData(e) {
+  const declencheur = e && e.triggerUid && ScriptApp.getProjectTriggers()
+    .some(function (t) { return t.getUniqueId() === String(e.triggerUid); });
+  if (!declencheur) exigerProprietaire_();
   const cut = new Date(); cut.setFullYear(cut.getFullYear() - RETENTION_YEARS);
   const cutM = cut.getFullYear() + '-' + ('0' + (cut.getMonth() + 1)).slice(-2);
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
