@@ -1,0 +1,28 @@
+name: Vider les APK de test
+
+# Bouton manuel : onglet Actions → « Vider les APK de test » → Run workflow.
+# Supprime les APK stockés par les compilations, qui remplissent le quota de
+# stockage GitHub. Les versions livrées aux techniciens sont dans les Releases :
+# elles ne sont pas touchées.
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  vider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const depot = { owner: context.repo.owner, repo: context.repo.repo };
+            const liste = (await github.paginate(github.rest.actions.listArtifactsForRepo,
+              { ...depot, per_page: 100 })).filter(a => !a.expired);
+            let octets = 0;
+            for (const a of liste) {
+              await github.rest.actions.deleteArtifact({ ...depot, artifact_id: a.id });
+              octets += a.size_in_bytes;
+            }
+            core.notice(`${liste.length} APK de test supprimés, ${Math.round(octets / 1048576)} Mo libérés.`);
