@@ -666,27 +666,36 @@ function makeZip(code, from, to) {
     const zip = Utilities.zip(blobs, 'G-Systems_' + (fM || 'debut') + '_' + (tM || 'fin') + '.zip');
     const dl = getOrCreateFolder(root, '_telechargements');
     const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
-    const file = dl.createFile(zip);
-    partagerAuBureau_(file, code);
-    return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
+    return { ok: true, url: lienBureau_(dl.createFile(zip), code) };
   } catch (err) { return { ok: false, error: String(err) }; }
 }
 
 /**
  * RGPD : un téléchargement du tableau de bord (ZIP, Excel) n'est lisible que par
  * le compte bureau qui l'a demandé — jamais par « toute personne ayant le lien ».
+ * Renvoie le lien de téléchargement ; en cas d'échec, le fichier part à la
+ * corbeille pour que rien ne traîne dans _telechargements.
  */
-function partagerAuBureau_(file, jeton) {
-  file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
-  const c = session_(jeton);
-  if (!c || !c.email) throw new Error('Session bureau introuvable : reconnecte-toi.');
+function lienBureau_(file, jeton) {
+  let email;
   try {
-    file.addViewer(c.email);
+    // PRIVATE + VIEW : seules les personnes nommées y accèdent. (Permission.NONE
+    // lève une exception hors Access.ANYONE : la doc Apps Script l'interdit.)
+    file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
+    const c = session_(jeton);
+    if (!c || !c.email) throw new Error('session bureau introuvable, reconnecte-toi');
+    email = c.email;
+    // Le propriétaire du Drive a déjà accès : l'ajouter en lecteur est inutile.
+    const proprio = file.getOwner();
+    if (!proprio || email !== String(proprio.getEmail()).toLowerCase()) file.addViewer(email);
   } catch (e) {
     file.setTrashed(true);
-    throw new Error('Partage impossible avec ' + c.email +
-      ' : cet e-mail de compte bureau doit etre un compte Google.');
+    throw new Error('Partage du fichier impossible : ' + (e && e.message ? e.message : e));
   }
+  // authuser : ouvre le fichier avec CE compte Google, même si le navigateur
+  // en a plusieurs d'ouverts.
+  return 'https://drive.google.com/uc?export=download&authuser=' + encodeURIComponent(email) +
+    '&id=' + file.getId();
 }
 
 /** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
@@ -724,9 +733,7 @@ function makeCloturesExcel(code, from, to) {
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const dl = getOrCreateFolder(root, '_telechargements');
     const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
-    const file = dl.createFile(blob);
-    partagerAuBureau_(file, code);
-    return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
+    return { ok: true, url: lienBureau_(dl.createFile(blob), code) };
   } catch (err) { return { ok: false, error: String(err) }; }
 }
 

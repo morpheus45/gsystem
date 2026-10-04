@@ -379,8 +379,6 @@
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   }
   @page { size: A4; margin: 0; }
-</style>
-<style>
   /* Police manuscrite embarquee dans l'APK (SIL Open Font License, voir
      fonts/OFL.txt). Aucune connexion a Google a l'ouverture de la fiche. */
   @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
@@ -980,40 +978,48 @@ function importJSON(evt) {
   r.readAsText(f);
 }
 /* RGPD : apres un envoi au client, la fiche ne doit pas rester sur le
-   telephone. Au retour de l app mail on propose de la vider — la regle de
-   l app reste « jamais d effacement silencieux », car un envoi peut echouer. */
-var CLE_ENVOI = 'diagnostic_envoye';
-function marquerEnvoye() { try { sessionStorage.setItem(CLE_ENVOI, '1'); } catch (e) {} }
-document.addEventListener('visibilitychange', function () {
+   telephone. Dans l APK, c est l application qui appelle marquerEnvoye(),
+   une fois l app mail REELLEMENT ouverte : jamais avant (envoi rate), ni
+   pendant la fabrication du PDF, qui relit cette fiche. Au retour, on
+   demande si le mail est parti — jamais d effacement silencieux.
+   Le drapeau est propre a CETTE fiche (sa cle de stockage) et a CE client,
+   et garde en localStorage pour survivre a une rotation d ecran. */
+var CLE_ENVOI = 'diagnostic_envoye::' + STORAGE_KEY;
+var DUREE_ENVOI_MS = 2 * 3600 * 1000;
+function clientCourant() {
+  return champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
+}
+function marquerEnvoye() {
+  var d = { t: Date.now(), m: champ('mission_num'), c: clientCourant() };
+  try { localStorage.setItem(CLE_ENVOI, JSON.stringify(d)); } catch (e) {}
+}
+function verifierEnvoi() {
   if (document.hidden) return;
-  var envoye = null;
-  try { envoye = sessionStorage.getItem(CLE_ENVOI); } catch (e) {}
-  if (!envoye) return;
-  try { sessionStorage.removeItem(CLE_ENVOI); } catch (e) {}
-  if (confirm('Diagnostic envoye au client.\n\nVider la fiche maintenant ?\n'
-            + 'Repondez Annuler si l envoi a echoue.')) viderFiche();
-});
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem(CLE_ENVOI) || 'null'); } catch (e) {}
+  if (!d) return;
+  try { localStorage.removeItem(CLE_ENVOI); } catch (e) {}
+  /* Trop ancien, ou la fiche concerne desormais un autre client : on n y touche pas. */
+  if (Date.now() - d.t > DUREE_ENVOI_MS || d.m !== champ('mission_num') || d.c !== clientCourant()) return;
+  if (confirm('Le diagnostic' + (d.c ? ' de ' + d.c : '') + ' est-il bien parti chez le client ?\n\n'
+            + 'OK : la fiche est vidée pour le client suivant.\n'
+            + 'Annuler : la fiche est gardée.')) viderFiche();
+}
+document.addEventListener('visibilitychange', verifierEnvoi);
+window.addEventListener('load', verifierEnvoi);
 
 function resetForm() {
   if (!confirm('Réinitialiser toute la fiche particulier ? Les saisies et signatures seront perdues.')) return;
   viderFiche();
 }
 
-/** Vide la fiche sans rien demander : l appelant a deja demande. */
+/** Vide la fiche, signatures comprises, puis la recharge : le nom du
+    technicien, les valeurs par defaut et le client sur place reviennent
+    exactement comme a l ouverture. */
 function viderFiche() {
-  localStorage.removeItem(STORAGE_KEY);
-  getAllFields().forEach(el => {
-    if (el.type === 'checkbox') el.checked = false;
-    else el.value = '';
-  });
-  EXTENSIONS_DEFAUT.forEach((nom, idx) => {
-    const inp = document.querySelector(`[data-key="ext_${idx}_nom"]`);
-    if (inp) inp.value = nom;
-  });
-  /* Pieces par defaut renseignees -> CONSTAT O/N pre-rempli « N ». */
-  if (typeof appliquerDefautConstatN === 'function') appliquerDefautConstatN();
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
   if (typeof clearAllSignatures === 'function') clearAllSignatures();
-  saveAll();
+  location.reload();
 }
 </script>
 
@@ -1136,8 +1142,7 @@ function remplirClient() {
   if (dejaMission && commencee) {
     if (!confirm('La fiche en cours concerne un autre client (' + (valeur(cleNom) || 'sans nom')
         + ').\n\nLa vider pour ' + c.nom + ' ?')) return;
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    location.reload();   // la fiche repart vierge ; l APK pose de nouveau le client
+    viderFiche();   // signatures comprises ; l APK pose de nouveau le client
     return;
   }
   Object.keys(cles).forEach(function (k) {
@@ -1233,7 +1238,6 @@ function envoyerAuClient() {
     + 'signaler toute erreur.\n\nCordialement,\n' + tech;
 
   if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
-    marquerEnvoye();
     window.__gsysEnvoiClient.envoyer(mail, sujet, corps);
     return;
   }
@@ -1241,11 +1245,11 @@ function envoyerAuClient() {
   if (!confirm('La fen\u00eatre d\'impression va s\'ouvrir : enregistrez la fiche '
              + 'en PDF.\n\nLe mail au client s\'ouvrira ensuite - il ne restera '
              + 'qu\'\u00e0 y joindre le fichier enregistr\u00e9.')) return;
-  marquerEnvoye();
   window.print();
   /* Le mail n est ouvert qu apres la fenetre d impression : les deux se
      bousculeraient si on les declenchait ensemble. */
   setTimeout(function () {
+    marquerEnvoye();
     location.href = 'mailto:' + encodeURIComponent(mail)
       + '?subject=' + encodeURIComponent(sujet)
       + '&body=' + encodeURIComponent(corps);

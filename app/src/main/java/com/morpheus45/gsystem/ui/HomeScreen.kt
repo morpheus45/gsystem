@@ -40,7 +40,6 @@ import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton

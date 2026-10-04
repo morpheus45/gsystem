@@ -235,15 +235,24 @@ class PontEnvoi(
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                EmailSender.send(
-                    context = context,
-                    to = mail,
-                    subject = sujet,
-                    body = corps,
-                    attachment = fichier,
-                    mimeType = "application/pdf",
-                    chooserTitle = "Envoyer le diagnostic au client"
-                )
+                runCatching {
+                    EmailSender.send(
+                        context = context,
+                        to = mail,
+                        subject = sujet,
+                        body = corps,
+                        attachment = fichier,
+                        mimeType = "application/pdf",
+                        chooserTitle = "Envoyer le diagnostic au client"
+                    )
+                }.onSuccess {
+                    // RGPD : la fiche ne proposera de se vider qu'à présent, l'app
+                    // mail réellement ouverte et le PDF déjà écrit — jamais avant.
+                    vue()?.evaluateJavascript("window.marquerEnvoye && marquerEnvoye()", null)
+                }.onFailure {
+                    Toast.makeText(context, "Impossible d'ouvrir l'application mail.",
+                        Toast.LENGTH_LONG).show()
+                }
             }
             val w = vue()
             if (w == null) ouvrirMail(null) else fabriquerPdf(context, w, ouvrirMail)
