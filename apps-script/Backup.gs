@@ -220,6 +220,60 @@ function setTechActive(code, tech, active) {
   return list;
 }
 
+/* ====================== MISE À JOUR DE L'APPLICATION ======================
+ * Le dépôt GitHub est privé : l'APK ne peut plus lire ses Releases. Les versions
+ * sont donc servies par ce script, à un compte CONNECTÉ uniquement, depuis le
+ * dossier Drive « Sauvegardes G-Systems/_versions ». Y déposer l'APK sous le nom
+ * gsystem-vX.Y.Z.apk suffit à le proposer aux techniciens ; la description du
+ * fichier dans Drive sert de notes de version.
+ */
+const DOSSIER_VERSIONS = '_versions';
+const MORCEAU_APK = 4 * 1024 * 1024;   // ~5,4 Mo une fois en base64 : une réponse raisonnable
+const NOM_APK = /^gsystem-v(\d+\.\d+\.\d+)\.apk$/;
+
+function versions_() {
+  const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+  const it = getOrCreateFolder(root, DOSSIER_VERSIONS).getFiles();
+  const out = [];
+  while (it.hasNext()) {
+    const f = it.next();
+    const m = NOM_APK.exec(f.getName());
+    if (m && !f.isTrashed()) out.push({ version: m[1], fichier: f });
+  }
+  return out;
+}
+function plusRecente_(a, b) {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+  return false;
+}
+/** Dernière version déposée : { ok, version, taille, notes }, ou { ok, version: null }. */
+function majInfo_() {
+  let der = null;
+  versions_().forEach(function (v) { if (!der || plusRecente_(v.version, der.version)) der = v; });
+  if (!der) return { ok: true, version: null };
+  return { ok: true, version: der.version, taille: der.fichier.getSize(),
+    notes: der.fichier.getDescription() || '' };
+}
+/** Un morceau de l'APK d'une version, en base64. Seuls les APK de _versions sont servis. */
+function majMorceau_(version, debut) {
+  const v = versions_().filter(function (x) { return x.version === String(version); })[0];
+  if (!v) return { ok: false, error: 'version introuvable' };
+  const total = v.fichier.getSize();
+  // L'APK envoie toujours un entier : null, '' ou true ne valent pas « 0 ».
+  if (!Number.isInteger(debut) || debut < 0 || debut >= total) return { ok: false, error: 'position invalide' };
+  // Lecture par plage via l'API Drive : seul ce morceau passe en mémoire (charger
+  // l'APK entier à chaque appel saturerait le script). Le jeton reste côté serveur.
+  const d = debut, fin = Math.min(d + MORCEAU_APK, total) - 1;
+  const rep = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + v.fichier.getId() + '?alt=media', {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken(), Range: 'bytes=' + d + '-' + fin },
+    muteHttpExceptions: true
+  });
+  const code = rep.getResponseCode();
+  if (code !== 200 && code !== 206) return { ok: false, error: 'lecture du Drive impossible (' + code + ')' };
+  return { ok: true, total: total, b64: Utilities.base64Encode(rep.getContent()) };
+}
+
 function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
@@ -233,6 +287,10 @@ function doPost(e) {
     // Le technicien est CELUI DE LA SESSION, jamais celui qu'annonce la requête :
     // un compte « tech » ne lit et n'écrit que son propre dossier.
     if (compte.role !== 'bureau') { p.user = compte.nom; p.tech = compte.nom; }
+
+    // --- Mise à jour de l'application (tout compte connecté) ---
+    if (p.action === 'maj_info')    return json(majInfo_());
+    if (p.action === 'maj_morceau') return json(majMorceau_(p.version, p.debut));
 
     // --- Chat tech <-> bureau (pas d'upload de fichier) ---
     if (p.action === 'chat_send')     return chatSend_(p.tech, 'tech', p.text);

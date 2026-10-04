@@ -71,7 +71,7 @@ fun UpdateDialog(
                 downloading = true
                 errorMsg = null
                 runCatching {
-                    val apk = UpdateChecker.download(context, update.downloadUrl) { p ->
+                    val apk = UpdateChecker.download(context, update) { p ->
                         progress = p
                     }
                     UpdateInstaller.install(context, apk)

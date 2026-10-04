@@ -11,10 +11,17 @@
 2. `gh workflow run android-build.yml --ref <branche>` → attendre le build vert.
 3. `git checkout main && git merge --ff-only <branche> && git push`.
 4. `git tag vX.Y.Z && git push origin vX.Y.Z` → le tag déclenche le build de release
-   qui **publie l'APK signé en « latest »** (compter ~6 min pour que `releases/latest`
-   passe au nouveau tag).
-5. L'app se met à jour automatiquement depuis la release « latest ».
-- **Diffusion = GitHub Releases uniquement. Pas de Play Store** (jamais configuré).
+   qui **publie l'APK signé sur GitHub Releases** (~6 min).
+5. **Diffusion aux techniciens — depuis 1.9.96.** Le dépôt étant privé, l'app ne lit plus
+   GitHub. Télécharger l'APK de la Release, puis le déposer dans le Drive
+   **`Sauvegardes G-Systems/_versions`** sous le nom exact **`gsystem-vX.Y.Z.apk`**.
+   La description du fichier dans Drive sert de notes de version. Le script le propose
+   alors à tout compte connecté, et l'app le télécharge par morceaux, via le script :
+   rien n'est public.
+- **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
+  encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
+  par-dessus, sans désinstaller ni perdre les données.
+- **Pas de Play Store** (jamais configuré).
 
 ## Ce qui a été livré dans cette session (v1.9.4 → v1.9.9)
 - **v1.9.4** — N° de site obligatoire seulement si GESTE CO offert (>0) ou GSM seul.
