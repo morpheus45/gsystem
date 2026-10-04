@@ -53,7 +53,7 @@ fun UpdateDialog(
 
     val lancer: () -> Unit = {
         // Build « play » : l'APK installé est signé par Google Play, celui
-        // de la Release GitHub ne l'est pas -> Android refuserait de
+        // servi par le script ne l'est pas -> Android refuserait de
         // l'installer par-dessus. On renvoie donc vers le tuto, qui
         // héberge l'APK de la MÊME signature.
         if (BuildConfig.PLAY_BUILD) {
@@ -123,7 +123,7 @@ fun UpdateDialog(
 /**
  * Helper : vérifie en arrière-plan une mise à jour au démarrage. Si dispo,
  * stocke le résultat dans le state passé en paramètre. Discret en cas d'erreur
- * (réseau coupé, GitHub down…) — on ne dérange pas l'utilisateur.
+ * (réseau coupé, script injoignable…) — on ne dérange pas l'utilisateur.
  */
 suspend fun checkForUpdateSilently(): UpdateChecker.UpdateAvailable? =
     runCatching { UpdateChecker.check() }.getOrNull()

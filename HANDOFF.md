@@ -12,12 +12,22 @@
 3. `git checkout main && git merge --ff-only <branche> && git push`.
 4. `git tag vX.Y.Z && git push origin vX.Y.Z` → le tag déclenche le build de release
    qui **publie l'APK signé sur GitHub Releases** (~6 min).
-5. **Diffusion aux techniciens — depuis 1.9.96.** Le dépôt étant privé, l'app ne lit plus
-   GitHub. Télécharger l'APK de la Release, puis le déposer dans le Drive
-   **`Sauvegardes G-Systems/_versions`** sous le nom exact **`gsystem-vX.Y.Z.apk`**.
-   La description du fichier dans Drive sert de notes de version. Le script le propose
-   alors à tout compte connecté, et l'app le télécharge par morceaux, via le script :
-   rien n'est public.
+5. **Diffusion aux techniciens — automatique depuis 1.9.96.** Le dépôt étant privé,
+   l'app ne lit plus GitHub : c'est le script qui va chercher la dernière Release
+   (au plus toutes les 15 min), la range dans le Drive **`Sauvegardes G-Systems/_versions`**
+   et la propose à tout compte connecté. L'app la télécharge par morceaux, via le
+   script : rien n'est public. Le script garde les 3 versions les plus récentes.
+   - **Réglage unique** : créer sur GitHub une clé *fine-grained* limitée au dépôt
+     `morpheus45/gsystem`, permission **Contents : Read-only** (rien d'autre), puis la
+     coller dans l'éditeur Apps Script → *Paramètres du projet* → *Propriétés du
+     script* → `GITHUB_JETON`. La clé reste côté serveur, jamais dans l'app.
+     **Elle expire** (1 an au plus) : la renouveler avant l'échéance.
+   - **Après chaque redéploiement du script** : lancer `testerMiseAJour()` dans
+     l'éditeur. Il doit afficher « OK : la version … est prête ». Sinon, il donne la
+     cause (clé expirée, API Drive non autorisée…) — à régler AVANT qu'un téléphone
+     en dépende.
+   - **Sans clé**, déposer l'APK à la main dans `_versions` sous le nom exact
+     `gsystem-vX.Y.Z.apk` marche aussi ; la description du fichier Drive sert de notes.
 - **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
   encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
   par-dessus, sans désinstaller ni perdre les données.

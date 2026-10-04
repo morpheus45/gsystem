@@ -32,6 +32,7 @@ object UpdateChecker {
 
     data class UpdateAvailable(
         val latestVersion: String,   // ex: "1.9.97"
+        val id: String,              // fichier Drive : tous les morceaux viennent de lui
         val notes: String,           // description du fichier dans Drive
         val sizeBytes: Long
     )
@@ -62,7 +63,8 @@ object UpdateChecker {
         val distante = r.getString("version")
         val locale = BuildConfig.VERSION_NAME.removePrefix("v").trim()
         if (!isNewer(distante, locale)) return@withContext null
-        UpdateAvailable(distante, r.optString("notes"), r.optLong("taille"))
+        UpdateAvailable(latestVersion = distante, id = r.optString("id"),
+            notes = r.optString("notes"), sizeBytes = r.optLong("taille"))
     }
 
     /** Compare deux versions sémantiques très simples : "0.2.1" > "0.2.0". */
@@ -89,7 +91,7 @@ object UpdateChecker {
                 var recu = 0L
                 do {
                     val r = appeler(JSONObject().put("action", "maj_morceau")
-                        .put("version", update.latestVersion).put("debut", recu))
+                        .put("id", update.id).put("debut", recu))
                         ?: error("téléchargement interrompu")
                     if (!r.optBoolean("ok")) error(r.optString("error").ifBlank { "téléchargement interrompu" })
                     val morceau = Base64.getDecoder().decode(r.getString("b64"))
@@ -97,8 +99,12 @@ object UpdateChecker {
                     sortie.write(morceau)
                     recu += morceau.size
                     val total = r.getLong("total")
+                    // Fichier remplacé dans Drive pendant le téléchargement : on
+                    // n'assemble pas deux versions en un APK corrompu.
+                    if (total != update.sizeBytes) error("la version a changé pendant le téléchargement, réessaie")
                     onProgress(recu.toFloat() / total)
                 } while (recu < total)
+                if (recu != update.sizeBytes) error("téléchargement incomplet, réessaie")
             }
             apk
         }
