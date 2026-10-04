@@ -36,6 +36,7 @@ const ESSAIS_MAX = 5;                           // puis 15 min de blocage par e-
 const SEL_LEURRE = 'AAAAAAAAAAAAAAAAAAAAAA==';  // e-mail inconnu : même coût de calcul
 
 function installerComptes() {
+  exigerProprietaire_();
   if (!PROP.getProperty('SECRET_JETONS')) {
     PROP.setProperty('SECRET_JETONS', Utilities.getUuid() + Utilities.getUuid());
   }
@@ -114,6 +115,7 @@ function motDePasseValide_(motDePasse, stocke) {
 
 /** À lancer depuis l'éditeur : hache tout de suite les mots de passe provisoires. */
 function hacherMotsDePasseProvisoires() {
+  exigerProprietaire_();
   const t = feuilleComptes_();
   let n = 0;
   t.lignes.forEach(function (l, i) { if (hacherProvisoire_(t, l, i)) n++; });
@@ -220,6 +222,20 @@ function setTechActive(code, tech, active) {
   return list;
 }
 
+/**
+ * Garde des fonctions de maintenance, à lancer depuis l'éditeur. La page du tableau
+ * de bord est publique : google.script.run y permet d'appeler TOUTE fonction dont
+ * le nom ne finit pas par « _ ». Dans une Web App « exécutée en tant que moi »,
+ * l'adresse du visiteur n'est jamais disponible (doc Session.getActiveUser) : vide,
+ * c'est un visiteur ; égale au propriétaire, c'est l'éditeur.
+ */
+function exigerProprietaire_() {
+  const actif = Session.getActiveUser().getEmail();
+  if (!actif || actif !== Session.getEffectiveUser().getEmail()) {
+    throw new Error('Réservé au propriétaire du script, depuis l\'éditeur.');
+  }
+}
+
 /** Les dossiers dont le nom commence par « _ » (_telechargements, _versions)
  *  appartiennent au système : ce ne sont pas des techniciens, et aucun envoi
  *  ne peut y écrire. */
@@ -267,20 +283,33 @@ function plusRecente_(a, b) {
  */
 function synchroniserVersions_() {
   const jeton = PROP.getProperty('GITHUB_JETON');
+  if (!jeton) return 'pas de clé GITHUB_JETON : rapatriement automatique désactivé';
   const cache = CacheService.getScriptCache();
-  if (!jeton || cache.get('maj_github_vu')) return;
+  if (cache.get('maj_github_vu')) return 'déjà vérifié il y a moins de 15 min';
+  // Le verrou ne sert qu'à RÉSERVER la tâche : le téléchargement (≈ 37 Mo) se fait
+  // hors verrou, pour ne pas bloquer les connexions et les envois qui le partagent.
   const verrou = LockService.getScriptLock();
-  if (!verrou.tryLock(1000)) return;     // un autre appel s'en occupe déjà
+  if (!verrou.tryLock(1000)) return 'un autre appel s\'en occupe';
   try {
+    if (cache.get('maj_github_vu')) return 'déjà vérifié il y a moins de 15 min';
     cache.put('maj_github_vu', '1', 15 * 60);
+  } finally {
+    verrou.releaseLock();
+  }
+  try {
     const api = 'https://api.github.com/repos/' + DEPOT_GITHUB;
     const rel = UrlFetchApp.fetch(api + '/releases/latest',
       { headers: entetesGitHub_(jeton, 'application/vnd.github+json'), muteHttpExceptions: true });
     if (rel.getResponseCode() !== 200) throw new Error('GitHub a répondu ' + rel.getResponseCode() + ' (clé expirée ?)');
     const r = JSON.parse(rel.getContentText());
     const nom = 'gsystem-' + r.tag_name + '.apk';
-    const deja = versions_().some(function (v) { return 'gsystem-v' + v.version + '.apk' === nom; });
-    if (!NOM_APK.test(nom) || deja) return;
+    const m = NOM_APK.exec(nom);
+    if (!m) return 'la dernière Release (' + r.tag_name + ') n\'est pas une version : ignorée';
+    // Déjà là, ou une version plus récente a été déposée à la main : rien à faire.
+    // (Sans ce test, une version plus ancienne serait rapatriée puis jetée en boucle.)
+    if (versions_().some(function (v) { return v.version === m[1] || plusRecente_(v.version, m[1]); })) {
+      return 'à jour (' + r.tag_name + ')';
+    }
     const asset = (r.assets || []).filter(function (a) { return a.name === nom; })[0];
     if (!asset) throw new Error('la Release ' + r.tag_name + ' ne contient pas ' + nom);
     // GitHub sert le fichier (200) ou redirige vers une adresse signée (302),
@@ -293,13 +322,17 @@ function synchroniserVersions_() {
     }
     if (rep.getResponseCode() !== 200) throw new Error('téléchargement de ' + nom + ' : code ' + rep.getResponseCode());
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-    getOrCreateFolder(root, DOSSIER_VERSIONS).createFile(rep.getBlob().setName(nom))
-      .setDescription(String(r.body || '').slice(0, 2000));
+    const f = getOrCreateFolder(root, DOSSIER_VERSIONS).createFile(rep.getBlob().setName(nom));
+    if (f.getSize() !== asset.size) {
+      f.setTrashed(true);
+      throw new Error(nom + ' tronqué (' + f.getSize() + ' octets sur ' + asset.size + ') : réessai dans 15 min');
+    }
+    f.setDescription(String(r.body || '').slice(0, 2000));
     nettoyerVersions_();
+    return 'rapatriée : ' + r.tag_name;
   } catch (e) {
     Logger.log('Mise à jour depuis GitHub : ' + e);
-  } finally {
-    verrou.releaseLock();
+    return 'ÉCHEC : ' + (e && e.message ? e.message : e);
   }
 }
 function entetesGitHub_(jeton, accept) {
@@ -318,9 +351,11 @@ function nettoyerVersions_() {
  * qu'un téléphone n'en dépende.
  */
 function testerMiseAJour() {
+  exigerProprietaire_();
   CacheService.getScriptCache().remove('maj_github_vu');
+  Logger.log('Rapatriement depuis GitHub : ' + synchroniserVersions_());
   const i = majInfo_();
-  if (!i.version) { Logger.log('ÉCHEC : aucune version disponible — voir le message ci-dessus.'); return; }
+  if (!i.version) { Logger.log('ÉCHEC : aucune version disponible dans _versions.'); return; }
   const m = majMorceau_(i.id, 0);
   Logger.log(m.ok
     ? 'OK : la version ' + i.version + ' (' + Math.round(i.taille / 1048576) + ' Mo) est prête pour les techniciens.'
@@ -508,14 +543,14 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.debug === 'data') {
     if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
     var t0 = Date.now();
-    try { var d = getAllData(); var s = JSON.stringify(d);
+    try { var d = getAllData_(); var s = JSON.stringify(d);
       return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
         noms: d.map(function (x) { return x.tech + ':' + (x.clotures || []).length + 'c/' + (x.gestes || []).length + 'g'; }) });
     } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
   }
   if (e && e.parameter && e.parameter.debug === 'full') {
     if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
-    try { return json({ ok: true, data: getAllData() }); }
+    try { return json({ ok: true, data: getAllData_() }); }
     catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
   }
   // Inventaire BRUT des _stats.json (lecture seule) : un résumé par dossier-mois,
@@ -553,7 +588,7 @@ function doGet(e) {
 }
 
 /** Données granulaires de tous les techs (tous mois fusionnés) pour filtrage par date. */
-function getAllData() {
+function getAllData_() {
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
   const techs = {}; const users = root.getFolders();
   while (users.hasNext()) {
@@ -628,13 +663,13 @@ function getAllData() {
 }
 
 /**
- * Même données que getAllData(), mais renvoyées en CHAÎNE JSON.
+ * Même données que getAllData_(), mais renvoyées en CHAÎNE JSON.
  * Le sérialiseur natif de google.script.run échoue (« Une erreur inconnue s'est
  * produite ») sur des graphes d'objets volumineux ou contenant certains
  * caractères ; renvoyer une string (via JSON.stringify, bien formé) contourne
  * le bug. Le client fait JSON.parse. À utiliser pour tout appel client.
  */
-function getAllDataStr(code) { requireCode_(code); return JSON.stringify(getAllData()); }
+function getAllDataStr(code) { requireCode_(code); return JSON.stringify(getAllData_()); }
 
 /**
  * Nettoyage : met à la corbeille les vieilles sauvegardes complètes par mois
@@ -645,6 +680,7 @@ function getAllDataStr(code) { requireCode_(code); return JSON.stringify(getAllD
  * Récupérable ~30 j via la corbeille Drive.
  */
 function cleanupOldBackups() {
+  exigerProprietaire_();
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
   const report = [];
   const users = root.getFolders();
@@ -686,6 +722,7 @@ function folderSize_(folder) { let s = 0; const it = folder.getFiles(); while (i
 
 /** Diagnostic : liste les fichiers au CONTENU identique présents à plusieurs endroits. */
 function findDuplicates() {
+  exigerProprietaire_();
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
   const uf = getOrCreateFolder(root, sanitize('Cédric LAGO-GOMEZ'));
   const byHash = {};
@@ -716,6 +753,7 @@ function findDuplicates() {
  * a bien tourné). Récupérable ~30 j via la corbeille Drive.
  */
 function cleanupToPerCycle() {
+  exigerProprietaire_();
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
   const report = [];
   const users = root.getFolders();
@@ -759,6 +797,7 @@ function cleanupToPerCycle() {
 
 /** Diagnostic : journalise toute la structure Drive d'un tech (racine, photos/, dossiers-mois). */
 function inspectDrive() {
+  exigerProprietaire_();
   const user = 'Cédric LAGO-GOMEZ';
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
   const uf = getOrCreateFolder(root, sanitize(user));
@@ -849,7 +888,7 @@ function makeCloturesExcel(code, from, to) {
   try {
     const fromD = from || '', toD = to || '';
     const inactive = {}; inactiveTechs_().forEach(function (n) { inactive[n] = true; });
-    const data = getAllData();
+    const data = getAllData_();
     const ss = SpreadsheetApp.create('G-Systems_clotures_' + (fromD || 'debut') + '_' + (toD || 'fin'));
     const def = ss.getSheets()[0];
     const header = ['Date', 'Début', 'Fin', 'Durée', 'Type', 'Client', 'Ville', 'Dép.', 'N°', 'Obs', 'Note'];
@@ -906,7 +945,7 @@ function ssToXlsxBlob_(ss, fileName) {
 function fraisRecapBlob_(from, to) {
   const fromD = from || '', toD = to || '';
   const inactive = {}; inactiveTechs_().forEach(function (n) { inactive[n] = true; });
-  const data = getAllData();
+  const data = getAllData_();
   const ss = SpreadsheetApp.create('FRAIS_' + (fromD || 'debut') + '_' + (toD || 'fin'));
   const sh = ss.getSheets()[0]; sh.setName('Frais');
   const header = ['Technicien', 'Nb tickets', 'TTC payé (€)', 'Remboursé (€)', 'TVA (€)', 'HT (€)'];
@@ -945,6 +984,9 @@ function durHM(a, b) {
 }
 
 /** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
+// Pas de garde ici : c'est la fonction du déclencheur mensuel, et la doc ne dit pas
+// quelle identité y voit getActiveUser. L'appeler en avance ne purge rien de plus
+// que le 1er du mois : seuls les dossiers de plus de RETENTION_YEARS ans partent.
 function purgeOldData() {
   const cut = new Date(); cut.setFullYear(cut.getFullYear() - RETENTION_YEARS);
   const cutM = cut.getFullYear() + '-' + ('0' + (cut.getMonth() + 1)).slice(-2);
@@ -965,6 +1007,7 @@ function purgeOldData() {
 }
 /** À EXÉCUTER UNE FOIS : installe le déclencheur mensuel de purge. */
 function installPurgeTrigger() {
+  exigerProprietaire_();
   const exists = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'purgeOldData'; });
   if (exists) return 'Déclencheur déjà présent.';
   ScriptApp.newTrigger('purgeOldData').timeBased().onMonthDay(1).atHour(3).create();

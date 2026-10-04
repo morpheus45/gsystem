@@ -28,6 +28,17 @@
      en dépende.
    - **Sans clé**, déposer l'APK à la main dans `_versions` sous le nom exact
      `gsystem-vX.Y.Z.apk` marche aussi ; la description du fichier Drive sert de notes.
+   - **Revenir en arrière** : mettre une version à la corbeille dans `_versions` ne
+     suffit pas tant qu'elle reste la Release « latest » sur GitHub (le script la
+     rapatrie de nouveau sous 15 min). Publier plutôt une version corrigée, plus
+     récente.
+- **Sécurité du script (depuis 1.9.96).** La page du tableau de bord est publique, et
+  Google y laisse appeler toute fonction dont le nom ne finit pas par « _ ». Les
+  fonctions de maintenance (`installerComptes`, `testerMiseAJour`, nettoyages…)
+  refusent donc de tourner ailleurs que dans l'éditeur, lancées par le propriétaire ;
+  `getAllData_` est privée. Ce contrôle lit l'adresse de l'utilisateur : au premier
+  lancement d'une de ces fonctions, Google demande une autorisation de plus
+  (« voir votre adresse e-mail ») — l'accepter.
 - **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
   encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
   par-dessus, sans désinstaller ni perdre les données.
