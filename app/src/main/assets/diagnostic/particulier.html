@@ -380,7 +380,16 @@
   }
   @page { size: A4; margin: 0; }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* Police manuscrite embarquee dans l'APK (SIL Open Font License, voir
+     fonts/OFL.txt). Aucune connexion a Google a l'ouverture de la fiche. */
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+</style>
 <script src="signature.js" defer></script>
 </head>
 <body>
@@ -394,7 +403,6 @@
   <input class="mail-client" id="mail_client" type="email" inputmode="email"
          autocomplete="email" placeholder="e-mail du client" data-key="mail_client">
   <button onclick="envoyerAuClient()">📧 Envoyer au client</button>
-  <button onclick="exportJSON()">💾 Sauver JSON</button>
   <button onclick="document.getElementById('imp').click()">📂 Charger</button>
   <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
   <button class="danger" onclick="resetForm()">🗑️ Réinitialiser</button>
@@ -951,18 +959,6 @@ document.addEventListener('input', e => {
 });
 loadAll();
 
-function exportJSON() {
-  saveAll();
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  const sigs = (typeof collectSignatures === 'function') ? collectSignatures() : {};
-  const payload = { fields: data, signatures: sigs };
-  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const d = new Date().toISOString().slice(0,10);
-  a.download = `diagnostic-particulier-${d}.json`;
-  a.click();
-}
 function importJSON(evt) {
   const f = evt.target.files[0];
   if (!f) return;
@@ -983,8 +979,28 @@ function importJSON(evt) {
   };
   r.readAsText(f);
 }
+/* RGPD : apres un envoi au client, la fiche ne doit pas rester sur le
+   telephone. Au retour de l app mail on propose de la vider — la regle de
+   l app reste « jamais d effacement silencieux », car un envoi peut echouer. */
+var CLE_ENVOI = 'diagnostic_envoye';
+function marquerEnvoye() { try { sessionStorage.setItem(CLE_ENVOI, '1'); } catch (e) {} }
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) return;
+  var envoye = null;
+  try { envoye = sessionStorage.getItem(CLE_ENVOI); } catch (e) {}
+  if (!envoye) return;
+  try { sessionStorage.removeItem(CLE_ENVOI); } catch (e) {}
+  if (confirm('Diagnostic envoye au client.\n\nVider la fiche maintenant ?\n'
+            + 'Repondez Annuler si l envoi a echoue.')) viderFiche();
+});
+
 function resetForm() {
   if (!confirm('Réinitialiser toute la fiche particulier ? Les saisies et signatures seront perdues.')) return;
+  viderFiche();
+}
+
+/** Vide la fiche sans rien demander : l appelant a deja demande. */
+function viderFiche() {
   localStorage.removeItem(STORAGE_KEY);
   getAllFields().forEach(el => {
     if (el.type === 'checkbox') el.checked = false;
@@ -1217,6 +1233,7 @@ function envoyerAuClient() {
     + 'signaler toute erreur.\n\nCordialement,\n' + tech;
 
   if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
+    marquerEnvoye();
     window.__gsysEnvoiClient.envoyer(mail, sujet, corps);
     return;
   }
@@ -1224,6 +1241,7 @@ function envoyerAuClient() {
   if (!confirm('La fen\u00eatre d\'impression va s\'ouvrir : enregistrez la fiche '
              + 'en PDF.\n\nLe mail au client s\'ouvrira ensuite - il ne restera '
              + 'qu\'\u00e0 y joindre le fichier enregistr\u00e9.')) return;
+  marquerEnvoye();
   window.print();
   /* Le mail n est ouvert qu apres la fenetre d impression : les deux se
      bousculeraient si on les declenchait ensemble. */

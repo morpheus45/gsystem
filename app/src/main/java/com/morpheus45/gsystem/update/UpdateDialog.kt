@@ -10,16 +10,12 @@
 package com.morpheus45.gsystem.update
 
 import android.content.Context
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.BuildConfig
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.theme.LogistiqueEnd
+import com.morpheus45.gsystem.ui.theme.LogistiqueStart
 import kotlinx.coroutines.launch
 
 /** Page du tuto qui héberge l'APK signé Google Play (canal « play »). */
@@ -55,90 +55,71 @@ fun UpdateDialog(
     var progress by remember { mutableFloatStateOf(0f) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
-        onDismissRequest = { if (!downloading) onDismiss() },
-        title = { Text("Nouvelle version disponible") },
-        text = {
-            Column {
-                Text("Version installée : ${BuildConfig.VERSION_NAME}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                Text("Nouvelle version : ${update.latestVersion}",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(8.dp))
-                if (update.notes.isNotBlank()) {
-                    Text("Notes :", fontSize = 12.sp)
-                    Text(update.notes.take(400),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f))
-                    Spacer(Modifier.height(8.dp))
-                }
-                Text("Taille : ${(update.sizeBytes / 1024 / 1024)} MB",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                if (downloading) {
-                    Spacer(Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Text("${(progress * 100).toInt()} %", fontSize = 11.sp)
-                }
-                errorMsg?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text("Erreur : $it",
-                        color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                enabled = !downloading,
-                onClick = {
-                    // Build « play » : l'APK installé est signé par Google Play, celui
-                    // de la Release GitHub ne l'est pas -> Android refuserait de
-                    // l'installer par-dessus. On renvoie donc vers le tuto, qui
-                    // héberge l'APK de la MÊME signature.
-                    if (BuildConfig.PLAY_BUILD) {
-                        runCatching {
-                            context.startActivity(
-                                android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(TUTO_URL)
-                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }.onFailure { errorMsg = "Ouvre le tuto : $TUTO_URL" }
-                        onDismiss()
-                        return@Button
-                    }
-                    scope.launch {
-                        downloading = true
-                        errorMsg = null
-                        runCatching {
-                            val apk = UpdateChecker.download(context, update.downloadUrl) { p ->
-                                progress = p
-                            }
-                            UpdateInstaller.install(context, apk)
-                            onDismiss()
-                        }.onFailure {
-                            errorMsg = it.message ?: "Téléchargement impossible"
-                            downloading = false
-                        }
-                    }
-                }
-            ) {
-                Text(
-                    when {
-                        BuildConfig.PLAY_BUILD -> "Ouvrir le tuto"
-                        downloading -> "Téléchargement…"
-                        else -> "Mettre à jour"
-                    }
+    val lancer: () -> Unit = {
+        // Build « play » : l'APK installé est signé par Google Play, celui
+        // de la Release GitHub ne l'est pas -> Android refuserait de
+        // l'installer par-dessus. On renvoie donc vers le tuto, qui
+        // héberge l'APK de la MÊME signature.
+        if (BuildConfig.PLAY_BUILD) {
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(TUTO_URL)
+                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
+            }.onFailure { errorMsg = "Ouvre le tuto : $TUTO_URL" }
+            onDismiss()
+        } else {
+            scope.launch {
+                downloading = true
+                errorMsg = null
+                runCatching {
+                    val apk = UpdateChecker.download(context, update.downloadUrl) { p ->
+                        progress = p
+                    }
+                    UpdateInstaller.install(context, apk)
+                    onDismiss()
+                }.onFailure {
+                    errorMsg = it.message ?: "Téléchargement impossible"
+                    downloading = false
+                }
             }
-        },
-        dismissButton = {
-            TextButton(enabled = !downloading, onClick = onDismiss) { Text("Plus tard") }
+        }
+    }
+
+    FeuilleChoix(
+        titre = "Nouvelle version disponible",
+        texte = "Version installée : ${BuildConfig.VERSION_NAME}\n" +
+            "Nouvelle version : ${update.latestVersion}\n" +
+            "Taille : ${(update.sizeBytes / 1024 / 1024)} MB",
+        // Pendant le téléchargement, ni le voile ni « Plus tard » ne ferment.
+        onFermer = { if (!downloading) onDismiss() },
+        libelleFermer = if (downloading) null else "Plus tard",
+        actions = listOf(
+            ActionFeuille(
+                when {
+                    BuildConfig.PLAY_BUILD -> "OUVRIR LE TUTO"
+                    downloading -> "TÉLÉCHARGEMENT…"
+                    else -> "METTRE À JOUR"
+                },
+                LogistiqueStart, LogistiqueEnd, actif = !downloading
+            ) { lancer() }
+        ),
+        contenu = {
+            if (update.notes.isNotBlank()) {
+                Text("Notes :", fontSize = 12.sp)
+                Text(update.notes.take(400), fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f))
+            }
+            if (downloading) {
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                Text("${(progress * 100).toInt()} %", fontSize = 11.sp)
+            }
+            errorMsg?.let {
+                Text("Erreur : $it", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            }
         }
     )
 }

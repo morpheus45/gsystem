@@ -667,9 +667,26 @@ function makeZip(code, from, to) {
     const dl = getOrCreateFolder(root, '_telechargements');
     const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
     const file = dl.createFile(zip);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    partagerAuBureau_(file, code);
     return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
   } catch (err) { return { ok: false, error: String(err) }; }
+}
+
+/**
+ * RGPD : un téléchargement du tableau de bord (ZIP, Excel) n'est lisible que par
+ * le compte bureau qui l'a demandé — jamais par « toute personne ayant le lien ».
+ */
+function partagerAuBureau_(file, jeton) {
+  file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  const c = session_(jeton);
+  if (!c || !c.email) throw new Error('Session bureau introuvable : reconnecte-toi.');
+  try {
+    file.addViewer(c.email);
+  } catch (e) {
+    file.setTrashed(true);
+    throw new Error('Partage impossible avec ' + c.email +
+      ' : cet e-mail de compte bureau doit etre un compte Google.');
+  }
 }
 
 /** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
@@ -708,7 +725,7 @@ function makeCloturesExcel(code, from, to) {
     const dl = getOrCreateFolder(root, '_telechargements');
     const old = dl.getFiles(); while (old.hasNext()) { const o = old.next(); if (new Date() - o.getDateCreated() > 3600000) o.setTrashed(true); }
     const file = dl.createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    partagerAuBureau_(file, code);
     return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + file.getId() };
   } catch (err) { return { ok: false, error: String(err) }; }
 }
