@@ -985,13 +985,19 @@ function importJSON(evt) {
    Le drapeau est propre a CETTE fiche (sa cle de stockage) et a CE client,
    et garde en localStorage pour survivre a une rotation d ecran. */
 var CLE_ENVOI = 'diagnostic_envoye::' + STORAGE_KEY;
-var DUREE_ENVOI_MS = 2 * 3600 * 1000;
+var DUREE_ENVOI_MS = 30 * 60 * 1000;
 function clientCourant() {
   return champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
 }
-function marquerEnvoye() {
-  var d = { t: Date.now(), m: champ('mission_num'), c: clientCourant() };
-  try { localStorage.setItem(CLE_ENVOI, JSON.stringify(d)); } catch (e) {}
+/** Quelle fiche, quelle mission, quel client : releve AU CLIC sur Envoyer. */
+function identiteFiche() {
+  return { k: CLE_ENVOI, m: champ('mission_num'), c: clientCourant() };
+}
+/** Pose le drapeau. L APK rend l identite relevee au clic : la page affichee a
+    pu changer (Pro <-> Particulier) pendant la fabrication du PDF. */
+function marquerEnvoye(id) {
+  var f = id || identiteFiche();
+  try { localStorage.setItem(f.k, JSON.stringify({ t: Date.now(), m: f.m, c: f.c })); } catch (e) {}
 }
 function verifierEnvoi() {
   if (document.hidden) return;
@@ -1007,6 +1013,13 @@ function verifierEnvoi() {
 }
 document.addEventListener('visibilitychange', verifierEnvoi);
 window.addEventListener('load', verifierEnvoi);
+/* Anciennes cles d une version retiree de la fiche (app.js) : des donnees
+   client orphelines, que plus rien ne lit ni n efface. */
+try {
+  Object.keys(localStorage).forEach(function (k) {
+    if (k.indexOf('eps_form_') === 0) localStorage.removeItem(k);
+  });
+} catch (e) {}
 
 function resetForm() {
   if (!confirm('Réinitialiser toute la fiche particulier ? Les saisies et signatures seront perdues.')) return;
@@ -1019,6 +1032,8 @@ function resetForm() {
 function viderFiche() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
   if (typeof clearAllSignatures === 'function') clearAllSignatures();
+  /* Le PDF envoye au client n a plus a rester dans le cache de l APK. */
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.oublierPdf) window.__gsysEnvoiClient.oublierPdf();
   location.reload();
 }
 </script>
@@ -1238,7 +1253,7 @@ function envoyerAuClient() {
     + 'signaler toute erreur.\n\nCordialement,\n' + tech;
 
   if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
-    window.__gsysEnvoiClient.envoyer(mail, sujet, corps);
+    window.__gsysEnvoiClient.envoyer(mail, sujet, corps, JSON.stringify(identiteFiche()));
     return;
   }
 

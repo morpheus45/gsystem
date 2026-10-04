@@ -211,13 +211,20 @@ class PontEnvoi(
      * une WebView Android : sans ce relais, le bouton de la fiche restait
      * totalement sans effet dans l'application.
      */
+    /** La fiche a été vidée : le PDF du client n'a plus à rester dans le cache. */
+    @JavascriptInterface
+    fun oublierPdf() {
+        pdfDiagnostic(context).delete()
+    }
+
     @JavascriptInterface
     fun imprimer() {
         principal.post { ouvrirImpression(context, vue()) }
     }
 
     @JavascriptInterface
-    fun envoyer(mail: String, sujet: String, corps: String) {
+    /** [fiche] : identité de la fiche relevée au clic (clé, mission, client), en JSON. */
+    fun envoyer(mail: String, sujet: String, corps: String, fiche: String) {
         // Les méthodes d'un pont JS arrivent sur un thread de travail ; tout ce
         // qui touche à une vue doit repasser par le thread principal.
         principal.post {
@@ -226,7 +233,8 @@ class PontEnvoi(
             // même son brouillon prérempli et joint la fiche à la main.
             // Ne rien faire du tout — ce que faisait la version précédente
             // dès qu'un maillon ne répondait pas — est le pire des résultats.
-            val ouvrirMail = { fichier: File? ->
+            // Typé : la lambda finit sur un Result, que fabriquerPdf n'accepterait pas.
+            val ouvrirMail: (File?) -> Unit = { fichier ->
                 if (fichier == null) {
                     Toast.makeText(
                         context,
@@ -246,9 +254,14 @@ class PontEnvoi(
                         chooserTitle = "Envoyer le diagnostic au client"
                     )
                 }.onSuccess {
-                    // RGPD : la fiche ne proposera de se vider qu'à présent, l'app
-                    // mail réellement ouverte et le PDF déjà écrit — jamais avant.
-                    vue()?.evaluateJavascript("window.marquerEnvoye && marquerEnvoye()", null)
+                    // RGPD : la fiche ne proposera de se vider qu'à présent, le PDF
+                    // écrit et le choix de l'app mail affiché — jamais avant. Elle
+                    // demandera si le mail est parti : l'envoi reste à confirmer.
+                    // On rend l'identité relevée AU CLIC, pas celle de la page
+                    // affichée maintenant ; re-sérialisée, elle ne peut être que
+                    // du JSON.
+                    val id = runCatching { JSONObject(fiche).toString() }.getOrNull()
+                    if (id != null) vue()?.evaluateJavascript("window.marquerEnvoye && marquerEnvoye($id)", null)
                 }.onFailure {
                     Toast.makeText(context, "Impossible d'ouvrir l'application mail.",
                         Toast.LENGTH_LONG).show()
@@ -286,6 +299,10 @@ private fun activite(depart: Context): Activity? {
  * garde-temps s'en assure.
  */
 @SuppressLint("SetJavaScriptEnabled")
+/** Le PDF du diagnostic : un seul fichier, réécrit à chaque envoi. */
+private fun pdfDiagnostic(context: Context): File =
+    File(File(context.cacheDir, "exports").apply { mkdirs() }, "Diagnostic_securite.pdf")
+
 private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> Unit) {
     val url = source.url
     if (url.isNullOrBlank()) { onFini(null); return }
@@ -401,8 +418,7 @@ private fun dessiner(context: Context, v: WebView, pages: Int): File? {
             doc.finishPage(page)
         }
         plein.recycle()
-        val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
-        val fichier = File(dossier, "Diagnostic_securite.pdf")
+        val fichier = pdfDiagnostic(context)
         FileOutputStream(fichier).use { doc.writeTo(it) }
         doc.close()
         // Ceinture et bretelles : un PDF de quelques centaines d'octets ne

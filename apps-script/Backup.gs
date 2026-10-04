@@ -677,25 +677,20 @@ function makeZip(code, from, to) {
  * corbeille pour que rien ne traîne dans _telechargements.
  */
 function lienBureau_(file, jeton) {
-  let email;
   try {
     // PRIVATE + VIEW : seules les personnes nommées y accèdent. (Permission.NONE
     // lève une exception hors Access.ANYONE : la doc Apps Script l'interdit.)
     file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
     const c = session_(jeton);
     if (!c || !c.email) throw new Error('session bureau introuvable, reconnecte-toi');
-    email = c.email;
     // Le propriétaire du Drive a déjà accès : l'ajouter en lecteur est inutile.
     const proprio = file.getOwner();
-    if (!proprio || email !== String(proprio.getEmail()).toLowerCase()) file.addViewer(email);
+    if (!proprio || c.email !== String(proprio.getEmail()).toLowerCase()) file.addViewer(c.email);
   } catch (e) {
     file.setTrashed(true);
     throw new Error('Partage du fichier impossible : ' + (e && e.message ? e.message : e));
   }
-  // authuser : ouvre le fichier avec CE compte Google, même si le navigateur
-  // en a plusieurs d'ouverts.
-  return 'https://drive.google.com/uc?export=download&authuser=' + encodeURIComponent(email) +
-    '&id=' + file.getId();
+  return 'https://drive.google.com/uc?export=download&id=' + file.getId();
 }
 
 /** Export Excel (.xlsx) des clôtures, une feuille par technicien actif, filtrées sur [from, to]. */
