@@ -210,6 +210,9 @@ class PontEnvoi(
     @JavascriptInterface
     fun oublierPdf(fiche: String) {
         pdfDiagnostic(context, fiche).delete()
+        // Emplacement des versions 1.9.81 à 1.9.95 : plus rien ne l'écrit, il ne
+        // doit pas rester sur le téléphone.
+        File(File(context.cacheDir, "exports"), "Diagnostic_securite.pdf").delete()
     }
 
     /**
@@ -294,7 +297,7 @@ private fun pdfDiagnostic(context: Context, fiche: String): File {
 }
 
 /**
- * Fabrique le PDF de la fiche dans cacheDir/exports/, puis rend la main.
+ * Fabrique le PDF de la fiche dans cacheDir/exports/diagnostic-<fiche>/, puis rend la main.
  *
  * On passe par une SECONDE WebView : celle que le technicien a sous les yeux
  * fait la taille de son téléphone, la dessiner ne donnerait que la portion
@@ -351,7 +354,7 @@ private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> U
                 poser(v, pages)
                 // La réduction posée par calibrerImpression doit être peinte
                 // avant qu'on dessine : un tour de boucle ne suffit pas.
-                v.postDelayed({ terminer(dessiner(context, v, pages)) }, 400)
+                v.postDelayed({ terminer(dessiner(context, v, pages, fiche)) }, 400)
             }
         }
     }
@@ -399,7 +402,7 @@ private fun bitmapAEncre(bmp: Bitmap): Boolean = try {
     true   // en cas de doute, on laisse passer plutôt que de bloquer le PDF
 }
 
-private fun dessiner(context: Context, v: WebView, pages: Int): File? {
+private fun dessiner(context: Context, v: WebView, pages: Int, fiche: String): File? {
     return try {
         val hauteur = HAUTEUR_PX * pages
         if (v.width <= 0 || hauteur <= 0) return null
