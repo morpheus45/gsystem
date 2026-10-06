@@ -78,7 +78,10 @@ jobs:
           echo "Found APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
 
+      # Sur un tag de version, l'APK part dans la Release ci-dessous : inutile de
+      # le stocker une seconde fois, le stockage des compilations est limité.
       - name: Upload APK as artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@v4
         with:
           name: gsystem-${{ steps.build.outputs.variant }}-apk
