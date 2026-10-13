@@ -26,6 +26,18 @@ export function ecrireMissions(l) {
   localStorage.setItem(CLE, JSON.stringify(l));
 }
 
+/** Client « sur place » : arrivee pointee, mission non cloturee (la plus recente).
+    Sert a pre-remplir le PV cameras, le bulletin et le diagnostic, comme l'APK. */
+export function surPlace() {
+  return lireMissions().filter((m) => !m.done && m.arrivalMs > 0)
+    .sort((a, b) => b.arrivalMs - a.arrivalMs)[0] || null;
+}
+
+/** « 12 RUE DE LA PAIX, 34140 MEZE » : une ligne, pour les champs d'adresse uniques. */
+export function adresseComplete(m) {
+  return [m.adresse, [m.cp, m.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+}
+
 /** Missions a traiter (pas encore cloturees), triees par heure de RDV. */
 export function missionsActives() {
   return lireMissions().filter((m) => !m.done)
