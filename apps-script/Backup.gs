@@ -191,7 +191,7 @@ function connexion_(email, motDePasse) {
   }
 }
 
-/** Tableau de bord (google.script.run) et ?debug : session « bureau » exigée. */
+/** Tableau de bord (google.script.run) : session « bureau » exigée. */
 function requireCode_(jeton) {
   if (!estBureau_(jeton)) throw new Error('Acces refuse : connexion bureau requise');
 }
@@ -548,51 +548,9 @@ function cyclePrune_(user, month, keep) {
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
-  if (e && e.parameter && e.parameter.debug === 'data') {
-    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
-    var t0 = Date.now();
-    try { var d = getAllData_(); var s = JSON.stringify(d);
-      return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
-        noms: d.map(function (x) { return x.tech + ':' + (x.clotures || []).length + 'c/' + (x.gestes || []).length + 'g'; }) });
-    } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
-  }
-  if (e && e.parameter && e.parameter.debug === 'full') {
-    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
-    try { return json({ ok: true, data: getAllData_() }); }
-    catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
-  }
-  // Inventaire BRUT des _stats.json (lecture seule) : un résumé par dossier-mois,
-  // AVANT toute fusion/dédup. Sert à diagnostiquer pourquoi un cycle manque au
-  // back office (snapshot vide, chevauchement, périodes en double, maj, etc.).
-  if (e && e.parameter && e.parameter.debug === 'snaps') {
-    if (!estBureau_(e.parameter.jeton)) return json({ ok: false, error: 'connexion bureau requise' });
-    try {
-      var root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-      var out = []; var users = root.getFolders();
-      while (users.hasNext()) {
-        var u = users.next(); var tname = u.getName();
-        if (estDossierSysteme_(tname)) continue;
-        var months = u.getFolders();
-        while (months.hasNext()) {
-          var mf = months.next();
-          var sIt = mf.getFilesByName('_stats.json');
-          if (!sIt.hasNext()) continue;
-          try {
-            var s = JSON.parse(sIt.next().getBlob().getDataAsString('UTF-8'));
-            out.push({ tech: tname, dossier: mf.getName(), periode: s.periode || '', month: s.month || '',
-              maj: s.maj || 0, clot: (s.clotures || []).length,
-              frais: (s.fraisList || []).length, geste: (s.gestes || []).length });
-          } catch (err) { out.push({ tech: tname, dossier: mf.getName(), parseError: String(err) }); }
-        }
-      }
-      out.sort(function (a, b) { return String(a.tech + a.dossier).localeCompare(String(b.tech + b.dossier)); });
-      return json({ ok: true, snaps: out });
-    } catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
-  }
   return HtmlService.createHtmlOutput(DASHBOARD_HTML)
     .setTitle('G-Systems · Espace administratif')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // autorise l'embed via docs/backoffice.html
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');   // pas d'affichage dans un site tiers
 }
 
 /** Données granulaires de tous les techs (tous mois fusionnés) pour filtrage par date. */
@@ -991,8 +949,9 @@ function durHM(a, b) {
   return h > 0 ? (h + 'h' + ('0' + mm).slice(-2)) : (mm + ' min');
 }
 
-/** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs). */
-/** Purge mensuelle. Lancée par SON déclencheur (e.triggerUid, documenté pour les
+/** Purge glissante : met à la CORBEILLE les dossiers-mois de plus de RETENTION_YEARS ans (tous techs)
+ *  et efface les messages de plus de RETENTION_YEARS ans.
+ *  Purge mensuelle. Lancée par SON déclencheur (e.triggerUid, documenté pour les
  *  déclencheurs temporels) ou par le propriétaire depuis l'éditeur — jamais par un
  *  visiteur de la page publique : elle renvoie des noms de techniciens. */
 function purgeOldData(e) {
@@ -1014,7 +973,15 @@ function purgeOldData(e) {
     }
   }
   if (trashed.length) console.log('Purge >' + RETENTION_YEARS + ' ans (corbeille) : ' + trashed.join(', '));
-  return { ok: true, cutoff: cutM, trashed: trashed };
+  // Messagerie : mêmes 3 ans. Les lignes sont ajoutées dans l'ordre, les plus anciennes en tête.
+  let messages = 0;
+  if (root.getFilesByName(CHAT_SHEET_NAME).hasNext()) {
+    const sh = getChatSheet_();
+    const ts = sh.getLastRow() > 1 ? sh.getRange(2, 5, sh.getLastRow() - 1, 1).getValues() : [];
+    while (messages < ts.length && Number(ts[messages][0]) < cut.getTime()) messages++;
+    if (messages) { sh.deleteRows(2, messages); console.log('Purge messagerie : ' + messages + ' message(s)'); }
+  }
+  return { ok: true, cutoff: cutM, trashed: trashed, messages: messages };
 }
 /** À EXÉCUTER UNE FOIS : installe le déclencheur mensuel de purge. */
 function installPurgeTrigger() {
