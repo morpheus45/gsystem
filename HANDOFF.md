@@ -41,7 +41,7 @@
   (« voir votre adresse e-mail ») — l'accepter, **AVANT** « Nouvelle version » :
   sinon l'app et le tableau de bord pourraient répondre « Autorisation requise ».
   La purge mensuelle n'accepte que son propre déclencheur, ou le propriétaire.
-- **La première 1.9.96 ou plus s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
+- **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
   encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
   par-dessus, sans désinstaller ni perdre les données.
 - **Pas de Play Store** (jamais configuré).

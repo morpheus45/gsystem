@@ -107,7 +107,6 @@ class MainActivity : ComponentActivity() {
         // les arrivées pointées et les clôtures déjà faites.
         if (savedInstanceState == null) handleShare(intent)
         Session.charger(this)
-        Thread { oublierExports(cacheDir, filesDir) }.start()
         setContent {
             GSystemTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -707,16 +706,5 @@ private fun dialNumber(context: Context, number: String) {
             Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
-    }
-}
-
-/**
- * RGPD : les PDF et fichiers remis aux clients ou au bureau (PV, bulletins, récaps…)
- * ne sont que des copies d'envoi. Ceux de plus de 24 h sont effacés à l'ouverture.
- */
-private fun oublierExports(vararg racines: java.io.File) {
-    val limite = System.currentTimeMillis() - 24 * 3600 * 1000L
-    racines.forEach { r ->
-        java.io.File(r, "exports").walkBottomUp().forEach { if (it.isFile && it.lastModified() < limite) it.delete() }
     }
 }
