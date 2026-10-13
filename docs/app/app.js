@@ -70,7 +70,6 @@ let padPvTech = null;          // PV : signature du technicien
 let envoi = null;              // envoi mensuel en preparation
 let geste = null;              // GESTE CO de la cloture en cours
 let missionChoix = null;       // mission touchee : choix Arrivee / Attente
-let confirmerDeconnexion = false;   // feuille « Se deconnecter ? » ouverte
 let missionEnCours = null;     // n° de la mission dont la cloture est ouverte
 
 const ech = (s) => String(s == null ? '' : s)
@@ -301,8 +300,12 @@ function vueReglages() {
             style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">Enregistrer</button>
     <div class="note" style="margin-top:22px">Connect\u00e9 : ${ech((session() || {}).email || '')}</div>
     <button class="btn" id="cx_deconnexion" style="background:#2A2D3A">Se d\u00e9connecter</button>
-  </div>
-  ${confirmerDeconnexion ? `
+  </div>`;
+}
+
+/** Feuille « Se deconnecter ? » : posee PAR-DESSUS les reglages, sans les redessiner
+    (une saisie non enregistree n'est pas perdue en ouvrant puis en annulant). */
+const FEUILLE_DECO = `
   <div class="voile" id="deco_voile">
     <div class="boite">
       <div class="boite-titre">Se d\u00e9connecter ?</div>
@@ -312,8 +315,7 @@ function vueReglages() {
               style="background:linear-gradient(135deg,#FF3D5A,#7A1424)">SE D\u00c9CONNECTER</button>
       <button class="lien" data-deco="non">Annuler</button>
     </div>
-  </div>` : ''}`;
-}
+  </div>`;
 
 // =========================================================== CLOTURE
 function etiquette(e) {
@@ -1249,7 +1251,6 @@ function rendre() {
 }
 
 function aller(ou) {
-  confirmerDeconnexion = false;
   if (ou === 'nouvelle') {
     missionEnCours = null;
     brouillon = entreeVide(reglages);
@@ -2130,11 +2131,11 @@ document.addEventListener('click', (e) => {
 
   if (e.target.closest('#valider')) { validerCloture(); return; }
 
-  if (e.target.closest('#cx_deconnexion')) { confirmerDeconnexion = true; rendre(); return; }
+  if (e.target.closest('#cx_deconnexion')) { app().insertAdjacentHTML('beforeend', FEUILLE_DECO); return; }
   const deco = e.target.closest('[data-deco]');
   if (deco || e.target.id === 'deco_voile') {
-    confirmerDeconnexion = false;
-    if (deco && deco.dataset.deco === 'oui') { effacerSession(); aller('connexion'); } else rendre();
+    $('#deco_voile').remove();
+    if (deco && deco.dataset.deco === 'oui') { effacerSession(); aller('connexion'); }
     return;
   }
 

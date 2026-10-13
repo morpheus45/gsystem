@@ -965,6 +965,11 @@ function purgeOldData(e) {
   while (users.hasNext()) {
     const u = users.next(); const tn = u.getName();
     if (estDossierSysteme_(tn)) continue;
+    if (tn === DOSSIER_ARCHIVES) {           // copies de chatArchive_ : mêmes 3 ans
+      const fs = u.getFiles();
+      while (fs.hasNext()) { const f = fs.next(); if (f.getDateCreated() < cut) { f.setTrashed(true); trashed.push(tn + '/' + f.getName()); } }
+      continue;
+    }
     const months = u.getFolders();
     while (months.hasNext()) {
       const mf = months.next(); const mn = mf.getName();
@@ -1004,6 +1009,7 @@ function json(obj) { return ContentService.createTextOutput(JSON.stringify(obj))
 // rangée dans le dossier des sauvegardes. Colonnes : id, tech, from, text, ts,
 // readTech, readBureau.
 const CHAT_SHEET_NAME = '_gsystem_chat';
+const DOSSIER_ARCHIVES = 'Conversations archivées';   // conversations supprimées, gardées 3 ans
 
 function getChatSheet_() {
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
@@ -1100,7 +1106,7 @@ function chatArchive_(tech) {
   }
   if (!lignes.length) return '';
   const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
-  const dossier = getOrCreateFolder(root, 'Conversations archivées');
+  const dossier = getOrCreateFolder(root, DOSSIER_ARCHIVES);
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd_HHmm');
   const f = dossier.createFile(
     'Conversation_' + tech.replace(/[^A-Za-z0-9_ -]/g, '_') + '_' + stamp + '.txt',
