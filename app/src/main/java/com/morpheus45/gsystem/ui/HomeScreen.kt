@@ -40,7 +40,6 @@ import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -127,6 +126,8 @@ import com.morpheus45.gsystem.ui.theme.TextLow
 import com.morpheus45.gsystem.ui.theme.TextMid
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
 
 @Composable
 fun HomeScreen(
@@ -428,26 +429,21 @@ fun HomeScreen(
 
         // Boîte de choix au toucher d'une mission non pointée : Arrivée OU Attente.
         missionChoice?.let { m ->
-            AlertDialog(
-                onDismissRequest = { missionChoice = null },
-                containerColor = Color(0xFF12141B),
-                title = { Text(m.nom.ifBlank { m.type }, color = TextHi) },
-                text = {
-                    Text(
-                        "Pointer l'arrivée pour cette mission et appeler la techline ?",
-                        color = TextMid
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { missionChoice = null; onMissionArrivee(m) }) {
-                        Text("ARRIVÉE SUR SITE", color = ArriveeAccent, fontWeight = FontWeight.Bold)
+            FeuilleChoix(
+                titre = m.nom.ifBlank { m.type },
+                texte = listOf(
+                    listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }.joinToString(" · "),
+                    "Pointer l'arrivée et appeler la techline ?"
+                ).filter { it.isNotBlank() }.joinToString("\n"),
+                onFermer = { missionChoice = null },
+                actions = listOf(
+                    ActionFeuille("📍 ARRIVÉE SUR SITE", ArriveeStart, ArriveeEnd) {
+                        missionChoice = null; onMissionArrivee(m)
+                    },
+                    ActionFeuille("⏱️ ATTENTE CLIENT", AttenteStart, AttenteEnd) {
+                        missionChoice = null; onMissionAttente(m)
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { missionChoice = null; onMissionAttente(m) }) {
-                        Text("ATTENTE CLIENT", color = AttenteAccent, fontWeight = FontWeight.Bold)
-                    }
-                }
+                )
             )
         }
 

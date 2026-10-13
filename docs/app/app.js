@@ -38,7 +38,9 @@ import { genererBulletin, refFormatee, eur2, FRAIS_INTERVENTION }
 import { genererPv, totalPv } from './docPv.js';
 import { genererRecap, nomFichierRecap } from './docRecap.js';
 import { creerPad } from './signature.js';
-import { missionsActives, majMission, importerPdf } from './tournee.js';
+import {
+  missionsActives, majMission, importerPdf, surPlace, adresseComplete,
+} from './tournee.js';
 import { session, seConnecter, effacerSession, renouvelerSiBesoin } from './session.js';
 
 const TEL_TECHLINE = '0388398894';
@@ -300,6 +302,20 @@ function vueReglages() {
     <button class="btn" id="cx_deconnexion" style="background:#2A2D3A">Se d\u00e9connecter</button>
   </div>`;
 }
+
+/** Feuille « Se deconnecter ? » : posee PAR-DESSUS les reglages, sans les redessiner
+    (une saisie non enregistree n'est pas perdue en ouvrant puis en annulant). */
+const FEUILLE_DECO = `
+  <div class="voile" id="deco_voile">
+    <div class="boite">
+      <div class="boite-titre">Se d\u00e9connecter ?</div>
+      <div class="boite-texte">Vos donn\u00e9es restent sur le t\u00e9l\u00e9phone. Pour revenir,
+        il faudra votre e-mail, votre mot de passe et du r\u00e9seau.</div>
+      <button class="btn" data-deco="oui"
+              style="background:linear-gradient(135deg,#FF3D5A,#7A1424)">SE D\u00c9CONNECTER</button>
+      <button class="lien" data-deco="non">Annuler</button>
+    </div>
+  </div>`;
 
 // =========================================================== CLOTURE
 function etiquette(e) {
@@ -1221,6 +1237,17 @@ function rendre() {
   const pT = $('#p_pad_tech');
   padAb = pA ? creerPad(pA) : null;
   padPvTech = pT ? creerPad(pT) : null;
+  // Diagnostic : la fiche reprend le client sur place a chaque chargement (Pro
+  // ou Particulier), comme dans l'APK. Voir remplirClient() dans la fiche.
+  const cadre = $('#diag_cadre');
+  if (cadre) cadre.addEventListener('load', () => {
+    const m = surPlace();
+    const w = cadre.contentWindow;
+    if (!m || !w) return;
+    w.__gsysClient = { mission: m.num, lieu: m.site, nom: m.nom,
+      adresse: m.adresse, cp: m.cp, ville: m.ville };
+    if (w.remplirClient) w.remplirClient();
+  });
 }
 
 function aller(ou) {
@@ -1261,8 +1288,10 @@ function aller(ou) {
       rendre();
     }).catch(() => {});
   } else if (ou === 'pv') {
+    const m = surPlace() || {};   // client sur place : repris de l'ordre de mission
     pv = {
-      conv: '', site: '', dateSous: aujourdhuiIso(), nom: '', adr: '',
+      conv: m.conv || '', site: m.site || '', dateSous: aujourdhuiIso(),
+      nom: m.nom || '', adr: m.num ? adresseComplete(m) : '',
       nbExt: '', nbInt: '', nbTorus: '',
       miseServInt: false, miseServExt: false, miseServAnticipee: false,
       observations: '', faitLe: aujourdhuiIso(),
@@ -1270,16 +1299,17 @@ function aller(ou) {
     };
     ecran = 'pv';
   } else if (ou === 'bulletin') {
+    const m = surPlace() || {};   // client sur place : repris de l'ordre de mission
     bulletin = {
-      date: aujourdhuiIso(), numMission: '', lieuProtege: '',
-      nom: '', adresse: '', cp: '', ville: '',
+      date: aujourdhuiIso(), numMission: m.num || '', lieuProtege: m.site || '',
+      nom: m.nom || '', adresse: m.adresse || '', cp: m.cp || '', ville: m.ville || '',
       natures: {}, marque: 'BIRDIE', typeMat: 'V5',
       lignes: [{ detail: '', reference: '', qte: '', pu: '' }],
       forfaitLocatif: true, forfaitAcquisition: false,
       reglPrelevement: true, fraisOui: false, totalHt: false,
       mensualite: '', mensSigne: '', mensIdem: false,
       testAlarme: true, testLiaison: true, obsTech: '',
-      nomTech: (reglages.nomUtilisateur || '').toUpperCase(), nomClient: '',
+      nomTech: (reglages.nomUtilisateur || '').toUpperCase(), nomClient: m.nom || '',
     };
     ecran = 'bulletin';
   } else if (ou === 'conge') {
@@ -2101,12 +2131,11 @@ document.addEventListener('click', (e) => {
 
   if (e.target.closest('#valider')) { validerCloture(); return; }
 
-  if (e.target.closest('#cx_deconnexion')) {
-    if (confirm('Se d\u00e9connecter ? Vos donn\u00e9es restent sur le t\u00e9l\u00e9phone ; '
-      + 'pour revenir, il faudra votre e-mail, votre mot de passe et du r\u00e9seau.')) {
-      effacerSession();
-      aller('connexion');
-    }
+  if (e.target.closest('#cx_deconnexion')) { app().insertAdjacentHTML('beforeend', FEUILLE_DECO); return; }
+  const deco = e.target.closest('[data-deco]');
+  if (deco || e.target.id === 'deco_voile') {
+    $('#deco_voile').remove();
+    if (deco && deco.dataset.deco === 'oui') { effacerSession(); aller('connexion'); }
     return;
   }
 

@@ -395,8 +395,14 @@
     padding: 4px 6px;
   }
 
-  /* Charge la police manuscrite */
-  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap');
+  /* Police manuscrite embarquee dans l'APK (SIL Open Font License, voir
+     fonts/OFL.txt). Aucune connexion a Google a l'ouverture de la fiche. */
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
 
   /* Mise en page d impression, mais appliquee a l ecran. C est ainsi que
@@ -504,7 +510,6 @@
 
   @page { size: A4; margin: 0; }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&display=swap" rel="stylesheet">
 <script src="signature.js" defer></script>
 <style>
   .toolbar a.btn {
@@ -517,6 +522,8 @@
 </style>
 </head>
 <body>
+<!-- Mission de tournée dont la fiche a été pré-remplie (voir remplirClient). -->
+<input type="hidden" data-key="mission_num">
 
 <div class="toolbar no-print">
   <h2>Fiche Diagnostic Sécurité — <b>Pro</b> (A4 / 2 pages)</h2>
@@ -525,7 +532,6 @@
   <input class="mail-client" id="mail_client" type="email" inputmode="email"
          autocomplete="email" placeholder="e-mail du client" data-key="mail_client">
   <button onclick="envoyerAuClient()">📧 Envoyer au client</button>
-  <button onclick="exportJSON()">💾 Sauver JSON</button>
   <button onclick="document.getElementById('imp').click()">📂 Charger</button>
   <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
   <button class="danger" onclick="resetForm()">🗑️ Réinitialiser</button>
@@ -1044,21 +1050,8 @@ document.addEventListener('input', e => {
 loadAll();
 
 /* ====================================================================== */
-/* Export / Import JSON                                                    */
+/* Import JSON                                                           */
 /* ====================================================================== */
-function exportJSON() {
-  saveAll();
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  const sigs = (typeof collectSignatures === 'function') ? collectSignatures() : {};
-  const payload = { fields: data, signatures: sigs };
-  const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const d = new Date().toISOString().slice(0,10);
-  a.download = `diagnostic-securite-${d}.json`;
-  a.click();
-}
-
 function importJSON(evt) {
   const f = evt.target.files[0];
   if (!f) return;
@@ -1083,26 +1076,57 @@ function importJSON(evt) {
 /* ====================================================================== */
 /* Réinitialisation                                                        */
 /* ====================================================================== */
+/* RGPD : apres un envoi au client, la fiche ne doit pas rester sur le
+   telephone. Dans l APK, c est l application qui appelle marquerEnvoye(),
+   une fois l app mail REELLEMENT ouverte : jamais avant (envoi rate), ni
+   pendant la fabrication du PDF, qui relit cette fiche. Au retour, on
+   demande si le mail est parti — jamais d effacement silencieux.
+   Le drapeau est propre a CETTE fiche (sa cle de stockage) et a CE client,
+   et garde en localStorage pour survivre a une rotation d ecran. */
+var CLE_ENVOI = 'diagnostic_envoye::' + STORAGE_KEY;
+var DUREE_ENVOI_MS = 30 * 60 * 1000;
+function clientCourant() {
+  return champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
+}
+/** Quelle fiche, quelle mission, quel client : releve AU CLIC sur Envoyer. */
+function identiteFiche() {
+  return { k: CLE_ENVOI, m: champ('mission_num'), c: clientCourant() };
+}
+/** Pose le drapeau. L APK rend l identite relevee au clic : la page affichee a
+    pu changer (Pro <-> Particulier) pendant la fabrication du PDF. */
+function marquerEnvoye(id) {
+  var f = id || identiteFiche();
+  try { localStorage.setItem(f.k, JSON.stringify({ t: Date.now(), m: f.m, c: f.c })); } catch (e) {}
+}
+function verifierEnvoi() {
+  if (document.hidden) return;
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem(CLE_ENVOI) || 'null'); } catch (e) {}
+  if (!d) return;
+  try { localStorage.removeItem(CLE_ENVOI); } catch (e) {}
+  /* Trop ancien, ou la fiche concerne desormais un autre client : on n y touche pas. */
+  if (Date.now() - d.t > DUREE_ENVOI_MS || d.m !== champ('mission_num') || d.c !== clientCourant()) return;
+  if (confirm('Le diagnostic' + (d.c ? ' de ' + d.c : '') + ' est-il bien parti chez le client ?\n\n'
+            + 'OK : la fiche est vidée pour le client suivant.\n'
+            + 'Annuler : la fiche est gardée.')) viderFiche();
+}
+document.addEventListener('visibilitychange', verifierEnvoi);
+window.addEventListener('load', verifierEnvoi);
+
 function resetForm() {
   if (!confirm('Réinitialiser toute la fiche ? Les saisies et signatures seront perdues.')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  getAllFields().forEach(el => {
-    if (el.type === 'checkbox') el.checked = false;
-    else el.value = '';
-  });
-  /* restaure les noms par défaut des pièces et extensions */
-  PIECES_DEFAUT.forEach((nom, idx) => {
-    const inp = document.querySelector(`[data-key="piece_${idx}_nom"]`);
-    if (inp) inp.value = nom;
-  });
-  EXTENSIONS_DEFAUT.forEach((nom, idx) => {
-    const inp = document.querySelector(`[data-key="ext_${idx}_nom"]`);
-    if (inp) inp.value = nom;
-  });
-  /* Pieces par defaut renseignees -> CONSTAT O/N pre-rempli « N ». */
-  if (typeof appliquerDefautConstatN === 'function') appliquerDefautConstatN();
+  viderFiche();
+}
+
+/** Vide la fiche, signatures comprises, puis la recharge : le nom du
+    technicien, les valeurs par defaut et le client sur place reviennent
+    exactement comme a l ouverture. */
+function viderFiche() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
   if (typeof clearAllSignatures === 'function') clearAllSignatures();
-  saveAll();
+  /* Le PDF envoye au client n a plus a rester dans le cache de l APK. */
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.oublierPdf) window.__gsysEnvoiClient.oublierPdf('pro');
+  location.reload();
 }
 </script>
 
@@ -1207,6 +1231,37 @@ function remplirNomTech() {
 remplirNomTech();
 
 /* ====================================================================== */
+/* Client sur place : l APK pose window.__gsysClient (ordre de mission de */
+/* la tournee) au chargement. Fiche vierge -> remplie ; meme client ->    */
+/* seuls les champs vides sont completes ; fiche d un AUTRE client -> on  */
+/* demande avant de la vider : jamais d effacement silencieux.            */
+/* ====================================================================== */
+function remplirClient() {
+  var c = window.__gsysClient;
+  if (!c || !c.mission) return;
+  var champ = function (k) { return document.querySelectorAll('[data-key="' + k + '"]'); };
+  var valeur = function (k) { var l = champ(k); return l.length ? String(l[0].value || '').trim() : ''; };
+  var cleNom = champ('nom_prenom').length ? 'nom_prenom' : 'raison_sociale';
+  var cles = { lieu_num: c.lieu, adresse: c.adresse, cp: c.cp, ville: c.ville };
+  cles[cleNom] = c.nom;
+  var dejaMission = valeur('mission_num');
+  if (dejaMission === c.mission) return;
+  var commencee = Object.keys(cles).some(function (k) { return valeur(k) !== ''; });
+  if (dejaMission && commencee) {
+    if (!confirm('La fiche en cours concerne un autre client (' + (valeur(cleNom) || 'sans nom')
+        + ').\n\nLa vider pour ' + c.nom + ' ?')) return;
+    viderFiche();   // signatures comprises ; l APK pose de nouveau le client
+    return;
+  }
+  Object.keys(cles).forEach(function (k) {
+    if (!cles[k]) return;
+    champ(k).forEach(function (el) { if (!String(el.value || '').trim()) el.value = cles[k]; });
+  });
+  champ('mission_num').forEach(function (el) { el.value = c.mission; });
+  if (typeof saveAll === 'function') saveAll();
+}
+
+/* ====================================================================== */
 /* Impression : une page de la fiche = une feuille A4                     */
 /*                                                                        */
 /* Le contenu mesure environ 386 mm de haut pour une A4 de 297 : tel quel, */
@@ -1291,7 +1346,7 @@ function envoyerAuClient() {
     + 'signaler toute erreur.\n\nCordialement,\n' + tech;
 
   if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
-    window.__gsysEnvoiClient.envoyer(mail, sujet, corps);
+    window.__gsysEnvoiClient.envoyer(mail, sujet, corps, JSON.stringify(identiteFiche()));
     return;
   }
 
@@ -1302,6 +1357,7 @@ function envoyerAuClient() {
   /* Le mail n est ouvert qu apres la fenetre d impression : les deux se
      bousculeraient si on les declenchait ensemble. */
   setTimeout(function () {
+    marquerEnvoye();
     location.href = 'mailto:' + encodeURIComponent(mail)
       + '?subject=' + encodeURIComponent(sujet)
       + '&body=' + encodeURIComponent(corps);

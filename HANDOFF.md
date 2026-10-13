@@ -11,10 +11,40 @@
 2. `gh workflow run android-build.yml --ref <branche>` → attendre le build vert.
 3. `git checkout main && git merge --ff-only <branche> && git push`.
 4. `git tag vX.Y.Z && git push origin vX.Y.Z` → le tag déclenche le build de release
-   qui **publie l'APK signé en « latest »** (compter ~6 min pour que `releases/latest`
-   passe au nouveau tag).
-5. L'app se met à jour automatiquement depuis la release « latest ».
-- **Diffusion = GitHub Releases uniquement. Pas de Play Store** (jamais configuré).
+   qui **publie l'APK signé sur GitHub Releases** (~6 min).
+5. **Diffusion aux techniciens — automatique depuis 1.9.96.** Le dépôt étant privé,
+   l'app ne lit plus GitHub : c'est le script qui va chercher la dernière Release
+   (au plus toutes les 15 min), la range dans le Drive **`Sauvegardes G-Systems/_versions`**
+   et la propose à tout compte connecté. L'app la télécharge par morceaux, via le
+   script : rien n'est public. Le script garde les 3 versions les plus récentes.
+   - **Réglage unique** : créer sur GitHub une clé *fine-grained* limitée au dépôt
+     `morpheus45/gsystem`, permission **Contents : Read-only** (rien d'autre), puis la
+     coller dans l'éditeur Apps Script → *Paramètres du projet* → *Propriétés du
+     script* → `GITHUB_JETON`. La clé reste côté serveur, jamais dans l'app.
+     **Elle expire** (1 an au plus) : la renouveler avant l'échéance.
+   - **Après chaque redéploiement du script** : lancer `testerMiseAJour()` dans
+     l'éditeur. Il doit afficher « OK : la version … est prête ». Sinon, il donne la
+     cause (clé expirée, API Drive non autorisée…) — à régler AVANT qu'un téléphone
+     en dépende.
+   - **Sans clé**, déposer l'APK à la main dans `_versions` sous le nom exact
+     `gsystem-vX.Y.Z.apk` marche aussi ; la description du fichier Drive sert de notes.
+   - **Revenir en arrière** : mettre une version à la corbeille dans `_versions` ne
+     suffit pas tant qu'elle reste la Release « latest » sur GitHub (le script la
+     rapatrie de nouveau sous 15 min). Publier plutôt une version corrigée, plus
+     récente.
+- **Sécurité du script (depuis 1.9.96).** La page du tableau de bord est publique, et
+  Google y laisse appeler toute fonction dont le nom ne finit pas par « _ ». Les
+  fonctions de maintenance (`installerComptes`, `testerMiseAJour`, nettoyages…)
+  refusent donc de tourner ailleurs que dans l'éditeur, lancées par le propriétaire ;
+  `getAllData_` est privée. Ce contrôle lit l'adresse de l'utilisateur : au premier
+  lancement d'une de ces fonctions, Google demande une autorisation de plus
+  (« voir votre adresse e-mail ») — l'accepter, **AVANT** « Nouvelle version » :
+  sinon l'app et le tableau de bord pourraient répondre « Autorisation requise ».
+  La purge mensuelle n'accepte que son propre déclencheur, ou le propriétaire.
+- **1.9.96 s'installe à la main**, une fois, sur chaque téléphone : la 1.9.95 interroge
+  encore GitHub et ne peut pas la voir. Même clé de signature : l'installation passe
+  par-dessus, sans désinstaller ni perdre les données.
+- **Pas de Play Store** (jamais configuré).
 
 ## Ce qui a été livré dans cette session (v1.9.4 → v1.9.9)
 - **v1.9.4** — N° de site obligatoire seulement si GESTE CO offert (>0) ou GSM seul.

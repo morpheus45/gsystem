@@ -80,6 +80,13 @@ import kotlinx.serialization.json.Json
 import java.time.LocalDate
 import com.morpheus45.gsystem.auth.Session
 import com.morpheus45.gsystem.ui.ConnexionScreen
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.components.DangerStart
+import com.morpheus45.gsystem.ui.components.DangerEnd
+import com.morpheus45.gsystem.ui.theme.ArriveeStart
+import com.morpheus45.gsystem.ui.theme.ArriveeEnd
+import com.morpheus45.gsystem.data.Preremplissage
 
 /** Boîte de réception d'un PDF partagé (SEND) ou ouvert (VIEW). AppNav l'observe. */
 object ShareInbox {
@@ -580,6 +587,7 @@ fun AppNav() {
         composable("pv_cameras") {
             PvCameraScreen(
                 settings = settings,
+                mission = Preremplissage.surPlace(missions),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -622,13 +630,15 @@ fun AppNav() {
         composable("bulletin") {
             BulletinScreen(
                 settings = settings,
+                mission = Preremplissage.surPlace(missions),
                 onBack = { navController.popBackStack() }
             )
         }
         composable("diagnostic") {
             DiagnosticScreen(
                 onBack = { navController.popBackStack() },
-                nomTech = settings.nomUtilisateur
+                nomTech = settings.nomUtilisateur,
+                mission = Preremplissage.surPlace(missions)
             )
         }
         composable("conge") {
@@ -646,34 +656,23 @@ fun AppNav() {
 
     // Popup 2e appui sur ARRIVÉE : annuler l'arrivée en attente ou repointer.
     if (showArrivalDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showArrivalDialog = false },
-            title = { androidx.compose.material3.Text("Arrivée en attente") },
-            text = {
-                androidx.compose.material3.Text(
-                    "Une arrivée est déjà pointée à ${DateUtil.hm(settings.pendingArrivalMs)} " +
-                    "(pas encore rattachée à une clôture)."
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+        FeuilleChoix(
+            titre = "Arrivée en attente",
+            texte = "Une arrivée est déjà pointée à ${DateUtil.hm(settings.pendingArrivalMs)} " +
+                "(pas encore rattachée à une clôture).",
+            onFermer = { showArrivalDialog = false },
+            actions = listOf(
+                ActionFeuille("📍 REPOINTER L'ARRIVÉE", ArriveeStart, ArriveeEnd) {
+                    showArrivalDialog = false; recordArrival()
+                },
+                ActionFeuille("✕ ANNULER L'ARRIVÉE", DangerStart, DangerEnd) {
                     scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
                     showArrivalDialog = false
                     android.widget.Toast.makeText(
                         context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
                     ).show()
-                }) {
-                    androidx.compose.material3.Text(
-                        "Annuler l'arrivée",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error
-                    )
                 }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    showArrivalDialog = false; recordArrival()
-                }) { androidx.compose.material3.Text("Repointer") }
-            }
+            )
         )
     }
 

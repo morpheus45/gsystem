@@ -89,6 +89,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.morpheus45.gsystem.data.Mission
+import com.morpheus45.gsystem.data.Preremplissage
 
 /** Capture des traits de signature + export en bitmap pour le PDF. */
 class SignatureController {
@@ -195,6 +197,7 @@ internal fun SignaturePad(controller: SignatureController, modifier: Modifier = 
 @Composable
 fun PvCameraScreen(
     settings: AppSettings,
+    mission: Mission? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -204,7 +207,8 @@ fun PvCameraScreen(
     // Brouillon : la saisie est restaurée à l'ouverture (même après avoir quitté
     // l'écran ou fermé l'app) et EFFACÉE à l'envoi. Signatures non conservées.
     val drafts = remember { DraftStore(context) }
-    val initial = remember { drafts.loadPv() }
+    // Client sur place : coordonnées reprises de l'ordre de mission.
+    val initial = remember { Preremplissage.pv(drafts.loadPv(), mission) }
 
     var convention by remember { mutableStateOf(initial?.convention ?: "") }
     var site by remember { mutableStateOf(initial?.site ?: "") }
@@ -245,7 +249,8 @@ fun PvCameraScreen(
         observations = observations,
         miseServInt = miseServInt, miseServExt = miseServExt,
         miseServAnticipee = miseServAnticipee,
-        faitLe = faitLe, nomTech = nomTech, emailClient = emailClient
+        faitLe = faitLe, nomTech = nomTech, emailClient = emailClient,
+        missionNum = initial?.missionNum.orEmpty()
     )
     LaunchedEffect(currentDraft, sent) {
         if (sent) return@LaunchedEffect

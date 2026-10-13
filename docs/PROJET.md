@@ -40,7 +40,7 @@ mindmap
     Tutos (GitHub Pages)
       docs/index.html (technicien)
       docs/comptable.html (comptable)
-      docs/backoffice.html (iframe du /exec)
+      docs/backoffice.html (redirige vers le /exec : le tableau de bord refuse les cadres)
     Drive
       Sauvegardes G-Systems / <tech> / <mois> / fichiers
       _stats.json (dashboard) + sauvegarde-complete.zip

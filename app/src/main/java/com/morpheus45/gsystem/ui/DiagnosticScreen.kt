@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.morpheus45.gsystem.ui.theme.DiagStart
 import org.json.JSONObject
+import com.morpheus45.gsystem.data.Mission
 
 /**
  * DIAGNOSTIC SÉCURITÉ — fiche EPS de 386 champs sur 2 pages A4 (versions
@@ -70,13 +71,13 @@ import org.json.JSONObject
  *
  * Le formulaire est entièrement local : aucun accès réseau, il fonctionne donc
  * en sous-sol comme le reste de l'application. Ses fiches sont conservées dans
- * le localStorage de la WebView (clés « eps_form_* »), indépendamment des
- * données G-Systems.
+ * le localStorage de la WebView (clés « diagnostic_securite_*_v1 », signatures
+ * « sig::* »), indépendamment des données G-Systems.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
+fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "", mission: Mission? = null) {
     val context = LocalContext.current
     val vue = remember { mutableStateOf<WebView?>(null) }
 
@@ -130,12 +131,20 @@ fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
                             // chaque chargement — la fiche le pose sous « Nom et
                             // signature » si la case est encore vide.
                             override fun onPageFinished(view: WebView?, url: String?) {
-                                if (nomTech.isBlank()) return
-                                view?.evaluateJavascript(
+                                val js = StringBuilder()
+                                if (nomTech.isNotBlank()) js.append(
                                     "window.__gsysTech=" + JSONObject.quote(nomTech) +
-                                        ";if(window.remplirNomTech)remplirNomTech();",
-                                    null
+                                        ";if(window.remplirNomTech)remplirNomTech();"
                                 )
+                                // Client sur place : la fiche reprend ses coordonnées
+                                // (ordre de mission) — voir remplirClient() dans la fiche.
+                                mission?.let { m ->
+                                    val client = JSONObject().put("mission", m.num).put("lieu", m.site)
+                                        .put("nom", m.nom).put("adresse", m.adresse)
+                                        .put("cp", m.cp).put("ville", m.ville)
+                                    js.append("window.__gsysClient=$client;if(window.remplirClient)remplirClient();")
+                                }
+                                if (js.isNotEmpty()) view?.evaluateJavascript(js.toString(), null)
                             }
 
                             // Tout reste dans les assets : aucun lien ne doit
@@ -197,6 +206,15 @@ class PontEnvoi(
     private val vue: () -> WebView?,
     private val principal: Handler
 ) {
+    /** La fiche [fiche] (« pro » ou « particulier ») a été vidée : son PDF n'a plus à rester dans le cache. */
+    @JavascriptInterface
+    fun oublierPdf(fiche: String) {
+        pdfDiagnostic(context, fiche).delete()
+        // Emplacement des versions 1.9.81 à 1.9.95 : plus rien ne l'écrit, il ne
+        // doit pas rester sur le téléphone.
+        File(File(context.cacheDir, "exports"), "Diagnostic_securite.pdf").delete()
+    }
+
     /**
      * Impression demandée depuis la fiche. `window.print()` n'existe pas dans
      * une WebView Android : sans ce relais, le bouton de la fiche restait
@@ -207,8 +225,9 @@ class PontEnvoi(
         principal.post { ouvrirImpression(context, vue()) }
     }
 
+    /** [fiche] : identité de la fiche relevée au clic (clé, mission, client), en JSON. */
     @JavascriptInterface
-    fun envoyer(mail: String, sujet: String, corps: String) {
+    fun envoyer(mail: String, sujet: String, corps: String, fiche: String) {
         // Les méthodes d'un pont JS arrivent sur un thread de travail ; tout ce
         // qui touche à une vue doit repasser par le thread principal.
         principal.post {
@@ -217,7 +236,8 @@ class PontEnvoi(
             // même son brouillon prérempli et joint la fiche à la main.
             // Ne rien faire du tout — ce que faisait la version précédente
             // dès qu'un maillon ne répondait pas — est le pire des résultats.
-            val ouvrirMail = { fichier: File? ->
+            // Typé : la lambda finit sur un Result, que fabriquerPdf n'accepterait pas.
+            val ouvrirMail: (File?) -> Unit = { fichier ->
                 if (fichier == null) {
                     Toast.makeText(
                         context,
@@ -226,15 +246,29 @@ class PontEnvoi(
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                EmailSender.send(
-                    context = context,
-                    to = mail,
-                    subject = sujet,
-                    body = corps,
-                    attachment = fichier,
-                    mimeType = "application/pdf",
-                    chooserTitle = "Envoyer le diagnostic au client"
-                )
+                runCatching {
+                    EmailSender.send(
+                        context = context,
+                        to = mail,
+                        subject = sujet,
+                        body = corps,
+                        attachment = fichier,
+                        mimeType = "application/pdf",
+                        chooserTitle = "Envoyer le diagnostic au client"
+                    )
+                }.onSuccess {
+                    // RGPD : la fiche ne proposera de se vider qu'à présent, le PDF
+                    // écrit et le choix de l'app mail affiché — jamais avant. Elle
+                    // demandera si le mail est parti : l'envoi reste à confirmer.
+                    // On rend l'identité relevée AU CLIC, pas celle de la page
+                    // affichée maintenant ; re-sérialisée, elle ne peut être que
+                    // du JSON.
+                    val id = runCatching { JSONObject(fiche).toString() }.getOrNull()
+                    if (id != null) vue()?.evaluateJavascript("window.marquerEnvoye && marquerEnvoye($id)", null)
+                }.onFailure {
+                    Toast.makeText(context, "Impossible d'ouvrir l'application mail.",
+                        Toast.LENGTH_LONG).show()
+                }
             }
             val w = vue()
             if (w == null) ouvrirMail(null) else fabriquerPdf(context, w, ouvrirMail)
@@ -253,7 +287,17 @@ private fun activite(depart: Context): Activity? {
 }
 
 /**
- * Fabrique le PDF de la fiche dans cacheDir/exports/, puis rend la main.
+ * Le PDF du diagnostic, réécrit à chaque envoi. Le client voit toujours le nom
+ * « Diagnostic_securite.pdf » ; un dossier par fiche (pro, particulier) évite que
+ * vider l'une efface le PDF que l'autre vient d'envoyer.
+ */
+private fun pdfDiagnostic(context: Context, fiche: String): File {
+    val type = if (fiche == "particulier") "particulier" else "pro"
+    return File(File(context.cacheDir, "exports/diagnostic-$type").apply { mkdirs() }, "Diagnostic_securite.pdf")
+}
+
+/**
+ * Fabrique le PDF de la fiche dans cacheDir/exports/diagnostic-<fiche>/, puis rend la main.
  *
  * On passe par une SECONDE WebView : celle que le technicien a sous les yeux
  * fait la taille de son téléphone, la dessiner ne donnerait que la portion
@@ -271,6 +315,7 @@ private fun activite(depart: Context): Activity? {
 private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> Unit) {
     val url = source.url
     if (url.isNullOrBlank()) { onFini(null); return }
+    val fiche = if (url.contains("particulier")) "particulier" else "pro"
 
     val principal = Handler(Looper.getMainLooper())
     val hors = WebView(context)
@@ -309,7 +354,7 @@ private fun fabriquerPdf(context: Context, source: WebView, onFini: (File?) -> U
                 poser(v, pages)
                 // La réduction posée par calibrerImpression doit être peinte
                 // avant qu'on dessine : un tour de boucle ne suffit pas.
-                v.postDelayed({ terminer(dessiner(context, v, pages)) }, 400)
+                v.postDelayed({ terminer(dessiner(context, v, pages, fiche)) }, 400)
             }
         }
     }
@@ -357,7 +402,7 @@ private fun bitmapAEncre(bmp: Bitmap): Boolean = try {
     true   // en cas de doute, on laisse passer plutôt que de bloquer le PDF
 }
 
-private fun dessiner(context: Context, v: WebView, pages: Int): File? {
+private fun dessiner(context: Context, v: WebView, pages: Int, fiche: String): File? {
     return try {
         val hauteur = HAUTEUR_PX * pages
         if (v.width <= 0 || hauteur <= 0) return null
@@ -383,8 +428,7 @@ private fun dessiner(context: Context, v: WebView, pages: Int): File? {
             doc.finishPage(page)
         }
         plein.recycle()
-        val dossier = File(context.cacheDir, "exports").apply { mkdirs() }
-        val fichier = File(dossier, "Diagnostic_securite.pdf")
+        val fichier = pdfDiagnostic(context, fiche)
         FileOutputStream(fichier).use { doc.writeTo(it) }
         doc.close()
         // Ceinture et bretelles : un PDF de quelques centaines d'octets ne

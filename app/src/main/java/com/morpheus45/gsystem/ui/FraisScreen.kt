@@ -57,6 +57,10 @@ import com.morpheus45.gsystem.util.FraisTva
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDate
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.theme.FraisStart
+import com.morpheus45.gsystem.ui.theme.FraisEnd
 
 private val CATEGORIES = listOf("PARKING", "DIVERS", "MOBILE")
 private val FraisColor = Color(0xFF06B6D4) // cyan (couleur de la tuile FRAIS)
@@ -407,15 +411,25 @@ private fun EditFraisDialog(
     // PARKING : certaines plateformes (PayByPhone…) ne facturent pas de TVA.
     var avecTva by remember { mutableStateOf(!ticket.sansTva) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Détails du ticket") },
-        text = {
+    FeuilleChoix(
+        titre = "Détails du ticket",
+        onFermer = onDismiss,
+        actions = listOf(ActionFeuille("ENREGISTRER", FraisStart, FraisEnd) {
+            val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
+            onSave(ticket.copy(
+                categorie = categorie,
+                montantEur = m,
+                observations = obs.trim(),
+                // Le flag « sans TVA » n'a de sens que pour PARKING.
+                sansTva = categorie == "PARKING" && !avecTva
+            ))
+        }),
+        contenu = {
             Column {
                 Text("Catégorie", fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 Spacer(Modifier.height(4.dp))
-                // Boutons chips au lieu de dropdown (plus fiable dans AlertDialog)
+                // Boutons chips au lieu de dropdown (plus fiable dans une boîte de dialogue)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CATEGORIES.forEach { c ->
                         FilterChip(
@@ -478,25 +492,7 @@ private fun EditFraisDialog(
                         modifier = Modifier.padding(top = 4.dp))
                 }
             }
-        },
-        confirmButton = {
-            val canSave = true
-            Button(
-                onClick = {
-                    val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
-                    onSave(ticket.copy(
-                        categorie = categorie,
-                        montantEur = m,
-                        observations = obs.trim(),
-                        // Le flag « sans TVA » n'a de sens que pour PARKING.
-                        sansTva = categorie == "PARKING" && !avecTva
-                    ))
-                },
-                enabled = canSave,
-                colors = ButtonDefaults.buttonColors(containerColor = FraisColor)
-            ) { Text("Enregistrer", color = Color.White) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+        }
     )
 }
 

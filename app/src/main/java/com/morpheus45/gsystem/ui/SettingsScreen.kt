@@ -46,6 +46,10 @@ import com.morpheus45.gsystem.data.GesteCoClientGifts
 import com.morpheus45.gsystem.data.GesteCoPrices
 import com.morpheus45.gsystem.auth.Session
 import androidx.compose.material.icons.automirrored.filled.Logout
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.components.DangerStart
+import com.morpheus45.gsystem.ui.components.DangerEnd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -358,19 +362,14 @@ fun SettingsScreen(
                 Text("  Se déconnecter")
             }
             if (confirmerDeconnexion) {
-                AlertDialog(
-                    onDismissRequest = { confirmerDeconnexion = false },
-                    title = { Text("Se déconnecter ?") },
-                    text = { Text("Vos données restent sur le téléphone. Pour revenir, il faudra votre e-mail, votre mot de passe et du réseau.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            confirmerDeconnexion = false
-                            scopeCompte.launch { Session.effacer() }
-                        }) { Text("Se déconnecter") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { confirmerDeconnexion = false }) { Text("Annuler") }
-                    }
+                FeuilleChoix(
+                    titre = "Se déconnecter ?",
+                    texte = "Vos données restent sur le téléphone. Pour revenir, il faudra votre e-mail, votre mot de passe et du réseau.",
+                    onFermer = { confirmerDeconnexion = false },
+                    actions = listOf(ActionFeuille("SE DÉCONNECTER", DangerStart, DangerEnd) {
+                        confirmerDeconnexion = false
+                        scopeCompte.launch { Session.effacer() }
+                    })
                 )
             }
 

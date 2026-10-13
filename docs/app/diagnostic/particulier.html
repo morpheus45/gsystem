@@ -1,35 +1,1464 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>G-Systems — maintenance</title>
-<meta name="robots" content="noindex, nofollow, noarchive" />
-<meta name="theme-color" content="#07080D" />
-<link rel="icon" href="../icone-180.png" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostic Sécurité - Particulier - A4</title>
 <style>
-  html, body { margin: 0; min-height: 100%; background: #07080D; color: #F4F4F0;
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  main { min-height: 100vh; min-height: 100dvh; box-sizing: border-box; max-width: 480px; margin: 0 auto;
-    display: flex; flex-direction: column; justify-content: center;
-    padding: 32px 28px calc(32px + env(safe-area-inset-bottom)); }
-  .marque { font-size: 40px; font-weight: 700; letter-spacing: -1px; margin: 0 0 28px; }
-  .marque b { color: #E5231F; }
-  h1 { font-size: 24px; margin: 0 0 12px; }
-  p { font-size: 16px; line-height: 1.5; color: #C9CBD6; margin: 0 0 14px; }
-  .rassure { background: #12141B; border: 1px solid #2F3340; border-radius: 12px; padding: 14px 16px; color: #F4F4F0; }
+  :root {
+    --bandeau: #14365c;
+    --bandeau-light: #2d5a8c;
+    --trait: #000;
+    --champ: #1a1a1a;
+    --bg-page: #e8ecf2;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--bg-page); color: #000;
+  }
+  .toolbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bandeau); color: #fff;
+    padding: 10px 20px;
+    display: flex; gap: 10px; align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .toolbar h2 { margin: 0; font-size: 16px; flex: 1; }
+  .toolbar button, .toolbar a.btn {
+    background: #fff; color: var(--bandeau); border: none;
+    padding: 8px 16px; font-weight: 600; cursor: pointer;
+    border-radius: 4px; font-size: 13px;
+    text-decoration: none; display: inline-block;
+  }
+  .toolbar button:hover, .toolbar a.btn:hover { background: #ffe7d4; }
+  .toolbar button.danger { background: #ffd5d5; color: #8a1a1a; }
+  /* L e-mail du client sert a transmettre la fiche, il ne fait pas partie du
+     formulaire EPS : sa place est dans la barre d outils, qui ne s imprime
+     pas. Il est tout de meme enregistre avec la fiche (data-key). */
+  .toolbar input.mail-client {
+    border: none; border-radius: 6px; padding: 7px 10px;
+    font-size: 13px; min-width: 190px;
+  }
+  .toolbar a.btn-switch { background: #faf3e0; color: #7a4a00; }
+
+  .page {
+    width: 210mm; min-height: 297mm;
+    padding: 7mm 7mm;
+    margin: 12px auto; background: #fff;
+    box-shadow: 0 0 8px rgba(0,0,0,0.15);
+    font-size: 9.5pt; line-height: 1.3;
+    position: relative;
+  }
+  .header-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border: 1.5px solid #000; padding: 4px 8px; margin-bottom: 6px;
+  }
+  .header-top h1 {
+    font-size: 16pt; font-weight: 800; margin: 0; letter-spacing: 0.5px;
+  }
+  .lieu-protege { display: flex; align-items: center; gap: 6px; font-size: 9pt; }
+  .case-chiffre {
+    width: 18px; height: 22px; border: 1px solid #000;
+    text-align: center; font-size: 13pt; padding: 0;
+    background: transparent; font-family: 'Caveat', 'Courier New', monospace;
+    color: #0a2858;
+  }
+  .cases-row { display: inline-flex; gap: 1px; }
+
+  .bandeau {
+    background: var(--bandeau); color: #fff; font-weight: 700;
+    padding: 4px 8px; margin: 8px 0 0;
+    font-size: 10pt;
+    border-top: 3px double #000;
+    border-bottom: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .bandeau + .bloc, .bandeau + table, .bandeau + .telecommande { margin-top: 0; }
+
+  .ligne {
+    display: flex; align-items: baseline; gap: 4px;
+    margin: 4px 0; flex-wrap: wrap; min-height: 22px;
+  }
+  .ligne label { white-space: nowrap; }
+  .champ {
+    border: none; border-bottom: 1px dotted #555;
+    background: transparent;
+    font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 14pt; color: #0a2858;
+    padding: 0 3px; flex: 1; min-width: 60px;
+    outline: none; line-height: 1.4;
+  }
+  .champ:focus { border-bottom-color: var(--bandeau); background: #fff8ee; }
+  .champ-court { flex: 0 1 auto; min-width: 80px; max-width: 220px; }
+  .champ-mini { flex: 0 0 auto; width: 60px; }
+
+  .case {
+    display: inline-flex; align-items: center; gap: 3px;
+    margin-right: 8px; cursor: pointer;
+  }
+  .case input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 11px; height: 11px;
+    border: 1.2px solid #000; background: #fff;
+    cursor: pointer; position: relative; margin: 0; flex-shrink: 0;
+  }
+  .case input[type="checkbox"]:checked::after {
+    content: "✗"; position: absolute; top: -5px; left: 0px;
+    font-size: 14pt; font-weight: bold; color: #0a2858; line-height: 1;
+  }
+
+  .bloc { border: 1px solid #000; padding: 4px 8px; margin-bottom: 4px; }
+
+  /* Tableau intrusion */
+  table.tab {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; table-layout: fixed;
+  }
+  table.tab th, table.tab td {
+    border: 1px solid #000; padding: 2px 2px;
+    text-align: center; vertical-align: middle; overflow: visible;
+  }
+  table.tab th {
+    background: #f0f0f0; font-weight: 600;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  table.tab th.bandeau-th {
+    background: var(--bandeau); color: #fff;
+    border-top: 3px double #000; border-bottom: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  table.tab .vert {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    white-space: normal; height: 110px;
+    font-size: 8pt; line-height: 1.15; padding: 6px 1px;
+    width: 5.7%;
+  }
+  table.tab td.piece {
+    text-align: left; padding-left: 4px; height: 28px;
+  }
+  table.tab td.cellule { height: 28px; min-width: 22px; }
+  table.tab input.cell {
+    width: 100%; height: 100%; border: none; background: transparent;
+    text-align: center; font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 13pt; color: #0a2858; padding: 0; outline: none;
+  }
+  table.tab input.cell:focus { background: #fff8ee; }
+  table.tab td.piece input {
+    width: 100%; border: none; background: transparent;
+    font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 13pt; color: #0a2858; outline: none; padding: 0 2px;
+  }
+  table.tab td.piece input:focus { background: #fff8ee; }
+
+  /* Tableau Détecteurs Fumée + CO */
+  table.dfco {
+    width: 100%; border-collapse: collapse;
+    font-size: 8pt; table-layout: fixed;
+  }
+  table.dfco th, table.dfco td {
+    border: 1px solid #000; padding: 3px;
+    text-align: center; vertical-align: middle;
+  }
+  table.dfco th {
+    background: #f0f0f0; font-weight: 600;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  table.dfco th.bandeau-th {
+    background: var(--bandeau); color: #fff;
+    border-top: 3px double #000; border-bottom: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  table.dfco .vert {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    white-space: normal; height: 90px;
+    font-size: 7.5pt; line-height: 1.15; padding: 5px 1px;
+  }
+  table.dfco td.piece {
+    text-align: left; padding-left: 4px; height: 32px;
+  }
+  table.dfco td.cellule { height: 32px; }
+  table.dfco input.cell {
+    width: 100%; height: 100%; border: none; background: transparent;
+    text-align: center; font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 13pt; color: #0a2858; padding: 0; outline: none;
+  }
+  table.dfco input.cell:focus { background: #fff8ee; }
+  table.dfco td.piece input {
+    width: 100%; border: none; background: transparent;
+    font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 13pt; color: #0a2858; outline: none; padding: 0 2px;
+  }
+  table.dfco td.piece input:focus { background: #fff8ee; }
+
+  .telecommande {
+    display: flex; align-items: center;
+    border: 1px solid #000; margin-top: -1px; font-size: 8.5pt;
+  }
+  .telecommande .lab {
+    background: var(--bandeau); color: #fff;
+    padding: 4px 8px; font-weight: 700;
+    border-right: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .telecommande .seg {
+    padding: 4px 8px; border-right: 1px solid #000;
+    flex: 1; display: flex; gap: 6px; align-items: center;
+  }
+  .telecommande .seg:last-child { border-right: none; }
+
+  .legende { font-size: 7pt; font-style: italic; margin-top: 3px; }
+
+  .footer-page {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-top: 8px; font-size: 8.5pt;
+  }
+  .paraphe-box {
+    border: 1px dotted #888; width: 110px; height: 35px; margin-top: 2px;
+  }
+
+  /* Extensions */
+  table.ext {
+    width: 100%; border-collapse: collapse; font-size: 9pt;
+  }
+  table.ext th, table.ext td {
+    border: 1px solid #000; padding: 4px;
+    text-align: center; vertical-align: middle; height: 26px;
+  }
+  table.ext th { background: #f0f0f0; font-weight: 600; }
+  table.ext th.bandeau-th { background: var(--bandeau); color: #fff;
+    border-top: 3px double #000; border-bottom: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  table.ext td.lab { text-align: left; padding-left: 6px; }
+  table.ext input.cell {
+    width: 100%; border: none; background: transparent;
+    text-align: center; font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 14pt; color: #0a2858; padding: 0; outline: none;
+  }
+  table.ext input.cell:focus { background: #fff8ee; }
+  table.ext input.lab-input {
+    width: 100%; border: none; background: transparent;
+    font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 12pt; color: #0a2858; outline: none;
+  }
+
+  .service-video-row {
+    background: #fafafa;
+  }
+  .service-video-row td.lab {
+    background: var(--bandeau); color: #fff;
+    border-top: 3px double #000; border-bottom: 3px double #000;
+    border-right: 3px double #000;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    text-align: left; padding: 4px 6px; font-weight: 700;
+  }
+  .service-video-row td.lab small {
+    display: block; font-weight: 400; font-size: 6.8pt; font-style: italic;
+    color: #fff; margin-top: 1px;
+  }
+
+  .params .item { margin: 4px 0 4px 12px; }
+  .params .sub { margin-left: 20px; }
+
+  textarea.zone {
+    width: 100%; border: 1px dotted #888;
+    background: transparent;
+    font-family: 'Caveat', 'Comic Sans MS', cursive;
+    font-size: 14pt; line-height: 1.45; color: #0a2858;
+    padding: 6px 8px; outline: none; resize: vertical;
+    min-height: 50px;
+  }
+  textarea.zone:focus { background: #fff8ee; border-color: var(--bandeau); }
+
+  .sig-row {
+    display: flex; justify-content: space-between; gap: 20px;
+    margin-top: 8px; font-size: 9pt;
+  }
+  .sig-box {
+    flex: 1; border: 1px dotted #888;
+    min-height: 60px; padding: 4px 6px;
+  }
+
+
+  /* Mise en page d impression, mais appliquee a l ecran. C est ainsi que
+     l application Android dessine la fiche pour en faire un PDF : elle charge
+     cette page hors ecran, pose la classe, et dessine. Sans cela elle
+     capturerait la mise en page d ecran, qui ne tient pas sur une A4. */
+  .rendu-pdf { background: #fff; }
+  .rendu-pdf .toolbar { display: none !important; }
+  .rendu-pdf .sig button { display: none !important; }
+      /* Les listes deroulantes sont des commandes d ecran. Sur le document
+         remis au client, seule la valeur choisie doit rester : ni cadre, ni
+         fleche. Sans ces regles elles s impriment avec leur habillage natif. */
+  .rendu-pdf select.cell, .rendu-pdf select.cell-choix {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        border: none !important;
+        background: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        text-align: center !important;
+        text-align-last: center !important;
+        font-family: 'Caveat', 'Comic Sans MS', cursive !important;
+        font-size: 13pt !important;
+        color: #0a2858 !important;
+      }
+  .rendu-pdf .page {
+    margin: 0; box-shadow: none;
+    width: 210mm; height: 297mm; min-height: 0; overflow: hidden;
+    transform: none !important;
+  }
+  .rendu-pdf .page-inner {
+    transform: scale(var(--k, 1));
+    transform-origin: top left;
+    width: calc(100% / var(--k, 1));
+  }
+
+  /* Case sans objet : croix pleine sur toute la case. Une transmission GSM ou
+     une sirene exterieure ne se rattachent ni a une piece ni a un niveau ;
+     barrer vaut mieux que laisser vide, qui se lit comme un oubli. */
+  td.sans-objet {
+    background-image:
+      linear-gradient(to top right, transparent calc(50% - 0.6px), #000 calc(50% - 0.6px),
+                      #000 calc(50% + 0.6px), transparent calc(50% + 0.6px)),
+      linear-gradient(to bottom right, transparent calc(50% - 0.6px), #000 calc(50% - 0.6px),
+                      #000 calc(50% + 0.6px), transparent calc(50% + 0.6px));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none !important; }
+    .page {
+      margin: 0;
+      box-shadow: none;
+      page-break-after: always;
+      page-break-inside: avoid;
+      width: 210mm;
+      height: 297mm;
+      min-height: 0;
+      overflow: hidden;
+      /* La mise a l echelle pour petit ecran pose un transform en style inline,
+         qui suivrait jusque sur le papier. Le papier, lui, est toujours A4. */
+      transform: none !important;
+      margin-bottom: 0 !important;
+    }
+    .page:last-child { page-break-after: auto; }
+    /* La fiche est plus haute qu une A4 (~386 mm) : sans reduction, chaque page
+       deborde sur une seconde feuille et le document sort en 4 pages au lieu de
+       2. Le facteur est mesure page par page (voir calibrerImpression). */
+    .page-inner {
+      transform: scale(var(--k, 1));
+      transform-origin: top left;
+      width: calc(100% / var(--k, 1));
+    }
+    /* Les boutons d effacement des signatures sont des commandes d ecran :
+       ils n ont rien a faire sur le document remis au client. */
+    .sig button { display: none !important; }
+    /* Les listes deroulantes sont des commandes d ecran. Sur le document
+       remis au client, seule la valeur choisie doit rester : ni cadre, ni
+       fleche. Sans ces regles elles s impriment avec leur habillage natif. */
+    select.cell, select.cell-choix {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      border: none !important;
+      background: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      width: 100% !important;
+      text-align: center !important;
+      text-align-last: center !important;
+      font-family: 'Caveat', 'Comic Sans MS', cursive !important;
+      font-size: 13pt !important;
+      color: #0a2858 !important;
+    }
+
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  }
+  @page { size: A4; margin: 0; }
+  /* Police manuscrite embarquee dans l'APK (SIL Open Font License, voir
+     fonts/OFL.txt). Aucune connexion a Google a l'ouverture de la fiche. */
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Caveat'; font-style: normal; font-weight: 400 700;
+    font-display: swap; src: url('fonts/caveat-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 </style>
+<script src="signature.js" defer></script>
 </head>
 <body>
-<!-- MAINTENANCE : page d'entrée remplacée ; le code de l'app, le service worker
-     et les données du téléphone (localStorage, IndexedDB) ne sont pas touchés.
-     Pour rétablir : annuler ce commit (git revert). -->
-<main role="status">
-  <div class="marque" aria-label="G-Systems"><b>g</b>systems</div>
-  <h1>Application en maintenance</h1>
-  <p>G-Systems est momentanément indisponible, le temps d'une mise à jour.</p>
-  <p class="rassure">Vos données restent sur ce téléphone : rien n'est perdu. L'application reviendra ici même, sans rien réinstaller.</p>
-  <p>Besoin urgent ? Contactez votre responsable.</p>
-</main>
+<!-- Mission de tournée dont la fiche a été pré-remplie (voir remplirClient). -->
+<input type="hidden" data-key="mission_num">
+
+<div class="toolbar no-print">
+  <h2>Fiche Diagnostic Sécurité — <b>Particulier</b> (A4 / 2 pages)</h2>
+  <a class="btn btn-switch" href="index.html">↔ Pro</a>
+  <button onclick="imprimerFiche()">🖨️ Imprimer / PDF</button>
+  <input class="mail-client" id="mail_client" type="email" inputmode="email"
+         autocomplete="email" placeholder="e-mail du client" data-key="mail_client">
+  <button onclick="envoyerAuClient()">📧 Envoyer au client</button>
+  <button onclick="document.getElementById('imp').click()">📂 Charger</button>
+  <input type="file" id="imp" accept=".json" style="display:none" onchange="importJSON(event)">
+  <button class="danger" onclick="resetForm()">🗑️ Réinitialiser</button>
+</div>
+
+<!-- =============== PAGE 1 =============== -->
+<section class="page" id="page1">
+
+  <div class="header-top">
+    <h1>DIAGNOSTIC SÉCURITÉ</h1>
+    <div class="lieu-protege">
+      <span>Lieu protégé N°</span>
+      <input class="lieu-num" id="lieu-num" inputmode="numeric" data-key="lieu_num" data-saisie="num" maxlength="12" />
+    </div>
+  </div>
+
+  <div class="bloc">
+    <div class="ligne">
+      <label>Nom et prénom de l'abonné</label>
+      <input class="champ" data-key="nom_prenom">
+    </div>
+    <div class="ligne">
+      <label>Adresse</label>
+      <input class="champ" data-key="adresse">
+    </div>
+    <div class="ligne">
+      <label>Code postal</label>
+      <input class="champ champ-mini" data-key="cp">
+      <label>Ville</label>
+      <input class="champ" data-key="ville">
+    </div>
+  </div>
+
+  <div class="bandeau">Caractéristiques du lieu protégé</div>
+  <div class="bloc">
+    <div class="ligne">
+      <label><b>Caractéristiques :</b></label>
+      <label>Surface habitable en m²</label>
+      <input class="champ champ-mini" data-key="surface">
+      <label>Nombre de pièces principales</label>
+      <input class="champ champ-mini" data-key="nb_pieces">
+      <label>Nombre de niveaux du logement</label>
+      <input class="champ champ-mini" data-key="nb_niveaux">
+    </div>
+    <div class="ligne">
+      <label>Nombre de personnes au foyer</label>
+      <input class="champ champ-mini" data-key="nb_personnes">
+    </div>
+    <div class="ligne">
+      <label><b>Chauffage :</b></label>
+      <label class="case"><input type="checkbox" data-key="chauf_clim"> Climatisation</label>
+      <label class="case"><input type="checkbox" data-key="chauf_rad"> Radiateurs</label>
+      <label class="case"><input type="checkbox" data-key="chauf_chem"> Cheminée</label>
+      <label class="case"><input type="checkbox" data-key="chauf_autre"> Autre</label>
+      <input class="champ" data-key="chauf_autre_txt">
+    </div>
+    <div class="ligne">
+      <label><b>Téléphonie :</b></label>
+      <label class="case"><input type="checkbox" data-key="tel_adsl"> ADSL/Câble/Fibre</label>
+      <label class="case"><input type="checkbox" data-key="tel_rtc"> RTC (Classique)</label>
+      <label class="case"><input type="checkbox" data-key="tel_autre"> Autre</label>
+      <input class="champ" data-key="tel_autre_txt">
+    </div>
+    <div class="ligne">
+      <label>Opérateur</label>
+      <input class="champ champ-court" data-key="operateur">
+      <label>Emplacement de la box</label>
+      <input class="champ" data-key="emplacement_box">
+    </div>
+    <div class="ligne">
+      <label><b>Autre système d'alarme :</b></label>
+      <label class="case"><input type="checkbox" data-key="alarme_enplace"> En place</label>
+      <label class="case"><input type="checkbox" data-key="alarme_service"> En service</label>
+      <label class="case"><input type="checkbox" data-key="alarme_centre"> Connecté à un centre de surveillance</label>
+    </div>
+    <div class="ligne">
+      <label>Présence d'animaux lorsque le système est en marche : Nombre</label>
+      <input class="champ champ-mini" data-key="animaux_nb">
+      <label>Type d'animaux</label>
+      <input class="champ" data-key="animaux_type">
+    </div>
+
+    <div class="ligne" style="margin-top:6px">
+      <label class="case"><input type="checkbox" data-key="maison_indiv"></label>
+      <b>Maison individuelle :</b>
+    </div>
+    <div class="ligne sub" style="margin-left:18px">
+      <label>Situation :</label>
+      <label class="case"><input type="checkbox" data-key="m_isolee"> Isolée</label>
+      <label class="case"><input type="checkbox" data-key="m_lotissement"> En lotissement</label>
+      <label class="case"><input type="checkbox" data-key="m_jardin"> Jardin</label>
+      <label class="case"><input type="checkbox" data-key="m_dep"> Dépendances</label>
+    </div>
+    <div class="ligne sub" style="margin-left:18px">
+      <label>Accès :</label>
+      <label class="case"><input type="checkbox" data-key="m_facades"> Possible à toutes les façades de la maison</label>
+    </div>
+
+    <div class="ligne" style="margin-top:4px">
+      <label class="case"><input type="checkbox" data-key="appart"></label>
+      <b>Appartement en immeuble collectif :</b>
+    </div>
+    <div class="ligne sub" style="margin-left:18px">
+      <label>Situation :</label>
+      <label>N° d'étage</label>
+      <input class="champ champ-mini" data-key="ap_etage">
+      <label>Nombre d'étages du bâtiment</label>
+      <input class="champ champ-mini" data-key="ap_nb_etages">
+    </div>
+    <div class="ligne sub" style="margin-left:18px">
+      <label>Accès :</label>
+      <label class="case"><input type="checkbox" data-key="ap_gardien"> Gardien</label>
+      <label class="case"><input type="checkbox" data-key="ap_libre"> Libre</label>
+      <label class="case"><input type="checkbox" data-key="ap_interphone"> Interphone</label>
+      <label class="case"><input type="checkbox" data-key="ap_digicode"> Digicode</label>
+      <label class="case"><input type="checkbox" data-key="ap_porte"> Porte de service</label>
+      <label class="case"><input type="checkbox" data-key="ap_rdj"> Rez-de-jardin</label>
+      <label class="case"><input type="checkbox" data-key="ap_terrasse"> Terrasse/balcon</label>
+      <label class="case"><input type="checkbox" data-key="ap_badge"> Badge</label>
+    </div>
+  </div>
+
+  <div class="bandeau">Recommandations de pose du système d'alarme - intrusion</div>
+
+  <table class="tab" id="tab-intrusion">
+    <thead>
+      <tr>
+        <th rowspan="3" style="width:24%">LISTE DE<br>L'ENSEMBLE DES PIÈCES<br>DE L'HABITATION</th>
+        <th colspan="6" class="bandeau-th">CONSTAT</th>
+        <th colspan="6" class="bandeau-th">RECOMMANDATIONS</th>
+        <th rowspan="3" class="vert" style="width:5.7%">Choix de l'abonné ou de son représentant ( O / N / L*)</th>
+      </tr>
+      <tr>
+        <th colspan="2" style="font-size:7pt">Chiffre / Nombre</th>
+        <th colspan="4" style="font-size:7pt">O / N*</th>
+        <th colspan="5" style="font-size:7pt">Nombre</th>
+        <th colspan="1" style="font-size:7pt">P / T</th>
+      </tr>
+      <tr>
+        <th class="vert">Niveaux</th>
+        <th class="vert">Ouvertures vers l'extérieur</th>
+        <th class="vert">Présence de valeurs</th>
+        <th class="vert">Passage obligé</th>
+        <th class="vert">Issue principale</th>
+        <th class="vert">Circulation d'animaux</th>
+        <th class="vert">Centrale</th>
+        <th class="vert">Sirène</th>
+        <th class="vert">Clavier</th>
+        <th class="vert">Détecteurs de mouvement</th>
+        <th class="vert">Détecteurs d'ouverture</th>
+        <th class="vert">Surveillance<br>Partiel / Temporisation</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-intrusion"></tbody>
+  </table>
+
+  <div class="telecommande">
+    <div class="lab">TÉLÉCOMMANDES (Nombre)</div>
+    <div class="seg"><b>Standard</b> <input class="champ champ-mini" data-key="tc_standard"></div>
+    <div class="seg"><b>Biométrique</b> <input class="champ champ-mini" data-key="tc_biometrique"></div>
+  </div>
+
+  <div class="legende">
+    *O = Oui / N = Non / L = Limité (si l'abonné ne retient pas la totalité des recommandations du technicien-conseil. Les préconisations non retenues seront listées ci-contre)
+  </div>
+
+  <div class="footer-page">
+    <div>
+      <div><b>Paraphe du technicien-conseil :</b></div>
+      <div class="sig" data-sig="part_paraphe_tech_p1" data-w="160" data-h="50"></div>
+    </div>
+    <div>EXEMPLAIRE EPS / FEUILLET N° <b>1 / 2</b></div>
+    <div>
+      <div><b>Paraphe de l'abonné :</b></div>
+      <div class="sig" data-sig="part_paraphe_abonne_p1" data-w="160" data-h="50"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============== PAGE 2 =============== -->
+<section class="page" id="page2">
+
+  <div style="display:flex; justify-content:flex-end; align-items:center; gap:6px; margin-bottom:4px; font-size:9pt">
+    <span>Lieu protégé N°</span>
+    <input class="lieu-num" id="lieu-num-2" inputmode="numeric" data-key="lieu_num" data-saisie="num" maxlength="12" />
+  </div>
+
+  <div class="bandeau">
+    Recommandations de pose<br>
+    de Détecteurs de Fumée et de Détecteurs de Monoxyde de Carbone Télésurveillés
+  </div>
+
+  <table class="dfco" id="tab-dfco">
+    <thead>
+      <tr>
+        <th rowspan="3" style="width:32%">LISTE DES PIÈCES D'HABITATION<br>FAISANT L'OBJET<br>D'UNE RECOMMANDATION</th>
+        <th rowspan="3" class="vert" style="width:6%">NIVEAU</th>
+        <th colspan="1" class="bandeau-th">DÉTECTEURS<br>DE FUMÉE</th>
+        <th colspan="3" class="bandeau-th">DÉTECTEURS DE MONOXYDE<br>DE CARBONE</th>
+        <th rowspan="3" class="vert" style="width:7%">Choix de l'abonné ou de son représentant ( O / N / L*)</th>
+      </tr>
+      <tr>
+        <th class="bandeau-th">POSE</th>
+        <th colspan="2" class="bandeau-th">CONSTAT</th>
+        <th class="bandeau-th">POSE</th>
+      </tr>
+      <tr>
+        <th class="vert" style="height:100px">Nombre</th>
+        <th class="vert" style="height:100px;font-size:6.8pt">Source de combustion<br>(Ex : cheminée,<br>chaudière, poêle à bois,<br>chauffage d'appoint,<br>chauffe-eau, cuisinière)</th>
+        <th class="vert" style="height:100px;font-size:6.8pt">Pose impossible.<br>Installation dans pièce<br>adjacente : préciser<br>la pièce</th>
+        <th class="vert" style="height:100px">Nombre</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-dfco"></tbody>
+  </table>
+
+  <div class="legende">
+    *O = Oui / N = Non / L = Limité (si l'abonné ne retient pas la totalité des recommandations du technicien-conseil. Les préconisations non retenues seront listées ci-dessous).
+  </div>
+
+  <div class="bandeau">Extensions</div>
+  <table class="ext" id="tab-ext">
+    <thead>
+      <tr>
+        <th rowspan="2" style="width:36%">LISTE DES EXTENSIONS</th>
+        <th class="bandeau-th" style="width:13%">RECOMMAN-<br>DATION</th>
+        <th class="bandeau-th" style="width:14%">PIÈCE</th>
+        <th class="bandeau-th" style="width:11%">NIVEAU</th>
+        <th class="bandeau-th" style="width:11%">POSE</th>
+        <th rowspan="2" class="vert" style="width:11%">Choix de l'abonné ou de son représentant ( O / N / L*)</th>
+      </tr>
+      <tr>
+        <th style="font-size:7pt">(O = Oui /<br>N = Non)</th>
+        <th></th>
+        <th style="font-size:7pt">Nombre</th>
+        <th style="font-size:7pt">Nombre</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-ext"></tbody>
+    <tfoot>
+      <tr class="service-video-row">
+        <td class="lab" colspan="1">
+          SERVICE LA VIDÉO
+          <small>Le service La Vidéo permet de connecter jusqu'à 2 caméras.<br>Sous réserve d'une connectivité et d'un débit internet suffisants.</small>
+        </td>
+        <td colspan="5" style="text-align:left; padding:6px 10px">
+          <span>Caméra(s) installée(s) :</span>
+          <label class="case"><input type="checkbox" data-key="cam_oui"> Oui</label>
+          <label class="case"><input type="checkbox" data-key="cam_non"> Non</label>
+          &nbsp;&nbsp;Nombre&nbsp;
+          <input class="champ champ-mini" data-key="cam_nb">
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="bandeau">Paramétrages</div>
+  <div class="bloc params">
+    <div><b>• Mode(s) de liaison utilisé(s) entre la centrale d'alarme et le centre de surveillance :</b></div>
+    <div class="item">
+      <label class="case"><input type="checkbox" data-key="liaison_internet"> Internet (ADSL / câble / fibre)</label>
+      → Si oui, usage :
+      <label class="case"><input type="checkbox" data-key="liaison_rj45"> d'un câble RJ45</label>
+      <label class="case"><input type="checkbox" data-key="liaison_cpl"> de prises CPL</label>
+    </div>
+    <div class="item">
+      <label class="case"><input type="checkbox" data-key="liaison_gsm"> GSM (ligne dédiée)</label>
+      &nbsp;&nbsp;
+      <label class="case"><input type="checkbox" data-key="liaison_rtc"> RTC (ligne téléphonique classique)</label>
+    </div>
+
+    <div style="margin-top:4px"><b>• Temporisations :</b></div>
+    <div class="item">
+      <label class="case"><input type="checkbox" data-key="tempo_0_45"> Pas de temporisation à l'entrée / 45 secondes à la sortie</label>
+    </div>
+    <div class="item">
+      <label class="case"><input type="checkbox" data-key="tempo_45_45"> 45 secondes à l'entrée / 45 secondes à la sortie</label>
+      &nbsp;<i>Recommandé</i>
+    </div>
+    <div class="item">
+      <label class="case"><input type="checkbox" data-key="tempo_autre"> Autre (à la demande de l'abonné) :</label>
+      <input class="champ champ-mini" data-key="tempo_e">
+      secondes à l'entrée /
+      <input class="champ champ-mini" data-key="tempo_s">
+      secondes à la sortie
+    </div>
+  </div>
+
+  <div style="margin-top:6px"><b>Recommandations non retenues par l'abonné :</b></div>
+  <textarea class="zone" rows="2" data-key="reco_non_retenues"></textarea>
+
+  <div style="margin-top:6px"><b>Remarques :</b></div>
+  <textarea class="zone" rows="3" data-key="remarques"></textarea>
+
+  <div style="margin-top:8px; font-size:9pt">
+    Je soussigné(e) (nom de l'abonné ou de son représentant)
+    <input class="champ" data-key="soussigne" style="max-width:260px"> certifie
+    l'exactitude des informations figurant ci-dessus et certifie avoir pris connaissance de la totalité des informations figurant dans ce document.
+  </div>
+
+  <div class="sig-row">
+    <div style="flex:2">
+      <div><b>Nom et signature du technicien-conseil :</b></div>
+      <input class="champ" data-key="tech_nom">
+      <div class="sig" data-sig="part_sig_tech_p2" data-w="260" data-h="80"></div>
+    </div>
+    <div style="flex:1">
+      <div><b>Date</b></div>
+      <input class="champ" data-key="date">
+    </div>
+    <div style="flex:2">
+      <div><b>Signature de l'abonné :</b></div>
+      <div class="sig" data-sig="part_sig_abonne_p2" data-w="260" data-h="80"></div>
+    </div>
+  </div>
+
+  <div class="footer-page" style="margin-top:6px">
+    <div></div>
+    <div>EXEMPLAIRE EPS / FEUILLET N° <b>2 / 2</b></div>
+    <div></div>
+  </div>
+</section>
+
+<script>
+function buildCases(containerId, prefix) {
+  const c = document.getElementById(containerId);
+  for (let i = 0; i < 10; i++) {
+    const inp = document.createElement('input');
+    inp.className = 'case-chiffre';
+    inp.maxLength = 1;
+    inp.dataset.key = prefix + '_' + i;
+    c.appendChild(inp);
+  }
+}
+/* buildCases('cases-num', 'lieu_n'); */  /* remplace par un champ unique */
+/* buildCases('cases-num-2', 'lieu_n'); */  /* remplace par un champ unique */
+
+/* Pièces habitation par défaut (vide, libres à remplir) */
+const PIECES_DEFAUT = [
+  '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''
+];
+const COLS_INTRUSION = 12;  /* 6 constat + 6 reco */
+
+
+/* ====================================================================== */
+/* Cellules du tableau                                                    */
+/*                                                                        */
+/* Les colonnes n acceptent qu un jeu de valeurs connu : un chiffre, O/N  */
+/* ou P/T. Un menu deroulant vaut mieux qu un champ libre — au doigt sur  */
+/* un telephone, viser une case et taper la bonne lettre est penible et   */
+/* source d erreurs. La valeur enregistree reste identique (el.value),    */
+/* donc les fiches deja sauvegardees se rechargent sans changement.       */
+/* ====================================================================== */
+var CHOIX = {
+  num: ['', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+  on: ['', 'O', 'N'],
+  pt: ['', 'P', 'T', 'P/T'],
+  onl: ['', 'O', 'N', 'L']
+};
+
+function cellule(type, cle) {
+  var liste = CHOIX[type];
+  if (!liste) {                       /* colonne libre : champ texte */
+    var inp = document.createElement('input');
+    inp.className = 'cell';
+    inp.dataset.key = cle;
+    if (type) inp.dataset.saisie = type;
+    return inp;
+  }
+  var sel = document.createElement('select');
+  sel.className = 'cell cell-choix';
+  sel.dataset.key = cle;
+  liste.forEach(function (v) {
+    var o = document.createElement('option');
+    o.value = v;
+    o.textContent = v === '' ? '\u2013' : v;   /* tiret = non renseigne */
+    sel.appendChild(o);
+  });
+  return sel;
+}
+
+/* Fiche Particulier, 12 colonnes : 0-1 chiffres, 2-5 O/N, 6-10 chiffres, 11 P/T.
+   « Ouvertures vers l exterieur » (colonne 1) se compte, tout comme les
+   niveaux : c est un nombre, pas un oui/non. */
+function typeColonne(c) {
+  if (c <= 1 || (c >= 6 && c <= 10)) return 'num';
+  return c === 11 ? 'pt' : 'on';
+}
+
+function buildIntrusionRows() {
+  const tbody = document.getElementById('tbody-intrusion');
+  PIECES_DEFAUT.forEach((nom, idx) => {
+    const tr = document.createElement('tr');
+    const tdNom = document.createElement('td');
+    tdNom.className = 'piece';
+    const inpNom = document.createElement('input');
+    inpNom.value = nom;
+    inpNom.dataset.key = 'piece_' + idx + '_nom';
+    tdNom.appendChild(inpNom);
+    tr.appendChild(tdNom);
+    for (let c = 0; c < COLS_INTRUSION; c++) {
+      const td = document.createElement('td');
+      td.className = 'cellule';
+      const inp = cellule(typeColonne(c), 'piece_' + idx + '_c' + c);
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    const tdChoix = document.createElement('td');
+    tdChoix.className = 'cellule';
+    const inpChoix = cellule('onl', 'piece_' + idx + '_choix');
+    tdChoix.appendChild(inpChoix);
+    tr.appendChild(tdChoix);
+    tbody.appendChild(tr);
+  });
+}
+buildIntrusionRows();
+
+/* Tableau Détecteurs de Fumée + CO */
+const DFCO_LIGNES = 6;  /* 6 lignes vides */
+/* 5 colonnes : niveau, pose-fumee, 2 constat-CO, pose-CO. Il n y en avait
+   que 4 : la ligne comptait une cellule de moins que l en-tete, si bien que
+   le « Choix de l abonne » se retrouvait sous « POSE / Nombre » du monoxyde
+   et que sa vraie colonne restait vide. */
+const COLS_DFCO = 5;
+
+/* Les deux colonnes de CONSTAT du monoxyde ne se choisissent pas dans une
+   liste : on y ecrit l appareil (« chaudiere ») et la piece de report
+   (« sejour »). Elles sont donc en saisie libre, comme la colonne PIECE des
+   extensions ; les trois autres restent des nombres. */
+function typeColonneDfco(c) {
+  return (c === 2 || c === 3) ? '' : 'num';
+}
+
+function buildDfcoRows() {
+  const tbody = document.getElementById('tbody-dfco');
+  for (let idx = 0; idx < DFCO_LIGNES; idx++) {
+    const tr = document.createElement('tr');
+    const tdNom = document.createElement('td');
+    tdNom.className = 'piece';
+    const inpNom = document.createElement('input');
+    inpNom.dataset.key = 'dfco_' + idx + '_nom';
+    tdNom.appendChild(inpNom);
+    tr.appendChild(tdNom);
+    for (let c = 0; c < COLS_DFCO; c++) {
+      const td = document.createElement('td');
+      td.className = 'cellule';
+      const inp = cellule(typeColonneDfco(c), 'dfco_' + idx + '_c' + c);
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    const tdChoix = document.createElement('td');
+    tdChoix.className = 'cellule';
+    const inpChoix = cellule('onl', 'dfco_' + idx + '_choix');
+    tdChoix.appendChild(inpChoix);
+    tr.appendChild(tdChoix);
+    tbody.appendChild(tr);
+  }
+}
+buildDfcoRows();
+
+/* Extensions par défaut */
+const EXTENSIONS_DEFAUT = [
+  'Transmission GSM',
+  'Bouton d\'alerte',
+  'Sirène extérieure',
+  'Autre, préciser', 'Autre, préciser', 'Autre, préciser'
+];
+
+/* Extensions qui ne se posent ni dans une piece ni a un niveau donne : les
+   colonnes PIECE et NIVEAU y sont barrees plutot que laissees vides. */
+const SANS_PIECE_NI_NIVEAU = ['Transmission GSM', 'Sirène extérieure'];
+
+function buildExtRows() {
+  const tbody = document.getElementById('tbody-ext');
+  EXTENSIONS_DEFAUT.forEach((nom, idx) => {
+    const tr = document.createElement('tr');
+    const tdNom = document.createElement('td');
+    tdNom.className = 'lab';
+    const inpNom = document.createElement('input');
+    inpNom.className = 'lab-input';
+    inpNom.value = nom;
+    inpNom.dataset.key = 'ext_' + idx + '_nom';
+    tdNom.appendChild(inpNom);
+    tr.appendChild(tdNom);
+    for (let c = 0; c < 4; c++) {
+      const td = document.createElement('td');
+      /* PIECE et NIVEAU sans objet pour ces extensions : la case est barree. */
+      if (SANS_PIECE_NI_NIVEAU.indexOf(nom) >= 0 && (c === 1 || c === 2)) {
+        td.className = 'sans-objet';
+        tr.appendChild(td);
+        continue;
+      }
+      const inp = cellule(c === 0 ? 'on' : (c === 1 ? '' : 'num'),
+                          'ext_' + idx + '_c' + c);
+      td.appendChild(inp);
+      tr.appendChild(td);
+    }
+    const tdChoix = document.createElement('td');
+    const inpChoix = cellule('onl', 'ext_' + idx + '_choix');
+    tdChoix.appendChild(inpChoix);
+    tr.appendChild(tdChoix);
+    tbody.appendChild(tr);
+  });
+}
+buildExtRows();
+
+/* localStorage : clé séparée du pro */
+const STORAGE_KEY = 'diagnostic_securite_particulier_v1';
+
+function getAllFields() { return document.querySelectorAll('[data-key]'); }
+function saveAll() {
+  const data = {};
+  getAllFields().forEach(el => {
+    const k = el.dataset.key;
+    if (el.type === 'checkbox') data[k] = el.checked;
+    else data[k] = el.value;
+  });
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+function loadAll() {
+  let data;
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch(e) { data = {}; }
+  getAllFields().forEach(el => {
+    const k = el.dataset.key;
+    if (k in data) {
+      if (el.type === 'checkbox') el.checked = !!data[k];
+      else el.value = data[k];
+    }
+  });
+}
+document.addEventListener('input', e => {
+  if (e.target.dataset && e.target.dataset.key) saveAll();
+});
+document.addEventListener('change', e => {
+  if (e.target.dataset && e.target.dataset.key) saveAll();
+});
+/* Un meme champ present sur les deux pages (le « Lieu protege N° ») doit se
+   remplir des deux cotes en une seule saisie.
+   L ancien garde testait startsWith('lieu_n_') alors que la cle vaut 'lieu_num' :
+   il ne correspondait jamais. Pire, saveAll() parcourt tous les [data-key] et le
+   dernier ecrase le premier — la case restee vide en page 2 effacait donc la
+   saisie de la page 1. On propage a tout champ homonyme, sans liste a tenir. */
+document.addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.key;
+  if (!k) return;
+  const jumeaux = document.querySelectorAll('[data-key="' + k + '"]');
+  if (jumeaux.length < 2) return;
+  jumeaux.forEach(inp => {
+    if (inp === e.target) return;
+    if (inp.type === 'checkbox') inp.checked = e.target.checked;
+    else inp.value = e.target.value;
+  });
+});
+loadAll();
+
+function importJSON(evt) {
+  const f = evt.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const parsed = JSON.parse(r.result);
+      if (parsed.fields) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed.fields));
+        if (parsed.signatures && typeof restoreSignatures === 'function') {
+          restoreSignatures(parsed.signatures);
+        }
+      } else {
+        localStorage.setItem(STORAGE_KEY, r.result);
+      }
+      loadAll();
+    } catch(e) { alert('Fichier invalide'); }
+  };
+  r.readAsText(f);
+}
+/* RGPD : apres un envoi au client, la fiche ne doit pas rester sur le
+   telephone. Dans l APK, c est l application qui appelle marquerEnvoye(),
+   une fois l app mail REELLEMENT ouverte : jamais avant (envoi rate), ni
+   pendant la fabrication du PDF, qui relit cette fiche. Au retour, on
+   demande si le mail est parti — jamais d effacement silencieux.
+   Le drapeau est propre a CETTE fiche (sa cle de stockage) et a CE client,
+   et garde en localStorage pour survivre a une rotation d ecran. */
+var CLE_ENVOI = 'diagnostic_envoye::' + STORAGE_KEY;
+var DUREE_ENVOI_MS = 30 * 60 * 1000;
+function clientCourant() {
+  return champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
+}
+/** Quelle fiche, quelle mission, quel client : releve AU CLIC sur Envoyer. */
+function identiteFiche() {
+  return { k: CLE_ENVOI, m: champ('mission_num'), c: clientCourant() };
+}
+/** Pose le drapeau. L APK rend l identite relevee au clic : la page affichee a
+    pu changer (Pro <-> Particulier) pendant la fabrication du PDF. */
+function marquerEnvoye(id) {
+  var f = id || identiteFiche();
+  try { localStorage.setItem(f.k, JSON.stringify({ t: Date.now(), m: f.m, c: f.c })); } catch (e) {}
+}
+function verifierEnvoi() {
+  if (document.hidden) return;
+  var d = null;
+  try { d = JSON.parse(localStorage.getItem(CLE_ENVOI) || 'null'); } catch (e) {}
+  if (!d) return;
+  try { localStorage.removeItem(CLE_ENVOI); } catch (e) {}
+  /* Trop ancien, ou la fiche concerne desormais un autre client : on n y touche pas. */
+  if (Date.now() - d.t > DUREE_ENVOI_MS || d.m !== champ('mission_num') || d.c !== clientCourant()) return;
+  if (confirm('Le diagnostic' + (d.c ? ' de ' + d.c : '') + ' est-il bien parti chez le client ?\n\n'
+            + 'OK : la fiche est vidée pour le client suivant.\n'
+            + 'Annuler : la fiche est gardée.')) viderFiche();
+}
+document.addEventListener('visibilitychange', verifierEnvoi);
+window.addEventListener('load', verifierEnvoi);
+
+function resetForm() {
+  if (!confirm('Réinitialiser toute la fiche particulier ? Les saisies et signatures seront perdues.')) return;
+  viderFiche();
+}
+
+/** Vide la fiche, signatures comprises, puis la recharge : le nom du
+    technicien, les valeurs par defaut et le client sur place reviennent
+    exactement comme a l ouverture. */
+function viderFiche() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  if (typeof clearAllSignatures === 'function') clearAllSignatures();
+  /* Le PDF envoye au client n a plus a rester dans le cache de l APK. */
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.oublierPdf) window.__gsysEnvoiClient.oublierPdf('particulier');
+  location.reload();
+}
+</script>
+
+<script>
+/* ====================================================================== */
+/* Filtres de saisie                                                      */
+/*                                                                        */
+/* Chaque colonne n accepte qu un type de valeur : un chiffre, un O/N ou  */
+/* un P/T. Filtrer a la frappe evite les fiches ininterpretables par le    */
+/* bureau, et sur telephone le bon clavier s ouvre directement.           */
+/* ====================================================================== */
+(function () {
+  function filtrer(v, type) {
+    v = String(v || '');
+    if (type === 'num') return v.replace(/[^0-9]/g, '');
+    /* Une seule lettre, la derniere tapee : retaper corrige sans effacer. */
+    if (type === 'on') return v.toUpperCase().replace(/[^ON]/g, '').slice(-1);
+    if (type === 'pt') return v.toUpperCase().replace(/[^PT]/g, '').slice(-1);
+    if (type === 'onl') return v.toUpperCase().replace(/[^ONL]/g, '').slice(-1);
+    return v;
+  }
+
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    var type = el.dataset ? el.dataset.saisie : '';
+    if (!type) return;
+    var net = filtrer(el.value, type);
+    if (net !== el.value) el.value = net;
+  });
+
+  window.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-saisie="num"]').forEach(function (el) {
+      el.setAttribute('inputmode', 'numeric');
+    });
+  });
+})();
+
+/* ====================================================================== */
+/* Adaptation aux ecrans de telephone                                     */
+/*                                                                        */
+/* La fiche est calibree en A4 (210 mm) : sur un telephone elle deborde   */
+/* et se retrouve coupee. On la met a l echelle de la largeur disponible  */
+/* pour qu elle tienne entierement, le zoom restant possible pour viser   */
+/* une case. L impression n est pas touchee : elle sort en A4 reel.       */
+/* ====================================================================== */
+(function () {
+  var LARGEUR_A4 = 794;            /* 210 mm a 96 ppp */
+
+  function adapter() {
+    var dispo = document.documentElement.clientWidth;
+    var ratio = dispo / (LARGEUR_A4 + 24);
+    document.querySelectorAll('.page').forEach(function (p) {
+      if (ratio >= 1) {            /* ecran large : taille reelle */
+        p.style.transform = '';
+        p.style.marginBottom = '';
+        document.body.style.overflowX = '';
+        return;
+      }
+      p.style.transformOrigin = 'top left';
+      p.style.transform = 'scale(' + ratio + ')';
+      /* scale() ne reduit que l affichage : la largeur d origine reste
+         reservee dans la mise en page et provoque un debordement lateral.
+         On masque ce debordement, le contenu tenant desormais a l ecran. */
+      document.body.style.overflowX = 'hidden';
+      /* Sans cette compensation, la place liberee par la reduction reste
+         reservee et laisse un grand vide sous chaque page. */
+      p.style.marginBottom = -(p.offsetHeight * (1 - ratio)) + 'px';
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', adapter);
+  window.addEventListener('resize', adapter);
+  window.addEventListener('orientationchange', adapter);
+})();
+/* ====================================================================== */
+/* Nom du technicien-conseil                                              */
+/*                                                                        */
+/* Il est deja connu : c est celui des reglages de l application. Le       */
+/* ressaisir sur chaque fiche est une perte de temps et une source de      */
+/* fautes de frappe. En PWA la fiche partage l origine — donc le           */
+/* localStorage — de l application ; dans l APK la WebView est isolee et   */
+/* c est l application qui pose window.__gsysTech au chargement.           */
+/* Le champ reste modifiable : on ne remplit que s il est vide.            */
+/* ====================================================================== */
+function remplirNomTech() {
+  var nom = '';
+  if (window.__gsysTech) {
+    nom = String(window.__gsysTech);
+  } else {
+    try {
+      nom = String(JSON.parse(localStorage.getItem('gsys.reglages') || '{}').nomUtilisateur || '');
+    } catch (e) { nom = ''; }
+  }
+  if (!nom) return;
+  var pose = false;
+  document.querySelectorAll('[data-key="tech_nom"]').forEach(function (el) {
+    if (!el.value) { el.value = nom; pose = true; }
+  });
+  if (pose && typeof saveAll === 'function') saveAll();
+}
+remplirNomTech();
+
+/* ====================================================================== */
+/* Client sur place : l APK pose window.__gsysClient (ordre de mission de */
+/* la tournee) au chargement. Fiche vierge -> remplie ; meme client ->    */
+/* seuls les champs vides sont completes ; fiche d un AUTRE client -> on  */
+/* demande avant de la vider : jamais d effacement silencieux.            */
+/* ====================================================================== */
+function remplirClient() {
+  var c = window.__gsysClient;
+  if (!c || !c.mission) return;
+  var champ = function (k) { return document.querySelectorAll('[data-key="' + k + '"]'); };
+  var valeur = function (k) { var l = champ(k); return l.length ? String(l[0].value || '').trim() : ''; };
+  var cleNom = champ('nom_prenom').length ? 'nom_prenom' : 'raison_sociale';
+  var cles = { lieu_num: c.lieu, adresse: c.adresse, cp: c.cp, ville: c.ville };
+  cles[cleNom] = c.nom;
+  var dejaMission = valeur('mission_num');
+  if (dejaMission === c.mission) return;
+  var commencee = Object.keys(cles).some(function (k) { return valeur(k) !== ''; });
+  if (dejaMission && commencee) {
+    if (!confirm('La fiche en cours concerne un autre client (' + (valeur(cleNom) || 'sans nom')
+        + ').\n\nLa vider pour ' + c.nom + ' ?')) return;
+    viderFiche();   // signatures comprises ; l APK pose de nouveau le client
+    return;
+  }
+  Object.keys(cles).forEach(function (k) {
+    if (!cles[k]) return;
+    champ(k).forEach(function (el) { if (!String(el.value || '').trim()) el.value = cles[k]; });
+  });
+  champ('mission_num').forEach(function (el) { el.value = c.mission; });
+  if (typeof saveAll === 'function') saveAll();
+}
+
+/* ====================================================================== */
+/* Impression : une page de la fiche = une feuille A4                     */
+/*                                                                        */
+/* Le contenu mesure environ 386 mm de haut pour une A4 de 297 : tel quel, */
+/* chaque page deborde sur une seconde feuille et l impression sort en 4   */
+/* pages au lieu de 2. On enveloppe le contenu et on le reduit juste ce    */
+/* qu il faut, page par page — la fiche reste fidele au document EPS, en   */
+/* plus petit. Mesure a l ouverture ET avant impression : certains moteurs */
+/* n emettent pas beforeprint (impression systeme d iOS, WebView Android). */
+/* ====================================================================== */
+function calibrerImpression() {
+  var HAUTEUR_UTILE = 283;               /* 297 mm d A4 - 2 x 7 mm de marge */
+  var jauge = document.createElement('div');
+  jauge.style.cssText = 'height:100mm;position:absolute;visibility:hidden;top:0';
+  document.body.appendChild(jauge);
+  var pxParMm = jauge.offsetHeight / 100;
+  jauge.remove();
+  if (!pxParMm) return;
+
+  document.querySelectorAll('.page').forEach(function (p) {
+    var inner = p.querySelector(':scope > .page-inner');
+    if (!inner) {
+      inner = document.createElement('div');
+      inner.className = 'page-inner';
+      while (p.firstChild) inner.appendChild(p.firstChild);
+      p.appendChild(inner);
+    }
+    /* offsetHeight ignore les transform : la hauteur mesuree est la hauteur
+       naturelle, meme quand l ecran applique deja une reduction. */
+    var hMm = inner.offsetHeight / pxParMm;
+    var k = hMm > HAUTEUR_UTILE ? (HAUTEUR_UTILE / hMm) : 1;
+    p.style.setProperty('--k', k.toFixed(4));
+  });
+}
+
+window.addEventListener('DOMContentLoaded', calibrerImpression);
+window.addEventListener('beforeprint', calibrerImpression);
+
+/* ====================================================================== */
+/* Envoi de la fiche au client                                            */
+/*                                                                        */
+/* Android sait fabriquer le PDF lui-meme : si l application a pose son    */
+/* pont, on lui passe la main et elle joint le fichier au mail.            */
+/* Safari, lui, n a aucune API pour produire un PDF. Sur iPhone on lance   */
+/* donc l impression - le technicien enregistre la fiche - puis on ouvre   */
+/* le mail deja redige, ou il ne reste qu a joindre le fichier.            */
+/* ====================================================================== */
+function champ(cle) {
+  var n = document.querySelector('[data-key="' + cle + '"]');
+  return n ? String(n.value || '').trim() : '';
+}
+
+/* window.print() n'est pas implemente dans la WebView Android : le bouton y
+   restait sans effet. Quand l'application a pose son pont, c'est elle qui
+   ouvre l'impression systeme ; sinon on garde le comportement du navigateur. */
+function imprimerFiche() {
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.imprimer) {
+    window.__gsysEnvoiClient.imprimer();
+    return;
+  }
+  window.print();
+}
+
+function envoyerAuClient() {
+  var boite = document.getElementById('mail_client');
+  var mail = (boite.value || '').trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) {
+    alert('Indiquez l\'e-mail du client avant d\'envoyer.');
+    boite.focus();
+    return;
+  }
+  var client = champ('nom_prenom') || champ('raison_sociale') || champ('enseigne');
+  var site = champ('lieu_num');
+  var date = champ('date');
+  var tech = champ('tech_nom');
+
+  var sujet = 'Diagnostic s\u00e9curit\u00e9'
+    + (site ? ' - lieu prot\u00e9g\u00e9 n\u00b0 ' + site : '')
+    + (client ? ' - ' + client : '');
+  var corps = 'Bonjour,\n\nVous trouverez ci-joint votre diagnostic s\u00e9curit\u00e9'
+    + (date ? ' r\u00e9alis\u00e9 le ' + date : '')
+    + '.\n\nMerci de v\u00e9rifier les informations qu\'il contient et de nous '
+    + 'signaler toute erreur.\n\nCordialement,\n' + tech;
+
+  if (window.__gsysEnvoiClient && window.__gsysEnvoiClient.envoyer) {
+    window.__gsysEnvoiClient.envoyer(mail, sujet, corps, JSON.stringify(identiteFiche()));
+    return;
+  }
+
+  if (!confirm('La fen\u00eatre d\'impression va s\'ouvrir : enregistrez la fiche '
+             + 'en PDF.\n\nLe mail au client s\'ouvrira ensuite - il ne restera '
+             + 'qu\'\u00e0 y joindre le fichier enregistr\u00e9.')) return;
+  window.print();
+  /* Le mail n est ouvert qu apres la fenetre d impression : les deux se
+     bousculeraient si on les declenchait ensemble. */
+  setTimeout(function () {
+    marquerEnvoye();
+    location.href = 'mailto:' + encodeURIComponent(mail)
+      + '?subject=' + encodeURIComponent(sujet)
+      + '&body=' + encodeURIComponent(corps);
+  }, 1000);
+}
+</script>
+<script>
+/* Fiche Particulier : colonnes 6 a 10 (la 11 est le mode P/T). */
+var RECO_INTRUSION = {
+  6: 'CENTRALE',
+  7: 'SIRÈNE',
+  8: 'CLAVIER',
+  9: 'DÉTECTEUR DE MOUVEMENT',
+  10: "DÉTECTEUR D'OUVERTURE"
+};
+/* Tableau fumee / monoxyde : colonne 1 = nombre de detecteurs de fumee,
+   colonne 4 = nombre de detecteurs de monoxyde (les colonnes 2 et 3 sont le
+   constat et la mention « pose impossible », pas des quantites). */
+var RECO_DFCO = {
+  1: 'DÉTECTEUR DE FUMÉE',
+  4: 'DÉTECTEUR DE MONOXYDE'
+};
+</script>
+
+<script>
+/* ====================================================================== */
+/* Recommandations non retenues                                           */
+/*                                                                        */
+/* Quand l abonne repond « N » sur une ligne, il refuse le materiel        */
+/* preconise pour CETTE piece. La zone du bas doit alors les lister, ce    */
+/* qui obligeait a tout recopier a la main en fin de visite — long et      */
+/* source d oublis. On la compose donc automatiquement, sous la forme      */
+/* demandee : le materiel en toutes lettres, suivi de l endroit.           */
+/*                                                                        */
+/* Le « L » (limite) n est pas traite : il signifie que l abonne ne retient */
+/* qu une PARTIE des recommandations de la ligne, et rien dans la fiche ne  */
+/* dit lesquelles. Ces lignes restent donc a completer a la main.          */
+/* ====================================================================== */
+(function () {
+  var ZONE = '[data-key="reco_non_retenues"]';
+
+  function val(cle) {
+    var el = document.querySelector('[data-key="' + cle + '"]');
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  /** Une quantite renseignee et non nulle vaut recommandation. */
+  function quantite(v) {
+    var n = parseInt(v, 10);
+    return isNaN(n) || n <= 0 ? 0 : n;
+  }
+
+  /** « 2 DETECTEURS DE MOUVEMENT SEJOUR » ou « CENTRALE ENTREE ». */
+  function phrase(nb, materiel, endroit) {
+    /* Le pluriel se pose sur le PREMIER mot, pas a la fin : « 2 DETECTEURS
+       D'OUVERTURE » et non « 2 DETECTEUR D'OUVERTURES ». */
+    var t = nb > 1 ? nb + ' ' + materiel.replace(/^(\S+)/, '$1S') : materiel;
+    return endroit ? t + ' ' + endroit.toUpperCase() : t;
+  }
+
+  function composer() {
+    var refus = [];
+
+    /* Tableau principal : une ligne = une piece. */
+    document.querySelectorAll('#tbody-intrusion tr').forEach(function (tr, i) {
+      if (val('piece_' + i + '_choix') !== 'N') return;
+      var piece = val('piece_' + i + '_nom');
+      Object.keys(RECO_INTRUSION).forEach(function (c) {
+        var nb = quantite(val('piece_' + i + '_c' + c));
+        if (nb) refus.push(phrase(nb, RECO_INTRUSION[c], piece));
+      });
+    });
+
+    /* Tableau fumee / monoxyde, quand la fiche en comporte un. */
+    document.querySelectorAll('#tbody-dfco tr').forEach(function (tr, i) {
+      if (val('dfco_' + i + '_choix') !== 'N') return;
+      var piece = val('dfco_' + i + '_nom');
+      Object.keys(RECO_DFCO).forEach(function (c) {
+        var nb = quantite(val('dfco_' + i + '_c' + c));
+        if (nb) refus.push(phrase(nb, RECO_DFCO[c], piece));
+      });
+    });
+
+    /* Extensions : le materiel est le libelle de la ligne, l endroit est
+       saisi dans la colonne « piece ». */
+    document.querySelectorAll('#tbody-ext tr').forEach(function (tr, i) {
+      if (val('ext_' + i + '_choix') !== 'N') return;
+      var materiel = val('ext_' + i + '_nom');
+      if (!materiel) return;
+      var nb = quantite(val('ext_' + i + '_c2')) || 1;
+      refus.push(phrase(nb, materiel.toUpperCase(), val('ext_' + i + '_c1')));
+    });
+
+    return refus.join(', ');
+  }
+
+  /* Dernier texte que NOUS avons ecrit. Sert a distinguer une zone calculee
+     d une zone redigee par le technicien : se fier au seul fait qu elle soit
+     remplie ne marche pas, puisque la fiche restaure le dernier formulaire au
+     chargement — la zone est alors presque toujours pleine, et le mode manuel
+     s activait a tort, si bien que plus rien ne se recalculait. */
+  var dernierGenere = null;
+
+  function rafraichir() {
+    var zone = document.querySelector(ZONE);
+    if (!zone) return;
+    var actuel = zone.value.trim();
+    var calcule = composer();
+    /* On n ecrase que le vide ou notre propre texte : ce que le technicien a
+       redige lui-meme est conserve tel quel. */
+    if (actuel !== '' && dernierGenere !== null && actuel !== dernierGenere.trim()) {
+      return;
+    }
+    zone.value = calcule;
+    dernierGenere = calcule;
+  }
+
+  document.addEventListener('change', function (e) {
+    if (e.target.closest('#tbody-intrusion, #tbody-dfco, #tbody-ext')) rafraichir();
+  });
+  document.addEventListener('input', function (e) {
+    if (e.target.matches(ZONE)) return;   /* saisie manuelle : on n y touche pas */
+    if (e.target.closest('#tbody-intrusion, #tbody-dfco, #tbody-ext')) rafraichir();
+  });
+
+  function demarrer() {
+    var zone = document.querySelector(ZONE);
+    if (!zone) return;
+    zone.placeholder = 'Se remplit tout seul quand un « N » est choisi. '
+      + 'Ecrivez ici pour reprendre la main ; videz la zone pour revenir a la '
+      + 'liste automatique.';
+    /* Si la zone contient exactement ce que le calcul produirait, c est notre
+       texte d une visite precedente : on reprend la main dessus. Sinon, il a
+       ete redige a la main et on n y touche pas. */
+    var calcule = composer();
+    if (zone.value.trim() === '' || zone.value.trim() === calcule.trim()) {
+      dernierGenere = calcule;
+      zone.value = calcule;
+    }
+  }
+
+  /* La fiche restaure le dernier formulaire sur DOMContentLoaded : on passe
+     apres, sinon on lirait des champs encore vides. */
+  window.addEventListener('DOMContentLoaded', function () { setTimeout(demarrer, 0); });
+
+  window.recomposerRefus = rafraichir;
+})();
+</script>
+
+<script>
+/* ====================================================================== */
+/* Champs chiffres fixes -> clavier numerique, et CONSTAT pre-rempli « N ». */
+/* ====================================================================== */
+(function () {
+  /* 1) Clavier numerique + filtre chiffres (mecanisme data-saisie "num"
+     existant) sur les champs chiffres hors tableau. */
+  ['cp', 'surface', 'nb_pieces', 'nb_niveaux', 'nb_personnes',
+   'animaux_nb', 'ap_etage', 'ap_nb_etages'].forEach(function (k) {
+    document.querySelectorAll('[data-key="' + k + '"]').forEach(function (el) {
+      el.dataset.saisie = 'num';
+      el.setAttribute('inputmode', 'numeric');
+    });
+  });
+
+  /* 2) CONSTAT : « N » par defaut dans les colonnes O/N de chaque piece
+     RENSEIGNEE. Colonne O/N = <select> ['', 'O', 'N'] -> on ne touche NI les
+     colonnes chiffrees, NI le P/T, NI le « choix abonne » (O/N/L). On ne remplit
+     que le vide. */
+  function estColonneON(cell) {
+    return !!cell && cell.tagName === 'SELECT' && cell.options.length === 3 &&
+      cell.options[1].value === 'O' && cell.options[2].value === 'N';
+  }
+  function defautN(idx) {
+    var c = 2, cell;
+    while ((cell = document.querySelector('[data-key="piece_' + idx + '_c' + c + '"]'))) {
+      if (estColonneON(cell) && cell.value === '') cell.value = 'N';
+      c++;
+    }
+  }
+  function appliquerDefautConstatN() {
+    var change = false;
+    document.querySelectorAll('#tbody-intrusion tr').forEach(function (tr, idx) {
+      var nom = document.querySelector('[data-key="piece_' + idx + '_nom"]');
+      if (nom && nom.value.trim() !== '') { defautN(idx); change = true; }
+    });
+    if (change && typeof saveAll === 'function') saveAll();
+  }
+  window.appliquerDefautConstatN = appliquerDefautConstatN;
+
+  appliquerDefautConstatN();
+
+  var tb = document.getElementById('tbody-intrusion');
+  if (tb) tb.addEventListener('input', function (e) {
+    var k = (e.target && e.target.dataset) ? e.target.dataset.key : '';
+    var m = /^piece_(\d+)_nom$/.exec(k || '');
+    if (m && e.target.value.trim() !== '') {
+      defautN(m[1]);
+      if (typeof saveAll === 'function') saveAll();
+    }
+  });
+})();
+</script>
 </body>
 </html>

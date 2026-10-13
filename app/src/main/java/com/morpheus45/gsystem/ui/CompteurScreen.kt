@@ -45,6 +45,10 @@ import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.launch
 import java.io.File
+import com.morpheus45.gsystem.ui.components.FeuilleChoix
+import com.morpheus45.gsystem.ui.components.ActionFeuille
+import com.morpheus45.gsystem.ui.theme.CompteurStart
+import com.morpheus45.gsystem.ui.theme.CompteurEnd
 
 private val CompteurColor = Color(0xFF14B8A6) // teal (couleur de la tuile COMPTEUR)
 
@@ -234,28 +238,18 @@ private fun EditCompteurDialog(
 ) {
     var obs by remember { mutableStateOf(entry.observations) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ajouter une note") },
-        text = {
-            Column {
-                Text("Le kilométrage est lu directement sur la photo, " +
-                     "pas besoin de le retaper. Tu peux ajouter une note " +
-                     "si tu veux (vidange faite, plein, etc.).",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Note (facultatif)") },
-                    modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(entry.copy(observations = obs.trim())) },
-                colors = ButtonDefaults.buttonColors(containerColor = CompteurColor)
-            ) { Text("Enregistrer", color = Color.White) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
+    FeuilleChoix(
+        titre = "Ajouter une note",
+        texte = "Le kilométrage est lu directement sur la photo, pas besoin de le retaper. " +
+            "Tu peux ajouter une note si tu veux (vidange faite, plein, etc.).",
+        onFermer = onDismiss,
+        actions = listOf(ActionFeuille("ENREGISTRER", CompteurStart, CompteurEnd) {
+            onSave(entry.copy(observations = obs.trim()))
+        }),
+        contenu = {
+            OutlinedTextField(value = obs, onValueChange = { obs = it },
+                label = { Text("Note (facultatif)") },
+                modifier = Modifier.fillMaxWidth())
+        }
     )
 }

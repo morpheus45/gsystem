@@ -87,6 +87,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.morpheus45.gsystem.data.Mission
+import com.morpheus45.gsystem.data.Preremplissage
 
 /** Matériels proposés dans le menu déroulant « Détail des prestations ». */
 private val PRESTATIONS = listOf(
@@ -136,6 +138,7 @@ internal class PrestaLigne(
 @Composable
 fun BulletinScreen(
     settings: AppSettings,
+    mission: Mission? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -146,7 +149,8 @@ fun BulletinScreen(
     // quitté l'écran ou fermé l'app) et EFFACÉE au moment de l'envoi. Les
     // signatures ne sont pas conservées (redessinées).
     val drafts = remember { DraftStore(context) }
-    val initial = remember { drafts.loadBulletin() }
+    // Client sur place : coordonnées et N° de mission repris de l'ordre de mission.
+    val initial = remember { Preremplissage.bulletin(drafts.loadBulletin(), mission) }
 
     // --- En-tête ---
     var date by remember { mutableStateOf(initial?.date?.takeIf { it.isNotBlank() } ?: today) }

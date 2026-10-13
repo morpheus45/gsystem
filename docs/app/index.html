@@ -2,9 +2,13 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>G-Systems — maintenance</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
+<title>G-Systems</title>
+<meta name="copyright" content="Copyright (c) 2026 Cédric LAGO-GOMEZ — Tous droits réservés" />
+<meta name="tdm-reservation" content="1" />
 <meta name="robots" content="noindex, nofollow, noarchive" />
+<meta name="noai" content="true" />
+
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,29 +16,11 @@
 <meta name="theme-color" content="#07080D" />
 <link rel="apple-touch-icon" href="icone-180.png" />
 <link rel="icon" href="icone-180.png" />
-<style>
-  html, body { margin: 0; min-height: 100%; background: #07080D; color: #F4F4F0;
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  main { min-height: 100vh; min-height: 100dvh; box-sizing: border-box; max-width: 480px; margin: 0 auto;
-    display: flex; flex-direction: column; justify-content: center;
-    padding: 32px 28px calc(32px + env(safe-area-inset-bottom)); }
-  .marque { font-size: 40px; font-weight: 700; letter-spacing: -1px; margin: 0 0 28px; }
-  .marque b { color: #E5231F; }
-  h1 { font-size: 24px; margin: 0 0 12px; }
-  p { font-size: 16px; line-height: 1.5; color: #C9CBD6; margin: 0 0 14px; }
-  .rassure { background: #12141B; border: 1px solid #2F3340; border-radius: 12px; padding: 14px 16px; color: #F4F4F0; }
-</style>
+
+<link rel="stylesheet" href="theme.css" />
 </head>
 <body>
-<!-- MAINTENANCE : page d'entrée remplacée ; le code de l'app, le service worker
-     et les données du téléphone (localStorage, IndexedDB) ne sont pas touchés.
-     Pour rétablir : annuler ce commit (git revert). -->
-<main role="status">
-  <div class="marque" aria-label="G-Systems"><b>g</b>systems</div>
-  <h1>Application en maintenance</h1>
-  <p>G-Systems est momentanément indisponible, le temps d'une mise à jour.</p>
-  <p class="rassure">Vos données restent sur ce téléphone : rien n'est perdu. L'application reviendra ici même, sans rien réinstaller.</p>
-  <p>Besoin urgent ? Contactez votre responsable.</p>
-</main>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
 </body>
 </html>

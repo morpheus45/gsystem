@@ -140,6 +140,12 @@ val EnvoiStart     = Color(0xFF22C55E)
 val EnvoiEnd       = Color(0xFF15803D)
 val EnvoiAccent    = Color(0xFFBBF7D0)
 
+// --- MISE À JOUR — fenêtre système, hors cascade des tuiles ---
+// Bleu de RÉCAP vers l'indigo de DIAGNOSTIC : neutre, et distinct du rouge
+// réservé aux actions destructives.
+val MajStart       = Color(0xFF3B82F6)
+val MajEnd         = Color(0xFF6366F1)
+
 // --- ETATS ---
 val Success        = Color(0xFF4ADE80)
 val Warning        = Color(0xFFFFB347)

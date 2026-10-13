@@ -135,16 +135,7 @@
     });
   };
 
-  /* export/import : intègre les signatures dans le JSON existant */
-  window.collectSignatures = function () {
-    const out = {};
-    document.querySelectorAll('.sig[data-sig]').forEach(host => {
-      const k = host.dataset.sig;
-      const v = localStorage.getItem(STORAGE_PREFIX + k);
-      if (v) out[k] = v;
-    });
-    return out;
-  };
+  /* import : remet les signatures d un fichier JSON charge */
   window.restoreSignatures = function (sigs) {
     if (!sigs) return;
     Object.entries(sigs).forEach(([k, v]) => {
