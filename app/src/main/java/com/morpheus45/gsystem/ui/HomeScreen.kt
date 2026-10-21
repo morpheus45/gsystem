@@ -141,6 +141,8 @@ fun HomeScreen(
     onMissionAttente: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
     onMissionCloturer: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
     onMissionCancel: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
+    // Appui sur l'icône d'une tuile mission : itinéraire vers le client.
+    onMissionItineraire: (com.morpheus45.gsystem.data.Mission) -> Unit = {},
     onChat: () -> Unit = {},
     onArrivee: () -> Unit,
     onAppelTechline: () -> Unit,
@@ -420,6 +422,7 @@ fun HomeScreen(
                 liveValue = if (arrived) mHm else null,
                 liveLabel = if (arrived) "arrivée" else null,
                 longPress = if (arrived) ({ onMissionCancel(m) }) else null,
+                onIconClick = if (rue.isNotBlank()) ({ onMissionItineraire(m) }) else null,
                 onClick = { if (arrived) onMissionCloturer(m) else missionChoice = m }
             )
         }
@@ -482,6 +485,7 @@ fun HomeScreen(
                     liveLabel = t.liveLabel,
                     pulseAccent = t.pulse,
                     onLongPress = t.longPress,
+                    onIconClick = t.onIconClick,
                     subMaxLines = t.subLines,
                     onClick = t.onClick
                 )
@@ -530,6 +534,7 @@ private data class HomeTile(
     val liveLabel: String? = null,
     val pulse: Boolean = false,
     val longPress: (() -> Unit)? = null,
+    val onIconClick: (() -> Unit)? = null,
     val subLines: Int = 1,
     val onClick: () -> Unit
 )
