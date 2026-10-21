@@ -335,6 +335,11 @@ fun AppNav() {
         val digits = m.tel.filter { it.isDigit() }
         if (digits.isNotBlank()) appeler(digits)
     }
+    // Icône d'une tuile mission : itinéraire Maps vers le client (hors de l'app,
+    // la tournée et le pointage restent intacts).
+    val onMissionItineraire: (Mission) -> Unit = { m ->
+        naviguer(context, listOf(m.adresse, m.cp, m.ville).filter { it.isNotBlank() }.joinToString(" "))
+    }
     // Accueil : une tuile mission remplace 01/02. Toucher -> choix Arrivée/Attente,
     // les deux pointent l'heure sur la mission + appellent la techline (03 habituel)
     // et la tuile bascule en « Clôturer ». L'appui long annule l'arrivée pointée.
@@ -416,6 +421,7 @@ fun AppNav() {
                 onMissionAttente = onMissionAttente,
                 onMissionCloturer = onCloturerMission,
                 onMissionCancel = onMissionCancel,
+                onMissionItineraire = onMissionItineraire,
                 onChat = { navController.navigate("chat") },
                 onArrivee = onArrivee,
                 onAppelTechline = onAppelTechline,
@@ -706,6 +712,21 @@ private fun placeCall(context: Context, number: String) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }.onFailure { dialNumber(context, number) }
+}
+
+/**
+ * Itinéraire vers une adresse : Google Maps en navigation, repli sur l'appli de
+ * cartes par défaut. Intentions implicites (aucune permission ni <queries>) et
+ * runCatching : si rien ne les gère, il ne se passe rien, l'app continue.
+ */
+private fun naviguer(context: Context, adresse: String) {
+    if (adresse.isBlank()) return
+    val q = Uri.encode(adresse)
+    fun ouvrir(uri: String) = context.startActivity(
+        Intent(Intent.ACTION_VIEW, Uri.parse(uri)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    )
+    runCatching { ouvrir("google.navigation:q=$q") }
+        .onFailure { runCatching { ouvrir("geo:0,0?q=$q") } }
 }
 
 /** Ouvre le numéroteur pré-rempli (aucune permission requise). */

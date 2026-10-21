@@ -95,6 +95,9 @@ fun CategoryTile(
     onLongPress: (() -> Unit)? = null,
     /** Lignes du sous-titre (2 pour les tuiles de tournée : adresse + ville). */
     subMaxLines: Int = 1,
+    /** Appui sur l'ICÔNE seule — optionnel (ex. itinéraire). Le reste de la
+     *  tuile garde son comportement : l'icône consomme l'appui avant lui. */
+    onIconClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -183,12 +186,13 @@ fun CategoryTile(
                         1.dp,
                         Color.White.copy(alpha = 0.18f),
                         RoundedCornerShape(10.dp)
-                    ),
+                    )
+                    .then(onIconClick?.let { Modifier.clickable(onClick = it) } ?: Modifier),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = label,
+                    contentDescription = if (onIconClick != null) "Itinéraire" else label,
                     tint = TextHi,
                     modifier = Modifier.size(20.dp)
                 )
