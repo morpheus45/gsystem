@@ -162,6 +162,7 @@ function cyclePrune_(user, month, keep) {
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
+  if (e && e.parameter && e.parameter.update) return updateGate_(e);
   if (e && e.parameter && e.parameter.debug === 'data') {
     if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
     var t0 = Date.now();
@@ -1233,3 +1234,31 @@ chatLoadList();
 </script>
 </body></html>
 `;
+
+// ===== Mise à jour de l'app : passerelle vers le dépôt GitHub PRIVÉ =====
+// Le téléphone n'a aucun accès à GitHub. Jeton GitHub en lecture seule dans les
+// propriétés du script (clé GH_TOKEN) : jamais dans l'APK.
+//   ?update=1   -> dernière Release (même JSON que l'API GitHub)
+//   ?update=url -> idem + lien de téléchargement temporaire de l'APK
+function updateGate_(e) {
+  if (e.parameter.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
+  try { return json(updateInfo_(e.parameter.update === 'url')); }
+  catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+function updateInfo_(withUrl) {
+  var tk = PROP.getProperty('GH_TOKEN');
+  if (!tk) return { ok: false, error: 'GH_TOKEN manquant (propriétés du script)' };
+  var h = { Authorization: 'Bearer ' + tk, 'User-Agent': 'gsystem-maj', Accept: 'application/vnd.github+json' };
+  var r = JSON.parse(UrlFetchApp.fetch('https://api.github.com/repos/morpheus45/gsystem/releases/latest', { headers: h }).getContentText());
+  var a = (r.assets || []).filter(function (x) { return /\.apk$/i.test(x.name); })[0];
+  if (!a) return { ok: false, error: 'aucun .apk dans la Release' };
+  var out = { tag_name: r.tag_name, body: r.body || '', assets: [a] };
+  if (withUrl) {
+    h.Accept = 'application/octet-stream';
+    var hd = UrlFetchApp.fetch(a.url, { headers: h, followRedirects: false, muteHttpExceptions: true }).getAllHeaders();
+    out.url = hd.Location || hd.location;
+    if (!out.url) return { ok: false, error: "GitHub n'a pas fourni de lien" };
+  }
+  return out;
+}
