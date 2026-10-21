@@ -40,7 +40,6 @@ import androidx.compose.material.icons.outlined.BeachAccess
 import androidx.compose.material.icons.outlined.SimCard
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Storefront
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,9 +47,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
@@ -431,27 +432,34 @@ fun HomeScreen(
 
         // Boîte de choix au toucher d'une mission non pointée : Arrivée OU Attente.
         missionChoice?.let { m ->
-            AlertDialog(
-                onDismissRequest = { missionChoice = null },
-                containerColor = Color(0xFF12141B),
-                title = { Text(m.nom.ifBlank { m.type }, color = TextHi) },
-                text = {
+            Dialog(onDismissRequest = { missionChoice = null }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF12141B), RoundedCornerShape(20.dp))
+                        .border(1.dp, Color(0xFF2F3340), RoundedCornerShape(20.dp))
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(m.nom.ifBlank { m.type }, color = TextHi, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "Pointer l'arrivée pour cette mission et appeler la techline ?",
-                        color = TextMid
+                        listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }.joinToString(" · "),
+                        color = TextMid, fontSize = 14.sp
                     )
-                },
-                confirmButton = {
-                    TextButton(onClick = { missionChoice = null; onMissionArrivee(m) }) {
-                        Text("ARRIVÉE SUR SITE", color = ArriveeAccent, fontWeight = FontWeight.Bold)
+                    Text("Pointer l'arrivée et appeler la techline ?", color = TextMid, fontSize = 14.sp)
+                    Spacer(Modifier.height(4.dp))
+                    ChoiceButton("ARRIVÉE SUR SITE", Icons.Outlined.PinDrop, ArriveeStart, ArriveeEnd) {
+                        missionChoice = null; onMissionArrivee(m)
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { missionChoice = null; onMissionAttente(m) }) {
-                        Text("ATTENTE CLIENT", color = AttenteAccent, fontWeight = FontWeight.Bold)
+                    ChoiceButton("ATTENTE CLIENT", Icons.Outlined.Timer, AttenteStart, AttenteEnd) {
+                        missionChoice = null; onMissionAttente(m)
                     }
+                    TextButton(
+                        onClick = { missionChoice = null },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) { Text("Annuler", color = TextMid) }
                 }
-            )
+            }
         }
 
         if (USE_TABBED_HOME) {
@@ -519,6 +527,25 @@ private enum class HomeGroup(val title: String, val desc: String) {
     SITE("SUR SITE", "En arrivant chez le client"),
     INTERV("INTERVENTION", "Le cœur du chantier"),
     FIN("FIN DE CYCLE", "La paperasse mensuelle")
+}
+
+/** Gros bouton à dégradé du dialogue de mission (mêmes couleurs que les tuiles 01 / 02). */
+@Composable
+private fun ChoiceButton(label: String, icon: ImageVector, start: Color, end: Color, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.horizontalGradient(listOf(start, end)))
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = Color.White, fontWeight = FontWeight.Bold)
+    }
 }
 
 private data class HomeTile(
