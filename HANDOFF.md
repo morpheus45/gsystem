@@ -304,12 +304,21 @@ sur la période (un sous-dossier `tech/mois/`) et renvoie un lien public tempora
 
 ## 7. Auto-update
 
-`UpdateChecker.kt` appelle `GET /repos/morpheus45/gsystem/releases/latest`,
-compare le semver, exige un asset `.apk`. `checkForUpdateSilently()` tourne
+`UpdateChecker.kt` interroge la **passerelle Apps Script** (`?update=`, cf. `updateInfo_` dans
+`apps-script/Backup.gs`), qui lit `GET /repos/morpheus45/gsystem/releases/latest` côté Google et
+renvoie le même JSON. Le téléphone ne parle jamais à GitHub : **le dépôt est privé**, un appel
+anonyme à `api.github.com` y renvoie 404 (les versions ≤ 1.9.97 interrogent GitHub en direct :
+elles ne voient plus rien, installation manuelle de la 1.9.98 requise). Il compare le semver,
+exige un asset `.apk`. `checkForUpdateSilently()` tourne
 **une fois par session** au lancement (MainActivity). La clé
 `keystore/debug.keystore` est partagée (local + CI) → MAJ sans réinstall.
 **Ne JAMAIS la regénérer** sinon les utilisateurs perdent leurs données.
 
+- **Prérequis côté Google** : propriété de script `GH_TOKEN` = jeton GitHub *fine-grained*, dépôt
+  `gsystem` seul, **Contents : lecture seule**. Il **expire à la date choisie à sa création** : la
+  noter ici et le renouveler avant, sinon les MAJ s'arrêtent sans erreur visible. Après toute édition de `Backup.gs` : Déployer → Nouvelle version.
+- `?update=1` → JSON de la Release ; `?update=url` → + lien de téléchargement temporaire de l'APK,
+  demandé juste avant de télécharger. Les deux exigent `SHARED_TOKEN`.
 - Prereleases exclues par `releases/latest`. Promotion : `gh release edit vX.Y.Z --prerelease=false --latest` (mais `gh` indisponible sur le poste → API REST).
 
 ---

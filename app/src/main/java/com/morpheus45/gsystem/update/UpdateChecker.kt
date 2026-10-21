@@ -11,6 +11,7 @@ package com.morpheus45.gsystem.update
 
 import android.content.Context
 import com.morpheus45.gsystem.BuildConfig
+import com.morpheus45.gsystem.backup.BackupConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -21,19 +22,25 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Vérifie si une nouvelle version est dispo sur GitHub Releases et la télécharge.
+ * Vérifie si une nouvelle version est dispo sur GitHub Releases et la télécharge,
+ * via la passerelle Apps Script (le dépôt est privé, cf. [GATEWAY]).
  *
  * Compare BuildConfig.VERSION_NAME (ex: "0.2.0") avec le tag de la dernière
  * release (ex: "v0.2.1"). Si distant > local, propose la mise à jour.
  */
 object UpdateChecker {
-    private const val GITHUB_API =
-        "https://api.github.com/repos/morpheus45/gsystem/releases/latest"
-    private const val TIMEOUT_MS = 8000
+    /**
+     * Le dépôt est PRIVÉ : un téléphone n'a aucun accès à GitHub (404). La passerelle
+     * (apps-script/Backup.gs, `?update=`) lit la dernière Release avec un jeton gardé
+     * côté Google et renvoie le même JSON que l'API GitHub ; `update=url` y ajoute le
+     * lien de téléchargement temporaire de l'APK.
+     */
+    private const val GATEWAY = "${BackupConfig.ENDPOINT}?token=${BackupConfig.TOKEN}&update="
+    private const val TIMEOUT_MS = 20000
 
     data class UpdateAvailable(
         val latestVersion: String,   // ex: "0.2.1"
-        val downloadUrl: String,     // URL directe vers app-debug.apk
+        val downloadUrl: String,     // passerelle : le lien GitHub (temporaire) est résolu au téléchargement
         val notes: String,           // notes de release
         val sizeBytes: Long
     )
@@ -53,7 +60,7 @@ object UpdateChecker {
     /** Renvoie UpdateAvailable si une version plus récente existe, sinon null. */
     suspend fun check(): UpdateAvailable? = withContext(Dispatchers.IO) {
         lastError = null
-        val payload = fetchJson(GITHUB_API)
+        val payload = fetchJson(GATEWAY + "1")
         if (payload == null) {
             lastError = "vérification impossible (pas de réseau ?)"
             return@withContext null
@@ -76,7 +83,7 @@ object UpdateChecker {
 
         UpdateAvailable(
             latestVersion = remoteVersion,
-            downloadUrl = apkAsset.browserDownloadUrl,
+            downloadUrl = GATEWAY + "url",
             notes = release.body ?: "",
             sizeBytes = apkAsset.sizeBytes
         )
@@ -104,7 +111,13 @@ object UpdateChecker {
             updatesDir.listFiles()?.forEach { it.delete() }
             val outFile = File(updatesDir, "gsystem-update.apk")
 
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            // Le lien GitHub est temporaire : on le demande juste avant de télécharger.
+            val src = if (url.startsWith(GATEWAY)) {
+                val r = org.json.JSONObject(fetchJson(url) ?: error("passerelle injoignable"))
+                r.optString("url").ifBlank { error("passerelle : ${r.optString("error", "réponse inattendue")}") }
+            } else url
+
+            val conn = (URL(src).openConnection() as HttpURLConnection).apply {
                 connectTimeout = TIMEOUT_MS
                 readTimeout = 60000
                 instanceFollowRedirects = true
