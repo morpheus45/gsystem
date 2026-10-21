@@ -339,28 +339,32 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 4.dp))
 
-            Spacer(Modifier.height(20.dp))
-            SectionTitle("Mises à jour")
-            Text("Version installée : ${BuildConfig.VERSION_NAME}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            Text("© 2026 Cédric LAGO-GOMEZ — logiciel propriétaire. Toute reproduction, " +
-                "même partielle, de l'application ou de son code est interdite.",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp))
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onCheckUpdate,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.CloudDownload, contentDescription = null)
-                Text("  Vérifier maintenant")
+            // Section « Mises à jour » : masquée sur le canal Play (les MAJ
+            // passent par le Store, pas par l'auto-update interne).
+            if (!BuildConfig.PLAY_BUILD) {
+                Spacer(Modifier.height(20.dp))
+                SectionTitle("Mises à jour")
+                Text("Version installée : ${BuildConfig.VERSION_NAME}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Text("© 2026 Cédric LAGO-GOMEZ — logiciel propriétaire. Toute reproduction, " +
+                    "même partielle, de l'application ou de son code est interdite.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp))
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onCheckUpdate,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.CloudDownload, contentDescription = null)
+                    Text("  Vérifier maintenant")
+                }
+                Text("La vérification se fait aussi automatiquement au démarrage de l'app.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp))
             }
-            Text("La vérification se fait aussi automatiquement au démarrage de l'app.",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp))
 
             Spacer(Modifier.height(24.dp))
             Divider()
