@@ -315,8 +315,8 @@ exige un asset `.apk`. `checkForUpdateSilently()` tourne
 **Ne JAMAIS la regénérer** sinon les utilisateurs perdent leurs données.
 
 - **Prérequis côté Google** : propriété de script `GH_TOKEN` = jeton GitHub *fine-grained*, dépôt
-  `gsystem` seul, **Contents : lecture seule**. Il **expire** (1 an max) : à renouveler, sinon les
-  MAJ s'arrêtent sans erreur visible. Après toute édition de `Backup.gs` : Déployer → Nouvelle version.
+  `gsystem` seul, **Contents : lecture seule**. Il **expire à la date choisie à sa création** : la
+  noter ici et le renouveler avant, sinon les MAJ s'arrêtent sans erreur visible. Après toute édition de `Backup.gs` : Déployer → Nouvelle version.
 - `?update=1` → JSON de la Release ; `?update=url` → + lien de téléchargement temporaire de l'APK,
   demandé juste avant de télécharger. Les deux exigent `SHARED_TOKEN`.
 - Prereleases exclues par `releases/latest`. Promotion : `gh release edit vX.Y.Z --prerelease=false --latest` (mais `gh` indisponible sur le poste → API REST).
