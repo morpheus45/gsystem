@@ -48,6 +48,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import android.view.Gravity
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -431,37 +439,46 @@ fun HomeScreen(
             else missionTiles + baseTiles.filterNot { it.number == "01" || it.number == "02" }
 
         // Boîte de choix au toucher d'une mission non pointée : Arrivée OU Attente.
+        // Même rendu que la version web (docs/app/theme.css : .voile / .boite / .btn) :
+        // carte ancrée en bas, deux gros boutons à dégradé 135°, « Annuler » dessous.
         missionChoice?.let { m ->
-            Dialog(onDismissRequest = { missionChoice = null }) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF12141B), RoundedCornerShape(20.dp))
-                        .border(1.dp, Color(0xFF2F3340), RoundedCornerShape(20.dp))
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(m.nom.ifBlank { m.type }, color = TextHi, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }.joinToString(" · "),
-                        color = TextMid, fontSize = 14.sp
-                    )
-                    Text("Pointer l'arrivée et appeler la techline ?", color = TextMid, fontSize = 14.sp)
-                    Spacer(Modifier.height(4.dp))
-                    ChoiceButton("ARRIVÉE SUR SITE", Icons.Outlined.PinDrop, ArriveeStart, ArriveeEnd) {
-                        missionChoice = null; onMissionArrivee(m)
+            Dialog(
+                onDismissRequest = { missionChoice = null },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+                SideEffect { window?.setGravity(Gravity.BOTTOM) }
+                Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.BottomCenter) {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 460.dp)
+                            .fillMaxWidth()
+                            .background(Color(0xFF12141B), RoundedCornerShape(18.dp))
+                            .border(1.dp, Color(0xFF2F3340), RoundedCornerShape(18.dp))
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(m.nom.ifBlank { m.type }, color = TextHi, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(
+                            listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }.joinToString(" · ") +
+                                "\nPointer l'arrivée et appeler la techline ?",
+                            color = TextMid, fontSize = 13.sp, lineHeight = 19.5.sp,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        ChoiceButton("\uD83D\uDCCD ARRIVÉE SUR SITE", ArriveeStart, ArriveeEnd) {
+                            missionChoice = null; onMissionArrivee(m)
+                        }
+                        ChoiceButton("\u23F1\uFE0F ATTENTE CLIENT", AttenteStart, AttenteEnd) {
+                            missionChoice = null; onMissionAttente(m)
+                        }
+                        TextButton(
+                            onClick = { missionChoice = null },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) { Text("Annuler", color = TextMid, fontSize = 14.sp) }
                     }
-                    ChoiceButton("ATTENTE CLIENT", Icons.Outlined.Timer, AttenteStart, AttenteEnd) {
-                        missionChoice = null; onMissionAttente(m)
-                    }
-                    TextButton(
-                        onClick = { missionChoice = null },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) { Text("Annuler", color = TextMid) }
                 }
             }
         }
-
         if (USE_TABBED_HOME) {
             HomeTabs(selected = selectedGroup, onSelect = { selectedGroup = it })
             SectionHeader(
@@ -529,23 +546,28 @@ private enum class HomeGroup(val title: String, val desc: String) {
     FIN("FIN DE CYCLE", "La paperasse mensuelle")
 }
 
-/** Gros bouton à dégradé du dialogue de mission (mêmes couleurs que les tuiles 01 / 02). */
+/** Gros bouton du dialogue de mission : dégradé CSS 135° (coins aux deux couleurs), 48 dp, coins 13 dp. */
 @Composable
-private fun ChoiceButton(label: String, icon: ImageVector, start: Color, end: Color, onClick: () -> Unit) {
-    Row(
+private fun ChoiceButton(label: String, start: Color, end: Color, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(Brush.horizontalGradient(listOf(start, end)))
+            .height(48.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .drawBehind {
+                val w = size.width
+                val h = size.height
+                drawRect(
+                    Brush.linearGradient(
+                        listOf(start, end),
+                        start = Offset((w - h) / 4, (h - w) / 4),
+                        end = Offset((3 * w + h) / 4, (w + 3 * h) / 4)
+                    )
+                )
+            }
             .clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = Color.White, fontWeight = FontWeight.Bold)
-    }
+        contentAlignment = Alignment.Center
+    ) { Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold) }
 }
 
 private data class HomeTile(
