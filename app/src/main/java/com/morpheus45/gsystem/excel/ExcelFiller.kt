@@ -171,7 +171,7 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
             val row = sheet.getRow(r) ?: sheet.createRow(r)
             // B (col 1) : département
             cellOf(row, 1).setCellValue(item.departement)
-            // C (col 2) : mission (TYPE NOM VILLE NUMERO)
+            // C (col 2) : mission (TYPE VILLE NUMERO — le nom du client n'est volontairement pas écrit)
             cellOf(row, 2).setCellValue(buildMissionText(item))
             // E (col 4) : heures (auto-calculées), seulement sur la 1ère ligne du jour
             if (i == 0) cellOf(row, 4).setCellValue(dailyHours)
@@ -196,9 +196,9 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
         // VACANCES -> libellé officiel « CONGÉ PAYÉ » attendu dans la feuille de
         // temps (la note éventuelle part déjà en colonne H, pas de doublon ici).
         if (e.typeMission.equals("VACANCES", ignoreCase = true)) return "CONGÉ PAYÉ"
-        // Mirror du desktop tool : TYPE NOM VILLE NUMERO en majuscules
+        // TYPE VILLE NUMERO en majuscules (le nom du client n'est volontairement pas écrit)
         val parts = listOf(
-            e.typeMission, e.nomClient, e.ville, e.numeroIntervention
+            e.typeMission, e.ville, e.numeroIntervention
         ).filter { it.isNotBlank() }
         return parts.joinToString(" ").uppercase()
     }

@@ -6,12 +6,11 @@
 // Messages Viber - repris mot pour mot de viber/ViberSender.kt. Le bureau doit
 // recevoir le meme texte, que le technicien soit sur Android ou sur iPhone.
 
-/** Phrase de cloture : dept type client ville numero + observation. */
+/** Phrase de cloture : dept type ville numero + observation (le nom du client n'y figure pas). */
 export function messageCloture(e) {
   const morceaux = [
     (e.departement || '').trim(),
     (e.typeMission || '').trim().toLowerCase(),
-    (e.nomClient || '').trim().toLowerCase(),
     (e.ville || '').trim().toLowerCase(),
     (e.numeroIntervention || '').trim(),
   ].filter(function (m) { return m; });
