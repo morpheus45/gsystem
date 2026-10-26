@@ -17,9 +17,10 @@ import com.morpheus45.gsystem.data.TempsEntry
  * Ouvre Viber (ou tout autre messagerie partagée) avec un message
  * pré-rempli au format des messages du groupe LAGO GOMEZ GSYSTEMS :
  *
- *   34 inst richard gignac 43001714 ok
- *   34 sav durand sete 12345678 NR CLIENT ABS
+ *   34 inst beziers 43001714 ok
+ *   34 sav sete 12345678 NR CLIENT ABS
  *
+ * Le nom du client n'y figure volontairement pas.
  * L'utilisateur n'a plus qu'à choisir le chat et taper « Envoyer ».
  */
 object ViberSender {
@@ -38,7 +39,6 @@ object ViberSender {
         val tokens = listOf(
             entry.departement.trim(),
             entry.typeMission.trim().lowercase(),
-            entry.nomClient.trim().lowercase(),
             entry.ville.trim().lowercase(),
             entry.numeroIntervention.trim(),
         ).filter { it.isNotBlank() }

@@ -384,6 +384,10 @@ curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep
 6. **Période partagée** : `Temps`, `Frais`, `EnvoiMensuel` lisent le même
    `periodStart/periodEnd` ; garder `onPeriodChange` cohérent.
 7. **`gh` indisponible** → API REST via `curl`.
+8. **Nom du client** : volontairement absent du message Viber (`ViberSender.buildMessage`) et de
+   la colonne C de l'Excel (`ExcelFiller.buildMissionText`), côté Android comme côté web
+   (`docs/app/viber.js`, `docs/app/xlsm.js`). Il reste saisi dans l'app et présent ailleurs
+   (écrans, CSV, mails GESTE CO, bulletin PDF, stats Drive) : à traiter séparément si besoin.
 8. **CI** : minSdk = **26** obligatoire (POI dépend de MethodHandle Android O+).
 9. **BON RETOUR supprimé** : ne pas réintroduire de références.
 

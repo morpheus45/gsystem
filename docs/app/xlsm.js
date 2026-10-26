@@ -51,10 +51,10 @@ export function indexJour(iso) {
 
 // ------------------------------------------------------- TEXTES CELLULES
 
-/** Colonne C : TYPE NOM VILLE NUMERO, en majuscules (miroir Android). */
+/** Colonne C : TYPE VILLE NUMERO, en majuscules (miroir Android ; le nom du client n'y figure pas). */
 export function texteMission(e) {
   if (String(e.typeMission || '').toUpperCase() === 'VACANCES') return 'CONGÉ PAYÉ';
-  return [e.typeMission, e.nomClient, e.ville, e.numeroIntervention]
+  return [e.typeMission, e.ville, e.numeroIntervention]
     .map((x) => String(x || '').trim()).filter((x) => x)
     .join(' ').toUpperCase();
 }
