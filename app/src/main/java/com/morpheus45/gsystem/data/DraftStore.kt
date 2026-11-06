@@ -67,7 +67,9 @@ data class PvCameraDraft(
     val observations: String = "",
     val miseServInt: Boolean = false, val miseServExt: Boolean = false,
     val miseServAnticipee: Boolean = false,
-    val faitLe: String = "", val nomTech: String = "", val emailClient: String = ""
+    val faitLe: String = "", val nomTech: String = "", val emailClient: String = "",
+    /** Mission de tournée dont ce brouillon a été pré-rempli (voir Preremplissage). */
+    val missionNum: String = ""
 )
 
 class DraftStore(private val context: Context) {
