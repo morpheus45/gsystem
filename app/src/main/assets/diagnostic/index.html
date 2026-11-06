@@ -517,6 +517,8 @@
 </style>
 </head>
 <body>
+<!-- Mission de tournée dont la fiche a été pré-remplie (voir remplirClient). -->
+<input type="hidden" data-key="mission_num">
 
 <div class="toolbar no-print">
   <h2>Fiche Diagnostic Sécurité — <b>Pro</b> (A4 / 2 pages)</h2>
@@ -1205,6 +1207,38 @@ function remplirNomTech() {
   if (pose && typeof saveAll === 'function') saveAll();
 }
 remplirNomTech();
+
+/* ====================================================================== */
+/* Client sur place : l APK pose window.__gsysClient (ordre de mission de */
+/* la tournee) au chargement. Fiche vierge -> remplie ; meme client ->    */
+/* seuls les champs vides sont completes ; fiche d un AUTRE client -> on  */
+/* demande avant de la vider : jamais d effacement silencieux.            */
+/* ====================================================================== */
+function remplirClient() {
+  var c = window.__gsysClient;
+  if (!c || !c.mission) return;
+  var champ = function (k) { return document.querySelectorAll('[data-key="' + k + '"]'); };
+  var valeur = function (k) { var l = champ(k); return l.length ? String(l[0].value || '').trim() : ''; };
+  var cleNom = champ('nom_prenom').length ? 'nom_prenom' : 'raison_sociale';
+  var cles = { lieu_num: c.lieu, adresse: c.adresse, cp: c.cp, ville: c.ville };
+  cles[cleNom] = c.nom;
+  var dejaMission = valeur('mission_num');
+  if (dejaMission === c.mission) return;
+  var commencee = Object.keys(cles).some(function (k) { return valeur(k) !== ''; });
+  if (dejaMission && commencee) {
+    if (!confirm('La fiche en cours concerne un autre client (' + (valeur(cleNom) || 'sans nom')
+        + ').\n\nLa vider pour ' + c.nom + ' ?')) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    location.reload();   // la fiche repart vierge ; l APK pose de nouveau le client
+    return;
+  }
+  Object.keys(cles).forEach(function (k) {
+    if (!cles[k]) return;
+    champ(k).forEach(function (el) { if (!String(el.value || '').trim()) el.value = cles[k]; });
+  });
+  champ('mission_num').forEach(function (el) { el.value = c.mission; });
+  if (typeof saveAll === 'function') saveAll();
+}
 
 /* ====================================================================== */
 /* Impression : une page de la fiche = une feuille A4                     */

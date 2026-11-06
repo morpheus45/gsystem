@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.morpheus45.gsystem.ui.theme.DiagStart
 import org.json.JSONObject
+import com.morpheus45.gsystem.data.Mission
 
 /**
  * DIAGNOSTIC SÉCURITÉ — fiche EPS de 386 champs sur 2 pages A4 (versions
@@ -76,7 +77,7 @@ import org.json.JSONObject
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
+fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "", mission: Mission? = null) {
     val context = LocalContext.current
     val vue = remember { mutableStateOf<WebView?>(null) }
 
@@ -130,12 +131,20 @@ fun DiagnosticScreen(onBack: () -> Unit, nomTech: String = "") {
                             // chaque chargement — la fiche le pose sous « Nom et
                             // signature » si la case est encore vide.
                             override fun onPageFinished(view: WebView?, url: String?) {
-                                if (nomTech.isBlank()) return
-                                view?.evaluateJavascript(
+                                val js = StringBuilder()
+                                if (nomTech.isNotBlank()) js.append(
                                     "window.__gsysTech=" + JSONObject.quote(nomTech) +
-                                        ";if(window.remplirNomTech)remplirNomTech();",
-                                    null
+                                        ";if(window.remplirNomTech)remplirNomTech();"
                                 )
+                                // Client sur place : la fiche reprend ses coordonnées
+                                // (ordre de mission) — voir remplirClient() dans la fiche.
+                                mission?.let { m ->
+                                    val client = JSONObject().put("mission", m.num).put("lieu", m.site)
+                                        .put("nom", m.nom).put("adresse", m.adresse)
+                                        .put("cp", m.cp).put("ville", m.ville)
+                                    js.append("window.__gsysClient=$client;if(window.remplirClient)remplirClient();")
+                                }
+                                if (js.isNotEmpty()) view?.evaluateJavascript(js.toString(), null)
                             }
 
                             // Tout reste dans les assets : aucun lien ne doit

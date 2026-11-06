@@ -78,6 +78,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.time.LocalDate
+import com.morpheus45.gsystem.data.Preremplissage
 
 /** Boîte de réception d'un PDF partagé (SEND) ou ouvert (VIEW). AppNav l'observe. */
 object ShareInbox {
@@ -594,6 +595,7 @@ fun AppNav() {
         composable("pv_cameras") {
             PvCameraScreen(
                 settings = settings,
+                mission = Preremplissage.surPlace(missions),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -642,7 +644,8 @@ fun AppNav() {
         composable("diagnostic") {
             DiagnosticScreen(
                 onBack = { navController.popBackStack() },
-                nomTech = settings.nomUtilisateur
+                nomTech = settings.nomUtilisateur,
+                mission = Preremplissage.surPlace(missions)
             )
         }
         composable("conge") {
