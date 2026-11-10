@@ -234,28 +234,21 @@ private fun EditCompteurDialog(
 ) {
     var obs by remember { mutableStateOf(entry.observations) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ajouter une note") },
-        text = {
-            Column {
-                Text("Le kilométrage est lu directement sur la photo, " +
-                     "pas besoin de le retaper. Tu peux ajouter une note " +
-                     "si tu veux (vidange faite, plein, etc.).",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(value = obs, onValueChange = { obs = it },
-                    label = { Text("Note (facultatif)") },
-                    modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(entry.copy(observations = obs.trim())) },
-                colors = ButtonDefaults.buttonColors(containerColor = CompteurColor)
-            ) { Text("Enregistrer", color = Color.White) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
-    )
+    GDialog(
+        title = "AJOUTER UNE NOTE",
+        accent = CompteurColor,
+        onDismiss = onDismiss,
+        confirmLabel = "Enregistrer",
+        onConfirm = { onSave(entry.copy(observations = obs.trim())) }
+    ) {
+        Text("Le kilométrage est lu directement sur la photo, " +
+             "pas besoin de le retaper. Tu peux ajouter une note " +
+             "si tu veux (vidange faite, plein, etc.).",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(value = obs, onValueChange = { obs = it },
+            label = { Text("Note (facultatif)") },
+            modifier = Modifier.fillMaxWidth())
+    }
 }

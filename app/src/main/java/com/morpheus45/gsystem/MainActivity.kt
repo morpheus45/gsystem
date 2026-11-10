@@ -22,6 +22,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
@@ -49,6 +51,8 @@ import com.morpheus45.gsystem.data.MissionStore
 import com.morpheus45.gsystem.data.SettingsStore
 import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.BulletinScreen
+import com.morpheus45.gsystem.ui.GDialog
+import com.morpheus45.gsystem.ui.GPrimaryButton
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
 import com.morpheus45.gsystem.ui.DiagnosticScreen
@@ -663,35 +667,39 @@ fun AppNav() {
 
     // Popup 2e appui sur ARRIVÉE : annuler l'arrivée en attente ou repointer.
     if (showArrivalDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showArrivalDialog = false },
-            title = { androidx.compose.material3.Text("Arrivée en attente") },
-            text = {
-                androidx.compose.material3.Text(
-                    "Une arrivée est déjà pointée à ${DateUtil.hm(settings.pendingArrivalMs)} " +
-                    "(pas encore rattachée à une clôture)."
+        GDialog(
+            title = "ARRIVÉE EN ATTENTE",
+            accent = com.morpheus45.gsystem.ui.theme.ArriveeStart,
+            onDismiss = { showArrivalDialog = false },
+            dismissLabel = "Fermer",
+            footer = {
+                GPrimaryButton(
+                    label = "Annuler l'arrivée",
+                    accent = com.morpheus45.gsystem.ui.theme.Error,
+                    onClick = {
+                        scope.launch {
+                            settingsStore.update {
+                                it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "")
+                            }
+                        }
+                        showArrivalDialog = false
+                        android.widget.Toast.makeText(
+                            context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    scope.launch { settingsStore.update { it.copy(pendingArrivalMs = 0L, pendingArrivalSource = "") } }
-                    showArrivalDialog = false
-                    android.widget.Toast.makeText(
-                        context, "Arrivée annulée", android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }) {
-                    androidx.compose.material3.Text(
-                        "Annuler l'arrivée",
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.error
-                    )
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    showArrivalDialog = false; recordArrival()
-                }) { androidx.compose.material3.Text("Repointer") }
+                Spacer(Modifier.height(6.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { showArrivalDialog = false; recordArrival() },
+                    modifier = Modifier.fillMaxWidth()
+                ) { androidx.compose.material3.Text("Repointer") }
             }
-        )
+        ) {
+            androidx.compose.material3.Text(
+                "Une arrivée est déjà pointée à ${DateUtil.hm(settings.pendingArrivalMs)} " +
+                "(pas encore rattachée à une clôture)."
+            )
+        }
     }
 
         // Splash par-dessus tout, retiré à la fin de l'animation
