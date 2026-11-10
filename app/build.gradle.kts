@@ -193,6 +193,9 @@ dependencies {
     // générer les tuiles de tournée. Lecture seule, hors ligne.
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
+    // Tests JVM (Preremplissage : aucune dependance Android)
+    testImplementation("junit:junit:4.13.2")
+
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
