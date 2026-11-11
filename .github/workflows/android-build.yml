@@ -43,6 +43,22 @@ jobs:
           fi
           chmod +x gradlew
 
+      # Tests JVM avant la compilation : inutile de fabriquer un APK dont la
+      # logique est fausse. Preremplissage protège la règle « jamais deux clients
+      # dans un même document » — un échec ici doit arrêter la livraison.
+      - name: Run unit tests
+        run: ./gradlew :app:testSideloadDebugUnitTest --stacktrace
+
+      # Le rapport sert à comprendre un échec sans relancer le build en local.
+      - name: Upload test report on failure
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-tests
+          path: app/build/reports/tests/
+          retention-days: 7
+
       # Décode la clé de prod depuis le secret (base64) vers un fichier non
       # versionné, et expose son chemin à Gradle. Sauté si le secret est absent.
       - name: Decode release keystore
@@ -80,14 +96,18 @@ jobs:
 
       # Sur un tag de version, l'APK part dans la Release ci-dessous : inutile de
       # le stocker une seconde fois, le stockage des compilations est limité.
+      # Le quota de stockage GitHub est partagé par tout le compte : quand il est
+      # plein, l'envoi échoue alors que l'APK est bon. Ça ne doit pas rendre la CI
+      # rouge — l'APK livré aux techs vient de la Release, pas d'ici.
       - name: Upload APK as artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: gsystem-${{ steps.build.outputs.variant }}-apk
           path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
       # --- Publication automatique d'une Release quand un tag vX.Y.Z est poussé ---
       # L'app (UpdateChecker) lit /releases/latest et propose la MAJ aux techs.
