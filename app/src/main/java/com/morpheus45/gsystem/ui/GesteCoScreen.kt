@@ -518,22 +518,20 @@ internal fun AddGesteCoDialog(
                     footer = {
                     if (isEditing) {
                         // Ligne 1 : enregistrer SANS renvoyer (plein largeur)
-                        OutlinedButton(
+                        GSecondaryButton(
+                            label = "Enregistrer (sans renvoyer le mail)",
+                            accent = ColorGesteCo,
+                            icon = Icons.Filled.Edit,
+                            enabled = canSave,
                             onClick = {
-                                if (!canSave) return@OutlinedButton
+                                if (!canSave) return@GSecondaryButton
                                 val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
                                 onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
                                     iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn,
                                     oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn,
                                     n), false)
-                            },
-                            enabled = canSave,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Edit, contentDescription = null,
-                                modifier = Modifier.size(18.dp))
-                            Text("  Enregistrer (sans renvoyer le mail)")
-                        }
+                            }
+                        )
                         Spacer(Modifier.height(6.dp))
                     }
                     GPrimaryButton(

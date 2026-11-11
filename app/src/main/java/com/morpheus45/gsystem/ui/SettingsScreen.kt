@@ -253,7 +253,10 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 6.dp))
             val ctx = LocalContext.current
-            OutlinedButton(
+            GSecondaryButton(
+                label = "Créer une sauvegarde ZIP et l'envoyer",
+                icon = Icons.Filled.Archive,
+                accent = MaterialTheme.colorScheme.primary,
                 onClick = {
                     val settingsJson = Json { prettyPrint = true }.encodeToString(
                         AppSettings.serializer(), settings
@@ -275,37 +278,28 @@ fun SettingsScreen(
                         android.content.Intent.createChooser(intent, "Sauvegarder via…")
                             .apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.Archive, contentDescription = null)
-                Text("  Créer une sauvegarde ZIP et l'envoyer")
-            }
+                }
+            )
 
             Spacer(Modifier.height(10.dp))
             val syncScope = rememberCoroutineScope()
             var syncing by remember { mutableStateOf(false) }
-            OutlinedButton(
+            GSecondaryButton(
+                label = if (syncing) "Synchronisation…" else "Synchroniser tout sur le Drive",
+                accent = MaterialTheme.colorScheme.primary,
+                icon = Icons.Filled.CloudUpload,
+                loading = syncing,
+                enabled = !syncing,
                 onClick = {
-                    if (syncing) return@OutlinedButton
+                    if (syncing) return@GSecondaryButton
                     syncing = true
                     syncScope.launch {
                         val msg = onSync()
                         syncing = false
                         Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
                     }
-                },
-                enabled = !syncing,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (syncing) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Text("  Synchronisation…")
-                } else {
-                    Icon(Icons.Filled.CloudUpload, contentDescription = null)
-                    Text("  Synchroniser tout sur le Drive")
                 }
-            }
+            )
             Text("Complète la sauvegarde sur le Drive : données fusionnées et photos envoyées une seule fois (rien n'est recréé à chaque fois).",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -313,27 +307,22 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(10.dp))
             var restoring by remember { mutableStateOf(false) }
-            OutlinedButton(
+            GSecondaryButton(
+                label = if (restoring) "Restauration…" else "Restaurer depuis le Drive",
+                accent = MaterialTheme.colorScheme.primary,
+                icon = Icons.Filled.CloudDownload,
+                loading = restoring,
+                enabled = !restoring,
                 onClick = {
-                    if (restoring) return@OutlinedButton
+                    if (restoring) return@GSecondaryButton
                     restoring = true
                     syncScope.launch {
                         val msg = onRestore()
                         restoring = false
                         Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
                     }
-                },
-                enabled = !restoring,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (restoring) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Text("  Restauration…")
-                } else {
-                    Icon(Icons.Filled.CloudDownload, contentDescription = null)
-                    Text("  Restaurer depuis le Drive")
                 }
-            }
+            )
             Text("Après une réinstallation : renseigne le même nom qu'avant, puis récupère tes données et photos depuis le Drive (elles complètent le local, sans rien écraser).",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -353,13 +342,12 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.padding(top = 4.dp))
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = onCheckUpdate,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Filled.CloudDownload, contentDescription = null)
-                    Text("  Vérifier maintenant")
-                }
+                GSecondaryButton(
+                    label = "Vérifier maintenant",
+                    accent = MaterialTheme.colorScheme.primary,
+                    icon = Icons.Filled.CloudDownload,
+                    onClick = onCheckUpdate
+                )
                 Text("La vérification se fait aussi automatiquement au démarrage de l'app.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -370,7 +358,10 @@ fun SettingsScreen(
             Divider()
             Spacer(Modifier.height(16.dp))
             val ctxToast = LocalContext.current
-            Button(
+            GPrimaryButton(
+                label = "Enregistrer",
+                accent = MaterialTheme.colorScheme.primary,
+                icon = Icons.Filled.Save,
                 onClick = {
                     val cycleInt = cycle.toIntOrNull()?.coerceIn(1, 28) ?: 21
                     val newPrices = GesteCoPrices(
@@ -420,12 +411,8 @@ fun SettingsScreen(
                         )
                     )
                     Toast.makeText(ctxToast, "Réglages enregistrés", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier.fillMaxWidth().height(52.dp)
-            ) {
-                Icon(Icons.Filled.Save, contentDescription = null)
-                Text("  Enregistrer", fontSize = 16.sp)
-            }
+                }
+            )
             if (nom.isBlank() || emailEpsCc2.isBlank() || siteCode.isBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(

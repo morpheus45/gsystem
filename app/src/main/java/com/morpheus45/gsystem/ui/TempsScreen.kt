@@ -899,10 +899,13 @@ private fun AddTempsDialog(
                     onDismiss = onDismiss,
                     footer = {
                     if (isEditing) {
-                        OutlinedButton(
+                        GSecondaryButton(
+                            label = "Enregistrer (sans renvoyer Viber)",
+                            accent = ColorTemps,
+                            icon = Icons.Filled.Edit,
                             onClick = {
                                 tried = true
-                                if (!allOk) return@OutlinedButton
+                                if (!allOk) return@GSecondaryButton
                                 val e0 = buildEntry()
                                 onSave(
                                     listOf(e0),
@@ -912,13 +915,8 @@ private fun AddTempsDialog(
                                     ) else null,
                                     false
                                 )
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.Edit, contentDescription = null,
-                                modifier = Modifier.size(18.dp))
-                            Text("  Enregistrer (sans renvoyer Viber)")
-                        }
+                            }
+                        )
                         Spacer(Modifier.height(6.dp))
                     }
                     GPrimaryButton(

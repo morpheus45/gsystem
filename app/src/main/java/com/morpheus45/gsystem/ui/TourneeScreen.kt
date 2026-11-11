@@ -178,15 +178,12 @@ private fun MissionTile(
         if (arrived) {
             Text("Arrivée pointée ${DateUtil.hm(m.arrivalMs)}", color = Success, fontSize = 12.sp)
             Spacer(Modifier.height(6.dp))
-            Button(
-                onClick = { onCloturer(m) },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TempsStart)
-            ) {
-                Icon(Icons.Outlined.Assignment, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("CLÔTURER (pré-rempli)", color = Color.White, fontWeight = FontWeight.SemiBold)
-            }
+            GPrimaryButton(
+                label = "CLÔTURER (pré-rempli)",
+                accent = TempsStart,
+                icon = Icons.Outlined.Assignment,
+                onClick = { onCloturer(m) }
+            )
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Place, null, tint = TextLow, modifier = Modifier.size(15.dp))

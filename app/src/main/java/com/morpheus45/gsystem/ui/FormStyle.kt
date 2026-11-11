@@ -36,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -246,7 +247,8 @@ internal fun GSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    loading: Boolean = false
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -269,7 +271,13 @@ internal fun GSecondaryButton(
         contentAlignment = Alignment.Center
     ) {
         androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
+            // Le travail en cours remplace l'icone : sans ca, le tech relance
+            // une synchro deja partie parce que rien ne bouge a l'ecran.
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = tint)
+                Spacer(Modifier.width(8.dp))
+            } else if (icon != null) {
                 Icon(icon, contentDescription = null, tint = tint,
                     modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))

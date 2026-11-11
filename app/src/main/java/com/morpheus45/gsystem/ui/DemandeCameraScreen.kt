@@ -140,22 +140,18 @@ fun DemandeCameraScreen(
             }
             Spacer(Modifier.height(16.dp))
 
-            Button(
+            GPrimaryButton(
+                label = "Envoyer la demande",
+                accent = CameraStart,
                 onClick = {
                     tried = true
-                    if (!allOk) return@Button
+                    if (!allOk) return@GPrimaryButton
                     sendCameraEmail(context, settings, siteNumber.trim(),
                         nbCameras.toIntOrNull() ?: 1, precisions.trim())
                     onBack()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CameraStart)
-            ) {
-                Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White,
-                    modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Envoyer la demande", color = Color.White, fontSize = 16.sp)
-            }
+                icon = Icons.Filled.Send
+            )
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                 Text("Annuler")
