@@ -31,7 +31,7 @@ import java.net.URL
 object UpdateChecker {
     /**
      * Le dépôt est PRIVÉ : un téléphone n'a aucun accès à GitHub (404). La passerelle
-     * (apps-script/Backup.gs, `?update=`) lit la dernière Release avec un jeton gardé
+     * (apps-script/Code.js, `?update=`) lit la dernière Release avec un jeton gardé
      * côté Google et renvoie le même JSON que l'API GitHub ; `update=url` y ajoute le
      * lien de téléchargement temporaire de l'APK.
      */

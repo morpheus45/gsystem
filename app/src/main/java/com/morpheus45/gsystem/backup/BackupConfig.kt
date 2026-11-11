@@ -15,12 +15,18 @@ package com.morpheus45.gsystem.backup
  * adresses mail. Pour changer de Drive : éditer ENDPOINT puis publier une MAJ.
  */
 object BackupConfig {
-    /** URL « /exec » du déploiement Apps Script (cf. apps-script/Backup.gs). */
+    /** URL « /exec » du déploiement Apps Script (cf. apps-script/Code.js). */
     const val ENDPOINT =
         "https://script.google.com/macros/s/AKfycbxJDvoGwgrtlZH5AVrBlHLJy8sYGW7laIKU_AH880C1BRi79_JthDYp2nHgplCP_w9t/exec"
 
-    /** Doit être IDENTIQUE à SHARED_TOKEN dans le script Apps Script. */
-    const val TOKEN = "gsys-backup-2026-7Kq2vR"
+    /**
+     * Doit être IDENTIQUE à la propriété de script SHARED_TOKEN.
+     * Un APK se décompile : ce jeton n'est pas un secret, il ne fait
+     * qu'écarter les appels qui ne viennent pas de l'app. La vraie
+     * protection des données reste le code du tableau de bord, lui
+     * rangé dans les propriétés du script. Tourné le 2026-11-11.
+     */
+    const val TOKEN = "gsys-8lIQ8ikcwUwK0hbDPFOloDtLsyvAUw7C"
 
     /** Intervalle de la sauvegarde complète automatique (7 jours). */
     const val BACKUP_INTERVAL_MS = 7L * 24 * 60 * 60 * 1000
