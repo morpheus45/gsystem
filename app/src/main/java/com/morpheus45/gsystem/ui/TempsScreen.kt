@@ -120,6 +120,7 @@ fun TempsScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAdd = true },
+                shape = RoundedCornerShape(16.dp),
                 containerColor = ColorTemps,
                 icon = { Icon(Icons.Filled.Add, "Ajouter", tint = Color.White) },
                 text = { Text("Nouvelle intervention", color = Color.White) }

@@ -181,12 +181,14 @@ fun FraisScreen(
             ) {
                 ExtendedFloatingActionButton(
                     onClick = { startFilePick() },
+                    shape = RoundedCornerShape(16.dp),
                     containerColor = FraisColor.copy(alpha = 0.85f),
                     icon = { Icon(Icons.Filled.AttachFile, "Importer fichier", tint = Color.White) },
                     text = { Text("PDF / fichier", color = Color.White) }
                 )
                 ExtendedFloatingActionButton(
                     onClick = { startCapture() },
+                    shape = RoundedCornerShape(16.dp),
                     containerColor = FraisColor,
                     icon = { Icon(Icons.Filled.CameraAlt, "Prendre photo", tint = Color.White) },
                     text = { Text("Photo", color = Color.White) }

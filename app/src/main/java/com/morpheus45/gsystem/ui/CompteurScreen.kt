@@ -120,6 +120,7 @@ fun CompteurScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { startCapture() },
+                shape = RoundedCornerShape(16.dp),
                 containerColor = CompteurColor,
                 icon = { Icon(Icons.Filled.CameraAlt, "Prendre photo", tint = Color.White) },
                 text = { Text("Photo compteur", color = Color.White) }

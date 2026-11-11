@@ -91,6 +91,7 @@ fun GesteCoScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAdd = true },
+                shape = RoundedCornerShape(16.dp),
                 containerColor = ColorGesteCo,
                 icon = { Icon(Icons.Filled.Add, "Ajouter", tint = Color.White) },
                 text = { Text("Nouveau site", color = Color.White) }
