@@ -43,6 +43,19 @@ data class Mission(
     val done: Boolean = false   // clôturée
 )
 
+/**
+ * Identite d'une mission pour l'import. Le n° d'ordre seul ne suffit pas :
+ * une mission REPLANIFIEE garde son numero et change de date, et serait
+ * silencieusement ignoree a la reimportation.
+ */
+internal fun Mission.importKey(): String = "$num|$dateRdv"
+
+/** "28/09/2026" -> "20260928", pour trier sans dependre d'un parseur de date. */
+internal fun String.toSortable(): String {
+    val p = split("/")
+    return if (p.size == 3 && p[2].length == 4) p[2] + p[1] + p[0] else this
+}
+
 private val Context.missionsDataStore by preferencesDataStore(name = "missions_tournee")
 
 /**
@@ -65,6 +78,36 @@ class MissionStore(private val context: Context) {
 
     suspend fun replaceAll(missions: List<Mission>) {
         context.missionsDataStore.edit { it[key] = json.encodeToString(serializer, missions) }
+    }
+
+    /**
+     * Ajoute les missions inconnues SANS toucher aux existantes, et renvoie
+     * combien ont ete ajoutees.
+     *
+     * [replaceAll] ecrase toute la tournee : c'est acceptable pour un partage
+     * manuel, geste delibere. Un import automatique, lui, peut tomber en
+     * pleine journee — il effacerait les arrivees pointees et les clotures.
+     * D'ou cette fusion.
+     *
+     * Le dedoublonnage se fait sur la liste courante uniquement : une tournee
+     * effacee a la main peut donc etre reimportee, ce qui est le comportement
+     * voulu. Le garde-fou contre le retelechargement est ailleurs (sinceTs).
+     */
+    suspend fun mergeNew(incoming: List<Mission>): Int {
+        var added = 0
+        context.missionsDataStore.edit { prefs ->
+            val current = decode(prefs[key])
+            val known = current.map { it.importKey() }.toSet()
+            val fresh = incoming.filter { it.importKey() !in known }
+            added = fresh.size
+            if (fresh.isNotEmpty()) {
+                val merged = (current + fresh).sortedWith(
+                    compareBy({ it.dateRdv.toSortable() }, { it.heure })
+                )
+                prefs[key] = json.encodeToString(serializer, merged)
+            }
+        }
+        return added
     }
 
     /** Met à jour UNE mission (repérée par son num) via une transformation. */
