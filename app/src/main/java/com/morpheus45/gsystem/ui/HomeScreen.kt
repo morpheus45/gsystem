@@ -442,40 +442,33 @@ fun HomeScreen(
         // Même rendu que la version web (docs/app/theme.css : .voile / .boite / .btn) :
         // carte ancrée en bas, deux gros boutons à dégradé 135°, « Annuler » dessous.
         missionChoice?.let { m ->
-            Dialog(
-                onDismissRequest = { missionChoice = null },
-                properties = DialogProperties(usePlatformDefaultWidth = false)
+            GDialogFrame(
+                title = m.nom.ifBlank { m.type },
+                accent = ArriveeStart,
+                accentEnd = ArriveeEnd,
+                onDismiss = { missionChoice = null },
+                trailing = listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }
+                    .joinToString(" · ")
             ) {
-                val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-                SideEffect { window?.setGravity(Gravity.BOTTOM) }
-                Box(Modifier.fillMaxWidth().padding(18.dp), contentAlignment = Alignment.BottomCenter) {
-                    Column(
-                        modifier = Modifier
-                            .widthIn(max = 460.dp)
-                            .fillMaxWidth()
-                            .background(Color(0xFF12141B), RoundedCornerShape(18.dp))
-                            .border(1.dp, Color(0xFF2F3340), RoundedCornerShape(18.dp))
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(m.nom.ifBlank { m.type }, color = TextHi, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
-                        Text(
-                            listOf(m.heure, m.type, m.ville).filter { it.isNotBlank() }.joinToString(" · ") +
-                                "\nPointer l'arrivée et appeler la techline ?",
-                            color = TextMid, fontSize = 13.sp, lineHeight = 19.5.sp,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                        ChoiceButton("\uD83D\uDCCD ARRIVÉE SUR SITE", ArriveeStart, ArriveeEnd) {
-                            missionChoice = null; onMissionArrivee(m)
-                        }
-                        ChoiceButton("\u23F1\uFE0F ATTENTE CLIENT", AttenteStart, AttenteEnd) {
-                            missionChoice = null; onMissionAttente(m)
-                        }
-                        TextButton(
-                            onClick = { missionChoice = null },
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
-                        ) { Text("Annuler", color = TextMid, fontSize = 14.sp) }
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Pointer l'arrivée et appeler la techline ?",
+                        color = TextMid, fontSize = 13.sp, lineHeight = 19.5.sp,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    ChoiceButton("\uD83D\uDCCD ARRIVÉE SUR SITE", ArriveeStart, ArriveeEnd) {
+                        missionChoice = null; onMissionArrivee(m)
                     }
+                    ChoiceButton("\u23F1\uFE0F ATTENTE CLIENT", AttenteStart, AttenteEnd) {
+                        missionChoice = null; onMissionAttente(m)
+                    }
+                    TextButton(
+                        onClick = { missionChoice = null },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) { Text("Annuler", color = TextMid, fontSize = 14.sp) }
                 }
             }
         }

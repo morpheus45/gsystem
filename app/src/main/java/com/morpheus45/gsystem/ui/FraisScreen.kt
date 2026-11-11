@@ -407,11 +407,22 @@ private fun EditFraisDialog(
     // PARKING : certaines plateformes (PayByPhone…) ne facturent pas de TVA.
     var avecTva by remember { mutableStateOf(!ticket.sansTva) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Détails du ticket") },
-        text = {
-            Column {
+    GDialog(
+        title = "DÉTAILS DU TICKET",
+        accent = FraisColor,
+        onDismiss = onDismiss,
+        confirmLabel = "Enregistrer",
+        onConfirm = {
+            val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
+            onSave(ticket.copy(
+                categorie = categorie,
+                montantEur = m,
+                observations = obs.trim(),
+                // Le flag « sans TVA » n'a de sens que pour PARKING.
+                sansTva = categorie == "PARKING" && !avecTva
+            ))
+        }
+    ) {
                 Text("Catégorie", fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                 Spacer(Modifier.height(4.dp))
@@ -477,27 +488,7 @@ private fun EditFraisDialog(
                         color = FraisColor,
                         modifier = Modifier.padding(top = 4.dp))
                 }
-            }
-        },
-        confirmButton = {
-            val canSave = true
-            Button(
-                onClick = {
-                    val m = montant.replace(",", ".").toDoubleOrNull() ?: 0.0
-                    onSave(ticket.copy(
-                        categorie = categorie,
-                        montantEur = m,
-                        observations = obs.trim(),
-                        // Le flag « sans TVA » n'a de sens que pour PARKING.
-                        sansTva = categorie == "PARKING" && !avecTva
-                    ))
-                },
-                enabled = canSave,
-                colors = ButtonDefaults.buttonColors(containerColor = FraisColor)
-            ) { Text("Enregistrer", color = Color.White) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } }
-    )
+    }
 }
 
 /** Récupère le nom d'affichage (DISPLAY_NAME) d'un URI content://. */

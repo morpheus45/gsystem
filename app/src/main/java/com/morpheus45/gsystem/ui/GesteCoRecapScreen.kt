@@ -278,23 +278,19 @@ fun GesteCoRecapScreen(
     }
 
     toDelete?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { toDelete = null },
-            title = { Text("Supprimer ce site ?") },
-            text = {
-                Text("Site ${entry.siteNumber} — ${DateUtil.fr(DateUtil.parseIso(entry.date))}. " +
-                    "Cette entrée GESTE CO sera retirée du récap et des primes.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { repo.removeGesteCo(entry.id) }
-                    toDelete = null
-                }) { Text("Supprimer", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { toDelete = null }) { Text("Annuler") }
+        GDialog(
+            title = "SUPPRIMER CE SITE",
+            accent = com.morpheus45.gsystem.ui.theme.Error,
+            onDismiss = { toDelete = null },
+            confirmLabel = "Supprimer",
+            onConfirm = {
+                scope.launch { repo.removeGesteCo(entry.id) }
+                toDelete = null
             }
-        )
+        ) {
+            Text("Site ${entry.siteNumber} — ${DateUtil.fr(DateUtil.parseIso(entry.date))}. " +
+                "Cette entrée GESTE CO sera retirée du récap et des primes.")
+        }
     }
 }
 

@@ -377,53 +377,13 @@ internal fun AddGesteCoDialog(
     val allValid = perTypeOk && halfOk && capOk
     val canSave = siteNumber.isNotBlank() && date.isNotBlank() && installedAll > 0 && allValid
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
+    GDialogFrame(
+        title = if (isEditing) "MODIFIER GESTE CO" else "NOUVEAU GESTE CO",
+        accent = ColorGesteCo,
+        onDismiss = onDismiss,
+        trailing = "GESTE CO - ${settings.siteCodeFixe} - ${siteNumber.ifBlank { "<n° site>" }}",
+        fillHeight = 0.94f
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.94f),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Header (badge plus visible en mode edition)
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (isEditing) {
-                            Box(
-                                modifier = Modifier
-                                    .background(ColorGesteCo, RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("EN MODIFICATION", color = Color.White,
-                                    fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(Modifier.height(4.dp))
-                        }
-                        Text(
-                            if (isEditing) "Modifier GESTE CO" else "Nouveau GESTE CO",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                    Text(
-                        "Sujet : GESTE CO - ${settings.siteCodeFixe} - ${siteNumber.ifBlank { "<n° site>" }}",
-                        fontSize = 10.sp,
-                        color = ColorGesteCo,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.fillMaxWidth(0.4f)
-                    )
-                }
-                Divider()
 
                 // ZONE FIXE (non scrollable) : N° site + Date — ils doivent
                 // toujours rester visibles, peu importe la position de scroll.
@@ -550,13 +510,12 @@ internal fun AddGesteCoDialog(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // Bottom bar fixe — 2 lignes en mode edition pour eviter
+                // Pied fixe — 2 lignes en mode edition pour eviter
                 // le debordement sur petits ecrans
-                Divider()
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
+                GDialogActions(
+                    accent = ColorGesteCo,
+                    onDismiss = onDismiss,
+                    footer = {
                     if (isEditing) {
                         // Ligne 1 : enregistrer SANS renvoyer (plein largeur)
                         OutlinedButton(
@@ -577,36 +536,21 @@ internal fun AddGesteCoDialog(
                         }
                         Spacer(Modifier.height(6.dp))
                     }
-                    // Ligne 2 : Annuler (gauche) + Enregistrer & envoyer (droite)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(onClick = onDismiss) { Text("Annuler") }
-                        Button(
-                            onClick = {
-                                if (!canSave) return@Button
-                                val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
-                                onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
-                                    iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn,
-                                    oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn,
-                                    n), true)
-                            },
-                            enabled = canSave,
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorGesteCo)
-                        ) {
-                            Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White,
-                                modifier = Modifier.size(18.dp))
-                            Text(
-                                if (isEditing) "  Enregistrer & renvoyer" else "  Enregistrer & envoyer",
-                                color = Color.White
-                            )
+                    GPrimaryButton(
+                        label = if (isEditing) "Enregistrer & renvoyer" else "Enregistrer & envoyer",
+                        accent = ColorGesteCo,
+                        icon = Icons.Filled.Send,
+                        enabled = canSave,
+                        onClick = {
+                            val n: (String) -> Int = { s -> s.toIntOrNull() ?: 0 }
+                            onSave(buildEntry(existing, date, siteNumber, nom, obs, eps,
+                                iGsm, iCo, iDmp, iSe, iTc, iSi, iCam, iDacco, iBa, iCl, iDf, iSondeIn,
+                                oGsm, oCo, oDmp, oSe, oTc, oSi, oCam, oDacco, oBa, oCl, oDf, oSondeIn,
+                                n), true)
                         }
+                    )
                     }
-                }
-            }
-        }
+                )
     }
 }
 

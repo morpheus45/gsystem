@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.morpheus45.gsystem.BuildConfig
+import com.morpheus45.gsystem.ui.GDialog
 import kotlinx.coroutines.launch
 
 /** Page du tuto qui héberge l'APK signé Google Play (canal « play »). */
@@ -55,11 +56,52 @@ fun UpdateDialog(
     var progress by remember { mutableFloatStateOf(0f) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    AlertDialog(
-        onDismissRequest = { if (!downloading) onDismiss() },
-        title = { Text("Nouvelle version disponible") },
-        text = {
-            Column {
+    GDialog(
+        title = "NOUVELLE VERSION",
+        accent = com.morpheus45.gsystem.ui.theme.TempsStart,
+        onDismiss = { if (!downloading) onDismiss() },
+        // Pendant le téléchargement, un clic à côté couperait le transfert.
+        dismissOnClickOutside = !downloading,
+        dismissLabel = if (downloading) null else "Plus tard",
+        confirmLabel = when {
+            BuildConfig.PLAY_BUILD -> "Ouvrir le tuto"
+            downloading -> "Téléchargement…"
+            else -> "Mettre à jour"
+        },
+        confirmEnabled = !downloading,
+        onConfirm = {
+            // Build « play » : l'APK installé est signé par Google Play, celui
+            // de la Release GitHub ne l'est pas -> Android refuserait de
+            // l'installer par-dessus. On renvoie donc vers le tuto, qui
+            // héberge l'APK de la MÊME signature.
+            if (BuildConfig.PLAY_BUILD) {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(TUTO_URL)
+                        ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }.onFailure { errorMsg = "Ouvre le tuto : $TUTO_URL" }
+                onDismiss()
+            } else {
+                scope.launch {
+                    downloading = true
+                    errorMsg = null
+                    runCatching {
+                        val apk = UpdateChecker.download(context, update.downloadUrl) { p ->
+                            progress = p
+                        }
+                        UpdateInstaller.install(context, apk)
+                        onDismiss()
+                    }.onFailure {
+                        errorMsg = it.message ?: "Téléchargement impossible"
+                        downloading = false
+                    }
+                }
+            }
+        }
+    ) {
                 Text("Version installée : ${BuildConfig.VERSION_NAME}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
@@ -90,57 +132,7 @@ fun UpdateDialog(
                     Text("Erreur : $it",
                         color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
-            }
-        },
-        confirmButton = {
-            Button(
-                enabled = !downloading,
-                onClick = {
-                    // Build « play » : l'APK installé est signé par Google Play, celui
-                    // de la Release GitHub ne l'est pas -> Android refuserait de
-                    // l'installer par-dessus. On renvoie donc vers le tuto, qui
-                    // héberge l'APK de la MÊME signature.
-                    if (BuildConfig.PLAY_BUILD) {
-                        runCatching {
-                            context.startActivity(
-                                android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(TUTO_URL)
-                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }.onFailure { errorMsg = "Ouvre le tuto : $TUTO_URL" }
-                        onDismiss()
-                        return@Button
-                    }
-                    scope.launch {
-                        downloading = true
-                        errorMsg = null
-                        runCatching {
-                            val apk = UpdateChecker.download(context, update.downloadUrl) { p ->
-                                progress = p
-                            }
-                            UpdateInstaller.install(context, apk)
-                            onDismiss()
-                        }.onFailure {
-                            errorMsg = it.message ?: "Téléchargement impossible"
-                            downloading = false
-                        }
-                    }
-                }
-            ) {
-                Text(
-                    when {
-                        BuildConfig.PLAY_BUILD -> "Ouvrir le tuto"
-                        downloading -> "Téléchargement…"
-                        else -> "Mettre à jour"
-                    }
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(enabled = !downloading, onClick = onDismiss) { Text("Plus tard") }
-        }
-    )
+    }
 }
 
 /**

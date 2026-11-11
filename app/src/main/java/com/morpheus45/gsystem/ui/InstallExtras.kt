@@ -94,12 +94,14 @@ internal class InstallExtrasState {
      * (rien d'installé) ; sinon il faut des extensions installées.
      */
     fun buildGeste(date: String, site: String, nom: String, obs: String, tempsId: String,
-                   savMode: Boolean = false): GesteCoEntry? {
+                   savMode: Boolean = false, id: String? = null): GesteCoEntry? {
         if (!gesteOn) return null
         if (savMode) { if (offeredAll() == 0) return null }
         else { if (installedAll() == 0) return null }
         return GesteCoEntry(
-            id = EntriesRepository.newId(),
+            // En modification, on garde l'id d'origine : sinon le RÉCAP et les
+            // primes verraient une deuxième entrée au lieu de la correction.
+            id = id ?: EntriesRepository.newId(),
             tempsId = tempsId,
             date = date.trim(), siteNumber = site.trim(),
             installedGsm = n(iGsm), installedCo = n(iCo), installedDmp = n(iDmp), installedSe = n(iSe),
@@ -122,8 +124,27 @@ internal class InstallExtrasState {
     fun needsSite(): Boolean = gesteOn && offeredAll() > 0
 }
 
+/**
+ * Recharge l'état depuis une entrée GESTE CO existante, pour que la
+ * modification d'une clôture reparte des extensions déjà saisies.
+ */
+internal fun InstallExtrasState.loadFrom(g: GesteCoEntry) {
+    fun v(n: Int) = if (n > 0) n.toString() else ""
+    gesteOn = true
+    eps = g.epsDerogation
+    iGsm = v(g.installedGsm); iCo = v(g.installedCo); iDmp = v(g.installedDmp)
+    iSe = v(g.installedSe); iTc = v(g.installedTc); iSi = v(g.installedSi)
+    iCam = v(g.installedCam); iDacco = v(g.installedDacco); iBa = v(g.installedBa)
+    iCl = v(g.installedCl); iDf = v(g.installedDf); iSondeIn = v(g.installedSondeIn)
+    oGsm = v(g.offeredGsm); oCo = v(g.offeredCo); oDmp = v(g.offeredDmp)
+    oSe = v(g.offeredSe); oTc = v(g.offeredTc); oSi = v(g.offeredSi)
+    oCam = v(g.offeredCam); oDacco = v(g.offeredDacco); oBa = v(g.offeredBa)
+    oCl = v(g.offeredCl); oDf = v(g.offeredDf); oSondeIn = v(g.offeredSondeIn)
+}
+
 @Composable
-internal fun rememberInstallExtrasState(): InstallExtrasState = remember { InstallExtrasState() }
+internal fun rememberInstallExtrasState(existing: GesteCoEntry? = null): InstallExtrasState =
+    remember(existing?.id) { InstallExtrasState().also { st -> existing?.let(st::loadFrom) } }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

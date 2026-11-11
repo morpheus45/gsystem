@@ -215,15 +215,28 @@ fun TempsScreen(
     }
 
     editingEntry?.let { e ->
+        val lieGeste = store.gesteCo.firstOrNull { it.tempsId == e.id }
         AddTempsDialog(
             settings = settings,
             existing = e,
+            existingGeste = lieGeste,
             otherCloturesDates = store.temps.filter { it.id != e.id }.map { it.date }.toSet(),
             daySlotOf = { d -> store.temps.firstOrNull { it.id != e.id && it.date == d && it.slotMidi.isNotBlank() }?.slotMidi },
             onDismiss = { editingEntry = null },
-            onSave = { updatedList, _, alsoShareViber ->
+            onSave = { updatedList, geste, alsoShareViber ->
                 val updated = updatedList.first()
-                scope.launch { repo.updateTemps(updated) }
+                scope.launch {
+                    repo.updateTemps(updated)
+                    // Extensions : on met à jour celle qui existait, on en crée une
+                    // si elle a été ajoutée, on la retire si l'interrupteur a été
+                    // coupé — sinon le RÉCAP et les primes resteraient faux.
+                    when {
+                        geste != null && lieGeste != null -> repo.updateGesteCo(geste)
+                        geste != null -> repo.addGesteCo(geste)
+                        lieGeste != null -> repo.removeGesteCo(lieGeste.id)
+                    }
+                    StatsUploader.push(settings, repo.store.value, periodStart, periodEnd)
+                }
                 if (alsoShareViber && updated.typeMission !in WHOLE_DAY_TYPES) {
                     ViberSender.share(context, ViberSender.buildMessage(updated))
                 }
@@ -240,35 +253,23 @@ fun TempsScreen(
     if (showDispatch) {
         val total = if (mailGeste != null) 1 else 0
         val done = if (mailGeste != null && gesteSent) 1 else 0
-        AlertDialog(
-            onDismissRequest = { showDispatch = false },
-            title = { Text("Envois EPS à faire") },
-            text = {
-                Column {
-                    Text("Le Viber de clôture est parti. Envoie chaque mail ci-dessous.")
-                    Spacer(Modifier.height(4.dp))
-                    Text("$done / $total envoyé", fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-            },
-            confirmButton = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    mailGeste?.let { g ->
-                        EpsMailRow("Mail GESTE CO", gesteSent) {
-                            sendGesteCoEmail(context, settings, g)
-                            gesteSent = true
-                        }
-                    }
-                    TextButton(onClick = { showDispatch = false },
-                        modifier = Modifier.align(Alignment.End)) {
-                        Text("Terminé")
+        GDialog(
+            title = "ENVOIS EPS À FAIRE",
+            accent = com.morpheus45.gsystem.ui.theme.ColorGesteCo,
+            onDismiss = { showDispatch = false },
+            trailing = "$done / $total envoyé",
+            dismissLabel = "Terminé",
+            footer = {
+                mailGeste?.let { g ->
+                    EpsMailRow("Mail GESTE CO", gesteSent) {
+                        sendGesteCoEmail(context, settings, g)
+                        gesteSent = true
                     }
                 }
             }
-        )
+        ) {
+            Text("Le Viber de clôture est parti. Envoie chaque mail ci-dessous.")
+        }
     }
 }
 
@@ -400,6 +401,8 @@ private fun reqLabel(text: String, required: Boolean): @Composable () -> Unit = 
 private fun AddTempsDialog(
     settings: AppSettings,
     existing: TempsEntry?,
+    /** Entrée GESTE CO déjà rattachée à cette clôture (modification). */
+    existingGeste: GesteCoEntry? = null,
     prefill: com.morpheus45.gsystem.data.Mission? = null,
     otherCloturesDates: Set<String> = emptySet(),
     /** Créneau déjà utilisé par les entrées d'une date (pour garder le jour cohérent). */
@@ -464,8 +467,10 @@ private fun AddTempsDialog(
     var slotExpanded by remember { mutableStateOf(false) }
 
     // Clôture d'une INSTALLATION (nouvelle saisie) : sections GESTE CO + GSM inline.
-    var siteNumber by remember { mutableStateOf(prefill?.site ?: "") }
-    val extras = rememberInstallExtrasState()
+    var siteNumber by remember {
+        mutableStateOf(existingGeste?.siteNumber ?: prefill?.site ?: "")
+    }
+    val extras = rememberInstallExtrasState(existingGeste)
 
     val isWholeDay = type in WHOLE_DAY_TYPES
     // VACANCES et FORMATION : saisie d'une PÉRIODE (du → au). Une entrée est créée
@@ -502,9 +507,11 @@ private fun AddTempsDialog(
     val numeroOk = isWholeDay || numero.isNotBlank()
     // INSTALL (nouvelle saisie) : N° de site obligatoire SEULEMENT si un mail part
     // (GESTE CO offert ou GSM seul) + règles GESTE CO respectées.
-    val isInstall = type == "INST" && !isEditing
+    // En modification aussi : les extensions d'une clôture doivent rester
+    // corrigeables, sinon une erreur de saisie est définitive.
+    val isInstall = type == "INST"
     // GESTE CO de conformité (cadeau seul, max 3 €) autorisé sur les SAV.
-    val isSavGeste = type in SAV_GESTE_TYPES && !isEditing
+    val isSavGeste = type in SAV_GESTE_TYPES
     val showGeste = isInstall || isSavGeste
     val siteOk = !showGeste || !extras.needsSite() || siteNumber.isNotBlank()
     val gesteOk = !showGeste || extras.gesteValid(settings.clientGifts, savMode = isSavGeste)
@@ -525,30 +532,13 @@ private fun AddTempsDialog(
     )
     val preview = ViberSender.buildMessage(tempEntry)
 
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
+    GDialogFrame(
+        title = if (isEditing) "MODIFIER L'INTERVENTION" else "CLÔTURE",
+        accent = ColorTemps,
+        onDismiss = onDismiss,
+        trailing = "* obligatoire",
+        fillHeight = 0.92f
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.96f)
-                .fillMaxHeight(0.92f),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // ---- En-tête : bandeau coloré plein (style « écran réel ») ----
-                FormHeaderBar(
-                    title = if (isEditing) "MODIFIER L'INTERVENTION" else "CLÔTURE",
-                    accent = ColorTemps,
-                    trailing = "* obligatoire"
-                )
-
                 // ---- Contenu scrollable ----
                 Column(
                     modifier = Modifier
@@ -904,16 +894,24 @@ private fun AddTempsDialog(
                     if (isConge && congeDays.size > 1)
                         congeDays.map { buildEntryFor(it, EntriesRepository.newId()) }
                     else listOf(buildEntry())
-                Column(
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
+                GDialogActions(
+                    accent = ColorTemps,
+                    onDismiss = onDismiss,
+                    footer = {
                     if (isEditing) {
                         OutlinedButton(
                             onClick = {
                                 tried = true
                                 if (!allOk) return@OutlinedButton
-                                onSave(listOf(buildEntry()), null, false)
+                                val e0 = buildEntry()
+                                onSave(
+                                    listOf(e0),
+                                    if (showGeste) extras.buildGeste(
+                                        date, siteNumber, nom, obs, e0.id,
+                                        savMode = isSavGeste, id = existingGeste?.id
+                                    ) else null,
+                                    false
+                                )
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -923,31 +921,22 @@ private fun AddTempsDialog(
                         }
                         Spacer(Modifier.height(6.dp))
                     }
-                    Button(
+                    GPrimaryButton(
+                        label = "Enregistrer",
+                        accent = ColorTemps,
+                        icon = Icons.Filled.Send,
                         onClick = {
                             tried = true
-                            if (!allOk) return@Button
+                            if (!allOk) return@GPrimaryButton
                             val entries = buildAll()
                             val geste = if (showGeste)
                                 extras.buildGeste(date, siteNumber, nom, obs, entries.first().id,
-                                    savMode = isSavGeste)
+                                    savMode = isSavGeste, id = existingGeste?.id)
                             else null
                             onSave(entries, geste, true)
-                        },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorTemps)
-                    ) {
-                        Icon(Icons.Filled.Send, contentDescription = null,
-                            tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Enregistrer", color = Color.White, fontSize = 16.sp)
+                        }
+                    )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                        Text("Annuler")
-                    }
-                }
-            }
-        }
+                )
     }
 }
