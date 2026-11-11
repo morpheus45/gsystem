@@ -55,7 +55,9 @@ data class BulletinDraft(
     val mensualite: String = "", val mensSigne: String = "", val mensIdem: Boolean = false,
     val testAlarme: Boolean = true, val testLiaison: Boolean = true,
     val obsTech: String = "", val obsClient: String = "",
-    val nomTech: String = "", val nomClientSig: String = "", val emailClient: String = ""
+    val nomTech: String = "", val nomClientSig: String = "", val emailClient: String = "",
+    /** Mission de tournée dont ce brouillon a été pré-rempli (voir Preremplissage). */
+    val missionNum: String = ""
 )
 
 /** Tous les champs saisis du PV caméras, hors signatures. */

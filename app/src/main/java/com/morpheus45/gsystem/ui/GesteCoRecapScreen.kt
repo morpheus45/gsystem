@@ -132,28 +132,21 @@ fun GesteCoRecapScreen(
                     GesteCoPrices.TYPES.forEach { t ->
                         val (q, total) = totalsPerType[t] ?: (0 to 0.0)
                         val prix = settings.prices.priceFor(t)
-                        if (q > 0) {
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(t, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("$q × %.2f € unitaire".format(prix),
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                                }
-                                Text("= %.2f €".format(total), fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = RecapStart)
+                        // Toutes les lignes sont affichees de la meme facon, y
+                        // compris a zero : un tiret laissait croire que le type
+                        // n'etait pas compte, alors que seule la quantite est nulle.
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(t, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("$q × %.2f € unitaire".format(prix),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                             }
-                        } else {
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(t, fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                                Text("—", fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                            }
+                            Text("= %.2f €".format(total), fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = RecapStart)
                         }
                     }
 

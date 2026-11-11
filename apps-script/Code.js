@@ -76,6 +76,7 @@ function doPost(e) {
     if (p.action === 'photo_pull')   return photoPull_(p.user, p.month, p.fileName);
     if (p.action === 'restore_list') return restoreList_(p.user);
     if (p.action === 'cycle_prune')  return cyclePrune_(p.user, p.month, p.keep);
+    if (p.action === 'ordres_pull')  return ordresPull_(p.user, p.sinceTs);
 
     const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
     const userFolder = getOrCreateFolder(root, sanitize(p.user || 'Inconnu'));
@@ -127,6 +128,45 @@ function photoPull_(user, month, fileName) {
     const files = folder.getFilesByName(fileName || '');
     if (!files.hasNext()) return json({ ok: false, error: 'not found' });
     return json({ ok: true, dataBase64: Utilities.base64Encode(files.next().getBlob().getBytes()) });
+  } catch (err) { return json({ ok: false, error: String(err) }); }
+}
+
+/**
+ * Ordres de mission déposés par le PC dans <tech>/ordres/.
+ * Renvoie les PDF plus récents que sinceTs, du plus récent au plus ancien,
+ * 3 au maximum (un ordre pèse quelques dizaines de Ko ; au-delà la réponse
+ * Apps Script devient lourde pour rien).
+ *
+ * Le serveur ne sait PAS ce que l'app a déjà consommé : c'est elle qui garde
+ * sinceTs, et qui dédoublonne ensuite sur le couple num + dateRdv. Deux
+ * verrous valent mieux qu'un état partagé que personne ne nettoie.
+ */
+function ordresPull_(user, sinceTs) {
+  try {
+    const since = Number(sinceTs) || 0;
+    const root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
+    const uf = getOrCreateFolder(root, sanitize(user || 'Inconnu'));
+    const subs = uf.getFoldersByName('ordres');
+    if (!subs.hasNext()) return json({ ok: true, ordres: [] });
+    const folder = subs.next();
+
+    const rows = [];
+    const it = folder.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      const ts = f.getLastUpdated().getTime();
+      if (ts > since) rows.push({ file: f, ts: ts });
+    }
+    rows.sort(function (a, b) { return b.ts - a.ts; });
+
+    const out = rows.slice(0, 3).map(function (r) {
+      return {
+        fileName: r.file.getName(),
+        ts: r.ts,
+        dataBase64: Utilities.base64Encode(r.file.getBlob().getBytes())
+      };
+    });
+    return json({ ok: true, ordres: out });
   } catch (err) { return json({ ok: false, error: String(err) }); }
 }
 

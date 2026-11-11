@@ -136,6 +136,7 @@ internal class PrestaLigne(
 @Composable
 fun BulletinScreen(
     settings: AppSettings,
+    mission: com.morpheus45.gsystem.data.Mission? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -146,7 +147,9 @@ fun BulletinScreen(
     // quitté l'écran ou fermé l'app) et EFFACÉE au moment de l'envoi. Les
     // signatures ne sont pas conservées (redessinées).
     val drafts = remember { DraftStore(context) }
-    val initial = remember { drafts.loadBulletin() }
+    val initial = remember {
+        com.morpheus45.gsystem.data.Preremplissage.bulletin(drafts.loadBulletin(), mission)
+    }
 
     // --- En-tête ---
     var date by remember { mutableStateOf(initial?.date?.takeIf { it.isNotBlank() } ?: today) }
@@ -241,7 +244,8 @@ fun BulletinScreen(
         mensualite = mensualite, mensSigne = mensSigne, mensIdem = mensIdem,
         testAlarme = testAlarme, testLiaison = testLiaison,
         obsTech = obsTech, obsClient = obsClient,
-        nomTech = nomTech, nomClientSig = nomClientSig, emailClient = emailClient
+        nomTech = nomTech, nomClientSig = nomClientSig, emailClient = emailClient,
+        missionNum = initial?.missionNum.orEmpty()
     )
     LaunchedEffect(currentDraft, sent) {
         if (sent) return@LaunchedEffect

@@ -43,4 +43,20 @@ object Preremplissage {
             adresse = base.adresse.ifBlank { adresseComplete(m) }
         )
     }
+
+    fun bulletin(d: BulletinDraft?, m: Mission?): BulletinDraft? {
+        if (m == null || (d != null && d.missionNum == m.num)) return d
+        val manuel = d != null && d.missionNum.isBlank() &&
+            listOf(d.numMission, d.lieuProtege, d.nom, d.adresse).any { it.isNotBlank() }
+        val base = if (manuel) d!! else BulletinDraft(nomTech = d?.nomTech.orEmpty())
+        return base.copy(
+            missionNum = m.num,
+            numMission = base.numMission.ifBlank { m.num },
+            lieuProtege = base.lieuProtege.ifBlank { m.site },
+            nom = base.nom.ifBlank { m.nom },
+            adresse = base.adresse.ifBlank { m.adresse },
+            codePostal = base.codePostal.ifBlank { m.cp },
+            ville = base.ville.ifBlank { m.ville }
+        )
+    }
 }

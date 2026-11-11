@@ -414,6 +414,40 @@ fun AppNav() {
         }
     }
 
+    // Import automatique des ordres de mission : le PC depose le PDF du lendemain
+    // sur le Drive, l'app le recupere au lancement puis toutes les 30 min. Le
+    // geste de partage manuel reste possible, il n'est simplement plus obligatoire.
+    LaunchedEffect(settings.isReady, settings.nomUtilisateur) {
+        if (!BackupConfig.isConfigured || !settings.isReady ||
+            settings.nomUtilisateur.isBlank()) return@LaunchedEffect
+        var since = settings.ordresLastTs
+        while (true) {
+            val ordres = com.morpheus45.gsystem.ordres.OrdresApi.pull(settings.nomUtilisateur, since)
+            if (ordres.isNotEmpty()) {
+                val parsed = withContext(Dispatchers.Default) {
+                    ordres.sortedBy { it.ts }
+                        .flatMap { OrdreMissionParser.parseBytes(context, it.bytes) }
+                }
+                // mergeNew, jamais replaceAll : un import qui tombe en pleine
+                // journee ne doit pas effacer les arrivees pointees ni les clotures.
+                val ajoutees = if (parsed.isEmpty()) 0 else missionStore.mergeNew(parsed)
+                // La borne avance meme sans mission ajoutee, sinon un PDF illisible
+                // serait retelecharge toutes les 30 min jusqu'a la fin des temps.
+                since = ordres.maxOf { it.ts }
+                settingsStore.update {
+                    it.copy(
+                        ordresLastTs = since,
+                        ordresLastImportMs =
+                            if (ajoutees > 0) System.currentTimeMillis() else it.ordresLastImportMs,
+                        ordresLastImportCount =
+                            if (ajoutees > 0) ajoutees else it.ordresLastImportCount
+                    )
+                }
+            }
+            kotlinx.coroutines.delay(30 * 60_000L)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
@@ -643,6 +677,7 @@ fun AppNav() {
         composable("bulletin") {
             BulletinScreen(
                 settings = settings,
+                mission = Preremplissage.surPlace(missions),
                 onBack = { navController.popBackStack() }
             )
         }

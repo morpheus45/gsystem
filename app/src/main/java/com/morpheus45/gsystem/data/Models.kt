@@ -338,6 +338,16 @@ data class AppSettings(
     val primeTarifsParMois: Map<String, GesteCoPrices> = emptyMap(),
     /** Plus grand id de message chat déjà lu par le tech (pour le badge non-lu). */
     val chatLastReadId: Long = 0L,
+    /**
+     * Import automatique des ordres de mission déposés sur le Drive par le PC.
+     * `ordresLastTs` est la borne haute déjà traitée : on ne redemande que les
+     * fichiers plus récents, sinon chaque réveil rejouerait toute la journée.
+     */
+    val ordresLastTs: Long = 0L,
+    /** Horodatage du dernier import automatique (0 = jamais), pour le bandeau d'accueil. */
+    val ordresLastImportMs: Long = 0L,
+    /** Nombre de missions AJOUTÉES par ce dernier import (0 = rien de neuf). */
+    val ordresLastImportCount: Int = 0,
     val firstRunDone: Boolean = false
 ) {
     // Destinataires FIXES, identiques pour toute l'équipe — codés en dur depuis

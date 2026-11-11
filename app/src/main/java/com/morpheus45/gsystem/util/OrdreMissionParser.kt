@@ -42,6 +42,14 @@ object OrdreMissionParser {
         emptyList()
     }
 
+    /** Même chose depuis les octets du PDF (import automatique, sans Uri). */
+    fun parseBytes(context: Context, bytes: ByteArray): List<Mission> = try {
+        PDFBoxResourceLoader.init(context.applicationContext)
+        PDDocument.load(bytes).use { doc -> parseText(PDFTextStripper().getText(doc)) }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
     private val CIVILITE = Regex("^(?:MME|MLLE|MR|M)\\.?\\s+", RegexOption.IGNORE_CASE)
 
     /** Cœur testable : parse le TEXTE déjà extrait du PDF. */
