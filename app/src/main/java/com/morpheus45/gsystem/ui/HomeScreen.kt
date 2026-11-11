@@ -490,6 +490,18 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(bottom = 20.dp, top = 4.dp)
         ) {
+            // Bandeau d'import automatique : la preuve que la tournee du jour est
+            // bien arrivee toute seule. Sans lui, le tech ne sait pas si le PDF
+            // est passe et refait le partage manuel « au cas ou ».
+            if (settings.ordresLastImportMs > 0L && settings.ordresLastImportCount > 0) {
+                item {
+                    OrdresImportBanner(
+                        settings.ordresLastImportMs,
+                        settings.ordresLastImportCount
+                    )
+                }
+            }
+
             items(visibleTiles) { t ->
                 CategoryTile(
                     number = t.number,
@@ -516,6 +528,30 @@ fun HomeScreen(
             chassis = "G-SYS · ${currentQuarter()}",
             version = "v${BuildConfig.VERSION_NAME}",
             serial = "SER. 054"
+        )
+    }
+}
+
+@Composable
+private fun OrdresImportBanner(whenMs: Long, count: Int) {
+    val quand = remember(whenMs) {
+        java.time.Instant.ofEpochMilli(whenMs)
+            .atZone(java.time.ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("dd/MM 'à' HH'h'mm"))
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Success.copy(alpha = 0.10f))
+            .border(1.dp, Success.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Tournée importée automatiquement le $quand — " +
+                "$count mission" + if (count > 1) "s" else "",
+            fontSize = 12.sp, color = TextMid
         )
     }
 }
