@@ -53,6 +53,7 @@ import com.morpheus45.gsystem.security.IntegrityGuard
 import com.morpheus45.gsystem.ui.BulletinScreen
 import com.morpheus45.gsystem.ui.GDialog
 import com.morpheus45.gsystem.ui.GPrimaryButton
+import com.morpheus45.gsystem.ui.GSecondaryButton
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
 import com.morpheus45.gsystem.ui.DiagnosticScreen
@@ -689,10 +690,11 @@ fun AppNav() {
                     }
                 )
                 Spacer(Modifier.height(6.dp))
-                androidx.compose.material3.OutlinedButton(
-                    onClick = { showArrivalDialog = false; recordArrival() },
-                    modifier = Modifier.fillMaxWidth()
-                ) { androidx.compose.material3.Text("Repointer") }
+                GSecondaryButton(
+                    label = "Repointer",
+                    accent = com.morpheus45.gsystem.ui.theme.ArriveeStart,
+                    onClick = { showArrivalDialog = false; recordArrival() }
+                )
             }
         ) {
             androidx.compose.material3.Text(

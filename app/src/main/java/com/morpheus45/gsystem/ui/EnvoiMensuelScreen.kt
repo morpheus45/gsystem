@@ -332,14 +332,13 @@ fun EnvoiMensuelScreen(
                         )
                     }
                     Spacer(Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = { pickExcel.launch(arrayOf("*/*")) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Filled.AttachFile, null)
-                        Text(if (settings.excelFileUri.isBlank()) "  Choisir mon fichier .xlsm"
-                             else "  Changer de fichier")
-                    }
+                    GSecondaryButton(
+                        label = if (settings.excelFileUri.isBlank()) "Choisir mon fichier .xlsm"
+                                else "Changer de fichier",
+                        accent = EnvoiColor,
+                        icon = Icons.Filled.AttachFile,
+                        onClick = { pickExcel.launch(arrayOf("*/*")) }
+                    )
                     Text("Choisis ton fichier personnel TEMPS 2026.xlsm (ouvert depuis OneDrive Android, Drive, ou stockage local).",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
@@ -380,23 +379,23 @@ fun EnvoiMensuelScreen(
                     }
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
+                        GSecondaryButton(
+                            label = if (photoCompteur == null) "Photo du compteur" else "Remplacer",
+                            accent = EnvoiColor,
+                            icon = Icons.Filled.CameraAlt,
+                            modifier = Modifier.weight(1f),
                             onClick = {
                                 // Remplace la photo de la période au lieu d'en ajouter une.
                                 compteurDateCible = dateCompteurPourPeriode()
                                 compteurRemplaceIds = compteurPeriod.map { it.id }
                                 startCompteurCapture()
-                            },
-                            modifier = Modifier.weight(1f).height(46.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EnvoiColor)
-                        ) {
-                            Icon(Icons.Filled.CameraAlt, null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (photoCompteur == null) "Photo du compteur" else "Remplacer",
-                                maxLines = 1)
-                        }
+                            }
+                        )
                         if (photoCompteur != null) {
-                            OutlinedButton(
+                            GSecondaryButton(
+                                label = "Supprimer",
+                                accent = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.weight(1f),
                                 onClick = {
                                     scope.launch {
                                         runCatching {
@@ -404,12 +403,8 @@ fun EnvoiMensuelScreen(
                                         }
                                         repo.removeCompteur(photoCompteur.id)
                                     }
-                                },
-                                modifier = Modifier.height(46.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) { Text("Supprimer", maxLines = 1) }
+                                }
+                            )
                         }
                     }
                     Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le kilométrage est lu directement sur la photo.",
@@ -431,7 +426,11 @@ fun EnvoiMensuelScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
-            Button(
+            GPrimaryButton(
+                label = "Envoyer le mensuel",
+                accent = EnvoiColor,
+                icon = Icons.Filled.Send,
+                enabled = !working && validRange && settings.effectiveGsTo.isNotBlank() && hasCompteurPhoto,
                 onClick = {
                     scope.launch {
                         working = true
@@ -631,15 +630,8 @@ fun EnvoiMensuelScreen(
                         // éviter un second appui sur « Envoyer » (double envoi).
                         if (sendResult.isSuccess) onSent()
                     }
-                },
-                enabled = !working && validRange && settings.effectiveGsTo.isNotBlank() && hasCompteurPhoto,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = EnvoiColor)
-            ) {
-                Icon(Icons.Filled.Send, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Envoyer le mensuel", color = Color.White, fontSize = 16.sp, maxLines = 1)
-            }
+                }
+            )
             if (working) {
                 Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

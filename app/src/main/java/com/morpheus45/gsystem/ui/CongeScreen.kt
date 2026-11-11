@@ -27,8 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -169,7 +167,9 @@ fun CongeScreen(
                 Text(it, color = CongeAccent, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             }
 
-            Button(
+            GPrimaryButton(
+                label = "Générer et envoyer",
+                accent = CongeEnd,
                 onClick = {
                     val err = when {
                         nom.isBlank() -> "Renseigne ton nom et prénom."
@@ -178,7 +178,7 @@ fun CongeScreen(
                         signature.isEmpty -> "La signature est manquante."
                         else -> null
                     }
-                    if (err != null) { status = err; return@Button }
+                    if (err != null) { status = err; return@GPrimaryButton }
                     working = true; status = "Génération de la demande…"
                     val sig = signature.toBitmap()
                     scope.launch {
@@ -230,13 +230,8 @@ fun CongeScreen(
                         working = false
                     }
                 },
-                enabled = !working,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CongeEnd)
-            ) {
-                Icon(Icons.Filled.Send, null, tint = Color.White)
-                Text("  Générer et envoyer", color = Color.White)
-            }
+                icon = Icons.Filled.Send
+            )
             Spacer(Modifier.height(24.dp))
         }
     }

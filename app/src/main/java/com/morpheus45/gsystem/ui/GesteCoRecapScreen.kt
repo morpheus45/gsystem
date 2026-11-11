@@ -195,7 +195,11 @@ fun GesteCoRecapScreen(
 
             item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(
+                GPrimaryButton(
+                    label = "Envoyer le récap PDF",
+                    accent = RecapStart,
+                    icon = Icons.Filled.Email,
+                    enabled = periodEntries.isNotEmpty(),
                     onClick = {
                         val pdf = PdfExporter.exportGesteCo(
                             context, store.gesteCo, settings.prices, start, end, instDates
@@ -221,13 +225,8 @@ fun GesteCoRecapScreen(
                             attachment = pdf,
                             mimeType = "application/pdf"
                         )
-                    },
-                    enabled = periodEntries.isNotEmpty(),
-                    colors = ButtonDefaults.buttonColors(containerColor = RecapStart)
-                ) {
-                    Icon(Icons.Filled.Email, null, tint = Color.White)
-                    Text("  Envoyer le récap PDF", color = Color.White)
-                }
+                    }
+                )
             }
             }
 

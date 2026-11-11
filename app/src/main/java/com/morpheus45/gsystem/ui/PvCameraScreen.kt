@@ -31,8 +31,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -355,7 +353,9 @@ fun PvCameraScreen(
                     modifier = Modifier.padding(top = 4.dp))
             }
 
-            Button(
+            GPrimaryButton(
+                label = "Générer et envoyer",
+                accent = CameraEnd,
                 onClick = {
                     val err = when {
                         emailClient.isBlank() -> "Renseigne l'e-mail du client."
@@ -363,7 +363,7 @@ fun PvCameraScreen(
                         sigTech.isEmpty -> "La signature du technicien est manquante."
                         else -> null
                     }
-                    if (err != null) { status = err; return@Button }
+                    if (err != null) { status = err; return@GPrimaryButton }
                     working = true; status = "Génération du PV…"
                     // 6,5 px au lieu de 10 : à l'impression le tracé ressortait
                     // pâteux. Même finesse que le bulletin, dont les cases sont
@@ -413,12 +413,8 @@ fun PvCameraScreen(
                     }
                 },
                 enabled = !working,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = CameraEnd)
-            ) {
-                Icon(Icons.Filled.Send, null, tint = Color.White)
-                Spacer(Modifier.height(0.dp)); Text("  Générer et envoyer", color = Color.White)
-            }
+                icon = Icons.Filled.Send
+            )
             Spacer(Modifier.height(24.dp))
         }
     }

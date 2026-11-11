@@ -8,7 +8,7 @@
 > métier (Viber/mails/Excel inchangés) :
 >
 > - **Sauvegarde Drive automatique** (`backup/`) : l'app POST ses fichiers vers un
->   **web app Google Apps Script** (`apps-script/Backup.gs`), qui range tout dans
+>   **web app Google Apps Script** (`apps-script/Code.js`), qui range tout dans
 >   `Sauvegardes G-Systems / <tech> / <mois> / <fichier>`. Sauvegarde complète
 >   (ZIP) **1×/semaine** à l'ouverture (nom **fixe** `sauvegarde-complete.zip` →
 >   la nouvelle écrase l'ancienne, pas d'accumulation).
@@ -114,7 +114,7 @@ CI : GitHub Actions (.github/workflows/) → APK signée, publication auto d'une
 Signing : clé de PRODUCTION (GitHub secrets) en priorité depuis v1.0.0 ;
           repli automatique sur keystore/debug.keystore (committé exprès, stable)
           si la clé prod est absente. storeFile prod JAMAIS commité.
-Backend léger : Google Apps Script (apps-script/Backup.gs) — Drive partagé,
+Backend léger : Google Apps Script (apps-script/Code.js) — Drive partagé,
           réception des fichiers + dashboard admin. Pas de serveur à maintenir.
 ```
 
@@ -180,7 +180,7 @@ app/src/main/
 ├── res/xml/backup_rules.xml
 └── res/ (font/, drawable/, mipmap-*/, values/)
 
-apps-script/Backup.gs                ← ★ NOUVEAU — web app Drive : doPost (réception
+apps-script/Code.js                ← ★ NOUVEAU — web app Drive : doPost (réception
                                         fichiers) + doGet (dashboard admin HTML) +
                                         getAllData + makeZip(from,to)
 docs/
@@ -198,7 +198,7 @@ keystore/debug.keystore              ← Clé stable signée
 ## 5. Sauvegarde Drive & supervision (★ cœur de la v1.9)
 
 ### Principe
-Aucun serveur à héberger : un **web app Google Apps Script** (`apps-script/Backup.gs`,
+Aucun serveur à héberger : un **web app Google Apps Script** (`apps-script/Code.js`,
 déployé en « Exécuter en tant que MOI / accès Tout le monde ») reçoit les POST de
 l'app et sert le dashboard. L'URL `/exec` et le `TOKEN` partagé sont **codés en
 dur** dans `BackupConfig` (comme les adresses mail) → pour changer de Drive,
@@ -305,7 +305,7 @@ sur la période (un sous-dossier `tech/mois/`) et renvoie un lien public tempora
 ## 7. Auto-update
 
 `UpdateChecker.kt` interroge la **passerelle Apps Script** (`?update=`, cf. `updateInfo_` dans
-`apps-script/Backup.gs`), qui lit `GET /repos/morpheus45/gsystem/releases/latest` côté Google et
+`apps-script/Code.js`), qui lit `GET /repos/morpheus45/gsystem/releases/latest` côté Google et
 renvoie le même JSON. Le téléphone ne parle jamais à GitHub : **le dépôt est privé**, un appel
 anonyme à `api.github.com` y renvoie 404 (les versions ≤ 1.9.97 interrogent GitHub en direct :
 elles ne voient plus rien, installation manuelle de la 1.9.98 requise). Il compare le semver,
@@ -316,7 +316,7 @@ exige un asset `.apk`. `checkForUpdateSilently()` tourne
 
 - **Prérequis côté Google** : propriété de script `GH_TOKEN` = jeton GitHub *fine-grained*, dépôt
   `gsystem` seul, **Contents : lecture seule**. Il **expire à la date choisie à sa création** : la
-  noter ici et le renouveler avant, sinon les MAJ s'arrêtent sans erreur visible. Après toute édition de `Backup.gs` : Déployer → Nouvelle version.
+  noter ici et le renouveler avant, sinon les MAJ s'arrêtent sans erreur visible. Après toute édition de `Code.js` : Déployer → Nouvelle version.
 - `?update=1` → JSON de la Release ; `?update=url` → + lien de téléchargement temporaire de l'APK,
   demandé juste avant de télécharger. Les deux exigent `SHARED_TOKEN`.
 - Prereleases exclues par `releases/latest`. Promotion : `gh release edit vX.Y.Z --prerelease=false --latest` (mais `gh` indisponible sur le poste → API REST).
@@ -376,7 +376,7 @@ curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep
 3. **Pièces jointes mail** : sans `ClipData` + `FLAG_GRANT_READ_URI_PERMISSION`
    sur l'intent ET le chooser, les PJ disparaissent après le sélecteur.
 4. **Backup / dashboard** : le `TOKEN` doit être **identique** dans
-   `BackupConfig.TOKEN` (Kotlin) et `SHARED_TOKEN` (`Backup.gs`). Après édition du
+   `BackupConfig.TOKEN` (Kotlin) et `SHARED_TOKEN` (`Code.js`). Après édition du
    script, **redéployer une nouvelle version** sinon le `/exec` sert l'ancienne.
    Le POST suit un **302** (`instanceFollowRedirects = true` obligatoire).
 5. **Ne pas modifier `OBSERVATION_LABELS` (ViberSender.kt)** sans valider le

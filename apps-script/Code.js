@@ -10,16 +10,40 @@
  */
 
 const ROOT_FOLDER = 'Sauvegardes G-Systems';
-const SHARED_TOKEN = 'gsys-backup-2026-7Kq2vR';
-// Code d'accès du TABLEAU DE BORD : exigé par toutes les fonctions appelées via
-// google.script.run et par les endpoints ?debug. Sans lui, l'URL /exec seule ne
-// donne accès à AUCUNE donnée.
-const DASHBOARD_CODE = 'Gsystems';
-function requireCode_(code) {
-  if (String(code) !== DASHBOARD_CODE) throw new Error('Acces refuse : code invalide');
-}
 const RETENTION_YEARS = 3;               // au-delà : purge (corbeille) des dossiers-mois
 const PROP = PropertiesService.getScriptProperties();
+
+// --- Secrets : propriétés du script, jamais dans le code ---
+// Le dépôt est lisible et l'APK est décompilable : une valeur écrite ici est
+// publique. Les propriétés du script, elles, ne sortent pas de Google.
+//   SHARED_TOKEN   : partagé avec l'app (BackupConfig.TOKEN), doit être identique.
+//   DASHBOARD_CODE : code d'accès du tableau de bord, connu de toi seul.
+// Une propriété absente fait TOUT refuser : jamais de comparaison '' === ''
+// qui laisserait passer un appel sans code.
+function sharedToken_()   { return PROP.getProperty('SHARED_TOKEN')   || null; }
+function dashboardCode_() { return PROP.getProperty('DASHBOARD_CODE') || null; }
+
+/**
+ * Vrai si le jeton fourni par l'app est le bon. Faux si la propriété manque.
+ * SHARED_TOKEN_OLD, si elle existe, est acceptée aussi : pendant une rotation,
+ * l'APK encore installé parle avec l'ancien jeton. Supprimer cette propriété
+ * une fois tous les téléphones à jour, sinon la rotation n'a servi à rien.
+ */
+function checkToken_(got) {
+  const want = sharedToken_();
+  if (!want) return false;
+  if (String(got) === want) return true;
+  const old = PROP.getProperty('SHARED_TOKEN_OLD');
+  return !!old && String(got) === old;
+}
+/** Idem pour le code du tableau de bord, sans lever d'exception. */
+function checkCode_(code) {
+  const want = dashboardCode_();
+  return !!want && String(code) === want;
+}
+function requireCode_(code) {
+  if (!checkCode_(code)) throw new Error('Acces refuse : code invalide');
+}
 
 /** Liste des techniciens désactivés (archivés) — usage interne. */
 function inactiveTechs_() {
@@ -39,7 +63,7 @@ function setTechActive(code, tech, active) {
 function doPost(e) {
   try {
     const p = JSON.parse(e.postData.contents);
-    if (p.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
+    if (!checkToken_(p.token)) return json({ ok: false, error: 'token' });
 
     // --- Chat tech <-> bureau (pas d'upload de fichier) ---
     if (p.action === 'chat_send')     return chatSend_(p.tech, 'tech', p.text);
@@ -164,7 +188,7 @@ function doGet(e) {
   if (e && e.parameter && e.parameter.ping) return json({ ok: true, service: 'gsystem-backup' });
   if (e && e.parameter && e.parameter.update) return updateGate_(e);
   if (e && e.parameter && e.parameter.debug === 'data') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!checkCode_(e.parameter.code)) return json({ ok: false, error: 'code requis' });
     var t0 = Date.now();
     try { var d = getAllData(); var s = JSON.stringify(d);
       return json({ ok: true, ms: Date.now() - t0, techs: d.length, bytes: s.length,
@@ -172,7 +196,7 @@ function doGet(e) {
     } catch (err) { return json({ ok: false, ms: Date.now() - t0, error: String((err && err.stack) || err) }); }
   }
   if (e && e.parameter && e.parameter.debug === 'full') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!checkCode_(e.parameter.code)) return json({ ok: false, error: 'code requis' });
     try { return json({ ok: true, data: getAllData() }); }
     catch (err) { return json({ ok: false, error: String((err && err.stack) || err) }); }
   }
@@ -180,7 +204,7 @@ function doGet(e) {
   // AVANT toute fusion/dédup. Sert à diagnostiquer pourquoi un cycle manque au
   // back office (snapshot vide, chevauchement, périodes en double, maj, etc.).
   if (e && e.parameter && e.parameter.debug === 'snaps') {
-    if (String(e.parameter.code) !== DASHBOARD_CODE) return json({ ok: false, error: 'code requis' });
+    if (!checkCode_(e.parameter.code)) return json({ ok: false, error: 'code requis' });
     try {
       var root = getOrCreateFolder(DriveApp.getRootFolder(), ROOT_FOLDER);
       var out = []; var users = root.getFolders();
@@ -1241,7 +1265,7 @@ chatLoadList();
 //   ?update=1   -> dernière Release (même JSON que l'API GitHub)
 //   ?update=url -> idem + lien de téléchargement temporaire de l'APK
 function updateGate_(e) {
-  if (e.parameter.token !== SHARED_TOKEN) return json({ ok: false, error: 'token' });
+  if (!checkToken_(e.parameter.token)) return json({ ok: false, error: 'token' });
   try { return json(updateInfo_(e.parameter.update === 'url')); }
   catch (err) { return json({ ok: false, error: String(err) }); }
 }

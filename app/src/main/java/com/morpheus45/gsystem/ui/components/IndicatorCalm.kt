@@ -471,36 +471,6 @@ fun HairlineSettingsIcon(onClick: () -> Unit) {
 // =============================================================
 // PrimaryAction — bouton signal rouge plein
 // =============================================================
-@Composable
-fun PrimaryAction(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Signal,
-            contentColor = TextHi,
-            disabledContainerColor = Hairline,
-            disabledContentColor = TextMid
-        )
-    ) {
-        Text(
-            text = text.uppercase(),
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp
-            )
-        )
-    }
-}
 
 // =============================================================
 // SecondaryAction

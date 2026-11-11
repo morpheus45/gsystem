@@ -59,7 +59,7 @@ mindmap
 | Email | `email/EmailSender.kt` (Intent ACTION_SEND, CC, sendPdf multi-destinataires) |
 | Sauvegarde Drive | `backup/StatsUploader.kt` (push/syncAll), `backup/BackupExporter.kt`, `backup/BackupUploader.kt` |
 | Signature doigt | `ui/PvCameraScreen.kt` (SignatureController, SignaturePad internal) |
-| Backend dashboard | `apps-script/Backup.gs` (doGet DASHBOARD_HTML, doPost, getAllData) |
+| Backend dashboard | `apps-script/Code.js` (doGet DASHBOARD_HTML, doPost, getAllData) |
 | Tuto tech / comptable | `docs/index.html`, `docs/comptable.html`, `docs/backoffice.html` |
 | Version app | `app/build.gradle.kts` (versionCode / versionName) |
 
@@ -73,7 +73,7 @@ mindmap
 5. `gh run download <id>` pour récupérer l'AAB → upload manuel Play Console.
 
 ### Déploiement Apps Script (dashboard)
-- Éditer `apps-script/Backup.gs`, valider syntaxe (voir gotcha template).
+- Éditer `apps-script/Code.js`, valider syntaxe (voir gotcha template).
 - Éditeur script.google.com → coller dans Code.gs → Déployer → **Gérer les déploiements → ✏️ → Nouvelle version → Déployer**.
 - URL /exec fixe (ID `AKfycbx…w9t`) = celle embarquée dans `docs/backoffice.html`. « Qui a accès : Tout le monde ».
 - Post-déploiement : /exec peut renvoyer « Page introuvable » 1-3 min (propagation, transitoire).

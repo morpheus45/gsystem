@@ -416,7 +416,11 @@ fun BulletinScreen(
                 Text(it, color = BulletinAccent, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             }
 
-            Button(
+            GPrimaryButton(
+                label = "Générer et envoyer",
+                accent = BulletinStart,
+                icon = Icons.Filled.Send,
+                enabled = !working,
                 onClick = {
                     val err = when {
                         nom.isBlank() -> "Renseigne le nom du client."
@@ -425,7 +429,7 @@ fun BulletinScreen(
                         sigClient.isEmpty -> "La signature du client est manquante."
                         else -> null
                     }
-                    if (err != null) { status = err; return@Button }
+                    if (err != null) { status = err; return@GPrimaryButton }
                     working = true; status = "Génération du bulletin…"
                     // 4 px : la signature du bulletin fait 64 pt de haut, elle
                     // agrandit d'autant l'épaisseur du tracé. Le PV caméras,
@@ -492,14 +496,8 @@ fun BulletinScreen(
                         }
                         working = false
                     }
-                },
-                enabled = !working,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BulletinStart)
-            ) {
-                Icon(Icons.Filled.Send, null, tint = Color.White)
-                Text("  Générer et envoyer", color = Color.White)
-            }
+                }
+            )
             Spacer(Modifier.height(24.dp))
         }
     }

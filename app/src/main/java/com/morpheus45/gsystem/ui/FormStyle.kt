@@ -36,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -230,6 +231,58 @@ internal fun GPrimaryButton(
                 Spacer(Modifier.width(8.dp))
             }
             Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+        }
+    }
+}
+
+/**
+ * Action secondaire : meme geometrie que [GPrimaryButton], mais creuse. Elles
+ * doivent se ressembler, sinon deux boutons cote a cote donnent l'impression
+ * de venir de deux applications differentes.
+ */
+@Composable
+internal fun GSecondaryButton(
+    label: String,
+    accent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    enabled: Boolean = true,
+    loading: Boolean = false
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.97f else 1f,
+        animationSpec = tween(120, easing = GEaseOut),
+        label = "press"
+    )
+    val tint = if (enabled) accent else accent.copy(alpha = 0.35f)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .scale(press)
+            .clip(RoundedCornerShape(13.dp))
+            .background(tint.copy(alpha = 0.10f))
+            .border(1.dp, tint.copy(alpha = 0.45f), RoundedCornerShape(13.dp))
+            .clickable(enabled = enabled, interactionSource = interaction, indication = null,
+                onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            // Le travail en cours remplace l'icone : sans ca, le tech relance
+            // une synchro deja partie parce que rien ne bouge a l'ecran.
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = tint)
+                Spacer(Modifier.width(8.dp))
+            } else if (icon != null) {
+                Icon(icon, contentDescription = null, tint = tint,
+                    modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(label, color = tint, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
