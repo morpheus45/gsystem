@@ -11,6 +11,7 @@ package com.morpheus45.gsystem.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -158,5 +159,64 @@ class PreremplissageTest {
         val sansNum = client.copy(num = "")
         assertEquals(PvCameraDraft(), Preremplissage.pv(PvCameraDraft(), sansNum))
         assertEquals("ROUTIER Xavier", Preremplissage.pv(null, sansNum)?.nomAbonne)
+    }
+
+    // ---- bulletin : meme regle que le PV, sur les champs du bulletin ----
+
+    @Test fun `bulletin neuf rempli depuis l ordre de mission`() {
+        val d = Preremplissage.bulletin(null, client)!!
+        assertEquals("12345678", d.numMission)
+        assertEquals("SITE-4471", d.lieuProtege)
+        assertEquals("ROUTIER Xavier", d.nom)
+        assertEquals("45 RUE FRANCOIS GAUBERT", d.adresse)
+        assertEquals("34500", d.codePostal)
+        assertEquals("BEZIERS", d.ville)
+        assertEquals("12345678", d.missionNum)
+    }
+
+    @Test fun `bulletin sans mission on ne touche a rien`() {
+        val saisi = BulletinDraft(nom = "SAISI A LA MAIN", obsTech = "RAS")
+        assertEquals(saisi, Preremplissage.bulletin(saisi, null))
+        assertNull(Preremplissage.bulletin(null, null))
+    }
+
+    @Test fun `bulletin meme mission les saisies du technicien sont gardees`() {
+        val encours = Preremplissage.bulletin(null, client)!!
+            .copy(obsTech = "pile remplacee", mensualite = "12")
+        assertEquals(encours, Preremplissage.bulletin(encours, client))
+    }
+
+    @Test fun `bulletin changer de client n en melange jamais deux`() {
+        val encours = Preremplissage.bulletin(null, client)!!
+            .copy(obsTech = "pile remplacee", mensualite = "12")
+        val bascule = Preremplissage.bulletin(encours, autreClient)!!
+        assertEquals("DUPONT Marie", bascule.nom)
+        assertEquals("87654321", bascule.numMission)
+        assertEquals("SITE-9999", bascule.lieuProtege)
+        assertEquals("2 PLACE DU MARCHE", bascule.adresse)
+        assertEquals("34000", bascule.codePostal)
+        assertEquals("MONTPELLIER", bascule.ville)
+        // Le point critique : rien du client precedent ne subsiste.
+        assertEquals("", bascule.obsTech)
+        assertEquals("", bascule.mensualite)
+    }
+
+    @Test fun `bulletin saisie manuelle seuls les champs vides sont completes`() {
+        val manuel = BulletinDraft(nom = "DEJA TAPE A LA MAIN", obsTech = "a garder")
+        val d = Preremplissage.bulletin(manuel, client)!!
+        assertEquals("DEJA TAPE A LA MAIN", d.nom)
+        assertEquals("a garder", d.obsTech)
+        assertEquals("12345678", d.numMission)
+        assertEquals("SITE-4471", d.lieuProtege)
+        assertEquals("34500", d.codePostal)
+        assertEquals("12345678", d.missionNum)
+    }
+
+    @Test fun `bulletin les cases pre-cochees ne sont pas perdues`() {
+        val d = Preremplissage.bulletin(null, client)!!
+        assertTrue(d.forfaitLocatif)
+        assertTrue(d.reglPrelevement)
+        assertTrue(d.testAlarme)
+        assertEquals("BIRDIE", d.marque)
     }
 }

@@ -643,6 +643,7 @@ fun AppNav() {
         composable("bulletin") {
             BulletinScreen(
                 settings = settings,
+                mission = Preremplissage.surPlace(missions),
                 onBack = { navController.popBackStack() }
             )
         }
