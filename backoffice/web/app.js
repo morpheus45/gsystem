@@ -667,6 +667,24 @@ function renderAmendes(list) {
         window.open(data.signedUrl, '_blank', 'noopener');
       });
       scanTd.appendChild(btn);
+    } else if (peutEcrire()) {
+      // Amende sans scan (oubli ou envoi raté) : on peut l'ajouter ensuite.
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,application/pdf';
+      input.hidden = true;
+      input.addEventListener('change', async () => {
+        const f = input.files[0];
+        if (!f) return;
+        if (!extensionScan(f)) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
+        await envoyerScan(a.id, f);
+        await loadAmendes(vehiculeActif.id);
+      });
+      const btn = document.createElement('button');
+      btn.className = 'secondary';
+      btn.textContent = 'Ajouter le scan';
+      btn.addEventListener('click', () => input.click());
+      scanTd.append(btn, input);
     } else {
       scanTd.textContent = '—';
     }
@@ -883,16 +901,10 @@ $('#amende-form').addEventListener('submit', async (e) => {
   const technicienId = $('#amende-conducteur').value || null;
   const fichier = $('#amende-scan').files[0];
   if (!numeroAvis || !dateAvis) { alert('Numéro d\'avis et date de l\'avis requis.'); return; }
-  let chemin = null;
-  if (fichier) {
-    const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' }[fichier.type];
-    if (!extension) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
-    chemin = `${selectedSociete}/amendes/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadErr } = await sb.storage.from('scans').upload(chemin, fichier, { contentType: fichier.type });
-    if (uploadErr) { alert(uploadErr.message || 'Erreur lors du upload'); return; }
-  }
+  if (fichier && !extensionScan(fichier)) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
   try {
-    const { error } = await sb.from('amendes').insert({
+    // L'amende d'abord (la base refuse tout scan qui n'est pas celui d'une amende existante).
+    const { data: cree, error } = await sb.from('amendes').insert({
       societe_id: selectedSociete,
       vehicule_id: vehiculeActif.id,
       numero_avis: numeroAvis,
@@ -902,16 +914,27 @@ $('#amende-form').addEventListener('submit', async (e) => {
       lieu: lieu || '',
       motif: motif || '',
       montant: montant,
-      technicien_id: technicienId,
-      scan: chemin
-    });
+      technicien_id: technicienId
+    }).select('id').single();
     if (error) throw error;
     $('#amende-form').reset();
+    if (fichier) await envoyerScan(cree.id, fichier);
     await loadAmendes(vehiculeActif.id);
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'ajout d\'amende');
   }
 });
+
+const extensionScan = (f) => ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' })[f.type];
+
+// Scan d'une amende DÉJÀ enregistrée : <société>/amendes/<id de l'amende>.<ext>
+async function envoyerScan(amendeId, fichier) {
+  const chemin = `${selectedSociete}/amendes/${amendeId}.${extensionScan(fichier)}`;
+  const { error } = await sb.storage.from('scans').upload(chemin, fichier, { contentType: fichier.type });
+  if (error) { alert(`Amende enregistrée, mais le scan n'a pas été envoyé : ${error.message}. Utilisez « Ajouter le scan ».`); return; }
+  const { error: e2 } = await sb.from('amendes').update({ scan: chemin }).eq('id', amendeId);
+  if (e2) alert(e2.message);
+}
 
 // Mise à jour du conducteur suggéré selon la date d'infraction
 $('#amende-date-infraction').addEventListener('change', async () => {
