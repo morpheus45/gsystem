@@ -1,0 +1,8 @@
+{
+  "name": "gsystem-backoffice",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=26" },
+  "scripts": { "test": "node --test" },
+  "devDependencies": { "@electric-sql/pglite": "0.5.13" }
+}

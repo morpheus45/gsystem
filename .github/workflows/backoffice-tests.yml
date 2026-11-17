@@ -1,0 +1,24 @@
+name: backoffice-tests
+
+on:
+  push:
+    paths: ['backoffice/**', '.github/workflows/backoffice-tests.yml']
+  pull_request:
+    paths: ['backoffice/**', '.github/workflows/backoffice-tests.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backoffice
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - run: npm ci
+      - run: npm test
