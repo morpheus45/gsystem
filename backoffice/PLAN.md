@@ -135,7 +135,7 @@ Le SQL est du Postgres standard (seuls `auth.uid()`, `auth.users` et le rôle `a
 - **Tableau de bord** par société : chiffres du mois (interventions, taux NR identique à l'APK web, heures, frais, primes), tâches à faire cliquables, camemberts, tableau par technicien.
 - **Échéances « Fait »** : historique, prochaine proposée (contrôle technique + 2 ans ; autres types : saisie, aucun intervalle inventé).
 - **Membres** : rôle modifiable, retrait avec double validation (le dernier admin reste protégé).
-- **Archivage** d'un technicien (double validation) : hors des actifs, données conservées. **Purge à 3 ans : À DÉCIDER** (contraire à la règle « les données réelles ne s'effacent jamais »).
+- **Archivage** d'un technicien (double validation) : hors des actifs, données conservées. Purge : voir « Conservation légale et RGPD » ci-dessous.
 - **Facturation** (EPS…) : récap des quantités par type et résultat, équipements installés, grille de tarifs par client (prix HT remplis plus tard, base OK / OK + NR client / toutes), montants, export CSV. **Barème EPS : à fournir.**
 
 ## Version de test en ligne (17/11/2026)
@@ -154,3 +154,28 @@ Le SQL est du Postgres standard (seuls `auth.uid()`, `auth.users` et le rôle `a
 6. Plateforme agréée de facture électronique : laquelle ? Et quel format d'export pour le comptable ?
 7. Remboursement mobile (50 %, plafond 20 €) : commun à toutes les sociétés ou réglable par société ? (aujourd'hui fixe dans `docs/app/frais.js`)
 8. Primes (`gesteCo`) : à importer et exporter en paie ?
+
+## Conservation légale et RGPD (17/11/2026)
+
+Décision : « on purge tous les 3 ans ou le délai selon les textes en vigueur » → les délais légaux priment.
+
+| Donnée | Durée | Source |
+|---|---|---|
+| Interventions/heures, heures sup, équipements posés, barèmes de primes, congés | 5 ans | Documents sur salaires, primes, indemnités : 5 ans (service-public F10029). Le décompte des horaires seul est 1 an, mais il sert à la paie. |
+| Notes de frais, photos/justificatifs | 10 ans | Pièces comptables (Code de commerce L123-22) |
+| Amendes | 10 ans | À VÉRIFIER : aucun texte propre trouvé, traitées comme pièce comptable |
+| Technicien parti | 5 ans après le départ | Registre unique du personnel (F10029) |
+
+Délai compté depuis le 31/12 de l'année du document (exercice = année civile : **À VÉRIFIER avec le comptable**).
+Mise en œuvre (migration 16, testée `test/purge.test.js`) : tout reste ineffaçable ; seul le super admin
+purge ce qui a dépassé son délai (aperçu, puis mot PURGER) ; le journal ne garde plus le contenu purgé ;
+une donnée hors délai n'est pas réimportée par le pont ; les fichiers ne sont supprimables qu'une fois leur ligne purgée.
+
+**Ce que le code ne peut pas faire à votre place (RGPD) :**
+- Registre des traitements (art. 30) : une fiche « gestion du personnel / paie / flotte ».
+- Information des salariés (art. 13) : ce qui est collecté par l'APK, pourquoi, combien de temps, leurs droits.
+- Contrat de sous-traitance (art. 28) entre vous (éditeur du SaaS) et chaque société cliente, puis avec Supabase
+  et Google (leurs DPA). Hébergement : Supabase Paris (UE) ; Google Drive : localisation À VÉRIFIER.
+- Accès super admin aux données d'une société : à prévoir au contrat (assistance), il est déjà tracé au journal.
+- Désignation du conducteur (amendes) : obligation légale pour l'employeur (Code de la route L121-6, À VÉRIFIER).
+- Valider l'ensemble avec un juriste ou un DPO : je m'appuie sur les textes officiels, pas sur un avis juridique.

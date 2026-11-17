@@ -398,6 +398,19 @@
               </table>
             </div>
           </div>
+          <div id="purge-section" class="section hidden">
+            <h3>Conservation légale des données (super admin)</h3>
+            <p>Chaque donnée est gardée le temps exigé par la loi, puis peut être purgée (RGPD : pas plus longtemps que nécessaire). Le délai part du 31/12 de l'année du document ; pour un technicien, de son départ.</p>
+            <div class="table-wrapper">
+              <table id="durees-table">
+                <thead><tr><th>Donnée</th><th>Durée</th><th>Texte</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <button type="button" id="purge-apercu" class="secondary">Voir ce qui peut être purgé</button>
+            <p id="purge-resultat"></p>
+            <button type="button" id="purge-lancer" class="danger hidden">Purger définitivement</button>
+          </div>
         </div>
 
         <!-- Panneau Techniciens -->

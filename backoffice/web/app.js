@@ -332,6 +332,8 @@ async function loadSocieteDetail(societeId) {
     } else {
       $('#admin-tools').classList.add('hidden');
     }
+    $('#purge-section').classList.toggle('hidden', !superAdmin);
+    if (superAdmin) await chargerDurees();
 
     // Charger les données des onglets Techniciens et Véhicules (elles resteront masquées)
     // Techniciens d'abord : la liste des véhicules affiche le nom du conducteur.
@@ -429,6 +431,45 @@ async function loadTechniciens(societeId) {
     alert(err.message || 'Erreur lors du chargement des techniciens');
   }
 }
+
+// Conservation légale (super admin) : délais, aperçu, puis purge confirmée.
+const NOMS_DONNEES = { temps: 'Interventions et heures', heures_sup: 'Heures sup validées', gestes_co: 'Équipements posés (primes)',
+  primes_tarifs: 'Barèmes de primes', conges: 'Congés', frais: 'Notes de frais', photos_apk: 'Photos et justificatifs',
+  amendes: 'Amendes', techniciens: 'Techniciens partis' };
+
+async function chargerDurees() {
+  const { data, error } = await sb.from('durees_conservation').select('table_nom, annees, source').order('annees');
+  if (error) return alert(error.message);
+  $('#durees-table tbody').replaceChildren(...data.map((d) => ligne([NOMS_DONNEES[d.table_nom] || d.table_nom, `${d.annees} ans`, d.source])));
+  $('#purge-resultat').textContent = '';
+  $('#purge-lancer').classList.add('hidden');
+}
+
+const resumePurge = (lignes) => lignes.map((l) => `${NOMS_DONNEES[l.table_nom] || l.table_nom} : ${l.lignes}`).join(' — ');
+
+$('#purge-apercu').addEventListener('click', async () => {
+  const { data, error } = await sb.rpc('apercu_purge', { s: selectedSociete });
+  if (error) return alert(error.message);
+  $('#purge-resultat').textContent = data.length ? `Délai légal dépassé — ${resumePurge(data)}.` : 'Rien à purger : toutes les données sont encore dans leur délai légal.';
+  $('#purge-lancer').classList.toggle('hidden', !data.length);
+});
+
+$('#purge-lancer').addEventListener('click', async () => {
+  if (!doubleValidation('Purger définitivement les données dont le délai légal est dépassé ? Elles ne pourront PAS être récupérées.', 'PURGER')) return;
+  const { data, error } = await sb.rpc('purger_donnees', { s: selectedSociete, confirmation: 'PURGER' });
+  if (error) return alert(error.message);
+  // Les fichiers suivent (la base n'autorise que ceux dont la ligne vient d'être purgée).
+  const seaux = { photos_apk: 'photos', amendes: 'scans' };
+  const echecs = [];
+  for (const l of data) {
+    if (!seaux[l.table_nom] || !l.fichiers.length) continue;
+    const { error: e } = await sb.storage.from(seaux[l.table_nom]).remove(l.fichiers);
+    if (e) echecs.push(e.message);
+  }
+  $('#purge-resultat').textContent = (data.length ? `Purgé — ${resumePurge(data)}.` : 'Rien n\'a été purgé.')
+    + (echecs.length ? ` Fichiers non supprimés : ${echecs.join(', ')}` : '');
+  $('#purge-lancer').classList.add('hidden');
+});
 
 // Double validation : une confirmation, puis le mot à taper (évite les clics par erreur).
 function doubleValidation(question, mot) {
