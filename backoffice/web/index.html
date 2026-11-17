@@ -204,7 +204,10 @@
     .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
     /* Onglets sur une seule ligne, largeurs égales (téléphone compris). */
     .tabs { flex-wrap: nowrap; }
-    .tab { flex: 1 1 0; min-width: 0; padding: 10px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tab { flex: 1 1 0; min-width: 0; padding: 10px 8px; white-space: nowrap; }
+    /* Téléphone : 5 onglets sur deux lignes, noms en entier (jamais tronqués). */
+    @media (max-width: 640px) { .tabs { flex-wrap: wrap; } .tab { flex: 1 1 30%; } }
+    .carte-resume:empty { display: none; }
     .sous-onglets { display: flex; gap: 4px; background: color-mix(in srgb, var(--border) 50%, var(--bg)); padding: 4px; border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .sous-onglets button { background: transparent; color: var(--muted); border: none; border-radius: 6px; min-height: 44px; padding: 8px 12px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms; }
     @media (hover: hover) and (pointer: fine) { .sous-onglets button:hover { background: color-mix(in srgb, var(--card) 60%, transparent); } }

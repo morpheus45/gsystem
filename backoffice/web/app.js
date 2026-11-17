@@ -1181,6 +1181,10 @@ async function chargerPaie() {
   $('#periode-form').closest('details').classList.toggle('hidden', !peutPayer());
   const p = periodeChoisie();
   afficherEtatPeriode(p);
+  // Aucun mois encore : pas de liste vide, le formulaire de création est ouvert.
+  sel.closest('.field').classList.toggle('hidden', !periodes.length);
+  $('#paie-table').closest('.table-wrapper').classList.toggle('hidden', !p);
+  if (!periodes.length) $('#periode-form').closest('details').open = true;
   if (!p) {
     lignesPaie = [];
     $('#paie-table tbody').replaceChildren();
