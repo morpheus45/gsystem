@@ -13,6 +13,7 @@
       --accent-hover: #1d4ed8;
       --accent-fond: #2563eb;
       --accent-fond-hover: #1d4ed8;
+      --serie-1: #2a78d6; --serie-2: #eb6834; --serie-3: #1baf7a; --serie-4: #eda100; --serie-5: #e87ba4; --serie-autres: #9a9a9a;
       --border: #e5e5e5;
       --card: #fff;
       --alert-bg: #fef2f2;
@@ -31,6 +32,7 @@
         --accent-hover: #60a5fa;
         --accent-fond: #2563eb;
         --accent-fond-hover: #1d4ed8;
+        --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --serie-5: #d55181; --serie-autres: #7a7a7a;
         --border: #333;
         --card: #1a1a1a;
         --alert-bg: #7f1d1d;
@@ -143,6 +145,16 @@
     .societe-name { font-weight: 500; }
     .societe-id { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
     .hidden { display: none !important; }
+    .barre { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; }
+    .carte-resume { padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; margin: 0 0 12px; }
+    .camemberts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+    .camembert { margin: 0; display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
+    .camembert figcaption { grid-column: 1 / -1; font-weight: 600; font-size: 0.9rem; }
+    .camembert svg { width: 120px; height: 120px; }
+    .camembert ul { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; display: grid; gap: 4px; }
+    .camembert li { display: flex; gap: 8px; align-items: center; }
+    .pastille { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+    .etat-pret { color: var(--text); }
     .galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
     .galerie button { padding: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: none; min-height: 44px; }
     .galerie img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
@@ -286,6 +298,8 @@
           <button class="tab active" role="tab" data-tab="membres" aria-selected="true">Membres</button>
           <button class="tab" role="tab" data-tab="techniciens" aria-selected="false">Techniciens</button>
           <button class="tab" role="tab" data-tab="vehicules" aria-selected="false">Véhicules</button>
+          <button class="tab" role="tab" data-tab="paie" aria-selected="false">Paie</button>
+          <button class="tab" role="tab" data-tab="conges" aria-selected="false" id="onglet-conges">Congés</button>
         </div>
 
         <!-- Panneau Membres -->
@@ -374,6 +388,7 @@
             </div>
             <div class="tech-resume-carte">
               <p id="tech-resume" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
+              <div id="tech-camemberts" class="camemberts"></div>
             </div>
 
             <div class="sous-onglets" role="tablist">
@@ -407,7 +422,7 @@
               <p id="tech-jours-total" style="font-size:0.9rem;color:var(--muted);"></p>
 
               <div class="section" id="tech-regles-alerte">
-                <p style="margin:0;font-size:0.9rem;color:var(--muted);">Heures sup calculées avec le seuil et les taux de la société (par défaut : repères légaux). Seules les semaines cochées « Validées » partent dans l'export de paie.</p>
+                <p style="margin:0;font-size:0.9rem;color:var(--muted);">Heures sup calculées avec le seuil et les taux de la société (par défaut : repères légaux). Seules les semaines « Validées » partent dans l'export de paie ; les « Refusées » ne sont pas payées.</p>
               </div>
 
               <h4>Heures par semaine</h4>
@@ -701,6 +716,51 @@
                   <button type="submit">Ajouter</button>
                 </form>
               </details>
+            </div>
+          </div>
+        </div>
+        <div id="panel-paie" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="barre">
+              <div class="field"><label for="paie-periode">Période de paie</label><select id="paie-periode"></select></div>
+              <button id="paie-export" type="button">Exporter pour la paie (CSV)</button>
+            </div>
+            <p id="paie-resume" class="carte-resume"></p>
+            <p class="aide">Seules les heures sup « Validées » sont exportées ; les primes seront ajoutées plus tard. Cliquez sur un technicien pour traiter ses semaines.</p>
+            <div class="table-wrapper">
+              <table id="paie-table">
+                <thead><tr><th>Technicien</th><th>Heures normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Absences</th><th>Frais remboursables</th><th>Sup. refusées</th><th>À traiter</th><th>État</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p id="paie-totaux" class="aide"></p>
+          </div>
+        </div>
+
+        <div id="panel-conges" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="barre">
+              <div class="field"><label for="conges-filtre">Afficher</label>
+                <select id="conges-filtre"><option value="demandee">À valider</option><option value="validee">Validés</option><option value="refusee">Refusés</option><option value="">Tous</option></select>
+              </div>
+            </div>
+            <details class="ajout"><summary>Saisir une demande</summary>
+              <form id="conge-form" class="flex">
+                <div class="field"><label for="conge-tech">Technicien</label><select id="conge-tech" required></select></div>
+                <div class="field"><label for="conge-debut">Du</label><input type="date" id="conge-debut" required></div>
+                <div class="field"><label for="conge-fin">Au</label><input type="date" id="conge-fin" required></div>
+                <div class="field"><label for="conge-type">Type</label>
+                  <select id="conge-type"><option value="CP">Congés payés</option><option value="RTT">RTT</option><option value="SANS_SOLDE">Sans solde</option><option value="AUTRE">Autre</option></select>
+                </div>
+                <div class="field"><label for="conge-motif">Motif</label><input id="conge-motif" maxlength="200"></div>
+                <button type="submit">Enregistrer</button>
+              </form>
+            </details>
+            <div class="table-wrapper">
+              <table id="conges-table">
+                <thead><tr><th>Technicien</th><th>Du</th><th>Au</th><th>Jours</th><th>Type</th><th>Motif</th><th>Statut</th><th>Décision</th></tr></thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
         </div>

@@ -4,6 +4,8 @@ import { alertes, kmMoyenParMois, CT_VOITURE, kmParMois, conducteurA, limiteDesi
 import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
+import { repartition } from '../core/stats.js';
+import { variablesPaie, versCsv } from '../core/paie.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
@@ -120,11 +122,13 @@ function switchOnglet(tabId) {
     b.classList.toggle('active', actif);
     b.setAttribute('aria-selected', String(actif));
   });
-  for (const id of ['panel-membres', 'panel-techniciens', 'panel-vehicules']) {
+  for (const id of ['panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-conges']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
   fermerFicheTechnicien();
+  if (tabId === 'panel-paie') chargerPaie();
+  if (tabId === 'panel-conges') chargerConges();
 }
 
 function fermerPanneauVehicule() {
@@ -266,7 +270,7 @@ async function loadSocieteDetail(societeId) {
 
     renderMembers(members);
     monRole = members.find(m => m.user_id === session.user.id)?.role || null;
-    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form']) {
+    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form', '#conge-form']) {
       const form = $(f);
       (form.closest('details') || form).classList.toggle('hidden', !peutEcrire());
     }
@@ -282,6 +286,7 @@ async function loadSocieteDetail(societeId) {
     // Charger les données des onglets Techniciens et Véhicules (elles resteront masquées)
     // Techniciens d'abord : la liste des véhicules affiche le nom du conducteur.
     await loadTechniciens(societeId);
+    compterCongesAValider();
     await loadVehicules(societeId);
 
     $('#niveau-societes').classList.add('hidden');
@@ -952,14 +957,14 @@ async function chargerFicheTechnicien(t) {
       lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations, fichier').eq('technicien_id', t.id).order('date')),
       lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
-      lire(sb.from('heures_sup').select('semaine, valide').eq('technicien_id', t.id)),
+      lire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
       lire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
     ]);
     const v = aff[0];
     const plaque = v && (Array.isArray(v.vehicules) ? v.vehicules[0]?.plaque : v.vehicules?.plaque);
     $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
     fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
-      validations: new Map(validations.map((x) => [x.semaine, x.valide])),
+      validations: new Map(validations.map((x) => [x.semaine, x.valide ? 'validee' : x.refusee ? 'refusee' : 'a_traiter'])),
       photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos };
     const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
     $('#tech-mois').replaceChildren(...mois.map((m) => {
@@ -1008,11 +1013,15 @@ function afficherMoisFiche() {
     const tr = ligne([s.semaine, s.travaillees, s.absences, s.normales, s.sup1, s.sup2]);
     const td = tr.appendChild(document.createElement('td'));
     if (s.sup1 + s.sup2 === 0) { td.textContent = '—'; return tr; }
-    const c = td.appendChild(document.createElement('input'));
-    c.type = 'checkbox';
-    c.checked = fiche.validations.get(s.semaine) === true;
+    const c = td.appendChild(document.createElement('select'));
+    for (const [v, l] of [['a_traiter', 'À traiter'], ['validee', 'Validées'], ['refusee', 'Refusées']]) {
+      const o = c.appendChild(document.createElement('option'));
+      o.value = v;
+      o.textContent = l;
+    }
+    c.value = fiche.validations.get(s.semaine) || 'a_traiter';
     c.disabled = !peutEcrire();
-    c.setAttribute('aria-label', `Heures sup validées, semaine ${s.semaine}`);
+    c.setAttribute('aria-label', `Heures sup, semaine ${s.semaine}`);
     c.addEventListener('change', () => validerHeuresSup(s, c));
     return tr;
   }));
@@ -1025,6 +1034,9 @@ function afficherMoisFiche() {
     return tr;
   }));
   afficherGalerie(m);
+  $('#tech-camemberts').replaceChildren(
+    camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
+    camembert('Résultats', repartition(duMois.map((e) => e.observation_type || 'OK'))));
   $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)}`;
 }
 
@@ -1074,16 +1086,203 @@ async function afficherGalerie(m) {
   }));
 }
 
+// Camembert en anneau (part d'un tout, 5 parts max) + légende chiffrée : la couleur
+// n'est jamais seule (libellé, nombre et % à côté ; détail au survol).
+function camembert(titre, lignes) {
+  const fig = document.createElement('figure');
+  fig.className = 'camembert';
+  fig.appendChild(document.createElement('figcaption')).textContent = titre;
+  if (!lignes.length) { fig.appendChild(document.createElement('p')).textContent = 'Aucune intervention ce mois-ci.'; return fig; }
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 160 160');
+  svg.setAttribute('role', 'img');
+  const total = lignes.reduce((t, l) => t + l.n, 0);
+  svg.setAttribute('aria-label', `${titre} : ` + lignes.map((l) => `${l.libelle} ${l.n}`).join(', '));
+  const couleur = (l, i) => (l.libelle === 'Autres' ? 'var(--serie-autres)' : `var(--serie-${i + 1})`);
+  const point = (r, a) => [80 + r * Math.sin(a), 80 - r * Math.cos(a)].map((x) => x.toFixed(2)).join(' ');
+  let angle = 0;
+  lignes.forEach((l, i) => {
+    const fin = angle + Math.min(l.part, 0.9999) * 2 * Math.PI;   // 100 % : presque un tour (un arc ne peut pas boucler)
+    const grand = fin - angle > Math.PI ? 1 : 0;
+    const path = svg.appendChild(document.createElementNS(NS, 'path'));
+    path.setAttribute('d', `M ${point(70, angle)} A 70 70 0 ${grand} 1 ${point(70, fin)} L ${point(44, fin)} A 44 44 0 ${grand} 0 ${point(44, angle)} Z`);
+    path.setAttribute('fill', couleur(l, i));
+    path.setAttribute('stroke', 'var(--card)');
+    path.setAttribute('stroke-width', '2');
+    path.appendChild(document.createElementNS(NS, 'title')).textContent = `${l.libelle} : ${l.n} (${Math.round(l.part * 100)} %)`;
+    angle = fin;
+  });
+  const centre = svg.appendChild(document.createElementNS(NS, 'text'));
+  centre.setAttribute('x', '80');
+  centre.setAttribute('y', '86');
+  centre.setAttribute('text-anchor', 'middle');
+  centre.setAttribute('fill', 'var(--text)');
+  centre.setAttribute('font-size', '20');
+  centre.setAttribute('font-weight', '600');
+  centre.textContent = total;
+  fig.appendChild(svg);
+  const ul = fig.appendChild(document.createElement('ul'));
+  lignes.forEach((l, i) => {
+    const li = ul.appendChild(document.createElement('li'));
+    const p = li.appendChild(document.createElement('span'));
+    p.className = 'pastille';
+    p.style.background = couleur(l, i);
+    li.appendChild(document.createElement('span')).textContent = `${l.libelle} — ${l.n} (${Math.round(l.part * 100)} %)`;
+  });
+  return fig;
+}
+
+// ===== Paie : tous les techniciens d'une période (cycle du 21 au 20) =====
+const iso = (d) => d.toISOString().slice(0, 10);
+const decaler = (date, jours) => iso(new Date(Date.parse(`${date}T00:00:00Z`) + jours * 86400000));
+
+function periodesPaie() {
+  const auj = new Date();
+  let a = auj.getFullYear(), m = auj.getMonth() + (auj.getDate() >= 21 ? 1 : 0);   // mois de fin du cycle en cours (0-11)
+  const res = [];
+  for (let i = 0; i < 12; i++, m--) {
+    const fin = iso(new Date(Date.UTC(a, m, 20)));
+    res.push({ debut: iso(new Date(Date.UTC(a, m - 1, 21))), fin });
+  }
+  return res;
+}
+
+$('#paie-periode').addEventListener('change', chargerPaie);
+let lignesPaie = [];
+
+async function chargerPaie() {
+  const sel = $('#paie-periode');
+  if (!sel.options.length) {
+    sel.replaceChildren(...periodesPaie().map((p) => {
+      const o = document.createElement('option');
+      o.value = `${p.debut}|${p.fin}`;
+      o.textContent = `${formaterDate(p.debut)} → ${formaterDate(p.fin)}`;
+      return o;
+    }));
+  }
+  const [debut, fin] = sel.value.split('|');
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur dimanche).
+    const [temps, frais, validations, conges, regles] = await Promise.all([
+      lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      lire(sb.from('conges').select('technicien_id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+    ]);
+    const r = reglesDe(regles[0] || {});
+    const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
+    lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
+      v: variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures),
+        frais: de(frais, t).map(versFrais), primes: 0, regles: r, validations: de(validations, t) }),
+      conges: de(conges, t).length }));
+    afficherPaie();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du calcul de la paie');
+  }
+}
+
+function afficherPaie() {
+  const h = (n) => `${Math.round(n * 100) / 100} h`;
+  let aTraiter = 0;
+  $('#paie-table tbody').replaceChildren(...lignesPaie.map(({ t, v, conges }) => {
+    const reste = [v.semainesATraiter && `${v.semainesATraiter} semaine(s) d'heures sup`, conges && `${conges} congé(s) en attente`].filter(Boolean);
+    if (reste.length) aTraiter++;
+    const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables),
+      h(v.supRefusees), reste.join(', ') || '—', reste.length ? 'À traiter' : 'Prêt']);
+    tr.children[8].className = reste.length ? 'alerte-proche' : 'etat-pret';
+    tr.classList.add('ligne-cliquable');
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
+    tr.addEventListener('click', () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(t); });
+    return tr;
+  }));
+  const somme = (k) => lignesPaie.reduce((s, l) => s + l.v[k], 0);
+  $('#paie-resume').textContent = `${lignesPaie.length} technicien(s) — ${aTraiter} à traiter — ${lignesPaie.length - aTraiter} prêt(s)`;
+  $('#paie-totaux').textContent = `Totaux : ${h(somme('heuresNormales'))} normales, ${h(somme('sup1'))} + ${h(somme('sup2'))} sup validées, ${euros(somme('fraisRemboursables'))} de frais.`;
+}
+
+$('#paie-export').addEventListener('click', () => {
+  if (!lignesPaie.length) return;
+  const reste = lignesPaie.some((l) => l.v.semainesATraiter || l.conges);
+  if (reste && !confirm('Des éléments ne sont pas traités : les heures sup non validées ne seront pas payées. Exporter quand même ?')) return;
+  const csv = versCsv(lignesPaie.map(({ v }) => {
+    const { supRefusees, semainesATraiter, ...exportees } = v;
+    return exportees;
+  }));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `paie-${lignesPaie[0].v.fin}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ===== Congés : demandes à valider (saisies au bureau ; l'APK plus tard) =====
+const TYPES_CONGE = { CP: 'Congés payés', RTT: 'RTT', SANS_SOLDE: 'Sans solde', AUTRE: 'Autre' };
+const STATUTS_CONGE = { demandee: 'À valider', validee: 'Validé', refusee: 'Refusé' };
+
+async function compterCongesAValider() {
+  const { count, error } = await sb.from('conges').select('id', { count: 'exact', head: true })
+    .eq('societe_id', selectedSociete).eq('statut', 'demandee');
+  $('#onglet-conges').textContent = !error && count ? `Congés (${count})` : 'Congés';
+}
+
+$('#conges-filtre').addEventListener('change', chargerConges);
+
+async function chargerConges() {
+  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut').eq('societe_id', selectedSociete).order('debut');
+  if ($('#conges-filtre').value) q = q.eq('statut', $('#conges-filtre').value);
+  const { data, error } = await q;
+  if (error) { alert(error.message); return; }
+  const nom = (id) => techniciens.find((t) => t.id === id)?.nom || '—';
+  $('#conges-table tbody').replaceChildren(...data.map((c) => {
+    const jours = (Date.parse(c.fin) - Date.parse(c.debut)) / 86400000 + 1;
+    const tr = ligne([nom(c.technicien_id), formaterDate(c.debut), formaterDate(c.fin), jours,
+      TYPES_CONGE[c.type] || c.type, c.motif || '—', STATUTS_CONGE[c.statut] || c.statut]);
+    const td = tr.appendChild(document.createElement('td'));
+    if (c.statut !== 'demandee' || !peutEcrire()) { td.textContent = '—'; return tr; }
+    for (const [statut, libelle, classe] of [['validee', 'Valider', ''], ['refusee', 'Refuser', 'danger']]) {
+      const b = td.appendChild(document.createElement('button'));
+      b.textContent = libelle;
+      if (classe) b.className = classe;
+      b.addEventListener('click', async () => {
+        const { error: e } = await sb.from('conges').update({ statut }).eq('id', c.id);
+        if (e) { alert(e.message); return; }
+        await chargerConges();
+        compterCongesAValider();
+      });
+    }
+    return tr;
+  }));
+}
+
+$('#conge-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  const debut = $('#conge-debut').value, fin = $('#conge-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const { error } = await sb.from('conges').insert({ societe_id: selectedSociete, technicien_id: $('#conge-tech').value,
+    debut, fin, type: $('#conge-type').value, motif: $('#conge-motif').value.trim() });
+  if (error) { alert(error.message); return; }
+  $('#conge-form').reset();
+  await chargerConges();
+  compterCongesAValider();
+});
+
 // Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
-async function validerHeuresSup(s, caseACocher) {
+async function validerHeuresSup(s, choix) {
   const [annee, n] = s.semaine.split('-W').map(Number);
   const j4 = Date.UTC(annee, 0, 4);
   const lundi = new Date(j4 - ((new Date(j4).getUTCDay() + 6) % 7) * 86400000 + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
   const { error } = await sb.from('heures_sup').upsert({ societe_id: selectedSociete, technicien_id: fiche.t.id,
-    semaine: s.semaine, date: lundi, sup1: s.sup1, sup2: s.sup2, valide: caseACocher.checked },
+    semaine: s.semaine, date: lundi, sup1: s.sup1, sup2: s.sup2, valide: choix.value === 'validee', refusee: choix.value === 'refusee' },
   { onConflict: 'societe_id,technicien_id,semaine' });
-  if (error) { caseACocher.checked = !caseACocher.checked; alert(error.message); return; }
-  fiche.validations.set(s.semaine, caseACocher.checked);
+  if (error) { choix.value = fiche.validations.get(s.semaine) || 'a_traiter'; alert(error.message); return; }
+  fiche.validations.set(s.semaine, choix.value);
 }
 
 // Formulaire Affectation
@@ -1243,14 +1442,15 @@ $('#amende-date-infraction').addEventListener('change', async () => {
 
 // Remplir select techniciens actifs pour affectation
 function renderTechniciensActifs() {
-  const select = $('#aff-tech');
   const actifs = techniciens.filter(t => t.actif);
-  select.replaceChildren(...actifs.map(t => {
-    const o = document.createElement('option');
-    o.value = t.id;
-    o.textContent = t.nom;
-    return o;
-  }));
+  for (const id of ['#aff-tech', '#conge-tech']) {   // affectation et demande de congés
+    $(id).replaceChildren(...actifs.map(t => {
+      const o = document.createElement('option');
+      o.value = t.id;
+      o.textContent = t.nom;
+      return o;
+    }));
+  }
 }
 
 function renderTechniciensAmende() {
