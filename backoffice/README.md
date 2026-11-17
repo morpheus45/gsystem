@@ -34,16 +34,31 @@ Version de l'outil figée à `supabase@2.122.1` (branche stable officielle).
 | Démarrer (réservé à ce poste) | `npx supabase@2.122.1 start --network-id gsystem-backoffice-local` |
 | Voir les adresses | `npx supabase@2.122.1 status` |
 | Arrêter (garde les données) | `npx supabase@2.122.1 stop` |
-| Repartir de zéro (migrations + `supabase/seed.sql`) | `npx supabase@2.122.1 db reset` |
+| Repartir de zéro (migrations + `supabase/seed.sql`) | `npx supabase@2.122.1 db reset --network-id gsystem-backoffice-local` |
 | Sauvegarder les données dans un fichier | `npx supabase@2.122.1 db dump --local --data-only > sauvegarde.sql` |
 
 Interface d'administration : http://127.0.0.1:54323 (Supabase Studio).
 
-**Toujours démarrer avec `--network-id gsystem-backoffice-local`.** Sans ça, Supabase écoute sur tout le réseau local avec des mots de passe par défaut connus de tous ([doc officielle](https://supabase.com/docs/guides/local-development)). Ce réseau Docker se crée une seule fois :
+**Toujours ajouter `--network-id gsystem-backoffice-local` à `start` et à `db reset`.** Sans ça, Supabase écoute sur tout le réseau local avec des mots de passe par défaut connus de tous ([doc officielle](https://supabase.com/docs/guides/local-development)). Ce réseau Docker se crée une seule fois :
 
 ```bash
 docker network create -o 'com.docker.network.bridge.host_binding_ipv4=127.0.0.1' gsystem-backoffice-local
 ```
+
+## Écran du back-office (Phase 1)
+
+```bash
+npm run web
+```
+
+Ouvre http://127.0.0.1:5180 (ce poste seulement). Supabase local doit tourner.
+
+1. Créer son compte sur l'écran, puis cliquer le lien de confirmation reçu dans la boîte de test locale : http://127.0.0.1:54324 (Mailpit, aucun vrai email ne part).
+2. Devenir opérateur (une fois, jamais depuis l'écran) :
+   `psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "insert into operateurs select id from auth.users where email = 'VOTRE_EMAIL'"`
+3. L'opérateur crée une société et saisit l'email de son admin. L'admin crée son compte avec **cet email confirmé** : il entre seul dans la société, puis invite son équipe.
+
+L'opérateur ne voit pas les données des sociétés qu'il crée.
 
 ## Migrer ailleurs plus tard
 

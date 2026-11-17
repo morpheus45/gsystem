@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Back-office G-Systems</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --border: #e5e5e5;
+      --card: #fff;
+      --alert-bg: #fef2f2;
+      --alert-text: #991b1b;
+      --alert-border: #fecaca;
+      --success-bg: #f0fdf4;
+      --success-text: #166534;
+      --success-border: #bbf7d0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111;
+        --text: #f5f5f5;
+        --muted: #a3a3a3;
+        --accent: #3b82f6;
+        --accent-hover: #60a5fa;
+        --border: #333;
+        --card: #1a1a1a;
+        --alert-bg: #7f1d1d;
+        --alert-text: #fecaca;
+        --alert-border: #991b1b;
+        --success-bg: #14532d;
+        --success-text: #bbf7d0;
+        --success-border: #166534;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .banner {
+      background: var(--muted);
+      color: var(--bg);
+      text-align: center;
+      padding: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    h1 { font-size: 1.5rem; margin: 16px 0 8px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    form { display: grid; gap: 12px; max-width: 400px; }
+    .field { display: grid; gap: 4px; }
+    label { font-size: 0.9rem; font-weight: 500; }
+    input, select {
+      padding: 10px 12px;
+      font: inherit;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--text);
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    button {
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    button:active { transform: scale(0.97); }
+    @media (hover: hover) and (pointer: fine) {
+      button:hover { background: var(--accent-hover); }
+    }
+    button.secondary { background: var(--border); color: var(--text); }
+    @media (hover: hover) and (pointer: fine) {
+      button.secondary:hover { background: color-mix(in srgb, var(--border) 80%, var(--text)); }
+    }
+    button.danger { background: #ef4444; color: #fff; }
+    @media (hover: hover) and (pointer: fine) {
+      button.danger:hover { background: #dc2626; }
+    }
+    .alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .alert.show { display: block; }
+    .alert.error { background: var(--alert-bg); color: var(--alert-text); border: 1px solid var(--alert-border); }
+    .alert.success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .header h2 { margin: 0; font-size: 1.25rem; }
+    .section { margin-bottom: 24px; }
+    .section h3 { margin: 0 0 12px; font-size: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:last-child td { border-bottom: none; }
+    .empty { padding: 24px; text-align: center; color: var(--muted); }
+    .societe-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    .societe-item {
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .societe-item:active { transform: scale(0.98); }
+    @media (hover: hover) and (pointer: fine) {
+      .societe-item:hover { border-color: var(--accent); }
+    }
+    .societe-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+    .societe-name { font-weight: 500; }
+    .societe-id { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .hidden { display: none !important; }
+    .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .flex-center { justify-content: center; }
+    .link { color: var(--accent); text-decoration: none; cursor: pointer; }
+    @media (hover: hover) and (pointer: fine) {
+      .link:hover { text-decoration: underline; }
+    }
+  </style>
+</head>
+<body>
+  <div class="banner">Base locale de développement — données fictives</div>
+  <div class="container">
+    <div id="alert" class="alert" role="alert" aria-live="polite"></div>
+
+    <section id="login-screen" class="screen active">
+      <h1>Connexion</h1>
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Se connecter</button>
+      </form>
+      <p style="margin-top:16px;font-size:0.9rem;">
+        Pas de compte ? <span id="signup-link" class="link">Créer mon compte</span>
+      </p>
+    </section>
+
+    <section id="signup-screen" class="screen">
+      <h1>Créer un compte</h1>
+      <form id="signup-form">
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <input type="email" id="signup-email" name="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="signup-password">Mot de passe</label>
+          <input type="password" id="signup-password" name="password" autocomplete="new-password" required minlength="6">
+        </div>
+        <button type="submit">Créer mon compte</button>
+      </form>
+      <p style="margin-top:16px;font-size:0.9rem;">
+        Déjà un compte ? <span id="login-link" class="link">Se connecter</span>
+      </p>
+    </section>
+
+    <section id="main-screen" class="screen">
+      <header class="header">
+        <h2>Back-office G-Systems</h2>
+        <div class="flex">
+          <span id="user-email" style="color:var(--muted);font-size:0.9rem;"></span>
+          <button id="logout-btn" class="secondary">Se déconnecter</button>
+        </div>
+      </header>
+
+      <section id="operator-section" class="section hidden">
+        <h3>OPÉRATEUR</h3>
+        <form id="creer-societe-form">
+          <div class="field">
+            <label for="societe-nom">Nom de la société cliente</label>
+            <input type="text" id="societe-nom" name="nom" required maxlength="120">
+          </div>
+          <div class="field">
+            <label for="societe-email">Email de l'admin</label>
+            <input type="email" id="societe-email" name="email_admin" required>
+          </div>
+          <button type="submit">Créer la société</button>
+        </form>
+      </section>
+
+      <section class="section">
+        <h3>Mes sociétés</h3>
+        <ul id="societes-list" class="societe-list"></ul>
+      </section>
+
+      <section id="societe-detail" class="section hidden">
+        <h3 id="societe-detail-title">Société sélectionnée</h3>
+        <div class="section">
+          <h3>Membres</h3>
+          <table id="membres-table">
+            <thead>
+              <tr><th>Email</th><th>Rôle</th><th>Vous</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="admin-tools" class="section hidden">
+          <div class="section">
+            <h3>Invitations en attente</h3>
+            <table id="invitations-table">
+              <thead>
+                <tr><th>Email</th><th>Rôle</th><th>Créée le</th><th></th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="inviter-form">
+            <div class="field">
+              <label for="invite-email">Email</label>
+              <input type="email" id="invite-email" name="email" required>
+            </div>
+            <div class="field">
+              <label for="invite-role">Rôle</label>
+              <select id="invite-role" name="role" required>
+                <option value="admin">Admin</option>
+                <option value="gestion">Gestion</option>
+                <option value="comptable">Comptable</option>
+                <option value="lecture">Lecture seule</option>
+              </select>
+            </div>
+            <button type="submit">Inviter</button>
+          </form>
+        </div>
+      </section>
+    </section>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
