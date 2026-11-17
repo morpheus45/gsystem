@@ -21,10 +21,10 @@ test('les lignes du pont entrent dans la base, et un 2e import ne crée aucun do
   await db.exec(`insert into societes (id, nom) values ('${S}', 'Societe fictive');
     insert into techniciens (id, societe_id, nom, nom_apk) values ('${T}', '${S}', 'Tech fictif', 'TECH FICTIF');`);
   const r = normaliser(donnees, { societeId: S, technicienId: T });
-  assert.deepEqual(TABLES_PONT, { temps: 'temps', frais: 'frais', photos: 'photos_apk' });
+  assert.deepEqual(TABLES_PONT, { temps: 'temps', frais: 'frais', photos: 'photos_apk', gestes: 'gestes_co' });
   for (let i = 0; i < 2; i++) for (const [cle, table] of Object.entries(TABLES_PONT)) await inserer(db, table, r[cle]);
   const n = async (t) => (await db.query(`select count(*)::int n from ${t}`)).rows[0].n;
-  assert.deepEqual([await n('temps'), await n('frais'), await n('photos_apk')], [3, 2, 2]);
+  assert.deepEqual([await n('temps'), await n('frais'), await n('photos_apk'), await n('gestes_co')], [3, 2, 2, 1]);
 });
 
 test('données réelles de l\'APK : personne ne peut les effacer, même le super admin', async () => {
@@ -66,5 +66,20 @@ test('photos APK : emplacement de stockage notable par le pont, pas par un utili
   assert.equal((await db.query(`select stockage from photos_apk where cle_source = $1`, [r.photos[1].cle_source])).rows[0].stockage, chemin);
   await db.comme(U, async () => {
     await assert.rejects(db.query(`update photos_apk set stockage = 'autre' where cle_source = $1`, [r.photos[0].cle_source]), /permission denied/);
+  });
+});
+
+test('barèmes de primes : lisibles par la société, écrits seulement par le pont', async () => {
+  const db = await ouvrirBase();
+  const U = '00000000-0000-0000-0000-0000000000a1';
+  await db.exec(`insert into auth.users (id) values ('${U}');
+    insert into societes (id, nom) values ('${S}', 'Societe fictive');
+    insert into membres values ('${S}', '${U}', 'admin');
+    insert into techniciens (id, societe_id, nom, nom_apk) values ('${T}', '${S}', 'Tech fictif', 'TECH FICTIF');
+    insert into primes_tarifs (societe_id, technicien_id, mois, prix) values ('${S}', '${T}', 'courant', '{"gsm": 5}');`);
+  await db.comme(U, async () => {
+    assert.equal((await db.query(`select prix from primes_tarifs`)).rows[0].prix.gsm, 5);
+    await assert.rejects(db.query(`update primes_tarifs set prix = '{}'`), /permission denied/);
+    await assert.rejects(db.query(`delete from gestes_co`), /permission denied|effacement interdit/);
   });
 });

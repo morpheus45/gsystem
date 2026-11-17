@@ -21,11 +21,12 @@ const CHAMPS = {
     kilometres: ['kilometres', 0], observations: ['observations', ''],
   },
 };
-const BLOCS_IGNORES = ['gesteCo']; // primes : pas encore importées
+const BLOCS_IGNORES = ['gesteCo'];   // blocs traités à part (gestes ci-dessous)
+const GESTE_CONNUS = ['id', 'date', 'siteNumber', 'epsDerogation', 'nomClient', 'observations', 'tempsId'];
 
 // Bloc normalisé -> table de la base. compteur n'est pas importé seul : sa photo
 // l'est (photos_apk) et le km sera relevé au bureau (releves_km).
-export const TABLES_PONT = { temps: 'temps', frais: 'frais', photos: 'photos_apk' };
+export const TABLES_PONT = { temps: 'temps', frais: 'frais', photos: 'photos_apk', gestes: 'gestes_co' };
 
 export function normaliser(donnees, { societeId, technicienId } = {}) {
   if (!societeId) throw new Error('societeId obligatoire');
@@ -46,10 +47,23 @@ export function normaliser(donnees, { societeId, technicienId } = {}) {
     return l;
   });
 
+  // GesteCo (primes) : équipements INSTALLÉS seulement (installedGsm... -> { gsm: n }) ;
+  // les cadeaux client (offered*), le nom du client et les observations ne sont pas importés.
+  const gestes = (entries.gesteCo ?? []).map((g) => {
+    if (!g?.id) throw new Error('entrée gesteCo sans id : import refusé');
+    const installes = {};
+    for (const [cle, n] of Object.entries(g)) {
+      const m = /^installed(.+)$/.exec(cle);
+      if (m && n) installes[m[1][0].toLowerCase() + m[1].slice(1)] = n;
+      else if (!/^(installed|offered)/.test(cle) && !GESTE_CONNUS.includes(cle)) inconnues.add(`gesteCo.${cle}`);
+    }
+    return { ...base, cle_source: `${technicienId}/gesteCo/${g.id}`, date: g.date ?? '', numero_site: g.siteNumber ?? '', installes };
+  });
+
   const photos = Object.entries(donnees.photos ?? {}).map(([nomLocal, nomDrive]) => (
     { ...base, cle_source: `${technicienId}/photo/${nomLocal}`, nom_local: nomLocal, nom_drive: nomDrive }));
 
-  return { temps: lignes('temps'), frais: lignes('frais'), compteur: lignes('compteur'), photos,
+  return { temps: lignes('temps'), frais: lignes('frais'), compteur: lignes('compteur'), photos, gestes,
     clesInconnues: [...inconnues] };
 }
 

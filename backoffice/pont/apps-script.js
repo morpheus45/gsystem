@@ -43,10 +43,17 @@ function importer() {
         bilan.erreurs.push(dossierTech.getName() + '/' + f.getName() + ' : ' + e.message);
       }
     }
+    const r = dossierTech.getFilesByName('reglages.json');   // lu, jamais modifié
+    const reglages = r.hasNext() ? JSON.parse(r.next().getBlob().getDataAsString('UTF-8')) : null;
     try {
-      vehiculeDuTech(cle, dossierTech, technicienId, photos, premiereDate);
+      vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate);
     } catch (e) {
       bilan.erreurs.push(dossierTech.getName() + '/véhicule : ' + e.message);
+    }
+    try {
+      baremesDuTech(cle, reglages, technicienId);
+    } catch (e) {
+      bilan.erreurs.push(dossierTech.getName() + '/barèmes : ' + e.message);
     }
   }
   console.log(JSON.stringify(bilan));
@@ -104,6 +111,16 @@ function technicien(cle, nomApk) {
   return r[0].id;
 }
 
+// Barèmes de primes des réglages : le courant peut changer (mis à jour), un mois figé jamais.
+function baremesDuTech(cle, reglages, technicienId) {
+  if (!reglages) return;
+  const ligne = (mois, prix) => ({ societe_id: SOCIETE_ID, technicien_id: technicienId, mois, prix: prix || {} });
+  appel(cle, 'post', 'primes_tarifs?on_conflict=societe_id,technicien_id,mois', [ligne('courant', reglages.prices)],
+    'resolution=merge-duplicates,return=minimal');
+  const figes = Object.entries(reglages.primeTarifsParMois || {}).map(([m, p]) => ligne(m, p));
+  if (figes.length) ajouter(cle, 'primes_tarifs', figes, 'societe_id,technicien_id,mois');
+}
+
 // Ajout seul, par paquets : un doublon (même clé unique) est ignoré.
 function ajouter(cle, table, lignes, unique) {
   for (let i = 0; i < lignes.length; i += 500) {
@@ -113,9 +130,8 @@ function ajouter(cle, table, lignes, unique) {
 }
 
 // Véhicule du tech d'après l'APK : plaque des réglages, affectation, photos du compteur.
-function vehiculeDuTech(cle, dossierTech, technicienId, photos, premiereDate) {
-  const f = dossierTech.getFilesByName('reglages.json');   // lu, jamais modifié
-  const v = vehiculeDepuisApk(f.hasNext() ? JSON.parse(f.next().getBlob().getDataAsString('UTF-8')) : null, photos);
+function vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate) {
+  const v = vehiculeDepuisApk(reglages, photos);
   if (!v.plaque) return;
   ajouter(cle, 'vehicules', [{ societe_id: SOCIETE_ID, plaque: v.plaque }], 'societe_id,plaque');
   const vehiculeId = appel(cle, 'get', 'vehicules?select=id&societe_id=eq.' + SOCIETE_ID +

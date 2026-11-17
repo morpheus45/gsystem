@@ -98,3 +98,9 @@ test('affectation depuis l\'APK : rien si déjà en cours, sinon on ferme l\'anc
   assert.deepEqual(planAffectation([{ id: 'a1', vehicule_id: 'V0', debut: '2026-11-17' }], 'V1', '2026-11-17', null),
     { fermer: [{ id: 'a1', fin: '2026-11-17' }], ouvrir: { vehicule_id: 'V1', debut: '2026-11-17' } });
 });
+
+test('gesteCo : équipements installés regroupés, nom du client jamais importé', () => {
+  const { gestes } = normaliser(donnees, opts);
+  assert.deepEqual(gestes, [{ societe_id: 'soc-A', technicien_id: 'tech-1', cle_source: 'tech-1/gesteCo/g1',
+    date: '2026-10-22', numero_site: '10000001', installes: { gsm: 1 } }]);
+});
