@@ -55,9 +55,9 @@
       line-height: 1.5;
     }
     .container {
-      max-width: 960px;
+      max-width: 1200px;              /* PC : les tableaux respirent ; téléphone : toute la largeur */
       margin: 0 auto;
-      padding: 16px;
+      padding: 16px clamp(16px, 3vw, 32px);
     }
     .banner {
       background: var(--muted);
@@ -124,8 +124,9 @@
     .section { margin-bottom: 24px; }
     .section h3 { margin: 0 0 12px; font-size: 1rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    /* En-têtes compacts : casse normale, retour à la ligne permis (tableaux larges sur écran moyen). */
+    th { font-weight: 600; color: var(--muted); font-size: 0.8rem; vertical-align: bottom; }
     tr:last-child td { border-bottom: none; }
     .empty { padding: 24px; text-align: center; color: var(--muted); }
     .societe-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
@@ -165,7 +166,8 @@
     .lecture-seule td button.voir { display: inline-block; }
     .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     /* Champs côte à côte : ils passent à la ligne au lieu de déborder (téléphone). */
-    .flex > .field { flex: 1 1 140px; min-width: 0; }
+    .flex > .field { flex: 1 1 11rem; min-width: 0; }
+    .field input, .field select { min-width: 0; }
     .field input, .field select { width: 100%; box-sizing: border-box; }
     .flex-center { justify-content: center; }
     .link { color: var(--accent); text-decoration: none; cursor: pointer; }
@@ -203,11 +205,24 @@
     @media (hover: hover) and (pointer: fine) { .tab:hover { background: color-mix(in srgb, var(--card) 60%, transparent); } }
     .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
     /* Onglets sur une seule ligne, largeurs égales (téléphone compris). */
-    .tabs { flex-wrap: nowrap; }
-    .tab { flex: 1 1 0; min-width: 0; padding: 10px 8px; white-space: nowrap; }
-    /* Téléphone : 5 onglets sur deux lignes, noms en entier (jamais tronqués). */
-    @media (max-width: 640px) { .tabs { flex-wrap: wrap; } .tab { flex: 1 1 30%; } }
+    /* Onglets : passent à la ligne dès que le texte ne tient plus (largeur ou grande police). */
+    .tabs { flex-wrap: wrap; }
+    .tab { flex: 1 1 auto; padding: 10px 12px; white-space: nowrap; }
     .carte-resume:empty { display: none; }
+    /* Téléphone et tablette en hauteur : tableaux en fiches « Titre : valeur » (titres posés par app.js). */
+    @media (max-width: 900px) {
+      .table-wrapper { overflow: visible; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      tr { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; padding: 4px 0; }
+      td { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: none; padding: 6px 12px; text-align: right; overflow-wrap: anywhere; }
+      td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; text-align: left; flex: 0 1 45%; overflow-wrap: normal; word-break: normal; hyphens: auto; }
+      td[data-label=""]::before { content: none; }
+      td.fleche { display: none; }
+    }
+    /* Champs et boutons : jamais plus larges que l'écran. */
+    input, select, button { max-width: 100%; }
+    .header > * { min-width: 0; overflow-wrap: anywhere; }
     .sous-onglets { display: flex; gap: 4px; background: color-mix(in srgb, var(--border) 50%, var(--bg)); padding: 4px; border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .sous-onglets button { background: transparent; color: var(--muted); border: none; border-radius: 6px; min-height: 44px; padding: 8px 12px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms; }
     @media (hover: hover) and (pointer: fine) { .sous-onglets button:hover { background: color-mix(in srgb, var(--card) 60%, transparent); } }

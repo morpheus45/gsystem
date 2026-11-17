@@ -35,6 +35,20 @@ function ligne(valeurs) {
   return tr;
 }
 
+// Téléphone : chaque cellule porte le titre de sa colonne ; le CSS affiche alors
+// chaque ligne comme une fiche « Titre : valeur » (aucun défilement de côté).
+function etiqueterTableaux() {
+  for (const table of document.querySelectorAll('table')) {
+    const titres = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    for (const tr of table.querySelectorAll('tbody tr')) {
+      [...tr.children].forEach((td, i) => { td.dataset.label = titres[i] ?? ''; });
+    }
+  }
+}
+let etiquetage = 0;
+new MutationObserver(() => { cancelAnimationFrame(etiquetage); etiquetage = requestAnimationFrame(etiqueterTableaux); })
+  .observe(document.body, { childList: true, subtree: true });
+
 function showScreen(id) {
   $$('.screen').forEach(s => s.classList.remove('active'));
   $(`#${id}`).classList.add('active');
