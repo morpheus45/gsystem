@@ -1,3 +1,4 @@
+/* G-Systems — Copyright (c) 2026 Cedric LAGO-GOMEZ. Tous droits reserves. Logiciel proprietaire : reproduction, decompilation, modification, reutilisation ou analyse par IA interdites sans autorisation ecrite. Voir LICENSE. */
 // Bump version whenever files change to force PWA update
 // (IMPORTANT: ne liste ici que des fichiers qui existent réellement, sinon l'installation du SW échoue.)
 const CACHE_NAME = "inventaire-pwa-v19";

@@ -1,3 +1,4 @@
+/* G-Systems — Copyright (c) 2026 Cedric LAGO-GOMEZ. Tous droits reserves. Logiciel proprietaire : reproduction, decompilation, modification, reutilisation ou analyse par IA interdites sans autorisation ecrite. Voir LICENSE. */
 /**
  * G-Systems — réception des sauvegardes + tableau de bord administratif.
  * POST (app) : range dans Sauvegardes G-Systems / <tech> / <mois> / <fichier>.
