@@ -12,6 +12,9 @@ const MOIS = /^\d{4}-\d{2}$/;             // dossiers de cycle : AAAA-MM
 function importer() {
   const cle = PropertiesService.getScriptProperties().getProperty('SUPABASE_CLE_SERVEUR');
   if (!cle) throw new Error('Propriété du script manquante : SUPABASE_CLE_SERVEUR');
+  if (!cle.startsWith('sb_secret_')) {
+    throw new Error('SUPABASE_CLE_SERVEUR doit être la clé SECRÈTE (sb_secret_...), pas la clé publique');
+  }
   const dossiers = DriveApp.getRootFolder().getFoldersByName(RACINE);
   if (!dossiers.hasNext()) throw new Error('Dossier introuvable : ' + RACINE);
   const techs = dossiers.next().getFolders();
