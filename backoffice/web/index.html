@@ -140,6 +140,7 @@
     .societe-id { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
     .hidden { display: none !important; }
     .lecture-seule td button { display: none; }
+    .lecture-seule td button.voir { display: inline-block; }
     .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     /* Champs côte à côte : ils passent à la ligne au lieu de déborder (téléphone). */
     .flex > .field { flex: 1 1 140px; min-width: 0; }
@@ -309,7 +310,7 @@
             <div class="table-wrapper">
               <table id="vehicules-table">
                 <thead>
-                  <tr><th>Plaque</th><th>Libellé</th></tr>
+                  <tr><th>Plaque</th><th>Libellé</th><th>Conducteur actuel</th><th>Depuis</th></tr>
                 </thead>
                 <tbody></tbody>
               </table>
@@ -384,6 +385,31 @@
             </form>
           </div>
 
+          <div class="section">
+            <h3>Km par mois</h3>
+            <div class="table-wrapper">
+              <table id="km-mois-table">
+                <thead>
+                  <tr><th>Mois</th><th>Km fin de mois</th><th>Parcourus</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Photos du compteur (APK)</h3>
+            <p id="photo-statut" style="margin-bottom:8px;font-size:0.9rem;"></p>
+            <div class="table-wrapper">
+              <table id="photos-compteur-table">
+                <thead>
+                  <tr><th>Mois</th><th>Fichier</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- 3. Échéances -->
           <div class="section">
             <h3>Échéances</h3>
@@ -431,6 +457,11 @@
                 <tbody></tbody>
               </table>
             </div>
+            <div id="entretiens-stats" class="section" style="margin-top:12px;">
+              <h4>Dernière fois</h4>
+              <ul id="entretiens-last" class="flex flex-col"></ul>
+              <p id="entretiens-total">Coût total : — €</p>
+            </div>
             <form id="entretien-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
               <div class="field">
                 <label for="ent-date">Date</label>
@@ -438,7 +469,15 @@
               </div>
               <div class="field" style="flex:1;min-width:140px;">
                 <label for="ent-type">Type</label>
-                <input type="text" id="ent-type" name="type" required maxlength="80">
+                <select id="ent-type" name="type" required>
+                  <option value="DISTRIBUTION">Distribution</option>
+                  <option value="PNEUS">Pneus</option>
+                  <option value="FREINS">Freins</option>
+                  <option value="VIDANGE">Vidange</option>
+                  <option value="REVISION">Révision</option>
+                  <option value="REPARATION">Réparation diverse</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
               </div>
               <div class="field">
                 <label for="ent-km">Km</label>
@@ -451,6 +490,62 @@
               <div class="field">
                 <label for="ent-cout">Coût</label>
                 <input type="text" id="ent-cout" name="cout" placeholder="12,50">
+              </div>
+              <button type="submit">Ajouter</button>
+            </form>
+          </div>
+
+          <!-- 5. Amendes -->
+          <div class="section">
+            <h3>Amendes</h3>
+            <div id="amendes-liens" class="flex" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;"></div>
+            <p style="font-size:0.8rem;color:var(--muted);">Délai légal : 45 jours après la date de l'avis.</p>
+            <div class="table-wrapper">
+              <table id="amendes-table">
+                <thead>
+                  <tr><th>N° avis</th><th>Date avis</th><th>Infraction</th><th>Lieu</th><th>Montant</th><th>Conducteur</th><th>À désigner avant</th><th>Statut</th><th>Scan</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <form id="amende-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div class="field">
+                <label for="amende-numero">N° d'avis</label>
+                <input type="text" id="amende-numero" name="numero_avis" required>
+              </div>
+              <div class="field">
+                <label for="amende-date-avis">Date de l'avis</label>
+                <input type="date" id="amende-date-avis" name="date_avis" required>
+              </div>
+              <div class="field">
+                <label for="amende-date-infraction">Date de l'infraction</label>
+                <input type="date" id="amende-date-infraction" name="date_infraction">
+              </div>
+              <div class="field">
+                <label for="amende-heure">Heure</label>
+                <input type="time" id="amende-heure" name="heure_infraction">
+              </div>
+              <div class="field">
+                <label for="amende-lieu">Lieu</label>
+                <input type="text" id="amende-lieu" name="lieu">
+              </div>
+              <div class="field">
+                <label for="amende-motif">Motif</label>
+                <input type="text" id="amende-motif" name="motif">
+              </div>
+              <div class="field">
+                <label for="amende-montant">Montant</label>
+                <input type="text" id="amende-montant" name="montant" placeholder="12,50">
+              </div>
+              <div class="field">
+                <label for="amende-conducteur">Conducteur</label>
+                <select id="amende-conducteur" name="technicien_id">
+                  <option value="">—</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="amende-scan">Scan</label>
+                <input type="file" id="amende-scan" name="scan" accept="image/*,application/pdf" capture="environment">
               </div>
               <button type="submit">Ajouter</button>
             </form>

@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
-import { alertes, kmMoyenParMois, CT_VOITURE } from '../core/vehicules.js';
+import { alertes, kmMoyenParMois, CT_VOITURE, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto } from '../core/vehicules.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
@@ -172,7 +172,7 @@ async function loadSocieteDetail(societeId) {
 
     renderMembers(members);
     monRole = members.find(m => m.user_id === session.user.id)?.role || null;
-    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form']) {
+    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form']) {
       $(f).classList.toggle('hidden', !peutEcrire());
     }
     // Lecture seule : les boutons d'action des tableaux sont masqués (CSS).
@@ -185,10 +185,9 @@ async function loadSocieteDetail(societeId) {
     }
 
     // Charger les données des onglets Techniciens et Véhicules (elles resteront masquées)
-    await Promise.all([
-      loadTechniciens(societeId),
-      loadVehicules(societeId)
-    ]);
+    // Techniciens d'abord : la liste des véhicules affiche le nom du conducteur.
+    await loadTechniciens(societeId);
+    await loadVehicules(societeId);
 
     $('#societe-detail').classList.remove('hidden');
   } catch (err) {
@@ -241,6 +240,7 @@ async function loadTechniciens(societeId) {
     techniciens = data;
     renderTechniciens(data);
     renderTechniciensActifs();
+    renderTechniciensAmende();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des techniciens');
   }
@@ -271,18 +271,27 @@ async function toggleTechnicien(id, actif) {
 // === VÉHICULES ===
 async function loadVehicules(societeId) {
   try {
-    const { data, error } = await sb.from('vehicules').select('id, plaque, libelle').eq('societe_id', societeId).order('plaque');
+    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle').eq('societe_id', societeId).order('plaque');
     if (error) throw error;
-    renderVehicules(data);
+    // Charger les affectations de cette société
+    const { data: affectations, error: affectErr } = await sb.from('affectations').select('vehicule_id, technicien_id, debut, fin').eq('societe_id', societeId).order('debut', { ascending: false });
+    if (affectErr) throw affectErr;
+    renderVehicules(vehicules, affectations);
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des véhicules');
   }
 }
 
-function renderVehicules(list) {
+function renderVehicules(list, affectations) {
   const tbody = $('#vehicules-table tbody');
+  const aujourdhui = new Date().toISOString().slice(0, 10);
   tbody.replaceChildren(...list.map(v => {
-    const tr = ligne([v.plaque, v.libelle || '']);
+    const affectationsV = affectations.filter(a => a.vehicule_id === v.id);
+    const techId = conducteurA(affectationsV, aujourdhui);
+    const tech = techniciens.find(t => t.id === techId);
+    const nomTech = tech ? tech.nom : '—';
+    const debut = affectationsV.find(a => a.debut <= aujourdhui && (!a.fin || a.fin >= aujourdhui))?.debut || '—';
+    const tr = ligne([v.plaque, v.libelle || '', nomTech, debut]);
     tr.style.cursor = 'pointer';
     tr.addEventListener('click', () => ouvrirVehicule(v));
     return tr;
@@ -296,7 +305,9 @@ async function ouvrirVehicule(v) {
   await Promise.all([
     loadAffectations(v.id),
     loadRelevesAndKm(v.id),
-    loadEntretiens(v.id)
+    loadEntretiens(v.id),
+    loadPhotosCompteur(v.id),
+    loadAmendes(v.id)
   ]);
 }
 
@@ -335,6 +346,7 @@ async function terminerAffectation(id) {
     const { error } = await sb.from('affectations').update({ fin: aujourdhui }).eq('id', id);
     if (error) throw error;
     await loadAffectations(vehiculeActif.id);
+    await loadVehicules(selectedSociete);
   } catch (err) {
     alert(err.message || 'Erreur lors de la fin d\'affectation');
   }
@@ -374,6 +386,19 @@ function renderReleves(list) {
   } else {
     el.textContent = 'Moyenne : pas assez de relevés validés';
   }
+  renderKmMois(list);
+}
+
+function renderKmMois(list) {
+  const tbody = $('#km-mois-table tbody');
+  const data = kmParMois(list);
+  tbody.replaceChildren(...data.map(row => {
+    const [y, m] = row.mois.split('-');
+    const mois = `${m}/${y}`;
+    const kmFin = row.kmFin != null ? Number(row.kmFin).toLocaleString('fr-FR') : '—';
+    const parcourus = row.parcourus != null ? Number(row.parcourus).toLocaleString('fr-FR') : '—';
+    return ligne([mois, kmFin, parcourus]);
+  }));
 }
 
 async function validerReleve(id) {
@@ -457,18 +482,196 @@ async function loadEntretiens(vehiculeId) {
 function renderEntretiens(list) {
   const tbody = $('#entretiens-table tbody');
   tbody.replaceChildren(...list.map(e => ligne([
-    e.date,
-    e.type,
+    formaterDate(e.date),
+    libEntretien(e.type),
     e.km != null ? String(e.km) : '—',
     e.garage || '—',
     e.cout != null ? `${Number(e.cout).toFixed(2).replace('.', ',')} €` : '—'
   ])));
+
+  // Dernière fois par type
+  const parType = {};
+  for (const e of list) {
+    if (!parType[e.type] || parType[e.type].date < e.date) parType[e.type] = e;
+  }
+  const lastUl = $('#entretiens-last');
+  lastUl.replaceChildren(...Object.values(parType).map(e => {
+    const li = document.createElement('li');
+    li.textContent = `${libEntretien(e.type)} : ${formaterDate(e.date)}${e.km != null ? ` (${Number(e.km).toLocaleString('fr-FR')} km)` : ''}`;
+    return li;
+  }));
+
+  // Coût total (non vide)
+  const total = list.filter(e => e.cout != null && e.cout !== '').reduce((s, e) => s + Number(e.cout), 0);
+  const totalEl = $('#entretiens-total');
+  totalEl.textContent = `Coût total : ${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+
+const LIB_ENTRETIEN = {
+  DISTRIBUTION: 'Distribution', PNEUS: 'Pneus', FREINS: 'Freins',
+  VIDANGE: 'Vidange', REVISION: 'Révision', REPARATION: 'Réparation diverse', AUTRE: 'Autre'
+};
+function libEntretien(type) { return LIB_ENTRETIEN[type] || type; }
+
+function formaterDate(date) {
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y}`;
 }
 
 // Les alertes d'échéance dépendent du dernier km validé : relevés d'abord.
 async function loadRelevesAndKm(vehiculeId) {
   await loadReleves(vehiculeId);
   await loadEcheances(vehiculeId);
+}
+
+async function loadPhotosCompteur(vehiculeId) {
+  try {
+    const { data: photos, error } = await sb.from('vehicules_photos')
+      .select('periode, emplacement')
+      .eq('vehicule_id', vehiculeId)
+      .eq('type', 'compteur')
+      .order('periode', { ascending: false });
+    if (error) throw error;
+    renderPhotosCompteur(photos);
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const moisCourant = aujourdhui.slice(0, 7);
+    const moisPrecedent = moisPrecedentDe(moisCourant);
+    const statutPrecedent = statutPhoto(moisPrecedent, photos, aujourdhui, 10);
+    const statutCourant = statutPhoto(moisCourant, photos, aujourdhui, 10);
+    const p = $('#photo-statut');
+    p.textContent = `Mois précédent : ${libelleStatut(statutPrecedent)} — Mois courant : ${libelleStatut(statutCourant)}`;
+    p.classList.toggle('alerte-depassee', statutPrecedent === 'en_retard' || statutCourant === 'en_retard');
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des photos');
+  }
+}
+
+function moisPrecedentDe(periode) {
+  let [y, m] = periode.split('-').map(Number);
+  m -= 1;
+  if (m === 0) { m = 12; y -= 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function libelleStatut(s) {
+  return s === 'recue' ? 'reçue' : s === 'manquante' ? 'manquante' : 'en retard';
+}
+
+function renderPhotosCompteur(photos) {
+  const tbody = $('#photos-compteur-table tbody');
+  tbody.replaceChildren(...photos.map(p => {
+    const [y, m] = p.periode.split('-');
+    const mois = `${m}/${y}`;
+    const fichier = (p.emplacement || '').replace(/^drive:/, '');
+    return ligne([mois, fichier]);
+  }));
+}
+
+async function loadAmendes(vehiculeId) {
+  try {
+    const { data, error } = await sb.from('amendes')
+      .select('id, numero_avis, date_avis, date_infraction, heure_infraction, lieu, motif, montant, statut, technicien_id, scan')
+      .eq('vehicule_id', vehiculeId)
+      .order('date_avis', { ascending: false });
+    if (error) throw error;
+    renderAmendes(data);
+    renderLiensANTAI();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des amendes');
+  }
+}
+
+function renderLiensANTAI() {
+  const container = $('#amendes-liens');
+  container.replaceChildren();
+  const a1 = document.createElement('a');
+  a1.href = ANTAI.designation;
+  a1.target = '_blank';
+  a1.rel = 'noopener';
+  a1.className = 'link';
+  a1.textContent = "Désigner le conducteur sur le site de l'État (ANTAI)";
+  const a2 = document.createElement('a');
+  a2.href = ANTAI.contestation;
+  a2.target = '_blank';
+  a2.rel = 'noopener';
+  a2.className = 'link';
+  a2.textContent = "Contester sur le site de l'État (ANTAI)";
+  container.append(a1, a2);
+}
+
+function renderAmendes(list) {
+  const tbody = $('#amendes-table tbody');
+  tbody.replaceChildren(...list.map(a => {
+    const tech = techniciens.find(t => t.id === a.technicien_id);
+    const nomTech = tech ? tech.nom : '—';
+    const limite = a.date_avis ? limiteDesignation(a.date_avis) : '';
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    let limiteLabel = limite ? formaterDate(limite) : '—';
+    let classeLimite = '';
+    if (a.statut === 'a_traiter' && limite) {
+      if (limite < aujourdhui) classeLimite = 'alerte-depassee';
+      else {
+        const diff = (Date.parse(limite + 'T00:00:00Z') - Date.parse(aujourdhui + 'T00:00:00Z')) / 86400000;
+        if (diff <= 7) classeLimite = 'alerte-proche';
+      }
+    }
+    const tr = ligne([
+      a.numero_avis || '—',
+      a.date_avis ? formaterDate(a.date_avis) : '—',
+      (a.date_infraction ? formaterDate(a.date_infraction) : '—') + (a.heure_infraction ? ` ${a.heure_infraction}` : ''),
+      a.lieu || '—',
+      a.montant != null ? `${Number(a.montant).toFixed(2).replace('.', ',')} €` : '—',
+      nomTech,
+      limiteLabel,
+      '',
+      ''
+    ]);
+    if (classeLimite) tr.children[6].classList.add(classeLimite);
+    const statutTd = tr.children[7];
+    if (peutEcrire()) {
+      const sel = document.createElement('select');
+      const options = [
+        ['a_traiter', 'À traiter'],
+        ['designee', 'Conducteur désigné'],
+        ['contestee', 'Contestée'],
+        ['payee', 'Payée']
+      ];
+      for (const [val, label] of options) {
+        const o = document.createElement('option');
+        o.value = val;
+        o.textContent = label;
+        if (a.statut === val) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener('change', async () => {
+        const newStatut = sel.value;
+        const updates = { statut: newStatut };
+        if (newStatut === 'designee') updates.designe_le = new Date().toISOString().slice(0, 10);
+        const { error } = await sb.from('amendes').update(updates).eq('id', a.id);
+        if (error) { alert(error.message); return; }
+        await loadAmendes(vehiculeActif.id);
+      });
+      statutTd.appendChild(sel);
+    } else {
+      const labels = { a_traiter: 'À traiter', designee: 'Conducteur désigné', contestee: 'Contestée', payee: 'Payée' };
+      statutTd.textContent = labels[a.statut] || a.statut || '—';
+    }
+    const scanTd = tr.children[8];
+    if (a.scan) {
+      const btn = document.createElement('button');
+      btn.className = 'secondary voir';   // reste visible en lecture seule
+      btn.textContent = 'Voir';
+      btn.addEventListener('click', async () => {
+        const { data, error } = await sb.storage.from('scans').createSignedUrl(a.scan, 300);
+        if (error) { alert(error.message); return; }
+        window.open(data.signedUrl, '_blank', 'noopener');
+      });
+      scanTd.appendChild(btn);
+    } else {
+      scanTd.textContent = '—';
+    }
+    return tr;
+  }));
 }
 
 async function createSociete(nom, emailAdmin) {
@@ -589,6 +792,7 @@ $('#affectation-form').addEventListener('submit', async (e) => {
     if (error) throw error;
     $('#affectation-form').reset();
     await loadAffectations(vehiculeActif.id);
+    await loadVehicules(selectedSociete);
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'ajout');
   }
@@ -663,6 +867,68 @@ $('#entretien-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Formulaire Amende
+$('#amende-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const numeroAvis = $('#amende-numero').value.trim();
+  const dateAvis = $('#amende-date-avis').value;
+  const dateInfraction = $('#amende-date-infraction').value;
+  const heureInfraction = $('#amende-heure').value;
+  const lieu = $('#amende-lieu').value.trim();
+  const motif = $('#amende-motif').value.trim();
+  const montantInput = $('#amende-montant').value.replace(',', '.');
+  const montant = montantInput ? Number(montantInput) : null;
+  const technicienId = $('#amende-conducteur').value || null;
+  const fichier = $('#amende-scan').files[0];
+  if (!numeroAvis || !dateAvis) { alert('Numéro d\'avis et date de l\'avis requis.'); return; }
+  let chemin = null;
+  if (fichier) {
+    const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' }[fichier.type];
+    if (!extension) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
+    chemin = `${selectedSociete}/amendes/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadErr } = await sb.storage.from('scans').upload(chemin, fichier, { contentType: fichier.type });
+    if (uploadErr) { alert(uploadErr.message || 'Erreur lors du upload'); return; }
+  }
+  try {
+    const { error } = await sb.from('amendes').insert({
+      societe_id: selectedSociete,
+      vehicule_id: vehiculeActif.id,
+      numero_avis: numeroAvis,
+      date_avis: dateAvis,
+      date_infraction: dateInfraction || null,
+      heure_infraction: heureInfraction || '',
+      lieu: lieu || '',
+      motif: motif || '',
+      montant: montant,
+      technicien_id: technicienId,
+      scan: chemin
+    });
+    if (error) throw error;
+    $('#amende-form').reset();
+    await loadAmendes(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout d\'amende');
+  }
+});
+
+// Mise à jour du conducteur suggéré selon la date d'infraction
+$('#amende-date-infraction').addEventListener('change', async () => {
+  if (!vehiculeActif) return;
+  const date = $('#amende-date-infraction').value;
+  if (!date) return;
+  const { data: affs, error } = await sb.from('affectations')
+    .select('technicien_id, debut, fin')
+    .eq('vehicule_id', vehiculeActif.id)
+    .eq('societe_id', selectedSociete);
+  if (error) { alert(error.message); return; }
+  const techId = conducteurA(affs, date);
+  if (techId) {
+    $('#amende-conducteur').value = techId;
+  }
+});
+
 // Remplir select techniciens actifs pour affectation
 function renderTechniciensActifs() {
   const select = $('#aff-tech');
@@ -673,6 +939,21 @@ function renderTechniciensActifs() {
     o.textContent = t.nom;
     return o;
   }));
+}
+
+function renderTechniciensAmende() {
+  const select = $('#amende-conducteur');
+  select.replaceChildren();
+  const vide = document.createElement('option');
+  vide.value = '';
+  vide.textContent = '—';
+  select.appendChild(vide);
+  for (const t of techniciens) {
+    const o = document.createElement('option');
+    o.value = t.id;
+    o.textContent = t.nom;
+    select.appendChild(o);
+  }
 }
 
 // Init : vérifier si session existe déjà
