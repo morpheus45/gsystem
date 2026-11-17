@@ -85,6 +85,12 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 - **Risques** : une semaine à cheval sur deux périodes est rattachée à la période qui contient **son dimanche** (choix par défaut, **À DÉCIDER**).
 
 ### Phase 6 — Pont d'import (greffe de l'APK sur une société) · M
+
+**Démarrée le 17/11/2026, avec les vraies données** (décision de Cédric) : l'APK est le début de la chaîne de production.
+- Script **séparé** « Backoffice pont APK (lecture seule) » dans Drive/Backoffice : permission Drive en **lecture seule** ; il lit `Sauvegardes G-Systems/<tech>/<AAAA-MM>/donnees.json` et **ajoute** en base (heures, frais, photos). Import toutes les heures. Rien n'est écrasé ni effacé.
+- **Données réelles non effaçables** (décision du 17/11/2026) : heures, frais et photos importés ne peuvent être supprimés par personne, super admin compris, ni par la suppression d'une société (verrou dans la base, testé).
+- Société cible : choisie explicitement à la construction (`SOCIETE_ID`).
+- Pas encore : le km du compteur (relevé au bureau depuis la photo), les primes (`gesteCo`), le rattachement photo compteur ↔ véhicule par la plaque.
 - **But** : lire `donnees.json` et l'importer dans **une** société choisie par un admin.
 - **Livrables** : `pont/normaliser.js` (fait), un lecteur Drive à écrire, un écran « importer ce tech dans cette société ».
 - **Critères** (testés) : `societeId` obligatoire ; `numeroClient` → `numero_intervention` ; `nomClient` jamais importé ; réimport sans doublon (`cle_source` + `on conflict do nothing`) ; clés inconnues tolérées et signalées ; valeurs par défaut Kotlin remises.

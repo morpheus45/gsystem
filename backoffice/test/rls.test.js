@@ -154,8 +154,10 @@ test('le dernier admin d\'une société ne peut pas être retiré', async () => 
   });
 });
 
-test('supprimer une société entière (par le serveur) reste possible', async () => {
-  await db.exec(`delete from temps where societe_id = '${B}'; delete from techniciens where societe_id = '${B}';
-    delete from vehicules where societe_id = '${B}'; delete from societes where id = '${B}'`);
-  assert.equal(await nb(`select count(*) n from membres where societe_id = '${B}'`), 0);
+test('serveur : une société sans données réelles se supprime ; avec, c\'est refusé', async () => {
+  const C = '00000000-0000-0000-0000-00000000000c';
+  await db.exec(`insert into societes (id, nom) values ('${C}', 'Societe C fictive');
+    insert into membres values ('${C}', '${UB}', 'admin'); delete from societes where id = '${C}'`);
+  assert.equal(await nb(`select count(*) n from membres where societe_id = '${C}'`), 0);
+  await assert.rejects(db.exec(`delete from temps where societe_id = '${B}'`), /effacement interdit/);
 });

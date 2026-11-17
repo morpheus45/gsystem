@@ -5,23 +5,27 @@
 // Clé JSON Kotlin -> [colonne, valeur par défaut]. null = clé connue mais non importée.
 const CHAMPS = {
   temps: {
-    id: ['id_source', ''], date: ['date', ''], departement: ['departement', ''],
+    id: null, date: ['date', ''], departement: ['departement', ''],
     typeMission: ['type_mission', ''], ville: ['ville', ''], numeroClient: ['numero_intervention', ''],
     observationType: ['observation_type', ''], observations: ['observations', ''],
     motifRetard: ['motif_retard', ''], retardTexte: ['retard_texte', ''], slotMidi: ['slot_midi', ''],
     heureDebut: ['heure_debut', ''], heureFin: ['heure_fin', ''], nomClient: null, heures: null,
   },
   frais: {
-    id: ['id_source', ''], date: ['date', ''], timestamp: ['horodatage', 0], fileName: ['fichier', ''],
+    id: null, date: ['date', ''], timestamp: ['horodatage', 0], fileName: ['fichier', ''],
     categorie: ['categorie', ''], montantEur: ['montant_eur', 0], observations: ['observations', ''],
     sansTva: ['sans_tva', false],
   },
   compteur: {
-    id: ['id_source', ''], date: ['date', ''], timestamp: ['horodatage', 0], fileName: ['fichier', ''],
+    id: null, date: ['date', ''], timestamp: ['horodatage', 0], fileName: ['fichier', ''],
     kilometres: ['kilometres', 0], observations: ['observations', ''],
   },
 };
 const BLOCS_IGNORES = ['gesteCo']; // primes : pas encore importées
+
+// Bloc normalisé -> table de la base. compteur n'est pas importé seul : sa photo
+// l'est (photos_apk) et le km sera relevé au bureau (releves_km).
+export const TABLES_PONT = { temps: 'temps', frais: 'frais', photos: 'photos_apk' };
 
 export function normaliser(donnees, { societeId, technicienId } = {}) {
   if (!societeId) throw new Error('societeId obligatoire');

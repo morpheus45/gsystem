@@ -83,11 +83,9 @@ test('l\'admin invite dans sa société, pas ailleurs ; un rôle lecture ne peut
   });
 });
 
-test('super admin : supprime une société entière (avec ses données) ; personne d\'autre', async () => {
+test('super admin : supprime une société entière sans données réelles ; personne d\'autre', async () => {
   const X = await db.comme(OP, async () => (await un(`select creer_societe('A supprimer fictive', 'z@exemple.test') as id`)).id);
   await db.exec(`insert into techniciens (id, societe_id, nom) values ('00000000-0000-0000-0000-0000000000e1', '${X}', 'Tech X');
-    insert into temps (societe_id, technicien_id, cle_source, date, type_mission)
-      values ('${X}', '00000000-0000-0000-0000-0000000000e1', 'x1', '2026-11-02', 'INST');
     insert into vehicules (id, societe_id, plaque) values ('00000000-0000-0000-0000-0000000000e2', '${X}', 'XX-001-XX');
     insert into echeances (societe_id, vehicule_id, type, date) values ('${X}', '00000000-0000-0000-0000-0000000000e2', 'CT', '2027-01-01');
     insert into membres values ('${X}', '${MA}', 'admin');`);
@@ -115,7 +113,7 @@ test('le passe-droit de suppression ne sert à rien hors super admin', async () 
   });
   await db.comme(MA, async () => {
     await db.query(`select set_config('app.suppression_societe', '${Y}', false)`);
-    await assert.rejects(db.query(`delete from temps where cle_source = 'y1'`), /verrouillee/);
+    await assert.rejects(db.query(`delete from temps where cle_source = 'y1'`), /effacement interdit/);
     await assert.rejects(db.query(`delete from periodes_paie where id = '${P}'`), /verrouillee/);
   });
   await db.exec(`select set_config('app.suppression_societe', '', false)`);
