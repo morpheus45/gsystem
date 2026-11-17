@@ -11,3 +11,14 @@ export function repartition(valeurs, max = 5) {
   if (reste) lignes.push({ libelle: 'Autres', n: reste });
   return lignes.map((l) => ({ ...l, part: l.n / valeurs.length }));
 }
+
+// Taux de NR sur le MOIS CIVIL (docs/PROJET.md) : base = installations (INST) réalisées
+// (OK + NR client + NR technique) ; taux = (NR client + NR technique) / base ; objectif <= 8 %.
+// Même calcul que docs/app/docRecap.js tauxNr (test d'équivalence), sans embarquer son module PDF.
+export function tauxNr(temps, moisIso) {
+  const realisees = temps.filter((e) => String(e.typeMission || '').toUpperCase() === 'INST'
+    && String(e.date || '').slice(0, 7) === moisIso
+    && (!e.observationType || e.observationType === 'NR_CLIENT' || e.observationType === 'NR_TECHNIQUE'));
+  const nr = realisees.filter((e) => e.observationType).length;
+  return { base: realisees.length, pourcent: realisees.length ? (nr * 100 / realisees.length) : null };
+}

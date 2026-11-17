@@ -1,12 +1,13 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
-import { alertes, kmMoyenParMois, CT_VOITURE, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto } from '../core/vehicules.js';
+import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto } from '../core/vehicules.js';
 import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
-import { repartition } from '../core/stats.js';
+import { repartition, tauxNr } from '../core/stats.js';
 import { primesDuMois, moisDesPrimes } from '../core/primes.js';
 import { finProposee, lendemain } from '../core/periodes.js';
+import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv } from '../core/paie.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
@@ -65,7 +66,7 @@ async function tachesSociete(sid) {
   const compte = (table) => sb.from(table).select('id', { count: 'exact', head: true }).eq('societe_id', sid);
   const [c, e, a, p] = await Promise.all([
     compte('conges').eq('statut', 'demandee'),
-    compte('echeances').not('date', 'is', null).lte('date', dansJours(30)),
+    compte('echeances').is('fait_le', null).not('date', 'is', null).lte('date', dansJours(30)),
     sb.from('amendes').select('date_avis').eq('societe_id', sid).eq('statut', 'a_traiter'),
     compte('periodes_paie').neq('statut', 'exportee').lt('fin', dansJours(0)),
   ]);
@@ -162,19 +163,21 @@ function retournerSocietes() {
 }
 
 // Basculer d'onglet
-function switchOnglet(tabId) {
+function switchOnglet(tabId, calculer = true) {
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
     b.classList.toggle('active', actif);
     b.setAttribute('aria-selected', String(actif));
   });
-  for (const id of ['panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-conges']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-conges']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
   fermerFicheTechnicien();
   if (tabId === 'panel-paie') chargerPaie();
   if (tabId === 'panel-conges') chargerConges();
+  if (tabId === 'panel-bord' && calculer) chargerBord();
+  if (tabId === 'panel-facturation') chargerFacturation();
 }
 
 function fermerPanneauVehicule() {
@@ -313,7 +316,7 @@ async function loadSocieteDetail(societeId) {
     $('#societe-detail-title').textContent = societe?.nom || 'Société';
 
     // Un seul panneau visible : on repart sur Membres à chaque société.
-    switchOnglet('panel-membres');
+    switchOnglet('panel-bord', false);
 
     renderMembers(members);
     monRole = members.find(m => m.user_id === session.user.id)?.role || null;
@@ -335,6 +338,7 @@ async function loadSocieteDetail(societeId) {
     await loadTechniciens(societeId);
     compterCongesAValider();
     await loadVehicules(societeId);
+    chargerBord();   // le tableau de bord a besoin de la liste des techniciens
 
     $('#niveau-societes').classList.add('hidden');
     $('#societe-detail').classList.remove('hidden');
@@ -344,9 +348,40 @@ async function loadSocieteDetail(societeId) {
   }
 }
 
+const ROLES = { admin: 'Admin', gestion: 'Gestion', comptable: 'Comptable', lecture: 'Lecture seule' };
+
+// Admin (ou super admin) : changer le rôle d'un membre ou le retirer. La base refuse de
+// retirer le dernier admin de la société (trigger garder_un_admin).
 function renderMembers(members) {
-  const tbody = $('#membres-table tbody');
-  tbody.replaceChildren(...members.map(m => ligne([m.email, m.role, m.user_id === session.user.id ? '✓' : ''])));
+  const admin = superAdmin || members.find((m) => m.user_id === session.user.id)?.role === 'admin';
+  $('#membres-table tbody').replaceChildren(...members.map((m) => {
+    const tr = ligne([m.email, ROLES[m.role] || m.role, m.user_id === session.user.id ? '✓' : '']);
+    const td = tr.appendChild(document.createElement('td'));
+    if (!admin) { td.textContent = '—'; return tr; }
+    const role = td.appendChild(document.createElement('select'));
+    role.setAttribute('aria-label', `Rôle de ${m.email}`);
+    for (const [v, l] of Object.entries(ROLES)) {
+      const o = role.appendChild(document.createElement('option'));
+      o.value = v;
+      o.textContent = l;
+    }
+    role.value = m.role;
+    role.addEventListener('change', async () => {
+      const { error } = await sb.from('membres').update({ role: role.value }).eq('societe_id', selectedSociete).eq('user_id', m.user_id);
+      if (error) { role.value = m.role; alert(error.message); return; }
+      await loadSocieteDetail(selectedSociete);
+    });
+    const retirer = td.appendChild(document.createElement('button'));
+    retirer.className = 'danger';
+    retirer.textContent = 'Retirer';
+    retirer.addEventListener('click', async () => {
+      if (!doubleValidation(`Retirer ${m.email} de la société ? Ses accès seront coupés (son historique est gardé).`, 'RETIRER')) return;
+      const { error } = await sb.from('membres').delete().eq('societe_id', selectedSociete).eq('user_id', m.user_id);
+      if (error) { alert(error.message); return; }
+      await loadSocieteDetail(selectedSociete);
+    });
+    return tr;
+  }));
 }
 
 async function loadInvitations(societeId) {
@@ -384,7 +419,7 @@ async function cancelInvitation(id) {
 // === TECHNICIENS ===
 async function loadTechniciens(societeId) {
   try {
-    const { data, error } = await sb.from('techniciens').select('id, nom, actif').eq('societe_id', societeId).order('nom');
+    const { data, error } = await sb.from('techniciens').select('id, nom, actif, archive_le').eq('societe_id', societeId).order('nom');
     if (error) throw error;
     techniciens = data;
     renderTechniciens(data);
@@ -395,22 +430,49 @@ async function loadTechniciens(societeId) {
   }
 }
 
+// Double validation : une confirmation, puis le mot à taper (évite les clics par erreur).
+function doubleValidation(question, mot) {
+  return confirm(question) && (prompt(`Pour confirmer, tapez ${mot} :`) || '').trim().toUpperCase() === mot;
+}
+
+$('#tech-filtre').addEventListener('change', () => renderTechniciens(techniciens));
+
 function renderTechniciens(list) {
+  const archives = $('#tech-filtre').value === 'archives';
   const tbody = $('#techniciens-table tbody');
-  tbody.replaceChildren(...list.map(t => {
-    const tr = ligne([t.nom, t.actif ? 'Oui' : 'Non']);
+  tbody.replaceChildren(...list.filter((t) => !!t.archive_le === archives).map(t => {
+    const tr = ligne([t.nom, archives ? `Archivé le ${formaterDate(t.archive_le)}` : t.actif ? 'Oui' : 'Non']);
     tr.classList.add('ligne-cliquable');
     tr.addEventListener('click', () => ouvrirFicheTechnicien(t));
-    const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
-    b.className = t.actif ? 'danger' : 'secondary';
-    b.textContent = t.actif ? 'Désactiver' : 'Activer';
-    b.addEventListener('click', (e) => { e.stopPropagation(); toggleTechnicien(t.id, t.actif); });
+    const td = tr.appendChild(document.createElement('td'));
+    const b = td.appendChild(document.createElement('button'));
+    if (archives) {
+      b.className = 'secondary';
+      b.textContent = 'Restaurer';
+      b.addEventListener('click', (e) => { e.stopPropagation(); archiverTechnicien(t, false); });
+    } else {
+      b.className = t.actif ? 'danger' : 'secondary';
+      b.textContent = t.actif ? 'Désactiver' : 'Activer';
+      b.addEventListener('click', (e) => { e.stopPropagation(); toggleTechnicien(t.id, t.actif); });
+      const a = td.appendChild(document.createElement('button'));
+      a.className = 'danger';
+      a.textContent = 'Archiver';
+      a.addEventListener('click', (e) => { e.stopPropagation(); archiverTechnicien(t, true); });
+    }
     const fleche = tr.appendChild(document.createElement('td'));
     fleche.className = 'fleche';
     fleche.setAttribute('aria-hidden', 'true');
     fleche.textContent = '›';
     return tr;
   }));
+}
+
+// Archiver = « supprimer » de l'appli : sort des actifs, toutes ses données restent.
+async function archiverTechnicien(t, archiver) {
+  if (archiver && !doubleValidation(`Archiver ${t.nom} ? Il n'apparaîtra plus dans les actifs (paie, listes, tableau de bord). Ses données sont conservées et il peut être restauré.`, 'ARCHIVER')) return;
+  const { error } = await sb.from('techniciens').update({ archive_le: archiver ? new Date().toISOString().slice(0, 10) : null }).eq('id', t.id);
+  if (error) { alert(error.message); return; }
+  await loadTechniciens(selectedSociete);
 }
 
 async function toggleTechnicien(id, actif) {
@@ -591,9 +653,13 @@ let kmActuelGlobal = null;
 
 async function loadEcheances(vehiculeId) {
   try {
-    const { data, error } = await sb.from('echeances').select('id, type, date, km').eq('vehicule_id', vehiculeId).order('date');
+    const { data, error } = await sb.from('echeances').select('id, type, date, km, fait_le, fait_km').eq('vehicule_id', vehiculeId).order('date');
     if (error) throw error;
-    renderEcheances(data);
+    renderEcheances(data.filter((e) => !e.fait_le));
+    // Historique : échéances faites, la plus récente d'abord.
+    $('#echeances-historique tbody').replaceChildren(...data.filter((e) => e.fait_le)
+      .sort((a, b) => (a.fait_le < b.fait_le ? 1 : -1))
+      .map((e) => ligne([e.type, e.date ? formaterDate(e.date) : '—', formaterDate(e.fait_le), e.fait_km ?? '—'])));
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des échéances');
   }
@@ -609,13 +675,16 @@ function renderEcheances(list) {
     if (niveau === 'depassee') { label = 'Dépassée'; classe = 'alerte-depassee'; }
     else if (niveau === 'proche') { label = 'Proche'; classe = 'alerte-proche'; }
     else if (niveau === 'km_inconnu') { label = 'Km inconnu'; }
-    const tr = ligne([e.type, e.date || '—', e.km != null ? String(e.km) : '—', label]);
+    const tr = ligne([e.type, e.date ? formaterDate(e.date) : '—', e.km != null ? String(e.km) : '—', label]);
     const alertTd = tr.children[3];
     if (classe) alertTd.classList.add(classe);
     const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
     b.className = 'danger';
     b.textContent = 'Supprimer';
     b.addEventListener('click', () => deleteEcheance(e.id));
+    const f = b.parentElement.insertBefore(document.createElement('button'), b);
+    f.textContent = 'Fait';
+    f.addEventListener('click', () => ouvrirFait(e));
     return tr;
   }));
   marquer(sousOnglet('vehicule-section-echeances'), !!document.querySelector('#echeances-table .alerte-depassee, #echeances-table .alerte-proche'));
@@ -634,6 +703,40 @@ function renderEcheances(list) {
   a.className = 'link';
   aide.appendChild(a);
 }
+
+// « Fait » : on note la réalisation et on propose la suivante. Contrôle technique : 2 ans
+// après (CT_VOITURE, service-public.fr). Autres types : aucun intervalle inventé, à saisir.
+let echeanceFaite = null;
+function ouvrirFait(e) {
+  echeanceFaite = e;
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  $('#fait-le').value = aujourdhui;
+  $('#fait-km').value = kmActuelGlobal ?? '';
+  const ct = e.type === 'CT';
+  $('#fait-aide').textContent = ct
+    ? 'Contrôle technique : prochain dans 2 ans (si le contrôle est favorable).'
+    : 'Indiquez la prochaine échéance si elle est connue (sinon laissez vide).';
+  $('#prochaine-date').value = ct ? prochaineEcheance(CT_VOITURE, { date: aujourdhui, km: 0 }).date : '';
+  $('#prochaine-km').value = '';
+  $('#dialog-fait').showModal();
+}
+$('#fait-le').addEventListener('change', () => {
+  if (echeanceFaite?.type === 'CT' && $('#fait-le').value) $('#prochaine-date').value = prochaineEcheance(CT_VOITURE, { date: $('#fait-le').value, km: 0 }).date;
+});
+$('#fait-annuler').addEventListener('click', () => $('#dialog-fait').close());
+$('#fait-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const e = echeanceFaite, km = $('#fait-km').value, pDate = $('#prochaine-date').value, pKm = $('#prochaine-km').value;
+  const { error } = await sb.from('echeances').update({ fait_le: $('#fait-le').value, fait_km: km ? Number(km) : null }).eq('id', e.id);
+  if (error) { alert(error.message); return; }
+  if (pDate || pKm) {
+    const { error: e2 } = await sb.from('echeances').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id,
+      type: e.type, date: pDate || null, km: pKm ? Number(pKm) : null });
+    if (e2) alert(e2.message);
+  }
+  $('#dialog-fait').close();
+  await loadEcheances(vehiculeActif.id);
+});
 
 async function deleteEcheance(id) {
   try {
@@ -1421,6 +1524,211 @@ function afficherPrimes(primes, m) {
   $('#tech-primes-info').textContent = `Prime de ${libelleMois(m)} : ${euros(primes.total)} — versée sur le salaire de ${libelleMois(plusMois(m, 2))}.`;
   $('#tech-primes-table tbody').replaceChildren(...primes.detail.map((d) => ligne([d.type, d.qte, euros(d.montant)])));
 }
+
+// ===== Tableau de bord de la société : chiffres du mois et tâches à faire =====
+$('#bord-mois').addEventListener('change', chargerBord);
+
+async function chargerBord() {
+  const sel = $('#bord-mois');
+  if (!sel.options.length) {
+    const m0 = new Date().toISOString().slice(0, 7);
+    sel.replaceChildren(...Array.from({ length: 12 }, (_, i) => plusMois(m0, -i)).map((m) => {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = libelleMois(m);
+      return o;
+    }));
+  }
+  const m = sel.value, debut = m + '-01', fin = decaler(plusMois(m, 1) + '-01', -1);
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [temps, frais, gestes, tarifs, validations, regles, echeances, amendes, conges, aCloturer] = await Promise.all([
+      lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
+      lire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+      lire(sb.from('echeances').select('type, date, vehicules(id, plaque)').eq('societe_id', selectedSociete).is('fait_le', null).not('date', 'is', null).lte('date', dansJours(30)).order('date')),
+      lire(sb.from('amendes').select('numero_avis, date_avis, vehicules(id, plaque)').eq('societe_id', selectedSociete).eq('statut', 'a_traiter')),
+      lire(sb.from('conges').select('id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
+      lire(sb.from('periodes_paie').select('debut, fin').eq('societe_id', selectedSociete).neq('statut', 'exportee').lt('fin', dansJours(0))),
+    ]);
+    const r = reglesDe(regles[0] || {});
+    const duMois = temps.filter((e) => e.date >= debut && e.date <= fin);
+    const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
+    const heuresDe = (liste) => [...new Set(liste.map((e) => e.date))]
+      .reduce((h, d) => h + heuresJour(liste.filter((e) => e.date === d).map(versHeures)), 0);
+
+    // Par technicien (actifs, ou ayant travaillé ce mois-ci).
+    const lignes = techniciens.filter((t) => t.actif || de(duMois, t).length).map((t) => {
+      const ti = de(duMois, t);
+      const v = variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures), frais: [], regles: r, validations: de(validations, t) });
+      return { t, interventions: ti.length, nr: tauxNr(ti.map(versHeuresNr), m), heures: heuresDe(ti),
+        frais: totauxFrais(de(frais, t).map(versFrais)).remboursable,
+        primes: primesDuMois(de(gestes, t), de(temps, t).map(versHeures), baremes(de(tarifs, t)), m).total,
+        semainesATraiter: v.semainesATraiter };
+    });
+    const somme = (k) => lignes.reduce((x, l) => x + l[k], 0);
+    const nrSociete = tauxNr(duMois.map(versHeuresNr), m);
+
+    // Tuiles du mois.
+    const tuile = (libelle, valeur, note) => {
+      const d = document.createElement('div');
+      d.className = 'tuile';
+      d.appendChild(document.createElement('span')).className = 'libelle';
+      d.lastChild.textContent = libelle;
+      d.appendChild(document.createElement('span')).className = 'valeur';
+      d.lastChild.textContent = valeur;
+      if (note) { d.appendChild(document.createElement('span')).className = 'note'; d.lastChild.textContent = note; }
+      return d;
+    };
+    const pc = (x) => (x.pourcent == null ? '—' : `${x.pourcent.toFixed(1).replace('.', ',')} %`);
+    $('#bord-chiffres').replaceChildren(
+      tuile('Interventions', duMois.length),
+      tuile('Taux NR (installations)', pc(nrSociete), nrSociete.pourcent == null ? 'Aucune installation' : nrSociete.pourcent <= 8 ? 'Objectif atteint (≤ 8 %)' : 'Au-dessus de l\'objectif (8 %)'),
+      tuile('Heures', `${somme('heures')} h`),
+      tuile('Frais remboursables', euros(somme('frais'))),
+      tuile('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`));
+
+    // À faire : chaque ligne mène à l'endroit où agir.
+    const plaque = (x) => (Array.isArray(x.vehicules) ? x.vehicules[0] : x.vehicules) || {};
+    const taches = [
+      ...(conges.length ? [[`${conges.length} demande(s) de congés à valider`, () => switchOnglet('panel-conges')]] : []),
+      ...lignes.filter((l) => l.semainesATraiter).map((l) => [`${l.t.nom} : ${l.semainesATraiter} semaine(s) d'heures sup à traiter (${libelleMois(m)})`, () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); }]),
+      ...echeances.map((e) => [`${plaque(e).plaque} — ${e.type} ${e.date < dansJours(0) ? 'dépassée depuis le' : 'prévue le'} ${formaterDate(e.date)}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(e)); }]),
+      ...amendes.filter((a) => limiteDesignation(a.date_avis) <= dansJours(7)).map((a) => [`${plaque(a).plaque} — amende n° ${a.numero_avis} : désigner le conducteur avant le ${formaterDate(limiteDesignation(a.date_avis))}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(a)); }]),
+      ...aCloturer.map((p) => [`Mois de paie du ${formaterDate(p.debut)} au ${formaterDate(p.fin)} terminé : à valider et clôturer`, () => switchOnglet('panel-paie')]),
+    ];
+    $('#bord-taches').replaceChildren(...(taches.length ? taches.map(([texte, aller]) => {
+      const li = document.createElement('li');
+      const b = li.appendChild(document.createElement('button'));
+      b.type = 'button';
+      b.textContent = texte + ' ›';
+      b.addEventListener('click', aller);
+      return li;
+    }) : [Object.assign(document.createElement('li'), { className: 'vide', textContent: 'Rien à faire pour l\'instant.' })]));
+
+    $('#bord-camemberts').replaceChildren(
+      camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
+      camembert('Résultats', repartition(duMois.map((e) => e.observation_type || 'OK'))));
+
+    $('#bord-techs tbody').replaceChildren(...lignes.map((l) => {
+      const tr = ligne([l.t.nom, l.interventions, pc(l.nr), `${l.heures} h`, euros(l.frais), euros(l.primes)]);
+      tr.classList.add('ligne-cliquable');
+      const fl = tr.appendChild(document.createElement('td'));
+      fl.className = 'fleche';
+      fl.setAttribute('aria-hidden', 'true');
+      fl.textContent = '›';
+      tr.addEventListener('click', () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); });
+      return tr;
+    }));
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement du tableau de bord');
+  }
+}
+const versHeuresNr = (e) => ({ date: e.date, typeMission: e.type_mission, observationType: e.observation_type });
+
+// ===== Facturation : récap des quantités pour le donneur d'ordre (EPS...) =====
+let recap = null;
+$('#fact-form').addEventListener('submit', (e) => { e.preventDefault(); chargerFacturation(); });
+
+async function chargerFacturation() {
+  if (!$('#fact-debut').value) {   // par défaut : le mois civil en cours
+    const m = new Date().toISOString().slice(0, 7);
+    $('#fact-debut').value = m + '-01';
+    $('#fact-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  const debut = $('#fact-debut').value, fin = $('#fact-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+  try {
+    const [temps, gestes] = await Promise.all([
+      lire(sb.from('temps').select('type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('gestes_co').select('installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+    ]);
+    recap = { debut, fin, ...recapFacturation(temps.map((e) => ({ typeMission: e.type_mission, observationType: e.observation_type })), gestes) };
+    const total = recap.interventions.reduce((t, l) => ({ ok: t.ok + l.ok, nrClient: t.nrClient + l.nrClient, nrTechnique: t.nrTechnique + l.nrTechnique, nrAutres: t.nrAutres + l.nrAutres, total: t.total + l.total }),
+      { ok: 0, nrClient: 0, nrTechnique: 0, nrAutres: 0, total: 0 });
+    $('#fact-interventions tbody').replaceChildren(...[...recap.interventions, { type: 'TOTAL', ...total }]
+      .map((l) => ligne([l.type, l.ok, l.nrClient, l.nrTechnique, l.nrAutres, l.total])));
+    $('#fact-interventions tbody').lastChild.style.fontWeight = '700';
+    $('#fact-equipements tbody').replaceChildren(...(recap.equipements.length
+      ? recap.equipements.map((e) => ligne([e.type, e.qte])) : [ligne(['Aucun équipement installé sur la période', ''])]));
+    await chargerTarifs();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du récapitulatif');
+  }
+}
+
+// Grille de tarifs du client : lignes réutilisables, prix HT remplis plus tard.
+let tarifs = [], facture = null;
+const BASES = { ok: 'OK seulement', ok_nrclient: 'OK + NR client', total: 'Toutes' };
+
+async function chargerTarifs() {
+  const { data, error } = await sb.from('tarifs_facturation').select('id, categorie, code, libelle, base, prix_ht')
+    .eq('societe_id', selectedSociete).eq('client', $('#fact-client').value.trim()).order('categorie').order('code');
+  if (error) { alert(error.message); return; }
+  tarifs = data;
+  facture = montantsFacture(recap, tarifs);
+  $('#fact-montants tbody').replaceChildren(...facture.lignes.map((l) => ligne([l.libelle, l.qte,
+    l.prix_ht == null ? 'à renseigner' : euros(l.prix_ht), l.montant_ht == null ? '—' : euros(l.montant_ht)])));
+  $('#fact-montants-info').textContent = `Total HT : ${euros(facture.totalHt)}` +
+    (facture.sansPrix ? ` — ${facture.sansPrix} ligne(s) sans prix (à renseigner dans la grille de tarifs).` : '') +
+    (lignesManquantes(recap, tarifs).length ? ' Des types de la période n\'ont pas encore de ligne de tarif.' : '');
+  const modifiable = peutPayer();
+  $('#tarifs-creer').classList.toggle('hidden', !modifiable);
+  $('#tarifs-table tbody').replaceChildren(...tarifs.map((t) => {
+    const tr = document.createElement('tr');
+    const champ = (el) => { tr.appendChild(document.createElement('td')).appendChild(el); el.disabled = !modifiable; return el; };
+    const lib = champ(Object.assign(document.createElement('input'), { value: t.libelle }));
+    lib.setAttribute('aria-label', `Libellé ${t.code}`);
+    tr.appendChild(document.createElement('td')).textContent = t.categorie === 'intervention' ? 'Intervention' : 'Équipement';
+    tr.appendChild(document.createElement('td')).textContent = t.code;
+    let base = null;
+    if (t.categorie === 'intervention') {
+      base = champ(document.createElement('select'));
+      base.setAttribute('aria-label', `Base ${t.code}`);
+      for (const [v, l] of Object.entries(BASES)) base.appendChild(Object.assign(document.createElement('option'), { value: v, textContent: l }));
+      base.value = t.base;
+    } else tr.appendChild(document.createElement('td')).textContent = '—';
+    const prix = champ(Object.assign(document.createElement('input'), { type: 'number', min: '0', step: '0.01', value: t.prix_ht ?? '' }));
+    prix.setAttribute('aria-label', `Prix HT ${t.code}`);
+    prix.placeholder = 'à renseigner';
+    const td = tr.appendChild(document.createElement('td'));
+    if (modifiable) {
+      const b = td.appendChild(document.createElement('button'));
+      b.textContent = 'Enregistrer';
+      b.addEventListener('click', async () => {
+        const { error: e } = await sb.from('tarifs_facturation').update({ libelle: lib.value.trim() || t.code,
+          base: base ? base.value : 'ok', prix_ht: prix.value === '' ? null : Number(prix.value) }).eq('id', t.id);
+        if (e) { alert(e.message); return; }
+        await chargerTarifs();
+      });
+    } else td.textContent = '—';
+    return tr;
+  }));
+}
+
+$('#tarifs-creer').addEventListener('click', async () => {
+  if (!recap) return;
+  const nouvelles = lignesManquantes(recap, tarifs).map((t) => ({ ...t, societe_id: selectedSociete, client: $('#fact-client').value.trim() }));
+  if (!nouvelles.length) { alert('Toutes les lignes existent déjà.'); return; }
+  const { error } = await sb.from('tarifs_facturation').insert(nouvelles);
+  if (error) { alert(error.message); return; }
+  await chargerTarifs();
+});
+
+$('#fact-export').addEventListener('click', () => {
+  if (!recap) return;
+  const csv = `Client;${$('#fact-client').value.trim()}\nPériode;${recap.debut};${recap.fin}\n\n` + versCsv(recap.interventions) + '\n' + versCsv(recap.equipements)
+    + (facture?.lignes.length ? '\n' + versCsv(facture.lignes) + `Total HT;${String(facture.totalHt).replace('.', ',')}\n` : '');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `facturation-${recap.debut}-au-${recap.fin}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
 // Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
 async function validerHeuresSup(s, choix) {

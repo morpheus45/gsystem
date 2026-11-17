@@ -7,7 +7,7 @@
 
 // GesteCoPrices (data/Models.kt) : valeurs par défaut, dans l'ordre de TYPES.
 export const PRIX_DEFAUT = { gsm: 3, co: 2, dmp: 2, se: 4, tc: 1.5, si: 3, cam: 4, dacco: 3, ba: 1, cl: 3, df: 1.5, sondeIn: 1.5 };
-const LIBELLES = { gsm: 'GSM', co: 'CO', dmp: 'DMP', se: 'SE', tc: 'TC', si: 'SI', cam: 'CAM', dacco: 'DACCO', ba: 'BA', cl: 'CL', df: 'DF', sondeIn: 'SONDE IN' };
+export const LIBELLES = { gsm: 'GSM', co: 'CO', dmp: 'DMP', se: 'SE', tc: 'TC', si: 'SI', cam: 'CAM', dacco: 'DACCO', ba: 'BA', cl: 'CL', df: 'DF', sondeIn: 'SONDE IN' };
 
 export function prixDuMois(reglages, mois) {
   return { ...PRIX_DEFAUT, ...(reglages?.primeTarifsParMois?.[mois] ?? reglages?.prices ?? {}) };

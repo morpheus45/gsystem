@@ -130,6 +130,14 @@ Le SQL est du Postgres standard (seuls `auth.uid()`, `auth.users` et le rôle `a
 - **Congés** : demandes saisies au bureau, validées ou refusées ; liaison APK plus tard.
 - **Pas encore** : liaison des congés avec l'APK.
 
+## Ajouts du 17/11/2026 (soir)
+
+- **Tableau de bord** par société : chiffres du mois (interventions, taux NR identique à l'APK web, heures, frais, primes), tâches à faire cliquables, camemberts, tableau par technicien.
+- **Échéances « Fait »** : historique, prochaine proposée (contrôle technique + 2 ans ; autres types : saisie, aucun intervalle inventé).
+- **Membres** : rôle modifiable, retrait avec double validation (le dernier admin reste protégé).
+- **Archivage** d'un technicien (double validation) : hors des actifs, données conservées. **Purge à 3 ans : À DÉCIDER** (contraire à la règle « les données réelles ne s'effacent jamais »).
+- **Facturation** (EPS…) : récap des quantités par type et résultat, équipements installés, grille de tarifs par client (prix HT remplis plus tard, base OK / OK + NR client / toutes), montants, export CSV. **Barème EPS : à fournir.**
+
 ## Version de test en ligne (17/11/2026)
 
 - Base : projet Supabase **Free** `gsystem-backoffice-test`, région Paris, données fictives uniquement. Se met en pause après une semaine sans activité.
