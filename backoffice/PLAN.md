@@ -54,6 +54,8 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 - **But** : cumul par semaine ISO, ventilation normales / +25 % / +50 % selon les règles de la société.
 - **Livrables** : `core/heures.js`, `core/societes.js` (faits), écran de saisie et de correction, écran de validation des règles par le comptable.
 - **Critères** : équivalence Kotlin ↔ JS sur `fixtures/heures-cas.json` ; 40 h → 35 + 5 à 25 % ; 48 h → 35 + 8 à 25 % + 5 à 50 % ; taux sous 10 % refusé ; règles « non validées » affichées comme telles.
+- **Validation des heures sup (décision du 17/11/2026)** : une case « Validées » par tech et par semaine, cochée par admin ou gestion dans la fiche technicien (pas par le comptable). Signée par la base (qui, quand), décochable jusqu'à l'export de la paie, puis figée ; non effaçable. Seules les semaines validées partiront dans l'export de paie (à brancher dans `core/paie.js`).
+- **Fiche technicien** (faite) : interventions, heures par jour (règle de l'APK) et par semaine, frais, véhicule, mois par mois, à partir des données importées de l'APK.
 - **Dépendances** : Phase 1 ; validation du comptable.
 - **Risques** : la règle actuelle est un **forfait par demi-journée** (4, 6, 7 ou 8 h), pas un pointage réel. Les heures sup calculées dessus ne reflètent pas forcément le temps réel : à confirmer par le comptable.
 

@@ -302,6 +302,94 @@
             </div>
             <button type="submit">Ajouter</button>
           </form>
+
+          <!-- Fiche technicien -->
+          <div id="tech-fiche" class="section hidden">
+            <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 id="tech-fiche-titre">Fiche technicien</h3>
+              <button id="tech-fiche-close" class="secondary">Fermer</button>
+            </div>
+
+            <div class="section">
+              <p id="tech-info" style="font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+
+            <!-- Véhicule actuel -->
+            <div class="section">
+              <h4>Véhicule actuel</h4>
+              <p id="tech-vehicule" style="font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+
+            <!-- Sélecteur de mois -->
+            <div class="section">
+              <h4>Mois</h4>
+              <select id="tech-mois"></select>
+            </div>
+
+            <!-- Résumé du mois -->
+            <div class="section">
+              <p id="tech-resume" style="font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+
+            <!-- Tableau Interventions -->
+            <div class="section">
+              <h4>Interventions</h4>
+              <div class="table-wrapper">
+                <table id="tech-interventions-table">
+                  <thead>
+                    <tr><th>Date</th><th>Créneau</th><th>Type</th><th>Ville</th><th>Dépt</th><th>N° intervention</th><th>Résultat</th><th>Arrivée</th><th>Fin</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tableau Heures par jour -->
+            <div class="section">
+              <h4>Heures par jour</h4>
+              <div class="table-wrapper">
+                <table id="tech-jours-table">
+                  <thead>
+                    <tr><th>Date</th><th>Heures</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="tech-jours-total" style="font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+
+            <!-- Alerte règles -->
+            <div class="section" id="tech-regles-alerte">
+              <p style="margin:0;font-size:0.9rem;color:var(--muted);">Heures sup calculées avec le seuil et les taux de la société (par défaut : repères légaux). Seules les semaines cochées « Validées » partent dans l'export de paie.</p>
+            </div>
+
+            <!-- Tableau Heures par semaine -->
+            <div class="section">
+              <h4>Heures par semaine</h4>
+              <div class="table-wrapper">
+                <table id="tech-semaines-table">
+                  <thead>
+                    <tr><th>Semaine</th><th>Travaillées</th><th>Absences</th><th>Normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Validées</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tableau Frais -->
+            <div class="section">
+              <h4>Frais</h4>
+              <div class="table-wrapper">
+                <table id="tech-frais-table">
+                  <thead>
+                    <tr><th>Date</th><th>Catégorie</th><th>TTC</th><th>HT</th><th>TVA</th><th>Remboursable</th><th>Sans TVA</th><th>Observation</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="tech-frais-totaux" style="font-size:0.9rem;color:var(--muted);"></p>
+            </div>
+          </div>
         </div>
         <!-- Panneau Véhicules -->
         <div id="panel-vehicules" class="tab-panel hidden" role="tabpanel">

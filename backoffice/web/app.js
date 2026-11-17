@@ -1,6 +1,9 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
 import { alertes, kmMoyenParMois, CT_VOITURE, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto } from '../core/vehicules.js';
+import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
+import { ligneFrais, totauxFrais } from '../core/frais.js';
+import { reglesDe } from '../core/societes.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
@@ -11,6 +14,7 @@ let superAdmin = false;   // opérateur de la plateforme : accès à tout (véri
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
 let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
 let techniciens = [];     // cache de la société courante (pour les select)
+let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
 
 // Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
 function peutEcrire() {
@@ -43,11 +47,17 @@ function switchOnglet(tabId) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
+  fermerFicheTechnicien();
 }
 
 function fermerPanneauVehicule() {
   vehiculeActif = null;
   $('#vehicule-detail').classList.add('hidden');
+}
+
+function fermerFicheTechnicien() {
+  ficheTechnicien = null;
+  $('#tech-fiche').classList.add('hidden');
 }
 
 function alert(message, type = 'error') {
@@ -157,6 +167,7 @@ function renderSocietes() {
 async function selectSociete(id) {
   selectedSociete = id;
   renderSocietes();
+  fermerFicheTechnicien();
   await loadSocieteDetail(id);
 }
 
@@ -250,10 +261,12 @@ function renderTechniciens(list) {
   const tbody = $('#techniciens-table tbody');
   tbody.replaceChildren(...list.map(t => {
     const tr = ligne([t.nom, t.actif ? 'Oui' : 'Non']);
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => ouvrirFicheTechnicien(t));
     const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
     b.className = t.actif ? 'danger' : 'secondary';
     b.textContent = t.actif ? 'Désactiver' : 'Activer';
-    b.addEventListener('click', () => toggleTechnicien(t.id, t.actif));
+    b.addEventListener('click', (e) => { e.stopPropagation(); toggleTechnicien(t.id, t.actif); });
     return tr;
   }));
 }
@@ -266,6 +279,15 @@ async function toggleTechnicien(id, actif) {
   } catch (err) {
     alert(err.message || 'Erreur lors de la mise à jour');
   }
+}
+
+function ouvrirFicheTechnicien(t) {
+  ficheTechnicien = t;
+  fermerPanneauVehicule();
+  $('#tech-fiche').classList.remove('hidden');
+  $('#tech-fiche-titre').textContent = t.nom;
+  // Charger les données de la fiche
+  chargerFicheTechnicien(t);
 }
 
 // === VÉHICULES ===
@@ -796,6 +818,108 @@ $('#vehicule-form').addEventListener('submit', async (e) => {
 
 // Fermeture panneau véhicule
 $('#vehicule-detail-close').addEventListener('click', fermerPanneauVehicule);
+
+// Fermeture fiche technicien
+$('#tech-fiche-close').addEventListener('click', fermerFicheTechnicien);
+
+const euros = (n) => `${Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+// Lignes de la base -> format des règles testées (core/heures.js, core/frais.js).
+const versHeures = (e) => ({ date: e.date, typeMission: e.type_mission, slotMidi: e.slot_midi, observationType: e.observation_type });
+const versFrais = (f) => ({ categorie: f.categorie, montantEur: Number(f.montant_eur), sansTva: f.sans_tva });
+let fiche = null;   // données du tech ouvert, chargées une fois : { t, interventions, frais, photos, regles, validations }
+
+async function chargerFicheTechnicien(t) {
+  try {
+    $('#tech-info').textContent = "Données envoyées par l'APK, mises à jour automatiquement toutes les heures.";
+    const lire = async (requete) => { const { data, error, count } = await requete; if (error) throw error; return count ?? data; };
+    const [aff, interventions, frais, photos, regles, validations] = await Promise.all([
+      lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
+      lire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
+      lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations').eq('technicien_id', t.id).order('date')),
+      lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+      lire(sb.from('heures_sup').select('semaine, valide').eq('technicien_id', t.id)),
+    ]);
+    const v = aff[0];
+    const plaque = v && (Array.isArray(v.vehicules) ? v.vehicules[0]?.plaque : v.vehicules?.plaque);
+    $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
+    fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
+      validations: new Map(validations.map((x) => [x.semaine, x.valide])) };
+    const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
+    $('#tech-mois').replaceChildren(...mois.map((m) => {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = `${m.slice(5)}/${m.slice(0, 4)}`;
+      return o;
+    }));
+    afficherMoisFiche();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement de la fiche');
+  }
+}
+
+$('#tech-mois').addEventListener('change', afficherMoisFiche);
+
+function afficherMoisFiche() {
+  if (!fiche) return;
+  const m = $('#tech-mois').value;
+  const duMois = fiche.interventions.filter((e) => e.date.startsWith(m));
+  const fraisMois = fiche.frais.filter((f) => f.date.startsWith(m));
+
+  // Heures par jour : règle de l'APK (heuresJour), jour par jour.
+  const dates = [...new Set(duMois.map((e) => e.date))];
+  const jours = dates.map((d) => [d, heuresJour(duMois.filter((e) => e.date === d).map(versHeures))]);
+  const totalHeures = jours.reduce((s, [, h]) => s + h, 0);
+  const totaux = totauxFrais(fraisMois.map(versFrais));
+  const nr = duMois.filter((e) => e.observation_type).length;
+  $('#tech-resume').textContent = `${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais remboursables : ${euros(totaux.remboursable)} — Photos (total) : ${fiche.photos}`;
+
+  const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
+  $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
+    creneau[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—',
+    e.numero_intervention || '—', e.observation_type || 'OK', e.heure_debut || '—', e.heure_fin || '—'])));
+  $('#tech-jours-table tbody').replaceChildren(...jours.map(([d, h]) => ligne([formaterDate(d), `${h} h`])));
+  $('#tech-jours-total').textContent = `Total du mois : ${totalHeures} h`;
+
+  // Heures par semaine (toutes les données, pour des semaines complètes) ; case « Validées ».
+  const r = fiche.regles.heures;
+  const th = $$('#tech-semaines-table thead th');
+  th[4].textContent = `Sup. 1re tranche (+${Math.round(r.taux1 * 100)} %)`;
+  th[5].textContent = `Sup. 2e tranche (+${Math.round(r.taux2 * 100)} %)`;
+  const semainesDuMois = new Set(dates.map(semaineIso));
+  const semaines = cumulSemaines(fiche.interventions.map(versHeures), r).filter((s) => semainesDuMois.has(s.semaine));
+  $('#tech-semaines-table tbody').replaceChildren(...semaines.map((s) => {
+    const tr = ligne([s.semaine, s.travaillees, s.absences, s.normales, s.sup1, s.sup2]);
+    const td = tr.appendChild(document.createElement('td'));
+    if (s.sup1 + s.sup2 === 0) { td.textContent = '—'; return tr; }
+    const c = td.appendChild(document.createElement('input'));
+    c.type = 'checkbox';
+    c.checked = fiche.validations.get(s.semaine) === true;
+    c.disabled = !peutEcrire();
+    c.setAttribute('aria-label', `Heures sup validées, semaine ${s.semaine}`);
+    c.addEventListener('change', () => validerHeuresSup(s, c));
+    return tr;
+  }));
+
+  $('#tech-frais-table tbody').replaceChildren(...fraisMois.map((f) => {
+    const l = ligneFrais(versFrais(f));
+    return ligne([formaterDate(f.date), f.categorie || '—', euros(l.ttc), euros(l.ht), euros(l.tva),
+      euros(l.remboursable), f.sans_tva ? 'Oui' : 'Non', f.observations || '—']);
+  }));
+  $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)}`;
+}
+
+// Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
+async function validerHeuresSup(s, caseACocher) {
+  const [annee, n] = s.semaine.split('-W').map(Number);
+  const j4 = Date.UTC(annee, 0, 4);
+  const lundi = new Date(j4 - ((new Date(j4).getUTCDay() + 6) % 7) * 86400000 + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
+  const { error } = await sb.from('heures_sup').upsert({ societe_id: selectedSociete, technicien_id: fiche.t.id,
+    semaine: s.semaine, date: lundi, sup1: s.sup1, sup2: s.sup2, valide: caseACocher.checked },
+  { onConflict: 'societe_id,technicien_id,semaine' });
+  if (error) { caseACocher.checked = !caseACocher.checked; alert(error.message); return; }
+  fiche.validations.set(s.semaine, caseACocher.checked);
+}
 
 // Formulaire Affectation
 $('#affectation-form').addEventListener('submit', async (e) => {
