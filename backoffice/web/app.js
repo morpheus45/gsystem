@@ -44,7 +44,7 @@ async function login(email, password) {
 
 async function signup(email, password) {
   try {
-    const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
+    const { data, error } = await sb.auth.signUp({ email, password });   // retour : « Site URL » de Supabase
     if (error) throw error;
     if (!data.session) {
       alert('Un email de confirmation vous a été envoyé. Cliquez sur le lien, puis connectez-vous.', 'success');

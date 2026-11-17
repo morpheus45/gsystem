@@ -65,6 +65,7 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
   - au **1er septembre 2027**, les PME et micro-entreprises doivent les **émettre** ;
   - l'envoi passe par une **plateforme agréée par l'État** (liste : [service-public A18759](https://entreprendre.service-public.gouv.fr/actualites/A18759)).
 - **Conséquence** : le back-office ne doit **pas** devenir lui-même une plateforme agréée (procédure d'agrément lourde, À VÉRIFIER). Il se **branche** sur une plateforme choisie par chaque société (colonne `plateforme_ref`).
+- **Une connexion par société** (demande du 17/11/2026) : chaque société branche **sa** plateforme de facture électronique et **son** logiciel de comptabilité. Prévu : une table `connexions` (société, type `facturation` ou `compta`, fournisseur, état), les identifiants rangés dans le coffre chiffré de Supabase (Vault, À VÉRIFIER), jamais en clair, et jamais visibles d'une autre société.
 - **Critères** : parking sans TVA → HT = TTC ; mobile 50 € → 20 € remboursés ; même facture fournisseur importée deux fois → refusée (`unique (societe_id, sens, tiers, numero)`).
 - **Dépendances** : Phase 1 ; choix de la plateforme agréée ; format d'export du comptable.
 - **Risques** : obligations légales (mentions, archivage) : à valider avec l'expert-comptable.
@@ -112,6 +113,12 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 | Supabase auto-hébergé | Logiciel libre, installé avec Docker sur son propre serveur. Prix du serveur et maintenance à ta charge : À VÉRIFIER selon l'hébergeur. | [self-hosting](https://supabase.com/docs/guides/self-hosting/docker) |
 
 Le SQL est du Postgres standard (seuls `auth.uid()`, `auth.users` et le rôle `authenticated` viennent de Supabase) : il reste portable.
+
+## Version de test en ligne (17/11/2026)
+
+- Base : projet Supabase **Free** `gsystem-backoffice-test`, région Paris, données fictives uniquement. Se met en pause après une semaine sans activité.
+- Page : servie par un **Apps Script séparé** (« Backoffice G-Systems (test) »), rangé dans le dossier Drive `Backoffice`. Il ne touche ni au script ni aux dossiers G-Systems. Construit par `outils/apps-script-build.sh` à partir de `web/`.
+- Limite : sans service d'email à soi (SMTP), Supabase n'envoie les confirmations qu'aux membres de l'équipe Supabase. Les comptes des testeurs se créent donc à la main, déjà confirmés, depuis le tableau de bord.
 
 ## Questions ouvertes
 
