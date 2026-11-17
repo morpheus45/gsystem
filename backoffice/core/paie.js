@@ -1,16 +1,18 @@
 import { cumulSemaines } from './heures.js';
 import { totauxFrais } from './frais.js';
 
-function dimancheDeSemaine(semaine) {
-  // Le 4 janvier est toujours en semaine 1 ; on recule à son lundi.
+function samediDeSemaine(semaine) {
+  // Le 4 janvier est toujours en semaine 1 ; on recule à son lundi, puis + 5 jours.
   const [annee, num] = semaine.split('-W').map(Number);
   const j4 = Date.UTC(annee, 0, 4);
   const lundi = j4 - ((new Date(j4).getUTCDay() + 6) % 7) * 86400000;
-  return new Date(lundi + ((num - 1) * 7 + 6) * 86400000).toISOString().slice(0, 10);
+  return new Date(lundi + ((num - 1) * 7 + 5) * 86400000).toISOString().slice(0, 10);
 }
 
 // Variables de paie d'un tech sur une période. Une semaine ISO est rattachée
-// à la période qui contient son dimanche (choix par défaut, À DÉCIDER).
+// à la période qui contient son samedi : les semaines vont du lundi au samedi (Excel de l'APK)
+// et le mois se clôture un samedi (décision de Cédric, 17/11/2026), donc chaque semaine
+// tombe entière dans une seule période.
 // validations (facultatif) = [{ semaine, valide, refusee }] : seules les semaines VALIDÉES
 // paient des heures sup ; refusées -> supRefusees ; ni l'un ni l'autre -> semainesATraiter.
 // Sans validations : calcul indicatif (toutes les heures sup comptées).
@@ -19,8 +21,8 @@ export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = []
   const etat = new Map((validations || []).map((v) => [v.semaine, v]));
   let supRefusees = 0, semainesATraiter = 0;
   for (const s of cumulSemaines(temps, regles.heures)) {
-    const dimanche = dimancheDeSemaine(s.semaine);
-    if (dimanche < debut || dimanche > fin) continue;
+    const samedi = samediDeSemaine(s.semaine);
+    if (samedi < debut || samedi > fin) continue;
     t.heuresNormales += s.normales; t.absences += s.absences;
     const v = etat.get(s.semaine);
     if (!validations || v?.valide) { t.sup1 += s.sup1; t.sup2 += s.sup2; }

@@ -731,9 +731,18 @@
         <div id="panel-paie" class="tab-panel hidden" role="tabpanel">
           <div class="section">
             <div class="barre">
-              <div class="field"><label for="paie-periode">Période de paie</label><select id="paie-periode"></select></div>
-              <button id="paie-export" type="button">Exporter pour la paie (CSV)</button>
+              <div class="field"><label for="paie-periode">Mois de paie</label><select id="paie-periode"></select></div>
+              <button id="periode-valider" type="button" class="secondary">Valider le mois</button>
+              <button id="paie-export" type="button">Exporter et clôturer</button>
             </div>
+            <p id="paie-statut" class="carte-resume"></p>
+            <details class="ajout"><summary>Nouveau mois de paie</summary>
+              <form id="periode-form" class="flex">
+                <div class="field"><label for="periode-debut">Du</label><input type="date" id="periode-debut" required></div>
+                <div class="field"><label for="periode-fin">Au (fin de semaine)</label><input type="date" id="periode-fin" required></div>
+                <button type="submit">Créer le mois</button>
+              </form>
+            </details>
             <p id="paie-resume" class="carte-resume"></p>
             <p class="aide">Seules les heures sup « Validées » sont exportées. <span id="paie-primes-info"></span> Cliquez sur un technicien pour traiter ses semaines.</p>
             <div class="table-wrapper">

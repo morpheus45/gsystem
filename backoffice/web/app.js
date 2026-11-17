@@ -6,6 +6,7 @@ import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
 import { repartition } from '../core/stats.js';
 import { primesDuMois, moisDesPrimes } from '../core/primes.js';
+import { finProposee, lendemain } from '../core/periodes.js';
 import { variablesPaie, versCsv } from '../core/paie.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
@@ -1150,34 +1151,82 @@ function camembert(titre, lignes) {
 const iso = (d) => d.toISOString().slice(0, 10);
 const decaler = (date, jours) => iso(new Date(Date.parse(`${date}T00:00:00Z`) + jours * 86400000));
 
-function periodesPaie() {
-  const auj = new Date();
-  let a = auj.getFullYear(), m = auj.getMonth() + (auj.getDate() >= 21 ? 1 : 0);   // mois de fin du cycle en cours (0-11)
-  const res = [];
-  for (let i = 0; i < 12; i++, m--) {
-    const fin = iso(new Date(Date.UTC(a, m, 20)));
-    res.push({ debut: iso(new Date(Date.UTC(a, m - 1, 21))), fin });
-  }
-  return res;
-}
+const STATUT_PERIODE = { brouillon: 'En cours', validee: 'Validé', exportee: 'Clôturé' };
+let periodes = [];
+const periodeChoisie = () => periodes.find((p) => p.id === $('#paie-periode').value);
+const peutPayer = () => superAdmin || ['admin', 'gestion', 'comptable'].includes(monRole);
 
 $('#paie-periode').addEventListener('change', chargerPaie);
 let lignesPaie = [];
 
+// Mois de paie de la société (periodes_paie) : un cycle qui se clôture en fin de semaine.
 async function chargerPaie() {
-  const sel = $('#paie-periode');
-  if (!sel.options.length) {
-    sel.replaceChildren(...periodesPaie().map((p) => {
-      const o = document.createElement('option');
-      o.value = `${p.debut}|${p.fin}`;
-      o.textContent = `${formaterDate(p.debut)} → ${formaterDate(p.fin)}`;
-      return o;
-    }));
+  const { data, error } = await sb.from('periodes_paie').select('id, debut, fin, statut, exporte_le')
+    .eq('societe_id', selectedSociete).order('debut', { ascending: false });
+  if (error) { alert(error.message); return; }
+  periodes = data;
+  const sel = $('#paie-periode'), avant = sel.value;
+  sel.replaceChildren(...periodes.map((p) => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = `${formaterDate(p.debut)} → ${formaterDate(p.fin)} — ${STATUT_PERIODE[p.statut]}`;
+    return o;
+  }));
+  if (periodes.some((p) => p.id === avant)) sel.value = avant;
+  // Nouveau mois : lendemain de la dernière clôture, fin = samedi le plus proche du 20.
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const debut = periodes[0] ? lendemain(periodes[0].fin) : lendemain(finProposee(plusMois(aujourdhui.slice(0, 7), -1) + '-01'));
+  $('#periode-debut').value = debut;
+  $('#periode-fin').value = finProposee(debut > aujourdhui ? debut : aujourdhui);
+  $('#periode-form').closest('details').classList.toggle('hidden', !peutPayer());
+  const p = periodeChoisie();
+  afficherEtatPeriode(p);
+  if (!p) {
+    lignesPaie = [];
+    $('#paie-table tbody').replaceChildren();
+    $('#paie-resume').textContent = 'Aucun mois de paie : créez le premier avec « Nouveau mois de paie ».';
+    $('#paie-totaux').textContent = '';
+    return;
   }
-  const [debut, fin] = sel.value.split('|');
+  await calculerPaie(p.debut, p.fin);
+}
+
+function afficherEtatPeriode(p) {
+  const valider = $('#periode-valider'), exporter = $('#paie-export');
+  valider.classList.toggle('hidden', !p || p.statut !== 'brouillon' || !peutPayer());
+  exporter.classList.toggle('hidden', !p || p.statut === 'brouillon' || !peutPayer());
+  exporter.textContent = p?.statut === 'exportee' ? 'Télécharger à nouveau' : 'Exporter et clôturer';
+  $('#paie-statut').textContent = !p ? '' : {
+    brouillon: 'Mois en cours : vérifiez et traitez les heures sup et les congés, puis « Valider le mois ».',
+    validee: 'Mois validé : « Exporter et clôturer » télécharge le fichier de paie et verrouille le mois.',
+    exportee: `Mois clôturé le ${formaterDate(String(p.exporte_le).slice(0, 10))} : heures, frais et validations sont verrouillés.`,
+  }[p.statut];
+}
+
+$('#periode-valider').addEventListener('click', async () => {
+  const p = periodeChoisie();
+  if (lignesPaie.some((l) => l.v.semainesATraiter || l.conges)
+    && !confirm('Des éléments ne sont pas traités : les heures sup non validées ne seront pas payées. Valider le mois quand même ?')) return;
+  const { error } = await sb.from('periodes_paie').update({ statut: 'validee' }).eq('id', p.id);
+  if (error) { alert(error.message); return; }
+  await chargerPaie();
+});
+
+$('#periode-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  const debut = $('#periode-debut').value, fin = $('#periode-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const { error } = await sb.from('periodes_paie').insert({ societe_id: selectedSociete, debut, fin });
+  if (error) { alert(error.message); return; }
+  $('#paie-periode').replaceChildren();   // le nouveau mois (le plus récent) sera choisi
+  await chargerPaie();
+});
+
+async function calculerPaie(debut, fin) {
   try {
     const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
-    // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur dimanche).
+    // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur samedi).
     const [temps, frais, validations, conges, regles] = await Promise.all([
       lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
       lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
@@ -1228,19 +1277,23 @@ function afficherPaie() {
   $('#paie-totaux').textContent = `Totaux : ${h(somme('heuresNormales'))} normales, ${h(somme('sup1'))} + ${h(somme('sup2'))} sup validées, ${euros(somme('fraisRemboursables'))} de frais, ${euros(somme('primes'))} de primes.`;
 }
 
-$('#paie-export').addEventListener('click', () => {
-  if (!lignesPaie.length) return;
-  const reste = lignesPaie.some((l) => l.v.semainesATraiter || l.conges);
-  if (reste && !confirm('Des éléments ne sont pas traités : les heures sup non validées ne seront pas payées. Exporter quand même ?')) return;
+$('#paie-export').addEventListener('click', async () => {
+  const p = periodeChoisie();
+  if (!p || !lignesPaie.length) return;
+  if (p.statut === 'validee' && !confirm('Exporter et clôturer : après la clôture, plus aucune modification des heures, frais et validations de ce mois. Continuer ?')) return;
   const csv = versCsv(lignesPaie.map(({ v }) => {
     const { supRefusees, semainesATraiter, ...exportees } = v;
     return exportees;
   }));
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `paie-${lignesPaie[0].v.fin}.csv`;
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `paie-${p.debut}-au-${p.fin}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+  if (p.statut !== 'validee') return;
+  const { error } = await sb.from('periodes_paie').update({ statut: 'exportee' }).eq('id', p.id);
+  if (error) { alert(error.message); return; }
+  await chargerPaie();
 });
 
 // ===== Congés : demandes à valider (saisies au bureau ; l'APK plus tard) =====

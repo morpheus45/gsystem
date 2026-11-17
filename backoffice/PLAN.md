@@ -125,10 +125,10 @@ Le SQL est du Postgres standard (seuls `auth.uid()`, `auth.users` et le rôle `a
 ## Primes, paie, congés (17/11/2026)
 
 - **Primes GesteCo** : règle reprise de l'APK (`core/primes.js`, testée) ; passages et barèmes importés par le pont. Versement à M+2. **À VÉRIFIER** : la paie qui finit le 20 du mois M verse les primes du mois M-2 (janvier → paie du 21/02 au 20/03).
-- **Onglet Paie** : tous les techs d'une période du 21 au 20 ; heures sup **validées** seulement ; reste à traiter (heures sup, congés) ; export CSV.
+- **Onglet Paie** : tous les techs d'un **mois de paie clôturé** (dates libres choisies par la gestionnaire ; proposition : du lendemain de la clôture précédente au samedi le plus proche du 20) ; heures sup **validées** seulement ; reste à traiter (heures sup, congés) ; « Valider le mois » puis « Exporter et clôturer » (CSV + verrou). Semaines du lundi au samedi, rattachées au mois qui contient leur samedi.
 - **Heures sup** : À traiter / Validées / Refusées, signé par la base.
 - **Congés** : demandes saisies au bureau, validées ou refusées ; liaison APK plus tard.
-- **Pas encore** : clôture de la période (brouillon → validée → exportée, verrou) depuis l'écran ; liaison des congés avec l'APK.
+- **Pas encore** : liaison des congés avec l'APK.
 
 ## Version de test en ligne (17/11/2026)
 

@@ -17,8 +17,8 @@ test('variables de paie d\'un tech sur une période', () => {
     absences: 0, fraisRemboursables: 20, primes: 12.5, taux1: 0.25, taux2: 0.5, reglesValidees: false });
 });
 
-test('une semaine est rattachée à la période qui contient son dimanche', () => {
-  const temps = plein('2026-01-19'); // semaine du 19 au 25 : dimanche hors période
+test('une semaine est rattachée à la période qui contient son samedi', () => {
+  const temps = plein('2026-01-19'); // semaine du 19 au 25 : samedi 24 hors période
   const v = variablesPaie({ tech: 'T1', periode: { debut: '2025-12-21', fin: '2026-01-20' }, temps, frais: [], regles: reglesDe({}) });
   assert.equal(v.heuresNormales, 0);
 });
@@ -49,4 +49,10 @@ test('paie avec validations : seules les semaines validées paient des heures su
   assert.deepEqual([v.sup1, v.sup2, v.supRefusees, v.semainesATraiter], [8, 5, 13, 0]);
   const w = variablesPaie({ ...base, validations: [{ semaine: '2026-W02', valide: true }] });
   assert.deepEqual([w.sup1, w.sup2, w.supRefusees, w.semainesATraiter], [8, 5, 0, 1]);
+});
+
+test('période close un samedi : la semaine qui finit ce samedi est dedans (pas la suivante)', () => {
+  const temps = [...plein('2026-01-12'), ...plein('2026-01-19')];   // semaines 3 et 4
+  const v = variablesPaie({ tech: 'T1', periode: { debut: '2025-12-21', fin: '2026-01-17' }, temps, frais: [], regles: reglesDe({}) });
+  assert.equal(v.heuresNormales, 8);
 });
