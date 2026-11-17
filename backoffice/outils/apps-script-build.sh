@@ -32,7 +32,13 @@ url, cle = sys.argv[1], sys.argv[2]
 js = open('web/app.js').read().replace(
     "import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';",
     f'const SUPABASE_URL = "{url}";\nconst SUPABASE_CLE_PUBLIQUE = "{cle}";')
-assert 'config.js' not in js
+# core/vehicules.js est inclus tel quel (sans les « export ») à la place de son import.
+import re
+imp = re.search(r"^import \{[^}]*\} from '\.\./core/vehicules\.js';$", js, re.M)
+if imp:
+    core = re.sub(r'^export ', '', open('core/vehicules.js').read(), flags=re.M)
+    js = js.replace(imp.group(0), core)
+assert 'config.js' not in js and '../core/' not in js
 html = open('web/index.html').read()
 balise = '<script type="module" src="app.js"></script>'
 assert balise in html, 'balise script introuvable'

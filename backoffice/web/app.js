@@ -77,8 +77,8 @@ async function init() {
     if (accepted > 0) {
       alert(`Vous avez rejoint ${accepted} société(s).`, 'success');
     }
-    await loadSocietes();
     await checkOperator();
+    await loadSocietes();
   } catch (err) {
     alert(err.message || 'Erreur d\'initialisation');
   }
@@ -109,10 +109,11 @@ async function loadSocietes() {
 function renderSocietes() {
   const ul = $('#societes-list');
   ul.replaceChildren();
+  $('#titre-societes').textContent = superAdmin ? 'Toutes les sociétés' : 'Mes sociétés';
   if (societes.length === 0) {
     const li = ul.appendChild(document.createElement('li'));
     li.className = 'empty';
-    li.textContent = "Vous n'êtes membre d'aucune société pour l'instant.";
+    li.textContent = superAdmin ? "Aucune société pour l'instant." : "Vous n'êtes membre d'aucune société pour l'instant.";
     return;
   }
   societes.forEach(s => {
