@@ -40,3 +40,13 @@ test('le taux réel de la société est exporté avec les heures sup', () => {
     regles: reglesDe({ regles: { heures: { taux1: 0.1 } } }) });
   assert.equal(v.taux1, 0.1);
 });
+
+test('paie avec validations : seules les semaines validées paient des heures sup', () => {
+  const temps = ['2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09', '2026-01-10',
+    '2026-01-12', '2026-01-13', '2026-01-14', '2026-01-15', '2026-01-16', '2026-01-17'].flatMap(plein);
+  const base = { tech: 'T1', periode: { debut: '2025-12-21', fin: '2026-01-20' }, temps, frais: [], regles: reglesDe({}) };
+  const v = variablesPaie({ ...base, validations: [{ semaine: '2026-W02', valide: true }, { semaine: '2026-W03', refusee: true }] });
+  assert.deepEqual([v.sup1, v.sup2, v.supRefusees, v.semainesATraiter], [8, 5, 13, 0]);
+  const w = variablesPaie({ ...base, validations: [{ semaine: '2026-W02', valide: true }] });
+  assert.deepEqual([w.sup1, w.sup2, w.supRefusees, w.semainesATraiter], [8, 5, 0, 1]);
+});

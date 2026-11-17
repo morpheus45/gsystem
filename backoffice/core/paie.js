@@ -11,16 +11,26 @@ function dimancheDeSemaine(semaine) {
 
 // Variables de paie d'un tech sur une période. Une semaine ISO est rattachée
 // à la période qui contient son dimanche (choix par défaut, À DÉCIDER).
-export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = [], primes = 0, regles }) {
+// validations (facultatif) = [{ semaine, valide, refusee }] : seules les semaines VALIDÉES
+// paient des heures sup ; refusées -> supRefusees ; ni l'un ni l'autre -> semainesATraiter.
+// Sans validations : calcul indicatif (toutes les heures sup comptées).
+export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = [], primes = 0, regles, validations }) {
   const t = { heuresNormales: 0, sup1: 0, sup2: 0, absences: 0 };
+  const etat = new Map((validations || []).map((v) => [v.semaine, v]));
+  let supRefusees = 0, semainesATraiter = 0;
   for (const s of cumulSemaines(temps, regles.heures)) {
     const dimanche = dimancheDeSemaine(s.semaine);
     if (dimanche < debut || dimanche > fin) continue;
-    t.heuresNormales += s.normales; t.sup1 += s.sup1; t.sup2 += s.sup2; t.absences += s.absences;
+    t.heuresNormales += s.normales; t.absences += s.absences;
+    const v = etat.get(s.semaine);
+    if (!validations || v?.valide) { t.sup1 += s.sup1; t.sup2 += s.sup2; }
+    else if (v?.refusee) supRefusees += s.sup1 + s.sup2;
+    else if (s.sup1 + s.sup2 > 0) semainesATraiter++;
   }
   const fraisRemboursables = totauxFrais(frais.filter((f) => f.date >= debut && f.date <= fin)).remboursable;
   const { taux1, taux2 } = regles.heures;
-  return { tech, debut, fin, ...t, fraisRemboursables, primes, taux1, taux2, reglesValidees: regles.valide };
+  const r = { tech, debut, fin, ...t, fraisRemboursables, primes, taux1, taux2, reglesValidees: regles.valide };
+  return validations ? { ...r, supRefusees, semainesATraiter } : r;
 }
 
 export function versCsv(lignes) {

@@ -60,3 +60,15 @@ test('une validation ne s\'efface pas, et se fige quand la paie est exportée', 
     await assert.rejects(db.query(valider('2026-W45', '2026-11-02', false)), /verrouillee/);
   });
 });
+
+test('refuser une semaine : signé par la base ; validée ET refusée à la fois : impossible', async () => {
+  const sql = (sem, d, champs) => `insert into heures_sup (societe_id, technicien_id, semaine, date, sup1, sup2, valide, refusee)
+    values ('${A}', '${T}', '${sem}', '${d}', 3, 0, ${champs}) on conflict (societe_id, technicien_id, semaine)
+    do update set valide = excluded.valide, refusee = excluded.refusee`;
+  await db.comme(UG, async () => {
+    await db.query(sql('2026-W48', '2026-11-23', 'false, true'));
+    await assert.rejects(db.query(sql('2026-W49', '2026-11-30', 'true, true')), /check|violates/);
+  });
+  const r = (await db.query(`select refusee, valide_par from heures_sup where semaine = '2026-W48'`)).rows[0];
+  assert.deepEqual(r, { refusee: true, valide_par: UG });
+});
