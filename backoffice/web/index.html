@@ -209,6 +209,10 @@
     .tabs { flex-wrap: wrap; }
     .tab { flex: 1 1 auto; padding: 10px 12px; white-space: nowrap; }
     .carte-resume:empty { display: none; }
+    /* Point rouge « à traiter » : coin haut droit de l'onglet, du sous-onglet ou de la carte. */
+    .tab, .sous-onglets button, .societe-item { position: relative; }
+    .point { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%;
+      background: #dc2626; box-shadow: 0 0 0 2px var(--card); font-size: 0; overflow: hidden; pointer-events: none; }
     /* Téléphone et tablette en hauteur : tableaux en fiches « Titre : valeur » (titres posés par app.js). */
     @media (max-width: 900px) {
       .table-wrapper { overflow: visible; }

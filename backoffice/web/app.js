@@ -49,6 +49,36 @@ let etiquetage = 0;
 new MutationObserver(() => { cancelAnimationFrame(etiquetage); etiquetage = requestAnimationFrame(etiqueterTableaux); })
   .observe(document.body, { childList: true, subtree: true });
 
+// Point rouge « à traiter » ; le texte (invisible à l'œil) est lu par les lecteurs d'écran.
+function marquer(el, actif) {
+  if (!el) return;
+  el.querySelector(':scope > .point')?.remove();
+  if (actif) el.appendChild(document.createElement('span')).className = 'point';
+  if (actif) el.lastChild.textContent = ' (à traiter)';
+}
+const sousOnglet = (cible) => $(`.sous-onglets button[data-cible="${cible}"]`);
+const dansJours = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+// Ce qui attend une action dans une société : congés à répondre ; échéances dépassées ou
+// à moins de 30 jours ; amendes à désigner sous 7 jours ; mois de paie terminés non clôturés.
+async function tachesSociete(sid) {
+  const compte = (table) => sb.from(table).select('id', { count: 'exact', head: true }).eq('societe_id', sid);
+  const [c, e, a, p] = await Promise.all([
+    compte('conges').eq('statut', 'demandee'),
+    compte('echeances').not('date', 'is', null).lte('date', dansJours(30)),
+    sb.from('amendes').select('date_avis').eq('societe_id', sid).eq('statut', 'a_traiter'),
+    compte('periodes_paie').neq('statut', 'exportee').lt('fin', dansJours(0)),
+  ]);
+  const amendes = (a.data || []).filter((x) => limiteDesignation(x.date_avis) <= dansJours(7)).length;
+  return { conges: c.count || 0, vehicules: (e.count || 0) + amendes, paie: p.count || 0 };
+}
+
+async function majPoints() {
+  if (!selectedSociete) return;
+  const t = await tachesSociete(selectedSociete);
+  for (const onglet of ['conges', 'vehicules', 'paie']) marquer($(`.tab[data-tab="${onglet}"]`), t[onglet] > 0);
+}
+
 function showScreen(id) {
   $$('.screen').forEach(s => s.classList.remove('active'));
   $(`#${id}`).classList.add('active');
@@ -264,6 +294,7 @@ function renderSocietes() {
     li.firstChild.className = 'societe-name';
     li.addEventListener('click', () => selectSociete(s.id));
     ul.appendChild(li);
+    tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
   });
 }
 
@@ -587,6 +618,8 @@ function renderEcheances(list) {
     b.addEventListener('click', () => deleteEcheance(e.id));
     return tr;
   }));
+  marquer(sousOnglet('vehicule-section-echeances'), !!document.querySelector('#echeances-table .alerte-depassee, #echeances-table .alerte-proche'));
+  majPoints();
   // Aide CT
   const aide = $('#ct-aide');
   aide.replaceChildren();
@@ -841,6 +874,8 @@ function renderAmendes(list) {
     }
     return tr;
   }));
+  marquer(sousOnglet('vehicule-section-amendes'), !!document.querySelector('#amendes-table .alerte-depassee, #amendes-table .alerte-proche'));
+  majPoints();
 }
 
 async function createSociete(nom, emailAdmin) {
@@ -1045,6 +1080,7 @@ function afficherMoisFiche() {
     c.addEventListener('change', () => validerHeuresSup(s, c));
     return tr;
   }));
+  pointHeures();
 
   $('#tech-frais-table tbody').replaceChildren(...fraisMois.map((f) => {
     const l = ligneFrais(versFrais(f));
@@ -1199,6 +1235,7 @@ async function chargerPaie() {
   sel.closest('.field').classList.toggle('hidden', !periodes.length);
   $('#paie-table').closest('.table-wrapper').classList.toggle('hidden', !p);
   if (!periodes.length) $('#periode-form').closest('details').open = true;
+  majPoints();
   if (!p) {
     lignesPaie = [];
     $('#paie-table tbody').replaceChildren();
@@ -1322,6 +1359,7 @@ async function compterCongesAValider() {
   const { count, error } = await sb.from('conges').select('id', { count: 'exact', head: true })
     .eq('societe_id', selectedSociete).eq('statut', 'demandee');
   $('#onglet-conges').textContent = !error && count ? `Congés (${count})` : 'Congés';
+  majPoints();
 }
 
 $('#conges-filtre').addEventListener('change', chargerConges);
@@ -1366,6 +1404,11 @@ $('#conge-form').addEventListener('submit', async (e) => {
   compterCongesAValider();
 });
 
+// Point sur « Heures » tant qu'une semaine d'heures sup du mois est « À traiter ».
+function pointHeures() {
+  marquer(sousOnglet('tech-section-heures'), [...document.querySelectorAll('#tech-semaines-table select')].some((c) => c.value === 'a_traiter'));
+}
+
 // Barèmes des réglages APK (lignes primes_tarifs) -> même forme que reglages.json.
 function baremes(lignes) {
   return { prices: lignes.find((l) => l.mois === 'courant')?.prix,
@@ -1389,6 +1432,7 @@ async function validerHeuresSup(s, choix) {
   { onConflict: 'societe_id,technicien_id,semaine' });
   if (error) { choix.value = fiche.validations.get(s.semaine) || 'a_traiter'; alert(error.message); return; }
   fiche.validations.set(s.semaine, choix.value);
+  pointHeures();
 }
 
 // Formulaire Affectation
