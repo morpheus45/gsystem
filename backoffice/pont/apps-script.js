@@ -8,6 +8,7 @@
 
 const RACINE = 'Sauvegardes G-Systems';   // apps-script/Code.js : ROOT_FOLDER
 const MOIS = /^\d{4}-\d{2}$/;             // dossiers de cycle : AAAA-MM
+const MAX_PHOTOS = 100;                   // par passage (Apps Script s'arrête à 6 min) ; la suite au passage suivant
 
 function importer() {
   const cle = PropertiesService.getScriptProperties().getProperty('SUPABASE_CLE_SERVEUR');
@@ -18,20 +19,23 @@ function importer() {
   const dossiers = DriveApp.getRootFolder().getFoldersByName(RACINE);
   if (!dossiers.hasNext()) throw new Error('Dossier introuvable : ' + RACINE);
   const techs = dossiers.next().getFolders();
-  const bilan = { techs: 0, fichiers: 0, erreurs: [] };
+  const bilan = { techs: 0, fichiers: 0, photos: 0, photosIntrouvables: 0, erreurs: [] };
   while (techs.hasNext()) {
     const dossierTech = techs.next();
     const fichiers = donneesDuTech(dossierTech);
     if (!fichiers.length) continue;                 // ordres/, chat... : pas un tech
     bilan.techs++;
     const technicienId = technicien(cle, dossierTech.getName());
+    const dejaCopiees = new Set(appel(cle, 'get', 'photos_apk?select=cle_source&technicien_id=eq.' + technicienId +
+      '&stockage=not.is.null').map((p) => p.cle_source));
     const photos = {};          // toutes les photos du tech (pour le compteur)
     let premiereDate = null;    // 1re donnée du tech (début de sa 1re affectation)
-    for (const f of fichiers) {
+    for (const { fichier: f, dossier } of fichiers) {
       try {
         const donnees = JSON.parse(f.getBlob().getDataAsString('UTF-8'));
         const r = normaliser(donnees, { societeId: SOCIETE_ID, technicienId });
         for (const bloc of Object.keys(TABLES_PONT)) ajouter(cle, TABLES_PONT[bloc], r[bloc]);
+        copierPhotos(cle, technicienId, dossier, r.photos, dejaCopiees, bilan);
         Object.assign(photos, donnees.photos || {});
         for (const t of r.temps) if (t.date && (!premiereDate || t.date < premiereDate)) premiereDate = t.date;
         bilan.fichiers++;
@@ -57,9 +61,31 @@ function donneesDuTech(dossierTech) {
     const m = mois.next();
     if (!MOIS.test(m.getName())) continue;
     const f = m.getFilesByName('donnees.json');
-    if (f.hasNext()) res.push(f.next());
+    if (f.hasNext()) res.push({ fichier: f.next(), dossier: m });
   }
   return res;
+}
+
+// Copie des photos du cycle dans le stockage privé « photos » de la société
+// (<société>/apk/<tech>/<AAAA-MM>/<nom>), pour qu'elles soient consultables dans le
+// back-office. Le Drive est seulement LU. Une photo déjà copiée n'est pas renvoyée.
+function copierPhotos(cle, technicienId, dossier, photos, dejaCopiees, bilan) {
+  for (const p of photos) {
+    if (dejaCopiees.has(p.cle_source) || bilan.photos >= MAX_PHOTOS) continue;
+    const f = dossier.getFilesByName(p.nom_drive);
+    if (!f.hasNext()) { bilan.photosIntrouvables++; continue; }
+    const blob = f.next().getBlob();
+    const chemin = [SOCIETE_ID, 'apk', technicienId, dossier.getName(), p.nom_drive].join('/');
+    const rep = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/photos/' + chemin.split('/').map(encodeURIComponent).join('/'), {
+      method: 'post', contentType: blob.getContentType() || 'image/jpeg', payload: blob.getBytes(),
+      headers: { apikey: cle, 'x-upsert': 'true' }, muteHttpExceptions: true,
+    });
+    if (rep.getResponseCode() >= 300) throw new Error('photo ' + p.nom_drive + ' : ' + rep.getResponseCode() + ' ' + rep.getContentText().slice(0, 200));
+    appel(cle, 'patch', 'photos_apk?societe_id=eq.' + SOCIETE_ID + '&cle_source=eq.' + encodeURIComponent(p.cle_source),
+      { stockage: chemin }, 'return=minimal');
+    dejaCopiees.add(p.cle_source);
+    bilan.photos++;
+  }
 }
 
 // Id du technicien (créé au premier import ; un nom changé au bureau est gardé).

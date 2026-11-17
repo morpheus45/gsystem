@@ -40,7 +40,7 @@ test('données réelles de l\'APK : personne ne peut les effacer, même le super
   for (const uid of [AD, OP]) {
     await db.comme(uid, async () => {
       for (const t of ['temps', 'frais', 'photos_apk']) {
-        await assert.rejects(db.query(`delete from ${t} where societe_id = '${S}'`), /effacement interdit/, `${t} par ${uid}`);
+        await assert.rejects(db.query(`delete from ${t} where societe_id = '${S}'`), /effacement interdit|permission denied/, `${t} par ${uid}`);
       }
       await assert.rejects(db.query(`delete from techniciens where id = '${T}'`), /effacement interdit|foreign key/);
     });
@@ -50,4 +50,21 @@ test('données réelles de l\'APK : personne ne peut les effacer, même le super
   });
   const n = async (t) => (await db.query(`select count(*)::int n from ${t}`)).rows[0].n;
   assert.deepEqual([await n('temps'), await n('frais'), await n('photos_apk'), await n('societes')], [3, 2, 2, 1]);
+});
+
+test('photos APK : emplacement de stockage notable par le pont, pas par un utilisateur', async () => {
+  const db = await ouvrirBase();
+  const U = '00000000-0000-0000-0000-0000000000a1';
+  await db.exec(`insert into auth.users (id) values ('${U}');
+    insert into societes (id, nom) values ('${S}', 'Societe fictive');
+    insert into membres values ('${S}', '${U}', 'admin');
+    insert into techniciens (id, societe_id, nom, nom_apk) values ('${T}', '${S}', 'Tech fictif', 'TECH FICTIF');`);
+  const r = normaliser(donnees, { societeId: S, technicienId: T });
+  await inserer(db, 'photos_apk', r.photos);
+  const chemin = `${S}/apk/${T}/2026-11/ZZ-999-ZZ-11-2026.jpg`;
+  await db.query(`update photos_apk set stockage = $1 where cle_source = $2`, [chemin, r.photos[1].cle_source]);   // le pont (clé serveur)
+  assert.equal((await db.query(`select stockage from photos_apk where cle_source = $1`, [r.photos[1].cle_source])).rows[0].stockage, chemin);
+  await db.comme(U, async () => {
+    await assert.rejects(db.query(`update photos_apk set stockage = 'autre' where cle_source = $1`, [r.photos[0].cle_source]), /permission denied/);
+  });
 });
