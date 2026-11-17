@@ -23,9 +23,12 @@ J
 {
   printf '// FICHIER CONSTRUIT par outils/pont-build.sh : modifier pont/*.js, pas ce fichier.\n'
   printf 'const SUPABASE_URL = "%s";\nconst SOCIETE_ID = "%s";\n\n' "$SUPABASE_URL" "$SOCIETE_ID"
-  sed 's/^export //' pont/normaliser.js
+  # installer() en tête : c'est la fonction proposée par défaut dans l'éditeur.
+  sed -n '/^\/\/ À lancer UNE fois/,$p' pont/apps-script.js
   printf '\n'
-  cat pont/apps-script.js
+  sed '/^\/\/ À lancer UNE fois/,$d' pont/apps-script.js
+  printf '\n'
+  sed 's/^export //' pont/normaliser.js
 } > "$D/Code.js"
 node --check "$D/Code.js" 2>/dev/null || node -e "new Function(require('fs').readFileSync('$D/Code.js','utf8'))"
 echo "Construit dans $D/"
