@@ -82,3 +82,41 @@ test('l\'admin invite dans sa société, pas ailleurs ; un rôle lecture ne peut
     await assert.rejects(db.query(`select * from membres_de('${autre}')`), /acces refuse/);
   });
 });
+
+test('super admin : supprime une société entière (avec ses données) ; personne d\'autre', async () => {
+  const X = await db.comme(OP, async () => (await un(`select creer_societe('A supprimer fictive', 'z@exemple.test') as id`)).id);
+  await db.exec(`insert into techniciens (id, societe_id, nom) values ('00000000-0000-0000-0000-0000000000e1', '${X}', 'Tech X');
+    insert into temps (societe_id, technicien_id, cle_source, date, type_mission)
+      values ('${X}', '00000000-0000-0000-0000-0000000000e1', 'x1', '2026-11-02', 'INST');
+    insert into vehicules (id, societe_id, plaque) values ('00000000-0000-0000-0000-0000000000e2', '${X}', 'XX-001-XX');
+    insert into echeances (societe_id, vehicule_id, type, date) values ('${X}', '00000000-0000-0000-0000-0000000000e2', 'CT', '2027-01-01');
+    insert into membres values ('${X}', '${MA}', 'admin');`);
+  await db.comme(MA, async () => {
+    await assert.rejects(db.query(`select supprimer_societe('${X}')`), /super admin/);
+  });
+  await db.comme(OP, () => db.query(`select supprimer_societe('${X}')`));
+  for (const t of ['societes', 'techniciens', 'temps', 'vehicules', 'echeances', 'membres', 'invitations']) {
+    const col = t === 'societes' ? 'id' : 'societe_id';
+    assert.equal((await un(`select count(*)::int n from ${t} where ${col} = '${X}'`)).n, 0, t);
+  }
+});
+
+test('le passe-droit de suppression ne sert à rien hors super admin', async () => {
+  const Y = await db.comme(OP, async () => (await un(`select creer_societe('Verrou fictive', 'v@exemple.test') as id`)).id);
+  const P = '00000000-0000-0000-0000-0000000000c9';
+  await db.exec(`insert into membres values ('${Y}', '${MA}', 'admin');
+    insert into techniciens (id, societe_id, nom) values ('00000000-0000-0000-0000-0000000000e3', '${Y}', 'Tech Y');
+    insert into temps (societe_id, technicien_id, cle_source, date, type_mission)
+      values ('${Y}', '00000000-0000-0000-0000-0000000000e3', 'y1', '2026-03-05', 'INST');`);
+  await db.comme(OP, async () => {
+    await db.query(`insert into periodes_paie (id, societe_id, debut, fin) values ('${P}', '${Y}', '2026-02-21', '2026-03-20')`);
+    await db.query(`update periodes_paie set statut = 'validee' where id = '${P}'`);
+    await db.query(`update periodes_paie set statut = 'exportee' where id = '${P}'`);
+  });
+  await db.comme(MA, async () => {
+    await db.query(`select set_config('app.suppression_societe', '${Y}', false)`);
+    await assert.rejects(db.query(`delete from temps where cle_source = 'y1'`), /verrouillee/);
+    await assert.rejects(db.query(`delete from periodes_paie where id = '${P}'`), /verrouillee/);
+  });
+  await db.exec(`select set_config('app.suppression_societe', '', false)`);
+});
