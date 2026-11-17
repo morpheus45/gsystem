@@ -316,11 +316,10 @@ function renderSocietes() {
     const li = document.createElement('li');
     li.className = 'societe-item';
     if (selectedSociete === s.id) li.classList.add('selected');
-    // Avec un logo, la carte n'affiche que lui (le nom reste lu par les lecteurs d'écran).
-    if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));
+    if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));   // le nom suit : alt vide pour ne pas le lire deux fois
     const nom = li.appendChild(document.createElement('div'));
     nom.textContent = s.nom;
-    nom.className = s.logo ? 'societe-name sr-only' : 'societe-name';
+    nom.className = 'societe-name';
     li.addEventListener('click', () => selectSociete(s.id));
     ul.appendChild(li);
     tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
