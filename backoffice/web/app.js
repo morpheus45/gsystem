@@ -8,7 +8,8 @@ import { repartition, tauxNr } from '../core/stats.js';
 import { primesDuMois, moisDesPrimes } from '../core/primes.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
-import { variablesPaie, versCsv } from '../core/paie.js';
+import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
+import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
@@ -25,6 +26,7 @@ let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
 function peutEcrire() {
   return superAdmin || ['admin', 'gestion'].includes(monRole);
 }
+const peutCompta = () => superAdmin || ['admin', 'comptable'].includes(monRole);   // comptes et leur validation
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -169,7 +171,7 @@ function switchOnglet(tabId, calculer = true) {
     b.classList.toggle('active', actif);
     b.setAttribute('aria-selected', String(actif));
   });
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-conges']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -178,6 +180,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-conges') chargerConges();
   if (tabId === 'panel-bord' && calculer) chargerBord();
   if (tabId === 'panel-facturation') chargerFacturation();
+  if (tabId === 'panel-compta') chargerCompta();
 }
 
 function fermerPanneauVehicule() {
@@ -421,7 +424,7 @@ async function cancelInvitation(id) {
 // === TECHNICIENS ===
 async function loadTechniciens(societeId) {
   try {
-    const { data, error } = await sb.from('techniciens').select('id, nom, actif, archive_le').eq('societe_id', societeId).order('nom');
+    const { data, error } = await sb.from('techniciens').select('id, nom, actif, archive_le, compte_auxiliaire').eq('societe_id', societeId).order('nom');
     if (error) throw error;
     techniciens = data;
     renderTechniciens(data);
@@ -1140,6 +1143,8 @@ const euros = (n) => `${Number(n).toLocaleString('fr-FR', { minimumFractionDigit
 // Lignes de la base -> format des règles testées (core/heures.js, core/frais.js).
 const versHeures = (e) => ({ date: e.date, typeMission: e.type_mission, slotMidi: e.slot_midi, observationType: e.observation_type });
 const versFrais = (f) => ({ categorie: f.categorie, montantEur: Number(f.montant_eur), sansTva: f.sans_tva });
+const versCompta = (f) => ({ ...versFrais(f), id: f.id, date: f.date, fichier: f.fichier, statut: f.statut, tvaRecuperable: f.tva_recuperable });
+const STATUTS_FRAIS = { a_traiter: 'À traiter', valide: 'Validé', refuse: 'Refusé' };
 let fiche = null;   // données du tech ouvert, chargées une fois : { t, interventions, frais, photos, regles, validations }
 
 async function chargerFicheTechnicien(t) {
@@ -1149,7 +1154,7 @@ async function chargerFicheTechnicien(t) {
     const [aff, interventions, frais, photos, regles, validations, listePhotos, gestes, tarifs] = await Promise.all([
       lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
       lire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
-      lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations, fichier').eq('technicien_id', t.id).order('date')),
+      lire(sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, observations, fichier, statut, tva_recuperable, motif_refus').eq('technicien_id', t.id).order('date')),
       lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
       lire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
@@ -1189,10 +1194,11 @@ function afficherMoisFiche() {
   const jours = dates.map((d) => [d, heuresJour(duMois.filter((e) => e.date === d).map(versHeures))]);
   const totalHeures = jours.reduce((s, [, h]) => s + h, 0);
   const totaux = totauxFrais(fraisMois.map(versFrais));
+  const valides = totauxFrais(fraisMois.filter((f) => f.statut === 'valide').map(versFrais));
   const nr = duMois.filter((e) => e.observation_type).length;
   const primes = primesDuMois(fiche.gestes, fiche.interventions.map(versHeures), fiche.baremes, m);
   afficherPrimes(primes, m);
-  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais remboursables : ${euros(totaux.remboursable)} — Photos (total) : ${fiche.photos}`;
+  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais validés : ${euros(valides.remboursable)} — Photos (total) : ${fiche.photos}`;
 
   const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
   $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
@@ -1226,18 +1232,36 @@ function afficherMoisFiche() {
   }));
   pointHeures();
 
+  const justifs = new Set(fiche.listePhotos.filter((p) => p.stockage).map((p) => p.nom_local));
+  const ctrl = controles(fiche.frais.map(versCompta), justifs);
   $('#tech-frais-table tbody').replaceChildren(...fraisMois.map((f) => {
     const l = ligneFrais(versFrais(f));
     const tr = ligne([formaterDate(f.date), f.categorie || '—', euros(l.ttc), euros(l.ht), euros(l.tva),
       euros(l.remboursable), f.sans_tva ? 'Oui' : 'Non', f.observations || '—']);
     tr.appendChild(boutonPhoto(fiche.photosParNom.get(f.fichier)?.stockage));
+    const alertesFrais = ctrl.get(f.id).filter((a) => a !== 'à valider' && a !== 'refusé');
+    const td = tr.appendChild(document.createElement('td'));
+    td.textContent = [...alertesFrais, f.statut === 'refuse' && `refusé : ${f.motif_refus}`].filter(Boolean).join(', ') || '—';
+    if (alertesFrais.length) td.className = 'alerte-proche';
+    const etat = tr.appendChild(document.createElement('td')).appendChild(document.createElement('select'));
+    etat.append(...Object.entries(STATUTS_FRAIS).map(([v, libelle]) => new Option(libelle, v, false, v === f.statut)));
+    etat.disabled = !peutEcrire();
+    etat.setAttribute('aria-label', `État du frais du ${formaterDate(f.date)}`);
+    etat.addEventListener('change', () => changerFrais(f, { statut: etat.value }));
+    const tva = tr.appendChild(document.createElement('td')).appendChild(document.createElement('input'));
+    tva.type = 'checkbox';
+    tva.checked = f.tva_recuperable;
+    tva.disabled = !peutEcrire() || f.statut !== 'valide' || f.sans_tva;
+    tva.setAttribute('aria-label', `TVA récupérable, frais du ${formaterDate(f.date)}`);
+    tva.addEventListener('change', () => changerFrais(f, { tva_recuperable: tva.checked }));
     return tr;
   }));
+  marquer(sousOnglet('tech-section-frais'), fiche.frais.some((f) => f.statut === 'a_traiter'));
   afficherGalerie(m);
   $('#tech-camemberts').replaceChildren(
     camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
     camembert('Résultats', repartition(duMois.map((e) => e.observation_type || 'OK'))));
-  $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)}`;
+  $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)} | Validé (remboursé) : ${euros(valides.remboursable)}`;
 }
 
 // Photo du stockage privé : lien signé valable 10 minutes, ouvert dans un nouvel onglet.
@@ -1428,7 +1452,7 @@ async function calculerPaie(debut, fin) {
     // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur samedi).
     const [temps, frais, validations, conges, regles] = await Promise.all([
       lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
-      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva, statut').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
       lire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
       lire(sb.from('conges').select('technicien_id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
@@ -1445,9 +1469,9 @@ async function calculerPaie(debut, fin) {
     $('#paie-primes-info').textContent = `Primes : celles de ${libelleMois(mp)}, versées avec cette paie.`;
     lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
       v: variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures),
-        frais: de(frais, t).map((f) => ({ date: f.date, ...versFrais(f) })),
+        frais: de(frais, t).filter((f) => f.statut === 'valide').map((f) => ({ date: f.date, ...versFrais(f) })),
         primes: primesDuMois(de(gestes, t), de(jours, t).map(versHeures), baremes(de(tarifs, t)), mp).total, regles: r, validations: de(validations, t) }),
-      conges: de(conges, t).length }));
+      conges: de(conges, t).length, fraisATraiter: de(frais, t).filter((f) => f.statut === 'a_traiter').length }));
     afficherPaie();
   } catch (err) {
     alert(err.message || 'Erreur lors du calcul de la paie');
@@ -1457,8 +1481,9 @@ async function calculerPaie(debut, fin) {
 function afficherPaie() {
   const h = (n) => `${Math.round(n * 100) / 100} h`;
   let aTraiter = 0;
-  $('#paie-table tbody').replaceChildren(...lignesPaie.map(({ t, v, conges }) => {
-    const reste = [v.semainesATraiter && `${v.semainesATraiter} semaine(s) d'heures sup`, conges && `${conges} congé(s) en attente`].filter(Boolean);
+  $('#paie-table tbody').replaceChildren(...lignesPaie.map(({ t, v, conges, fraisATraiter }) => {
+    const reste = [v.semainesATraiter && `${v.semainesATraiter} semaine(s) d'heures sup`, conges && `${conges} congé(s) en attente`,
+      fraisATraiter && `${fraisATraiter} frais à valider`].filter(Boolean);
     if (reste.length) aTraiter++;
     const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables), euros(v.primes),
       h(v.supRefusees), reste.join(', ') || '—', reste.length ? 'À traiter' : 'Prêt']);
@@ -1770,6 +1795,195 @@ $('#fact-export').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+// ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
+let compta = null;   // { params, frais, exportes, justifs, debut, fin }
+const versParams = (p) => p ? { journal: p.journal, journalLib: p.journal_lib, compteTva: p.compte_tva, compteSalarie: p.compte_salarie, comptes: p.comptes } : PARAMS_DEFAUT;
+const nomFichier = (t) => t.nom.normalize('NFD').replace(/[^\w-]+/g, '-');
+const deuxDecimales = (n) => n.toFixed(2).replace('.', ',');
+const jourParis = (horodatage) => new Date(horodatage).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });   // AAAA-MM-JJ
+
+// Le relevé s'ouvre dans Excel (BOM UTF-8) ; les écritures vont au logiciel comptable (sans BOM).
+function telecharger(nom, texte, bom = true) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([(bom ? '﻿' : '') + texte], { type: 'text/csv;charset=utf-8' }));
+  a.download = nom;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function justificatifsDe(frais) {
+  const noms = [...new Set(frais.map((f) => f.fichier).filter(Boolean))];
+  if (!noms.length) return new Set();
+  const { data, error } = await sb.from('photos_apk').select('nom_local').eq('societe_id', selectedSociete).in('nom_local', noms).not('stockage', 'is', null);
+  if (error) throw error;
+  return new Set(data.map((p) => p.nom_local));
+}
+
+async function chargerCompta() {
+  if (!$('#compta-debut').value) {   // par défaut : le mois précédent
+    const m = plusMois(iso(new Date()).slice(0, 7), -1);
+    $('#compta-debut').value = m + '-01';
+    $('#compta-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  const debut = $('#compta-debut').value, fin = $('#compta-fin').value;
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [params, frais, exports] = await Promise.all([
+      lire(sb.from('parametres_compta').select('*').eq('societe_id', selectedSociete).maybeSingle()),
+      lire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable, motif_refus').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin).order('date')),
+      lire(sb.from('exports_compta').select('id, technicien_id, debut, fin, frais_ids, parametres, le').eq('societe_id', selectedSociete).order('le', { ascending: false })),
+    ]);
+    compta = { params, frais, exports, exportes: new Set(exports.flatMap((e) => e.frais_ids)), justifs: await justificatifsDe(frais), debut, fin };
+    afficherCompta();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement de la comptabilité');
+  }
+}
+
+function afficherCompta() {
+  const { params, frais, exportes } = compta, p = versParams(params);
+  $('#compta-params-etat').textContent = !params ? 'Comptes proposés par défaut, pas encore validés par le comptable : export bloqué.'
+    : params.valide_le ? `Comptes validés par le comptable le ${formaterDate(jourParis(params.valide_le))}.`
+    : 'Comptes non validés par le comptable : export bloqué.';
+  $('#compta-params-etat').classList.toggle('alerte-proche', !params?.valide_le);
+  for (const [id, v] of [['#cp-journal', p.journal], ['#cp-journal-lib', p.journalLib], ['#cp-tva', p.compteTva], ['#cp-salarie', p.compteSalarie],
+    ['#cp-parking', p.comptes.PARKING], ['#cp-divers', p.comptes.DIVERS], ['#cp-mobile', p.comptes.MOBILE]]) {
+    $(id).value = v || '';
+    $(id).disabled = !peutCompta();
+  }
+  $$('#compta-params-form button').forEach((b) => b.classList.toggle('hidden', !peutCompta()));
+
+  const avecFrais = new Set(frais.map((f) => f.technicien_id));
+  $('#compta-table tbody').replaceChildren(...techniciens.filter((t) => t.actif || avecFrais.has(t.id)).map((t) => {
+    const siens = frais.filter((f) => f.technicien_id === t.id);
+    const n = (statut) => siens.filter((f) => f.statut === statut).length;
+    const aExporter = siens.filter((f) => f.statut === 'valide' && !exportes.has(f.id));
+    const total = aExporter.reduce((x, f) => x + releve(t, [versCompta(f)], compta.justifs).total.rembourse, 0);
+    const tr = ligne([t.nom]);
+    const aux = tr.appendChild(document.createElement('td')).appendChild(document.createElement('input'));
+    aux.value = t.compte_auxiliaire || '';
+    aux.maxLength = 20;
+    aux.disabled = !peutEcrire();
+    aux.setAttribute('aria-label', `Compte auxiliaire de ${t.nom}`);
+    aux.addEventListener('change', async () => {
+      const { error } = await sb.from('techniciens').update({ compte_auxiliaire: aux.value.trim() }).eq('id', t.id);
+      if (error) { aux.value = t.compte_auxiliaire || ''; alert(error.message); } else t.compte_auxiliaire = aux.value.trim();
+    });
+    for (const v of [n('valide'), n('a_traiter'), n('refuse'), `${aExporter.length} (${euros(total)})`, siens.filter((f) => exportes.has(f.id)).length]) {
+      tr.appendChild(document.createElement('td')).textContent = v;
+    }
+    if (n('a_traiter')) tr.children[3].className = 'alerte-proche';
+    const actions = tr.appendChild(document.createElement('td'));
+    const bouton = (texte, action) => { const b = actions.appendChild(document.createElement('button')); b.type = 'button';
+      b.className = 'secondary voir'; b.textContent = texte; b.addEventListener('click', action); return b; };
+    bouton('Relevé', () => telechargerReleve(t, siens, compta.debut, compta.fin));
+    if (peutEcrire() || peutCompta()) {
+      const b = bouton('Exporter', () => exporterCompta(t, aExporter.length));
+      b.disabled = !aExporter.length || n('a_traiter') > 0 || !params?.valide_le;
+      b.title = n('a_traiter') ? 'Des frais restent à valider (fiche technicien, onglet Frais)' : !params?.valide_le ? 'Comptes à faire valider par le comptable' : '';
+    }
+    return tr;
+  }));
+
+  $('#compta-exports tbody').replaceChildren(...compta.exports.map((e) => {
+    const t = techniciens.find((x) => x.id === e.technicien_id) || { nom: '—' };
+    const tr = ligne([formaterDate(jourParis(e.le)), t.nom, `${formaterDate(e.debut)} → ${formaterDate(e.fin)}`, String(e.frais_ids.length), '…']);
+    const td = tr.appendChild(document.createElement('td'));
+    for (const [texte, fichier] of [['Écritures', 'ecritures'], ['Relevé', 'releve']]) {
+      const b = td.appendChild(document.createElement('button'));
+      b.type = 'button'; b.className = 'secondary voir'; b.textContent = texte;
+      b.addEventListener('click', () => telechargerExport(e, fichier));
+    }
+    fraisDeLExport(e).then((liste) => { tr.children[4].textContent = euros(releve(t, liste, new Set()).total.rembourse); }).catch(() => {});
+    return tr;
+  }));
+}
+
+const ENTETES_RELEVE = { technicien: 'Technicien', date: 'Date', categorie: 'Catégorie', ttc: 'TTC', ht: 'HT', tva: 'TVA', rembourse: 'Remboursé',
+  tvaRecuperee: 'TVA récupérée', charge: 'Charge', sansTva: 'Sans TVA', justificatif: 'Justificatif', controles: 'Contrôles' };
+
+function texteReleve(t, liste, justifs, debut, fin) {
+  const r = releve(t, liste, justifs);
+  const enClair = r.lignes.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) =>
+    [ENTETES_RELEVE[k], typeof v === 'number' ? deuxDecimales(v) : v])));
+  return `Technicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
+    + `Total;;;${deuxDecimales(r.total.ttc)};;;${deuxDecimales(r.total.rembourse)};${deuxDecimales(r.total.tvaRecuperee)};${deuxDecimales(r.total.charge)}\n`;
+}
+
+function telechargerReleve(t, siens, debut, fin) {
+  if (!siens.length) { alert('Aucun frais sur cette période.'); return; }
+  telecharger(`releve-frais-${nomFichier(t)}-${debut}-au-${fin}.csv`, texteReleve(t, siens.map(versCompta), compta.justifs, debut, fin));
+}
+
+async function fraisDeLExport(e) {
+  const { data, error } = await sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable').in('id', e.frais_ids).order('date');
+  if (error) throw error;
+  return data.map(versCompta);
+}
+
+// Fichiers d'un export : refaits à l'identique (mêmes frais figés, comptes du jour de l'export).
+async function telechargerExport(e, quoi) {
+  try {
+    const t = techniciens.find((x) => x.id === e.technicien_id);
+    const liste = await fraisDeLExport(e);
+    const base = `${nomFichier(t)}-${e.debut}-au-${e.fin}.csv`;
+    if (quoi === 'releve') { telecharger(`releve-frais-${base}`, texteReleve(t, liste, await justificatifsDe(liste), e.debut, e.fin)); return; }
+    const lignes = ecritures({ tech: { nom: t.nom, compteAuxiliaire: t.compte_auxiliaire }, frais: liste, params: versParams(e.parametres), valideLe: jourParis(e.le) });
+    telecharger(`ecritures-${base}`, versCsvFec(lignes), false);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function exporterCompta(t, n) {
+  const { debut, fin } = compta;
+  const sansCompte = t.compte_auxiliaire ? '' : '\n\nAttention : pas de compte auxiliaire pour ce technicien (colonne vide dans les écritures).';
+  if (!confirm(`Exporter ${n} frais validé(s) de ${t.nom} du ${formaterDate(debut)} au ${formaterDate(fin)} ? Ils ne pourront plus être modifiés.${sansCompte}`)) return;
+  const { data, error } = await sb.rpc('exporter_compta', { s: selectedSociete, tech: t.id, du: debut, au: fin });
+  if (error) { alert(error.message); return; }
+  await chargerCompta();
+  const e = compta.exports.find((x) => x.id === data[0].export_id);
+  if (e) { await telechargerExport(e, 'ecritures'); await telechargerExport(e, 'releve'); }
+}
+
+$('#compta-form').addEventListener('submit', (e) => { e.preventDefault(); chargerCompta(); });
+
+async function enregistrerParams() {
+  const v = (id) => $(id).value.trim();
+  const { error } = await sb.from('parametres_compta').upsert({ societe_id: selectedSociete, journal: v('#cp-journal'), journal_lib: v('#cp-journal-lib'),
+    compte_tva: v('#cp-tva'), compte_salarie: v('#cp-salarie'), comptes: { PARKING: v('#cp-parking'), DIVERS: v('#cp-divers'), MOBILE: v('#cp-mobile') } });
+  if (error) throw error;
+}
+
+$('#compta-params-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try { await enregistrerParams(); await chargerCompta(); } catch (err) { alert(err.message); }
+});
+
+$('#cp-valider').addEventListener('click', async () => {
+  if (!$('#compta-params-form').reportValidity()) return;
+  if (!confirm('Valider ces comptes en tant que comptable ? Les exports utiliseront ces comptes.')) return;
+  try {
+    await enregistrerParams();
+    const { error } = await sb.from('parametres_compta').update({ valide_le: new Date().toISOString() }).eq('societe_id', selectedSociete);
+    if (error) throw error;
+    await chargerCompta();
+  } catch (err) { alert(err.message); }
+});
+
+// État d'un frais : la base signe, exige un motif de refus et fige un frais exporté.
+async function changerFrais(f, champs) {
+  if (champs.statut === 'refuse') {
+    const motif = (prompt('Motif du refus (visible du comptable) :') || '').trim();
+    if (!motif) { afficherMoisFiche(); return; }
+    champs.motif_refus = motif;
+  }
+  const { data, error } = await sb.from('frais').update(champs).eq('id', f.id).select('statut, tva_recuperable, motif_refus').single();
+  if (error) alert(error.message);
+  else Object.assign(f, data);
+  afficherMoisFiche();
+}
 
 // Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
 async function validerHeuresSup(s, choix) {

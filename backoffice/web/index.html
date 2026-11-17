@@ -162,6 +162,7 @@
     .vignette-pdf { display: grid; place-items: center; aspect-ratio: 3 / 4; font-weight: 700; color: var(--muted); background: var(--bg); }
     .galerie figcaption { font-size: 0.75rem; padding: 4px 8px; color: var(--muted); text-align: left; overflow-wrap: anywhere; }
     .aide { font-size: 0.875rem; color: var(--muted); margin: 0 0 12px; }
+    button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
     .lecture-seule td button { display: none; }
     .lecture-seule td button.voir { display: inline-block; }
     .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -231,6 +232,8 @@
       thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
       tr { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; padding: 4px 0; }
       td { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: none; padding: 6px 12px; text-align: right; overflow-wrap: anywhere; }
+      td button { white-space: nowrap; overflow-wrap: normal; flex: 0 0 auto; }
+      td:has(> button + button) { flex-wrap: wrap; justify-content: flex-end; }
       td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; text-align: left; flex: 0 1 45%; overflow-wrap: normal; word-break: normal; hyphens: auto; }
       td[data-label=""]::before { content: none; }
       td.fleche { display: none; }
@@ -335,6 +338,7 @@
           <button class="tab" role="tab" data-tab="vehicules" aria-selected="false">Véhicules</button>
           <button class="tab" role="tab" data-tab="paie" aria-selected="false">Paie</button>
           <button class="tab" role="tab" data-tab="facturation" aria-selected="false">Facturation</button>
+          <button class="tab" role="tab" data-tab="compta" aria-selected="false">Compta</button>
           <button class="tab" role="tab" data-tab="conges" aria-selected="false" id="onglet-conges">Congés</button>
         </div>
 
@@ -509,12 +513,13 @@
               <div class="table-wrapper">
                 <table id="tech-frais-table">
                   <thead>
-                    <tr><th>Date</th><th>Catégorie</th><th>TTC</th><th>HT</th><th>TVA</th><th>Remboursable</th><th>Sans TVA</th><th>Observation</th><th>Justificatif</th></tr>
+                    <tr><th>Date</th><th>Catégorie</th><th>TTC</th><th>HT</th><th>TVA</th><th>Remboursable</th><th>Sans TVA</th><th>Observation</th><th>Justificatif</th><th>Contrôles</th><th>État</th><th>TVA récupérable</th></tr>
                   </thead>
                   <tbody></tbody>
                 </table>
               </div>
               <p id="tech-frais-totaux" style="font-size:0.9rem;color:var(--muted);"></p>
+              <p class="aide">Validez ou refusez chaque frais : seuls les validés sont remboursés en paie et partent chez le comptable. Cochez « TVA récupérable » seulement si le justificatif est une facture au nom de l'entreprise.</p>
             </div>
             <div id="tech-section-photos" class="section sous-section hidden">
               <p id="tech-photos-info" class="aide"></p>
@@ -820,7 +825,7 @@
               </form>
             </details>
             <p id="paie-resume" class="carte-resume"></p>
-            <p class="aide">Seules les heures sup « Validées » sont exportées. <span id="paie-primes-info"></span> Cliquez sur un technicien pour traiter ses semaines.</p>
+            <p class="aide">Seules les heures sup et les frais « Validés » sont exportés. <span id="paie-primes-info"></span> Cliquez sur un technicien pour traiter ses semaines.</p>
             <div class="table-wrapper">
               <table id="paie-table">
                 <thead><tr><th>Technicien</th><th>Heures normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Absences</th><th>Frais remboursables</th><th>Primes</th><th>Sup. refusées</th><th>À traiter</th><th>État</th><th></th></tr></thead>
@@ -872,6 +877,46 @@
                 <tbody></tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div id="panel-compta" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <form id="compta-form" class="barre">
+              <div class="field"><label for="compta-debut">Du</label><input type="date" id="compta-debut" required></div>
+              <div class="field"><label for="compta-fin">Au</label><input type="date" id="compta-fin" required></div>
+              <button type="submit">Afficher</button>
+            </form>
+            <p class="aide">Extrait des notes de frais pour le comptable, par technicien. Seuls les frais validés un par un (fiche technicien, onglet Frais) partent ; un frais exporté ne peut plus changer. Deux fichiers : le relevé (une ligne par frais, avec les contrôles) et les écritures (colonnes du FEC, à importer dans le logiciel comptable).</p>
+            <p id="compta-params-etat" class="carte-resume"></p>
+            <div class="table-wrapper">
+              <table id="compta-table">
+                <thead><tr><th>Technicien</th><th>Compte auxiliaire</th><th>Validés</th><th>À traiter</th><th>Refusés</th><th>À exporter</th><th>Déjà exportés</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3>Exports déjà faits</h3>
+            <div class="table-wrapper">
+              <table id="compta-exports">
+                <thead><tr><th>Exporté le</th><th>Technicien</th><th>Période</th><th>Frais</th><th>Remboursé</th><th>Fichiers</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <details class="ajout" id="compta-params">
+              <summary>Comptes utilisés (plan comptable général)</summary>
+              <form id="compta-params-form">
+                <p class="aide">Proposés d'après le plan comptable général (ANC, règlement 2014-03) : à faire valider par le comptable. Changer un compte retire la validation. La TVA n'est récupérée que si la gestion coche « TVA récupérable » sur un frais (facture au nom de l'entreprise).</p>
+                <div class="field"><label for="cp-journal">Code journal</label><input id="cp-journal" required maxlength="10"></div>
+                <div class="field"><label for="cp-journal-lib">Nom du journal</label><input id="cp-journal-lib" required maxlength="60"></div>
+                <div class="field"><label for="cp-tva">TVA déductible</label><input id="cp-tva" required maxlength="20"></div>
+                <div class="field"><label for="cp-salarie">Salarié (note de frais due)</label><input id="cp-salarie" required maxlength="20"></div>
+                <div class="field"><label for="cp-parking">Charge PARKING</label><input id="cp-parking" required maxlength="20"></div>
+                <div class="field"><label for="cp-divers">Charge DIVERS</label><input id="cp-divers" required maxlength="20"></div>
+                <div class="field"><label for="cp-mobile">Charge MOBILE</label><input id="cp-mobile" required maxlength="20"></div>
+                <button type="submit">Enregistrer</button>
+                <button type="button" id="cp-valider" class="secondary">Valider (comptable)</button>
+              </form>
+            </details>
           </div>
         </div>
 

@@ -179,3 +179,13 @@ une donnée hors délai n'est pas réimportée par le pont ; les fichiers ne son
 - Accès super admin aux données d'une société : à prévoir au contrat (assistance), il est déjà tracé au journal.
 - Désignation du conducteur (amendes) : obligation légale pour l'employeur (Code de la route L121-6, À VÉRIFIER).
 - Valider l'ensemble avec un juriste ou un DPO : je m'appuie sur les textes officiels, pas sur un avis juridique.
+
+## Comptabilité : extrait des notes de frais par technicien (18/11/2026)
+
+Décisions de Cédric : relevé + écritures ; chaque frais validé un par un avant de partir.
+- **Validation** (fiche technicien › Frais) : À traiter / Validé / Refusé (motif obligatoire), signée par la base. Un frais validé ne change plus de montant ; un frais exporté est figé. La paie ne rembourse que les frais validés.
+- **TVA** : récupérée seulement si la gestion coche « TVA récupérable » (facture au nom de l'entreprise : CGI art. 271 et 289, BOI-TVA-DED-40-10-10). Non cochée par défaut. Mobile remboursé en partie : TVA au prorata du remboursé.
+- **Comptes** (onglet Compta, réglables par société, validés par le comptable avant tout export) : 6251 Voyages et déplacements (PARKING), 628 Divers (DIVERS), 626 Frais postaux et de télécommunications (MOBILE), 44566 TVA sur autres biens et services, 421 Personnel - Rémunérations dues, avec le compte auxiliaire du salarié. Intitulés vérifiés dans le plan de comptes PCG 2025 de l'ANC. **Le choix des comptes reste à valider par le comptable.**
+- **Fichiers** : relevé (une ligne par frais, contrôles : justificatif absent, montant nul, doublon possible) et écritures aux colonnes du FEC (LPF art. A47 A-1), séparateur « ; », virgule décimale. Ce n'est pas le FEC de l'entreprise (produit par le logiciel comptable), c'est un fichier d'import.
+- Testé : `test/compta.test.js`, `test/compta-base.test.js` ; parcours vérifié dans le navigateur sur la base locale (données fictives).
+- **À VÉRIFIER avec le comptable** : format d'import de son logiciel (colonnes, séparateur, encodage) ; comptes ; numéro de compte auxiliaire de chaque technicien.

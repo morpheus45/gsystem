@@ -35,6 +35,13 @@ export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = []
   return validations ? { ...r, supRefusees, semainesATraiter } : r;
 }
 
+// Texte : guillemets si ; " ou saut de ligne ; une formule (= + - @) est neutralisée.
+export function texteCsv(v) {
+  let t = String(v ?? '');
+  if (/^[=+\-@]/.test(t)) t = `'${t}`;
+  return /[;"\n\r]|^'/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+}
+
 export function versCsv(lignes) {
   if (!lignes || !lignes.length) return '';
   const header = Object.keys(lignes[0]).join(';');
@@ -48,10 +55,7 @@ export function versCsv(lignes) {
       if (typeof v === 'boolean') {
         return v ? 'oui' : 'non';
       }
-      // Texte : guillemets si ; " ou saut de ligne ; une formule (= + - @) est neutralisée.
-      let t = String(v ?? '');
-      if (/^[=+\-@]/.test(t)) t = `'${t}`;
-      return /[;"\n\r]|^'/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+      return texteCsv(v);
     });
     return values.join(';') + '\n';
   });
