@@ -5,6 +5,7 @@ import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
 import { repartition } from '../core/stats.js';
+import { primesDuMois, moisDesPrimes } from '../core/primes.js';
 import { variablesPaie, versCsv } from '../core/paie.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
@@ -951,7 +952,7 @@ async function chargerFicheTechnicien(t) {
   try {
     $('#tech-info').textContent = "Données envoyées par l'APK, mises à jour automatiquement toutes les heures.";
     const lire = async (requete) => { const { data, error, count } = await requete; if (error) throw error; return count ?? data; };
-    const [aff, interventions, frais, photos, regles, validations, listePhotos] = await Promise.all([
+    const [aff, interventions, frais, photos, regles, validations, listePhotos, gestes, tarifs] = await Promise.all([
       lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
       lire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
       lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations, fichier').eq('technicien_id', t.id).order('date')),
@@ -959,13 +960,15 @@ async function chargerFicheTechnicien(t) {
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
       lire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
       lire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
+      lire(sb.from('gestes_co').select('date, installes').eq('technicien_id', t.id)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('technicien_id', t.id)),
     ]);
     const v = aff[0];
     const plaque = v && (Array.isArray(v.vehicules) ? v.vehicules[0]?.plaque : v.vehicules?.plaque);
     $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
     fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
       validations: new Map(validations.map((x) => [x.semaine, x.valide ? 'validee' : x.refusee ? 'refusee' : 'a_traiter'])),
-      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos };
+      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos, gestes, baremes: baremes(tarifs) };
     const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
     $('#tech-mois').replaceChildren(...mois.map((m) => {
       const o = document.createElement('option');
@@ -993,7 +996,9 @@ function afficherMoisFiche() {
   const totalHeures = jours.reduce((s, [, h]) => s + h, 0);
   const totaux = totauxFrais(fraisMois.map(versFrais));
   const nr = duMois.filter((e) => e.observation_type).length;
-  $('#tech-resume').textContent = `${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais remboursables : ${euros(totaux.remboursable)} — Photos (total) : ${fiche.photos}`;
+  const primes = primesDuMois(fiche.gestes, fiche.interventions.map(versHeures), fiche.baremes, m);
+  afficherPrimes(primes, m);
+  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais remboursables : ${euros(totaux.remboursable)} — Photos (total) : ${fiche.photos}`;
 
   const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
   $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
@@ -1182,9 +1187,18 @@ async function chargerPaie() {
     ]);
     const r = reglesDe(regles[0] || {});
     const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
+    // Primes versées avec cette paie : celles du mois - 2 (règle de l'APK).
+    const mp = moisDesPrimes(fin), finMp = decaler(plusMois(mp, 1) + '-01', -1);
+    const [gestes, tarifs, jours] = await Promise.all([
+      lire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
+      lire(sb.from('temps').select('technicien_id, date, type_mission').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+    ]);
+    $('#paie-primes-info').textContent = `Primes : celles de ${libelleMois(mp)}, versées avec cette paie.`;
     lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
       v: variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures),
-        frais: de(frais, t).map((f) => ({ date: f.date, ...versFrais(f) })), primes: 0, regles: r, validations: de(validations, t) }),
+        frais: de(frais, t).map((f) => ({ date: f.date, ...versFrais(f) })),
+        primes: primesDuMois(de(gestes, t), de(jours, t).map(versHeures), baremes(de(tarifs, t)), mp).total, regles: r, validations: de(validations, t) }),
       conges: de(conges, t).length }));
     afficherPaie();
   } catch (err) {
@@ -1198,9 +1212,9 @@ function afficherPaie() {
   $('#paie-table tbody').replaceChildren(...lignesPaie.map(({ t, v, conges }) => {
     const reste = [v.semainesATraiter && `${v.semainesATraiter} semaine(s) d'heures sup`, conges && `${conges} congé(s) en attente`].filter(Boolean);
     if (reste.length) aTraiter++;
-    const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables),
+    const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables), euros(v.primes),
       h(v.supRefusees), reste.join(', ') || '—', reste.length ? 'À traiter' : 'Prêt']);
-    tr.children[8].className = reste.length ? 'alerte-proche' : 'etat-pret';
+    tr.children[9].className = reste.length ? 'alerte-proche' : 'etat-pret';
     tr.classList.add('ligne-cliquable');
     const fleche = tr.appendChild(document.createElement('td'));
     fleche.className = 'fleche';
@@ -1211,7 +1225,7 @@ function afficherPaie() {
   }));
   const somme = (k) => lignesPaie.reduce((s, l) => s + l.v[k], 0);
   $('#paie-resume').textContent = `${lignesPaie.length} technicien(s) — ${aTraiter} à traiter — ${lignesPaie.length - aTraiter} prêt(s)`;
-  $('#paie-totaux').textContent = `Totaux : ${h(somme('heuresNormales'))} normales, ${h(somme('sup1'))} + ${h(somme('sup2'))} sup validées, ${euros(somme('fraisRemboursables'))} de frais.`;
+  $('#paie-totaux').textContent = `Totaux : ${h(somme('heuresNormales'))} normales, ${h(somme('sup1'))} + ${h(somme('sup2'))} sup validées, ${euros(somme('fraisRemboursables'))} de frais, ${euros(somme('primes'))} de primes.`;
 }
 
 $('#paie-export').addEventListener('click', () => {
@@ -1280,6 +1294,19 @@ $('#conge-form').addEventListener('submit', async (e) => {
   await chargerConges();
   compterCongesAValider();
 });
+
+// Barèmes des réglages APK (lignes primes_tarifs) -> même forme que reglages.json.
+function baremes(lignes) {
+  return { prices: lignes.find((l) => l.mois === 'courant')?.prix,
+    primeTarifsParMois: Object.fromEntries(lignes.filter((l) => l.mois !== 'courant').map((l) => [l.mois, l.prix])) };
+}
+const libelleMois = (m) => `${m.slice(5)}/${m.slice(0, 4)}`;
+const plusMois = (m, n) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 7);
+
+function afficherPrimes(primes, m) {
+  $('#tech-primes-info').textContent = `Prime de ${libelleMois(m)} : ${euros(primes.total)} — versée sur le salaire de ${libelleMois(plusMois(m, 2))}.`;
+  $('#tech-primes-table tbody').replaceChildren(...primes.detail.map((d) => ligne([d.type, d.qte, euros(d.montant)])));
+}
 
 // Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
 async function validerHeuresSup(s, choix) {

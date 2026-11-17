@@ -397,6 +397,7 @@
               <button data-cible="tech-section-heures">Heures</button>
               <button data-cible="tech-section-frais">Frais</button>
               <button data-cible="tech-section-photos">Photos</button>
+              <button data-cible="tech-section-primes">Primes</button>
             </div>
 
             <div id="tech-section-interventions" class="section sous-section">
@@ -451,6 +452,13 @@
             <div id="tech-section-photos" class="section sous-section hidden">
               <p id="tech-photos-info" class="aide"></p>
               <div id="tech-photos" class="galerie"></div>
+            </div>
+            <div id="tech-section-primes" class="section sous-section hidden">
+              <p id="tech-primes-info" class="aide"></p>
+              <div class="table-wrapper">
+                <table id="tech-primes-table"><thead><tr><th>Équipement installé</th><th>Quantité</th><th>Montant</th></tr></thead><tbody></tbody></table>
+              </div>
+              <p class="aide">Règle de l'APK : équipements installés × barème du mois ; une caméra ne compte que les jours avec une installation (INST).</p>
             </div>
           </div>
         </div>
@@ -727,10 +735,10 @@
               <button id="paie-export" type="button">Exporter pour la paie (CSV)</button>
             </div>
             <p id="paie-resume" class="carte-resume"></p>
-            <p class="aide">Seules les heures sup « Validées » sont exportées ; les primes seront ajoutées plus tard. Cliquez sur un technicien pour traiter ses semaines.</p>
+            <p class="aide">Seules les heures sup « Validées » sont exportées. <span id="paie-primes-info"></span> Cliquez sur un technicien pour traiter ses semaines.</p>
             <div class="table-wrapper">
               <table id="paie-table">
-                <thead><tr><th>Technicien</th><th>Heures normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Absences</th><th>Frais remboursables</th><th>Sup. refusées</th><th>À traiter</th><th>État</th><th></th></tr></thead>
+                <thead><tr><th>Technicien</th><th>Heures normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Absences</th><th>Frais remboursables</th><th>Primes</th><th>Sup. refusées</th><th>À traiter</th><th>État</th><th></th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
