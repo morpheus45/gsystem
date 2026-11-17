@@ -139,12 +139,27 @@
     .societe-name { font-weight: 500; }
     .societe-id { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
     .hidden { display: none !important; }
+    .lecture-seule td button { display: none; }
     .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    /* Champs côte à côte : ils passent à la ligne au lieu de déborder (téléphone). */
+    .flex > .field { flex: 1 1 140px; min-width: 0; }
+    .field input, .field select { width: 100%; box-sizing: border-box; }
     .flex-center { justify-content: center; }
     .link { color: var(--accent); text-decoration: none; cursor: pointer; }
     @media (hover: hover) and (pointer: fine) {
       .link:hover { text-decoration: underline; }
     }
+    .table-wrapper { overflow-x: auto; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { background: transparent; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; padding: 8px 14px; }
+    @media (hover: hover) and (pointer: fine) {
+      .tab:hover { background: var(--bg); }
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel:not(.hidden) { display: block; }
+    .alerte-depassee { color: #dc2626; font-weight: 600; }
+    .alerte-proche { color: #d97706; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -219,8 +234,17 @@
 
       <section id="societe-detail" class="section hidden">
         <h3 id="societe-detail-title">Société sélectionnée</h3>
-        <div class="section">
-          <h3>Membres</h3>
+        <!-- Onglets -->
+        <div class="tabs" role="tablist">
+          <button class="tab active" role="tab" data-tab="membres" aria-selected="true">Membres</button>
+          <button class="tab" role="tab" data-tab="techniciens" aria-selected="false">Techniciens</button>
+          <button class="tab" role="tab" data-tab="vehicules" aria-selected="false">Véhicules</button>
+        </div>
+
+        <!-- Panneau Membres -->
+        <div id="panel-membres" class="tab-panel">
+          <div class="section">
+            <h3>Membres</h3>
           <table id="membres-table">
             <thead>
               <tr><th>Email</th><th>Rôle</th><th>Vous</th></tr>
@@ -254,6 +278,183 @@
             </div>
             <button type="submit">Inviter</button>
           </form>
+        </div>
+        </div>
+        <!-- Panneau Techniciens -->
+        <div id="panel-techniciens" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <h3>Techniciens</h3>
+            <div class="table-wrapper">
+              <table id="techniciens-table">
+                <thead>
+                  <tr><th>Nom</th><th>Actif</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <form id="technicien-form" class="section">
+            <h3>Ajouter un technicien</h3>
+            <div class="field">
+              <label for="tech-nom">Nom</label>
+              <input type="text" id="tech-nom" name="nom" required maxlength="120">
+            </div>
+            <button type="submit">Ajouter</button>
+          </form>
+        </div>
+        <!-- Panneau Véhicules -->
+        <div id="panel-vehicules" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <h3>Véhicules</h3>
+            <div class="table-wrapper">
+              <table id="vehicules-table">
+                <thead>
+                  <tr><th>Plaque</th><th>Libellé</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <form id="vehicule-form" class="section">
+            <h3>Ajouter un véhicule</h3>
+            <div class="field">
+              <label for="veh-plaque">Plaque</label>
+              <input type="text" id="veh-plaque" name="plaque" required maxlength="20">
+            </div>
+            <div class="field">
+              <label for="veh-libelle">Libellé</label>
+              <input type="text" id="veh-libelle" name="libelle" maxlength="120">
+            </div>
+            <button type="submit">Ajouter</button>
+          </form>
+        </div>
+        <!-- Panneau détail véhicule -->
+        <div id="vehicule-detail" class="section hidden">
+          <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 id="vehicule-detail-title">Véhicule</h3>
+            <button id="vehicule-detail-close" class="secondary">Fermer</button>
+          </div>
+
+          <!-- 1. Affectations -->
+          <div class="section">
+            <h3>Affectations</h3>
+            <div class="table-wrapper">
+              <table id="affectations-table">
+                <thead>
+                  <tr><th>Technicien</th><th>Début</th><th>Fin</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <form id="affectation-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div class="field" style="flex:1;min-width:180px;">
+                <label for="aff-tech">Technicien</label>
+                <select id="aff-tech" name="technicien_id" required></select>
+              </div>
+              <div class="field">
+                <label for="aff-debut">Début</label>
+                <input type="date" id="aff-debut" name="debut" required>
+              </div>
+              <button type="submit">Affecter</button>
+            </form>
+          </div>
+
+          <!-- 2. Kilométrage -->
+          <div class="section">
+            <h3>Kilométrage</h3>
+            <div class="table-wrapper">
+              <table id="releves-table">
+                <thead>
+                  <tr><th>Date</th><th>Km</th><th>Source</th><th>Validé</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p id="km-moyen" style="margin:8px 0;font-size:0.9rem;color:var(--muted);"></p>
+            <form id="releve-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div class="field">
+                <label for="rel-date">Date</label>
+                <input type="date" id="rel-date" name="date" required>
+              </div>
+              <div class="field">
+                <label for="rel-km">Km</label>
+                <input type="number" id="rel-km" name="km" min="0" required>
+              </div>
+              <button type="submit">Ajouter</button>
+            </form>
+          </div>
+
+          <!-- 3. Échéances -->
+          <div class="section">
+            <h3>Échéances</h3>
+            <div class="table-wrapper">
+              <table id="echeances-table">
+                <thead>
+                  <tr><th>Type</th><th>Date</th><th>Km</th><th>Alerte</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <form id="echeance-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div class="field" style="flex:1;min-width:160px;">
+                <label for="ech-type">Type</label>
+                <select id="ech-type" name="type" required>
+                  <option value="CT">Contrôle technique</option>
+                  <option value="ASSURANCE">Assurance</option>
+                  <option value="REVISION">Révision</option>
+                  <option value="PNEUS">Pneus</option>
+                  <option value="SINISTRE">Sinistre</option>
+                  <option value="AUTRE">Autre</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="ech-date">Date (facultatif)</label>
+                <input type="date" id="ech-date" name="date">
+              </div>
+              <div class="field">
+                <label for="ech-km">Km (facultatif)</label>
+                <input type="number" id="ech-km" name="km" min="0">
+              </div>
+              <button type="submit">Ajouter</button>
+            </form>
+            <p id="ct-aide" style="margin-top:8px;font-size:0.8rem;color:var(--muted);"></p>
+          </div>
+
+          <!-- 4. Entretiens -->
+          <div class="section">
+            <h3>Entretiens</h3>
+            <div class="table-wrapper">
+              <table id="entretiens-table">
+                <thead>
+                  <tr><th>Date</th><th>Type</th><th>Km</th><th>Garage</th><th>Coût</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <form id="entretien-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div class="field">
+                <label for="ent-date">Date</label>
+                <input type="date" id="ent-date" name="date" required>
+              </div>
+              <div class="field" style="flex:1;min-width:140px;">
+                <label for="ent-type">Type</label>
+                <input type="text" id="ent-type" name="type" required maxlength="80">
+              </div>
+              <div class="field">
+                <label for="ent-km">Km</label>
+                <input type="number" id="ent-km" name="km" min="0">
+              </div>
+              <div class="field" style="flex:1;min-width:140px;">
+                <label for="ent-garage">Garage</label>
+                <input type="text" id="ent-garage" name="garage" maxlength="120">
+              </div>
+              <div class="field">
+                <label for="ent-cout">Coût</label>
+                <input type="text" id="ent-cout" name="cout" placeholder="12,50">
+              </div>
+              <button type="submit">Ajouter</button>
+            </form>
+          </div>
         </div>
       </section>
     </section>
