@@ -13,7 +13,7 @@ Rien ici ne touche l'APK, `apps-script/` ni `docs/`.
 | Véhicules | Révisions et entretiens, contrôle technique, assurance, pneus et sinistres. |
 | Photos | Compteur mensuel (déjà envoyé par l'APK) **+ photos d'état** ajoutées depuis le back-office. Fréquence réglable par société. |
 | Heures sup | Repères légaux par défaut, **à valider par le comptable** avant tout usage. |
-| Hébergement | **Supabase** (accord donné le 17/11/2026). Rien n'est encore créé : formule (Pro, environ 25 $/mois) et région (Paris `eu-west-3` recommandée) à confirmer avant la création du projet. Tout est testé en local en attendant. |
+| Hébergement | **Supabase**. Pour l'instant **en local sur ce poste** (développement, données fictives, accès réservé au poste) ; projet en ligne « pas encore » (17/11/2026). Ne jamais ouvrir la base locale vers l'extérieur. |
 
 ## Ce qu'on réutilise
 
@@ -41,12 +41,13 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 - **But** : figer ce qui ne se devine pas.
 - **Reste à décider** : voir « Questions ouvertes ».
 
-### Phase 1 — Socle multi-société sécurisé · L
+### Phase 1 — Socle multi-société sécurisé · L · **faite en local (17/11/2026)**
 - **But** : sociétés, comptes, rôles, RLS, journal d'audit.
-- **Livrables** : `supabase/migrations/20261117000001_socle.sql` (fait, squelette), écran de connexion, invitation d'un membre par un admin, création d'une société par le serveur seulement.
+- **Livrables (faits)** : migrations `…_socle.sql` et `…_invitations.sql` ; écran `web/` (connexion email + mot de passe, sociétés, membres, invitations). Décisions du 17/11/2026 : **seul l'opérateur (toi) crée une société** ; connexion **email + mot de passe** ; **page web simple**.
+- **Reste** : envoi automatique des emails d'invitation (aujourd'hui l'invitation est enregistrée, il faut prévenir la personne) ; changement de rôle d'un membre depuis l'écran ; libellés des rôles en clair.
 - **Rôles** : `admin` (tout, y compris membres et règles), `gestion` (données du quotidien), `comptable` (lecture + paie + factures), `lecture`.
-- **Critères d'acceptation** (déjà testés dans `test/rls.test.js`) : la société A ne lit ni n'écrit rien de B, sur toutes les tables ; un visiteur non connecté ne voit rien ; chaque écriture est journalisée ; le journal ne s'efface pas.
-- **Dépendances** : création du projet Supabase (accord sur la formule et la région).
+- **Critères d'acceptation** (testés dans `test/rls.test.js` et `test/invitations.test.js`, parcours vérifié dans un navigateur) : seul un opérateur crée une société et il n'en voit pas les données ; une invitation n'est prise qu'avec l'email confirmé ; la société A ne lit ni n'écrit rien de B, sur toutes les tables ; un visiteur non connecté ne voit rien ; chaque écriture est journalisée ; le journal ne s'efface pas.
+- **Dépendances** : pour la mise en ligne, création du projet Supabase (accord sur la formule et la région).
 - **Risques** : une seule policy oubliée suffit à exposer un client. Parade : le test « RLS activée sur toutes les tables » échoue dès qu'une table l'oublie.
 
 ### Phase 2 — Heures et heures sup · M
