@@ -1106,7 +1106,10 @@ function camembert(titre, lignes) {
     const fin = angle + Math.min(l.part, 0.9999) * 2 * Math.PI;   // 100 % : presque un tour (un arc ne peut pas boucler)
     const grand = fin - angle > Math.PI ? 1 : 0;
     const path = svg.appendChild(document.createElementNS(NS, 'path'));
-    path.setAttribute('d', `M ${point(70, angle)} A 70 70 0 ${grand} 1 ${point(70, fin)} L ${point(44, fin)} A 44 44 0 ${grand} 0 ${point(44, angle)} Z`);
+    path.setAttribute('d', l.part >= 1   // une seule part : anneau complet (deux demi-cercles, sans fente)
+      ? `M 80 10 A 70 70 0 1 1 80 150 A 70 70 0 1 1 80 10 Z M 80 36 A 44 44 0 1 0 80 124 A 44 44 0 1 0 80 36 Z`
+      : `M ${point(70, angle)} A 70 70 0 ${grand} 1 ${point(70, fin)} L ${point(44, fin)} A 44 44 0 ${grand} 0 ${point(44, angle)} Z`);
+    if (l.part >= 1) path.setAttribute('fill-rule', 'evenodd');
     path.setAttribute('fill', couleur(l, i));
     path.setAttribute('stroke', 'var(--card)');
     path.setAttribute('stroke-width', '2');
@@ -1176,7 +1179,7 @@ async function chargerPaie() {
     const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
     lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
       v: variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures),
-        frais: de(frais, t).map(versFrais), primes: 0, regles: r, validations: de(validations, t) }),
+        frais: de(frais, t).map((f) => ({ date: f.date, ...versFrais(f) })), primes: 0, regles: r, validations: de(validations, t) }),
       conges: de(conges, t).length }));
     afficherPaie();
   } catch (err) {
