@@ -74,18 +74,25 @@ function copierPhotos(cle, technicienId, dossier, photos, dejaCopiees, bilan) {
     if (dejaCopiees.has(p.cle_source) || bilan.photos >= MAX_PHOTOS) continue;
     const f = dossier.getFilesByName(p.nom_drive);
     if (!f.hasNext()) { bilan.photosIntrouvables++; continue; }
-    const blob = f.next().getBlob();
-    const chemin = [SOCIETE_ID, 'apk', technicienId, dossier.getName(), p.nom_drive].join('/');
-    const rep = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/photos/' + chemin.split('/').map(encodeURIComponent).join('/'), {
-      method: 'post', contentType: blob.getContentType() || 'image/jpeg', payload: blob.getBytes(),
-      headers: { apikey: cle, 'x-upsert': 'true' }, muteHttpExceptions: true,
-    });
-    if (rep.getResponseCode() >= 300) throw new Error('photo ' + p.nom_drive + ' : ' + rep.getResponseCode() + ' ' + rep.getContentText().slice(0, 200));
-    appel(cle, 'patch', 'photos_apk?societe_id=eq.' + SOCIETE_ID + '&cle_source=eq.' + encodeURIComponent(p.cle_source),
-      { stockage: chemin }, 'return=minimal');
-    dejaCopiees.add(p.cle_source);
-    bilan.photos++;
+    try {   // une photo refusée ne bloque pas les suivantes
+      copierUnePhoto(cle, technicienId, dossier, p, f.next().getBlob());
+      dejaCopiees.add(p.cle_source);
+      bilan.photos++;
+    } catch (e) {
+      bilan.erreurs.push(p.nom_drive + ' : ' + e.message);
+    }
   }
+}
+
+function copierUnePhoto(cle, technicienId, dossier, p, blob) {
+  const chemin = [SOCIETE_ID, 'apk', technicienId, dossier.getName(), p.nom_drive].join('/');
+  const rep = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/photos/' + chemin.split('/').map(encodeURIComponent).join('/'), {
+    method: 'post', contentType: blob.getContentType() || 'image/jpeg', payload: blob.getBytes(),
+    headers: { apikey: cle, 'x-upsert': 'true' }, muteHttpExceptions: true,
+  });
+  if (rep.getResponseCode() >= 300) throw new Error('photo ' + p.nom_drive + ' : ' + rep.getResponseCode() + ' ' + rep.getContentText().slice(0, 200));
+  appel(cle, 'patch', 'photos_apk?societe_id=eq.' + SOCIETE_ID + '&cle_source=eq.' + encodeURIComponent(p.cle_source),
+    { stockage: chemin }, 'return=minimal');
 }
 
 // Id du technicien (créé au premier import ; un nom changé au bureau est gardé).

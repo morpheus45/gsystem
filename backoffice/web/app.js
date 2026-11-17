@@ -1076,10 +1076,15 @@ async function afficherGalerie(m) {
     b.setAttribute('aria-label', `Ouvrir la photo ${copiees[i].nom_drive}`);
     const fig = b.appendChild(document.createElement('figure'));
     fig.style.margin = '0';
-    const img = fig.appendChild(document.createElement('img'));
-    img.src = d.signedUrl;
-    img.alt = copiees[i].nom_drive;
-    img.loading = 'lazy';
+    if (/\.pdf$/i.test(copiees[i].stockage)) {   // justificatif PDF : vignette texte, ouvert d'un clic
+      fig.appendChild(document.createElement('div')).className = 'vignette-pdf';
+      fig.firstChild.textContent = 'PDF';
+    } else {
+      const img = fig.appendChild(document.createElement('img'));
+      img.src = d.signedUrl;
+      img.alt = copiees[i].nom_drive;
+      img.loading = 'lazy';
+    }
     fig.appendChild(document.createElement('figcaption')).textContent = copiees[i].nom_drive;
     b.addEventListener('click', () => window.open(d.signedUrl, '_blank', 'noopener'));
     return b;
