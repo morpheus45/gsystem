@@ -108,12 +108,12 @@ function plaqueLogo(logo, alt) {
   return plaque;
 }
 
-// En-tête : logo et nom de la société ouverte (« Back-office Société A »), sinon « Back-office ».
+// En-tête de la société ouverte : « logo + Back-office » si elle a un logo (il dit déjà son nom),
+// sinon « Back-office Société C ». Hors société : « Back-office ».
 function afficherMarque() {
   const s = societes.find((x) => x.id === selectedSociete);
-  const titre = s ? `Back-office ${s.nom}` : 'Back-office';
-  $('#marque-titre').textContent = titre;
-  document.title = titre;
+  $('#marque-titre').textContent = s && !s.logo ? `Back-office ${s.nom}` : 'Back-office';
+  document.title = s ? `Back-office ${s.nom}` : 'Back-office';
   $('#marque-plaque').classList.toggle('hidden', !s?.logo);
   if (s?.logo) { $('#marque-logo').src = s.logo; $('#marque-logo').alt = `Logo ${s.nom}`; }
 }
@@ -316,10 +316,11 @@ function renderSocietes() {
     const li = document.createElement('li');
     li.className = 'societe-item';
     if (selectedSociete === s.id) li.classList.add('selected');
-    if (s.logo) li.appendChild(plaqueLogo(s.logo, `Logo ${s.nom}`));
+    // Avec un logo, la carte n'affiche que lui (le nom reste lu par les lecteurs d'écran).
+    if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));
     const nom = li.appendChild(document.createElement('div'));
     nom.textContent = s.nom;
-    nom.className = 'societe-name';
+    nom.className = s.logo ? 'societe-name sr-only' : 'societe-name';
     li.addEventListener('click', () => selectSociete(s.id));
     ul.appendChild(li);
     tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
