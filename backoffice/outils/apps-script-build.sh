@@ -25,25 +25,6 @@ function doGet() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 J
-# La page : le script module est inclus dans le HTML, la configuration en dur.
-python3 - "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" <<'P'
-import sys
-url, cle = sys.argv[1], sys.argv[2]
-js = open('web/app.js').read().replace(
-    "import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';",
-    f'const SUPABASE_URL = "{url}";\nconst SUPABASE_CLE_PUBLIQUE = "{cle}";')
-# core/vehicules.js est inclus tel quel (sans les « export ») à la place de son import.
-import re
-imp = re.search(r"^import \{[^}]*\} from '\.\./core/vehicules\.js';$", js, re.M)
-if imp:
-    core = re.sub(r'^export ', '', open('core/vehicules.js').read(), flags=re.M)
-    js = js.replace(imp.group(0), core)
-assert 'config.js' not in js and '../core/' not in js
-html = open('web/index.html').read()
-balise = '<script type="module" src="app.js"></script>'
-assert balise in html, 'balise script introuvable'
-html = html.replace(balise, '<script type="module">\n' + js + '\n</script>')
-html = html.replace('Base locale de développement — données fictives', 'Version de test — données fictives')
-open('apps-script-test/index.html', 'w').write(html)
-P
+# La page : un seul fichier HTML, avec tous les calculs testés inclus (outils/assembler.py).
+python3 outils/assembler.py "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" "$D" "Version de test — données fictives"
 echo "Construit dans $D/"

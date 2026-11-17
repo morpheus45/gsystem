@@ -51,7 +51,7 @@ docker network create -o 'com.docker.network.bridge.host_binding_ipv4=127.0.0.1'
 npm run web
 ```
 
-Ouvre http://127.0.0.1:5180/web/ (ce poste seulement). Supabase local doit tourner.
+Ouvre http://127.0.0.1:5180 (ce poste seulement). Supabase local doit tourner.
 
 1. Créer son compte sur l'écran, puis cliquer le lien de confirmation reçu dans la boîte de test locale : http://127.0.0.1:54324 (Mailpit, aucun vrai email ne part).
 2. Devenir opérateur (une fois, jamais depuis l'écran) :
