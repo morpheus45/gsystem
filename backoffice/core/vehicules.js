@@ -58,3 +58,35 @@ export function alertes(echeances, { aujourdhui, kmActuel, joursAvant, kmAvant }
   }
   return result;
 }
+
+// Km mois par mois : dernier relevé VALIDÉ de chaque mois, et l'écart avec le
+// mois précédent qui a un relevé (null pour le premier).
+export function kmParMois(releves) {
+  const fin = new Map();
+  for (const r of releves.filter((x) => x.valide_par).sort((a, b) => (a.date < b.date ? -1 : 1))) {
+    fin.set(r.date.slice(0, 7), Number(r.km));
+  }
+  let avant = null;
+  return [...fin].map(([mois, kmFin]) => {
+    const ligne = { mois, kmFin, parcourus: avant === null ? null : kmFin - avant };
+    avant = kmFin;
+    return ligne;
+  });
+}
+
+// Qui avait le véhicule ce jour-là ? (fin vide = toujours en cours ; la plus récente gagne)
+export function conducteurA(affectations, date) {
+  const en = affectations.filter((a) => a.debut <= date && (!a.fin || a.fin >= date));
+  en.sort((a, b) => (a.debut < b.debut ? 1 : -1));
+  return en[0]?.technicien_id ?? null;
+}
+
+// ANTAI : 45 jours à compter de la date de l'avis pour désigner le conducteur.
+// https://www.antai.gouv.fr/la-reglementation
+export const ANTAI = {
+  designation: 'https://www.antai.gouv.fr/designations',
+  contestation: 'https://www.antai.gouv.fr/particulier/designation-ou-contestation',
+  delaiJours: 45,
+};
+export const limiteDesignation = (dateAvis) =>
+  new Date(Date.parse(`${dateAvis}T00:00:00Z`) + ANTAI.delaiJours * 86400000).toISOString().slice(0, 10);

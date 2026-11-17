@@ -68,3 +68,34 @@ test('échéance en km sans kilométrage connu : signalée, pas ignorée', () =>
 test('sans entretien précédent : erreur claire, pas de plantage', () => {
   assert.throws(() => prochaineEcheance({ tousLesKm: 15000 }, null), /date et le km de départ/);
 });
+
+import { kmParMois, conducteurA, limiteDesignation } from '../core/vehicules.js';
+
+test('km mois par mois : dernier relevé validé de chaque mois, écart avec le mois précédent', () => {
+  const releves = [
+    { date: '2026-08-03', km: 10000, valide_par: 'u' }, { date: '2026-08-28', km: 11200, valide_par: 'u' },
+    { date: '2026-09-15', km: 99999 },                     // non validé : ignoré
+    { date: '2026-10-30', km: 13000, valide_par: 'u' },   // septembre sans relevé validé
+  ];
+  assert.deepEqual(kmParMois(releves), [
+    { mois: '2026-08', kmFin: 11200, parcourus: null },
+    { mois: '2026-10', kmFin: 13000, parcourus: 1800 },
+  ]);
+});
+
+test('conducteur à une date : affectation en cours ce jour-là, la plus récente si chevauchement', () => {
+  const aff = [
+    { technicien_id: 'A', debut: '2026-01-01', fin: '2026-06-30' },
+    { technicien_id: 'B', debut: '2026-07-01', fin: null },
+    { technicien_id: 'C', debut: '2026-09-01', fin: '2026-09-10' },
+  ];
+  assert.equal(conducteurA(aff, '2026-03-15'), 'A');
+  assert.equal(conducteurA(aff, '2026-06-30'), 'A');
+  assert.equal(conducteurA(aff, '2026-08-01'), 'B');
+  assert.equal(conducteurA(aff, '2026-09-05'), 'C');
+  assert.equal(conducteurA(aff, '2025-12-31'), null);
+});
+
+test('désignation du conducteur : 45 jours après la date de l\'avis (ANTAI)', () => {
+  assert.equal(limiteDesignation('2026-11-01'), '2026-12-16');
+});

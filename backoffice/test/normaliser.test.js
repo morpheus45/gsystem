@@ -73,3 +73,28 @@ test('fichier vide ou entrée sans id : erreur claire, rien d\'importé en silen
   assert.throws(() => normaliser(null, opts), /invalide/);
   assert.throws(() => normaliser({ entries: { temps: [{ date: '2026-01-01' }] } }, opts), /sans id/);
 });
+
+import { vehiculeDepuisApk, planAffectation } from '../pont/normaliser.js';
+
+test('APK : plaque des réglages + photos du compteur rangées par mois', () => {
+  const photos = { 'c1.jpg': 'ZZ-999-ZZ-11-2026.jpg', 'c2.jpg': 'ZZ-999-ZZ-10-2026-2.jpg',
+    'f1.jpg': 'FRAIS-PARKING.jpg', 'c3.jpg': 'AA-000-AA-09-2026.jpg' };
+  assert.deepEqual(vehiculeDepuisApk({ plaqueVoiture: ' zz-999-zz ' }, photos), {
+    plaque: 'ZZ-999-ZZ',
+    photosCompteur: [{ nom_drive: 'ZZ-999-ZZ-11-2026.jpg', periode: '2026-11' },
+      { nom_drive: 'ZZ-999-ZZ-10-2026-2.jpg', periode: '2026-10' }],
+  });
+  assert.deepEqual(vehiculeDepuisApk({ plaqueVoiture: '' }, photos), { plaque: null, photosCompteur: [] });
+  assert.deepEqual(vehiculeDepuisApk(null, photos), { plaque: null, photosCompteur: [] });
+});
+
+test('affectation depuis l\'APK : rien si déjà en cours, sinon on ferme l\'ancienne et on ouvre', () => {
+  assert.deepEqual(planAffectation([{ id: 'a1', vehicule_id: 'V1', debut: '2026-01-01' }], 'V1', '2026-11-17', '2026-05-25'),
+    { fermer: [], ouvrir: null });
+  assert.deepEqual(planAffectation([], 'V1', '2026-11-17', '2026-05-25'),
+    { fermer: [], ouvrir: { vehicule_id: 'V1', debut: '2026-05-25' } });
+  assert.deepEqual(planAffectation([{ id: 'a1', vehicule_id: 'V0', debut: '2026-01-01' }], 'V1', '2026-11-17', '2026-05-25'),
+    { fermer: [{ id: 'a1', fin: '2026-11-16' }], ouvrir: { vehicule_id: 'V1', debut: '2026-11-17' } });
+  assert.deepEqual(planAffectation([{ id: 'a1', vehicule_id: 'V0', debut: '2026-11-17' }], 'V1', '2026-11-17', null),
+    { fermer: [{ id: 'a1', fin: '2026-11-17' }], ouvrir: { vehicule_id: 'V1', debut: '2026-11-17' } });
+});

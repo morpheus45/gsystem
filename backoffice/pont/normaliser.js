@@ -52,3 +52,28 @@ export function normaliser(donnees, { societeId, technicienId } = {}) {
   return { temps: lignes('temps'), frais: lignes('frais'), compteur: lignes('compteur'), photos,
     clesInconnues: [...inconnues] };
 }
+
+// Véhicule du tech d'après l'APK : plaque des réglages (reglages.json) et photos
+// du compteur nommées <PLAQUE>-<MM>-<AAAA>[-n].jpg (PhotoStorage.kt:74-80).
+export function vehiculeDepuisApk(reglages, photos) {
+  const plaque = String(reglages?.plaqueVoiture ?? '').trim().toUpperCase() || null;
+  if (!plaque) return { plaque: null, photosCompteur: [] };
+  const motif = /^(.+)-(\d{2})-(\d{4})(?:-\d+)?\.jpg$/;
+  const photosCompteur = Object.values(photos ?? {}).flatMap((nom) => {
+    const m = motif.exec(nom);
+    return m && m[1].toUpperCase() === plaque ? [{ nom_drive: nom, periode: `${m[3]}-${m[2]}` }] : [];
+  });
+  return { plaque, photosCompteur };
+}
+
+// Affectation tech ↔ véhicule d'après l'APK. ouvertes = affectations en cours du tech.
+// Déjà sur ce véhicule : rien. Sinon : fermer les autres la veille (jamais avant leur
+// début) et ouvrir celle-ci, depuis la 1re donnée du tech si c'est sa première.
+export function planAffectation(ouvertes, vehiculeId, aujourdhui, premiereDate) {
+  if (ouvertes.some((a) => a.vehicule_id === vehiculeId)) return { fermer: [], ouvrir: null };
+  const veille = new Date(Date.parse(`${aujourdhui}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+  return {
+    fermer: ouvertes.map((a) => ({ id: a.id, fin: a.debut > veille ? a.debut : veille })),
+    ouvrir: { vehicule_id: vehiculeId, debut: ouvertes.length || !premiereDate ? aujourdhui : premiereDate },
+  };
+}
