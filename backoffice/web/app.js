@@ -36,6 +36,83 @@ function showScreen(id) {
   $(`#${id}`).classList.add('active');
 }
 
+function afficherSousOnglet(conteneur, cible) {
+  const section = $(`#${cible}`);
+  if (!section || !conteneur.contains(section)) return;
+  [...conteneur.querySelectorAll(':scope > .sous-section')].forEach(s => s.classList.toggle('hidden', s !== section));
+  conteneur.querySelectorAll(':scope > .sous-onglets button').forEach(b => b.classList.toggle('active', b.dataset.cible === cible));
+}
+
+function initialiserSousOnglets(conteneur) {
+  const premier = conteneur.querySelector(':scope > .sous-onglets button');
+  if (premier) afficherSousOnglet(conteneur, premier.dataset.cible);
+}
+
+function mettreAJourFil() {
+  // Dans une fiche, un seul retour : « ← Techniciens » / « ← Véhicules » (le fil d'Ariane fait le reste).
+  $('#retour-societes').classList.toggle('hidden', !!(vehiculeActif || ficheTechnicien));
+  const fil = $('#fil');
+  fil.replaceChildren();
+  const societesBtn = document.createElement('button');
+  societesBtn.type = 'button';
+  societesBtn.textContent = 'Sociétés';
+  societesBtn.addEventListener('click', retournerSocietes);
+  fil.appendChild(societesBtn);
+  if (!selectedSociete) { fil.style.display = 'none'; return; }
+  fil.appendChild(document.createTextNode(' › '));
+  const societe = societes.find(s => s.id === selectedSociete);
+  const societeNom = societe?.nom || 'Société';
+  if (!vehiculeActif && !ficheTechnicien) {   // niveau société : son nom est le dernier élément
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = societeNom;
+    fil.appendChild(dernier);
+    fil.style.display = 'flex';
+    return;
+  }
+  const societeBtn = document.createElement('button');
+  societeBtn.type = 'button';
+  societeBtn.textContent = societeNom;
+  societeBtn.addEventListener('click', () => { fermerPanneauVehicule(); fermerFicheTechnicien(); });
+  fil.appendChild(societeBtn);
+  fil.appendChild(document.createTextNode(' › '));
+  if (vehiculeActif) {
+    const vehiculesBtn = document.createElement('button');
+    vehiculesBtn.type = 'button';
+    vehiculesBtn.textContent = 'Véhicules';
+    vehiculesBtn.addEventListener('click', fermerPanneauVehicule);
+    fil.appendChild(vehiculesBtn);
+    fil.appendChild(document.createTextNode(' › '));
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = vehiculeActif.plaque;
+    fil.appendChild(dernier);
+  } else {
+    const techniciensBtn = document.createElement('button');
+    techniciensBtn.type = 'button';
+    techniciensBtn.textContent = 'Techniciens';
+    techniciensBtn.addEventListener('click', fermerFicheTechnicien);
+    fil.appendChild(techniciensBtn);
+    fil.appendChild(document.createTextNode(' › '));
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = ficheTechnicien.nom;
+    fil.appendChild(dernier);
+  }
+  fil.style.display = 'flex';
+}
+
+function retournerSocietes() {
+  fermerPanneauVehicule();
+  fermerFicheTechnicien();
+  selectedSociete = null;
+  monRole = null;
+  $('#societe-detail').classList.add('hidden');
+  $('#niveau-societes').classList.remove('hidden');
+  renderSocietes();
+  mettreAJourFil();
+}
+
 // Basculer d'onglet
 function switchOnglet(tabId) {
   $$('.tab').forEach(b => {
@@ -53,11 +130,15 @@ function switchOnglet(tabId) {
 function fermerPanneauVehicule() {
   vehiculeActif = null;
   $('#vehicule-detail').classList.add('hidden');
+  $('#vehicules-liste').classList.remove('hidden');
+  mettreAJourFil();
 }
 
 function fermerFicheTechnicien() {
   ficheTechnicien = null;
   $('#tech-fiche').classList.add('hidden');
+  $('#tech-liste').classList.remove('hidden');
+  mettreAJourFil();
 }
 
 function alert(message, type = 'error') {
@@ -101,6 +182,8 @@ async function logout() {
     selectedSociete = null;
     superAdmin = false;
     for (const id of ['#operator-section', '#admin-tools', '#societe-detail']) $(id).classList.add('hidden');
+    $('#niveau-societes').classList.remove('hidden');
+    $('#fil').style.display = 'none';
     showScreen('login-screen');
   } catch (err) {
     alert(err.message || 'Erreur lors de la déconnexion');
@@ -184,7 +267,8 @@ async function loadSocieteDetail(societeId) {
     renderMembers(members);
     monRole = members.find(m => m.user_id === session.user.id)?.role || null;
     for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form']) {
-      $(f).classList.toggle('hidden', !peutEcrire());
+      const form = $(f);
+      (form.closest('details') || form).classList.toggle('hidden', !peutEcrire());
     }
     // Lecture seule : les boutons d'action des tableaux sont masqués (CSS).
     document.body.classList.toggle('lecture-seule', !peutEcrire());
@@ -200,7 +284,9 @@ async function loadSocieteDetail(societeId) {
     await loadTechniciens(societeId);
     await loadVehicules(societeId);
 
+    $('#niveau-societes').classList.add('hidden');
     $('#societe-detail').classList.remove('hidden');
+    mettreAJourFil();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement');
   }
@@ -261,12 +347,16 @@ function renderTechniciens(list) {
   const tbody = $('#techniciens-table tbody');
   tbody.replaceChildren(...list.map(t => {
     const tr = ligne([t.nom, t.actif ? 'Oui' : 'Non']);
-    tr.style.cursor = 'pointer';
+    tr.classList.add('ligne-cliquable');
     tr.addEventListener('click', () => ouvrirFicheTechnicien(t));
     const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
     b.className = t.actif ? 'danger' : 'secondary';
     b.textContent = t.actif ? 'Désactiver' : 'Activer';
     b.addEventListener('click', (e) => { e.stopPropagation(); toggleTechnicien(t.id, t.actif); });
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
     return tr;
   }));
 }
@@ -284,8 +374,11 @@ async function toggleTechnicien(id, actif) {
 function ouvrirFicheTechnicien(t) {
   ficheTechnicien = t;
   fermerPanneauVehicule();
+  $('#tech-liste').classList.add('hidden');
   $('#tech-fiche').classList.remove('hidden');
   $('#tech-fiche-titre').textContent = t.nom;
+  initialiserSousOnglets($('#tech-fiche'));
+  mettreAJourFil();
   // Charger les données de la fiche
   chargerFicheTechnicien(t);
 }
@@ -314,16 +407,24 @@ function renderVehicules(list, affectations) {
     const nomTech = tech ? tech.nom : '—';
     const debut = affectationsV.find(a => a.debut <= aujourdhui && (!a.fin || a.fin >= aujourdhui))?.debut || '—';
     const tr = ligne([v.plaque, v.libelle || '', nomTech, debut]);
-    tr.style.cursor = 'pointer';
+    tr.classList.add('ligne-cliquable');
     tr.addEventListener('click', () => ouvrirVehicule(v));
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
     return tr;
   }));
 }
 
 async function ouvrirVehicule(v) {
   vehiculeActif = v;
+  fermerFicheTechnicien();
+  $('#vehicules-liste').classList.add('hidden');
   $('#vehicule-detail').classList.remove('hidden');
   $('#vehicule-detail-title').textContent = v.plaque;
+  initialiserSousOnglets($('#vehicule-detail'));
+  mettreAJourFil();
   await Promise.all([
     loadAffectations(v.id),
     loadRelevesAndKm(v.id),
@@ -554,7 +655,13 @@ async function loadPhotosCompteur(vehiculeId) {
       .eq('type', 'compteur')
       .order('periode', { ascending: false });
     if (error) throw error;
-    renderPhotosCompteur(photos);
+    // Emplacement de chaque photo de compteur dans le stockage privé (copiée par le pont).
+    const noms = photos.map((p) => (p.emplacement || '').replace(/^drive:/, ''));
+    const { data: copies, error: e2 } = noms.length
+      ? await sb.from('photos_apk').select('nom_drive, stockage').eq('societe_id', selectedSociete).in('nom_drive', noms)
+      : { data: [] };
+    if (e2) throw e2;
+    renderPhotosCompteur(photos, new Map(copies.map((c) => [c.nom_drive, c.stockage])));
     const aujourdhui = new Date().toISOString().slice(0, 10);
     const moisCourant = aujourdhui.slice(0, 7);
     const moisPrecedent = moisPrecedentDe(moisCourant);
@@ -579,13 +686,14 @@ function libelleStatut(s) {
   return s === 'recue' ? 'reçue' : s === 'manquante' ? 'manquante' : 'en retard';
 }
 
-function renderPhotosCompteur(photos) {
+function renderPhotosCompteur(photos, stockages) {
   const tbody = $('#photos-compteur-table tbody');
   tbody.replaceChildren(...photos.map(p => {
     const [y, m] = p.periode.split('-');
-    const mois = `${m}/${y}`;
     const fichier = (p.emplacement || '').replace(/^drive:/, '');
-    return ligne([mois, fichier]);
+    const tr = ligne([`${m}/${y}`, fichier]);
+    tr.appendChild(boutonPhoto(stockages.get(fichier)));
+    return tr;
   }));
 }
 
@@ -781,6 +889,12 @@ $$('.tab').forEach(tab => {
   });
 });
 
+$$('.sous-onglets button').forEach(button => {
+  button.addEventListener('click', () => afficherSousOnglet(button.closest('#vehicule-detail, #tech-fiche'), button.dataset.cible));
+});
+
+$('#retour-societes').addEventListener('click', retournerSocietes);
+
 // Formulaires Techniciens
 $('#technicien-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -832,19 +946,21 @@ async function chargerFicheTechnicien(t) {
   try {
     $('#tech-info').textContent = "Données envoyées par l'APK, mises à jour automatiquement toutes les heures.";
     const lire = async (requete) => { const { data, error, count } = await requete; if (error) throw error; return count ?? data; };
-    const [aff, interventions, frais, photos, regles, validations] = await Promise.all([
+    const [aff, interventions, frais, photos, regles, validations, listePhotos] = await Promise.all([
       lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
       lire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
-      lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations').eq('technicien_id', t.id).order('date')),
+      lire(sb.from('frais').select('date, categorie, montant_eur, sans_tva, observations, fichier').eq('technicien_id', t.id).order('date')),
       lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
       lire(sb.from('heures_sup').select('semaine, valide').eq('technicien_id', t.id)),
+      lire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
     ]);
     const v = aff[0];
     const plaque = v && (Array.isArray(v.vehicules) ? v.vehicules[0]?.plaque : v.vehicules?.plaque);
     $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
     fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
-      validations: new Map(validations.map((x) => [x.semaine, x.valide])) };
+      validations: new Map(validations.map((x) => [x.semaine, x.valide])),
+      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos };
     const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
     $('#tech-mois').replaceChildren(...mois.map((m) => {
       const o = document.createElement('option');
@@ -903,10 +1019,59 @@ function afficherMoisFiche() {
 
   $('#tech-frais-table tbody').replaceChildren(...fraisMois.map((f) => {
     const l = ligneFrais(versFrais(f));
-    return ligne([formaterDate(f.date), f.categorie || '—', euros(l.ttc), euros(l.ht), euros(l.tva),
+    const tr = ligne([formaterDate(f.date), f.categorie || '—', euros(l.ttc), euros(l.ht), euros(l.tva),
       euros(l.remboursable), f.sans_tva ? 'Oui' : 'Non', f.observations || '—']);
+    tr.appendChild(boutonPhoto(fiche.photosParNom.get(f.fichier)?.stockage));
+    return tr;
   }));
+  afficherGalerie(m);
   $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)}`;
+}
+
+// Photo du stockage privé : lien signé valable 10 minutes, ouvert dans un nouvel onglet.
+async function ouvrirPhoto(chemin) {
+  const { data, error } = await sb.storage.from('photos').createSignedUrl(chemin, 600);
+  if (error) { alert(error.message); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+// Cellule « Voir » (visible aussi en lecture seule) ou « — » si la photo n'est pas encore copiée.
+function boutonPhoto(chemin) {
+  const td = document.createElement('td');
+  if (!chemin) { td.textContent = '—'; return td; }
+  const b = td.appendChild(document.createElement('button'));
+  b.className = 'secondary voir';
+  b.textContent = 'Voir';
+  b.addEventListener('click', () => ouvrirPhoto(chemin));
+  return td;
+}
+
+// Galerie du mois : photos copiées dont le dossier de cycle est ce mois (…/<AAAA-MM>/<nom>).
+async function afficherGalerie(m) {
+  const copiees = fiche.listePhotos.filter((p) => p.stockage && p.stockage.split('/').at(-2) === m);
+  const enAttente = fiche.listePhotos.filter((p) => !p.stockage).length;
+  $('#tech-photos-info').textContent = `${copiees.length} photo(s) ce mois-ci.` +
+    (enAttente ? ` ${enAttente} photo(s) en cours de copie depuis l'APK (toutes les heures).` : '');
+  const galerie = $('#tech-photos');
+  galerie.replaceChildren();
+  if (!copiees.length) return;
+  const { data, error } = await sb.storage.from('photos').createSignedUrls(copiees.map((p) => p.stockage), 600);
+  if (error) { alert(error.message); return; }
+  if ($('#tech-mois').value !== m) return;   // mois changé pendant le chargement
+  galerie.replaceChildren(...data.map((d, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', `Ouvrir la photo ${copiees[i].nom_drive}`);
+    const fig = b.appendChild(document.createElement('figure'));
+    fig.style.margin = '0';
+    const img = fig.appendChild(document.createElement('img'));
+    img.src = d.signedUrl;
+    img.alt = copiees[i].nom_drive;
+    img.loading = 'lazy';
+    fig.appendChild(document.createElement('figcaption')).textContent = copiees[i].nom_drive;
+    b.addEventListener('click', () => window.open(d.signedUrl, '_blank', 'noopener'));
+    return b;
+  }));
 }
 
 // Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
