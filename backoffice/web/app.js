@@ -99,7 +99,27 @@ function initialiserSousOnglets(conteneur) {
   if (premier) afficherSousOnglet(conteneur, premier.dataset.cible);
 }
 
+function plaqueLogo(logo, alt) {
+  const plaque = document.createElement('span');
+  plaque.className = 'logo-plaque';
+  const img = plaque.appendChild(document.createElement('img'));
+  img.src = logo;
+  img.alt = alt;
+  return plaque;
+}
+
+// En-tête : logo et nom de la société ouverte (« Back-office Société A »), sinon « Back-office ».
+function afficherMarque() {
+  const s = societes.find((x) => x.id === selectedSociete);
+  const titre = s ? `Back-office ${s.nom}` : 'Back-office';
+  $('#marque-titre').textContent = titre;
+  document.title = titre;
+  $('#marque-plaque').classList.toggle('hidden', !s?.logo);
+  if (s?.logo) { $('#marque-logo').src = s.logo; $('#marque-logo').alt = `Logo ${s.nom}`; }
+}
+
 function mettreAJourFil() {
+  afficherMarque();
   // Dans une fiche, un seul retour : « ← Techniciens » / « ← Véhicules » (le fil d'Ariane fait le reste).
   $('#retour-societes').classList.toggle('hidden', !!(vehiculeActif || ficheTechnicien));
   const fil = $('#fil');
@@ -273,7 +293,7 @@ async function checkOperator() {
 
 async function loadSocietes() {
   try {
-    const { data, error } = await sb.from('societes').select('id, nom').order('nom');
+    const { data, error } = await sb.from('societes').select('id, nom, adresse, logo').order('nom');
     if (error) throw error;
     societes = data;
     renderSocietes();
@@ -296,8 +316,10 @@ function renderSocietes() {
     const li = document.createElement('li');
     li.className = 'societe-item';
     if (selectedSociete === s.id) li.classList.add('selected');
-    li.appendChild(document.createElement('div')).textContent = s.nom;
-    li.firstChild.className = 'societe-name';
+    if (s.logo) li.appendChild(plaqueLogo(s.logo, `Logo ${s.nom}`));
+    const nom = li.appendChild(document.createElement('div'));
+    nom.textContent = s.nom;
+    nom.className = 'societe-name';
     li.addEventListener('click', () => selectSociete(s.id));
     ul.appendChild(li);
     tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
@@ -335,6 +357,7 @@ async function loadSocieteDetail(societeId) {
     } else {
       $('#admin-tools').classList.add('hidden');
     }
+    remplirIdentite(societe);
     $('#purge-section').classList.toggle('hidden', !superAdmin);
     if (superAdmin) await chargerDurees();
 
@@ -1907,7 +1930,8 @@ function texteReleve(t, liste, justifs, debut, fin) {
   const r = releve(t, liste, justifs);
   const enClair = r.lignes.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) =>
     [ENTETES_RELEVE[k], typeof v === 'number' ? deuxDecimales(v) : v])));
-  return `Technicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
+  const soc = societes.find((x) => x.id === selectedSociete) || {};
+  return `Société;${texteCsv(soc.nom)};${texteCsv((soc.adresse || '').replace(/\s*\n\s*/g, ', '))}\nTechnicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
     + `Total;;;${deuxDecimales(r.total.ttc)};;;${deuxDecimales(r.total.rembourse)};${deuxDecimales(r.total.tvaRecuperee)};${deuxDecimales(r.total.charge)}\n`;
 }
 
@@ -1970,6 +1994,61 @@ $('#cp-valider').addEventListener('click', async () => {
     if (error) throw error;
     await chargerCompta();
   } catch (err) { alert(err.message); }
+});
+
+// ===== Identité de la société : nom, adresse, logo (admin) =====
+let logoChoisi;   // undefined : inchangé ; null : retiré ; texte : nouvelle image
+
+function remplirIdentite(s) {
+  logoChoisi = undefined;
+  $('#identite-form').reset();
+  $('#id-nom').value = s?.nom || '';
+  $('#id-adresse').value = s?.adresse || '';
+  apercuLogo(s?.logo);
+}
+
+function apercuLogo(logo) {
+  $('#id-logo-plaque').classList.toggle('hidden', !logo);
+  if (logo) $('#id-logo-apercu').src = logo;
+}
+
+// Réduit l'image (480 × 160 au plus) et la garde en PNG : petite, et la transparence reste.
+async function reduireLogo(fichier) {
+  const img = await createImageBitmap(fichier);
+  const r = Math.min(1, 480 / img.width, 160 / img.height);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * r));
+  c.height = Math.max(1, Math.round(img.height * r));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/png');
+}
+
+$('#id-logo').addEventListener('change', async () => {
+  const f = $('#id-logo').files[0];
+  if (!f) return;
+  try {
+    logoChoisi = await reduireLogo(f);
+    if (logoChoisi.length > 300000) { logoChoisi = undefined; alert('Logo trop détaillé : essayez une image plus simple.'); return; }
+    apercuLogo(logoChoisi);
+  } catch {
+    alert("Image illisible : choisissez un fichier PNG, JPEG ou WebP.");
+  }
+});
+
+$('#id-logo-retirer').addEventListener('click', () => { logoChoisi = null; $('#id-logo').value = ''; apercuLogo(null); });
+
+$('#identite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champs = { nom: $('#id-nom').value.trim(), adresse: $('#id-adresse').value.trim() };
+  if (logoChoisi !== undefined) champs.logo = logoChoisi;
+  const { data, error } = await sb.from('societes').update(champs).eq('id', selectedSociete).select('id, nom, adresse, logo');
+  if (error) { alert(error.message); return; }
+  if (!data.length) { alert("Modification refusée : réservée à l'admin de la société."); return; }
+  Object.assign(societes.find((x) => x.id === selectedSociete), data[0]);
+  remplirIdentite(data[0]);
+  $('#societe-detail-title').textContent = data[0].nom;
+  mettreAJourFil();
+  $('#identite').open = false;
 });
 
 // État d'un frais : la base signe, exige un motif de refus et fige un frais exporté.

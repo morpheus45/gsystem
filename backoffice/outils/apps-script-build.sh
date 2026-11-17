@@ -21,10 +21,10 @@ cat > "$D/Code.js" <<'J'
 // Sert seulement la page : aucune donnée ici, tout passe par Supabase (RLS).
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Back-office G-Systems (test)')
+    .setTitle('Back-office (test)')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 J
 # La page : un seul fichier HTML, avec tous les calculs testés inclus (outils/assembler.py).
-python3 outils/assembler.py "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" "$D" "Version de test — données fictives"
+python3 outils/assembler.py "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" "$D" "Version de test — données réelles de l'APK"
 echo "Construit dans $D/"
