@@ -27,8 +27,19 @@ test('seul un opérateur crée une société', async () => {
   assert.equal((await un(`select count(*)::int n from societes where id = '${S}'`)).n, 1);
 });
 
-test('l\'opérateur ne voit pas les données du client', async () => {
+test('super admin (opérateur) : voit et modifie toutes les sociétés, actions journalisées', async () => {
   await db.comme(OP, async () => {
+    assert.equal((await un(`select count(*)::int n from societes`)).n, 1);
+    await db.query(`update societes set nom = 'Client fictif renomme' where id = '${S}'`);
+    assert.equal((await un(`select nom from societes where id = '${S}'`)).nom, 'Client fictif renomme');
+    assert.ok((await un(`select count(*)::int n from invitations where societe_id = '${S}'`)).n >= 1);
+  });
+  assert.equal((await un(`select count(*)::int n from audit where par = '${OP}' and table_nom = 'invitations'`)).n, 1);
+});
+
+test('un simple utilisateur ne peut pas se nommer super admin', async () => {
+  await db.comme(MA, async () => {
+    await assert.rejects(db.query(`insert into operateurs values ('${MA}')`), /permission denied/);
     assert.equal((await un(`select count(*)::int n from societes`)).n, 0);
   });
 });

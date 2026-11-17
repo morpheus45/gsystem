@@ -6,6 +6,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 let session = null;
 let societes = [];
 let selectedSociete = null;
+let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -61,6 +62,7 @@ async function logout() {
     session = null;
     societes = [];
     selectedSociete = null;
+    superAdmin = false;
     for (const id of ['#operator-section', '#admin-tools', '#societe-detail']) $(id).classList.add('hidden');
     showScreen('login-screen');
   } catch (err) {
@@ -86,9 +88,8 @@ async function checkOperator() {
   try {
     const { data, error } = await sb.from('operateurs').select('user_id');
     if (error) throw error;
-    if (data.length > 0) {
-      $('#operator-section').classList.remove('hidden');
-    }
+    superAdmin = data.length > 0;
+    $('#operator-section').classList.toggle('hidden', !superAdmin);
   } catch (err) {
     console.error(err);
   }
@@ -139,7 +140,7 @@ async function loadSocieteDetail(societeId) {
     $('#societe-detail-title').textContent = societe?.nom || 'Société';
     renderMembers(members);
     const myRole = members.find(m => m.user_id === session.user.id);
-    if (myRole?.role === 'admin') {
+    if (superAdmin || myRole?.role === 'admin') {
       $('#admin-tools').classList.remove('hidden');
       await loadInvitations(societeId);
     } else {

@@ -64,13 +64,13 @@ L'opérateur ne voit pas les données des sociétés qu'il crée.
 
 Page : https://script.google.com/macros/s/AKfycbyaSTT80yEP9H9GXxJcbK-1P2rT_xgA3yyAKbMvJuJK8Mmbdv1UU9oT5dVsV13E_z2TgA/exec
 
-Mettre à jour après un changement dans `web/` (le dossier `apps-script-test/` n'est pas versionné ; il garde le lien vers le script) :
+Mettre à jour après un changement dans `web/`. Construire depuis `backoffice/`, puis lancer clasp **depuis `apps-script-test/`** (non versionné ; il garde le lien vers le script) :
 
 ```bash
 SUPABASE_URL=https://<projet>.supabase.co SUPABASE_CLE_PUBLIQUE=sb_publishable_... sh outils/apps-script-build.sh
-npx @google/clasp@3.4.1 -P apps-script-test/.clasp.json push --force
-npx @google/clasp@3.4.1 -P apps-script-test/.clasp.json create-version "message"
-npx @google/clasp@3.4.1 -P apps-script-test/.clasp.json update-deployment -V <n> AKfycbyaSTT80yEP9H9GXxJcbK-1P2rT_xgA3yyAKbMvJuJK8Mmbdv1UU9oT5dVsV13E_z2TgA
+npx @google/clasp@3.4.1 -P "$PWD/.clasp.json" push --force
+npx @google/clasp@3.4.1 -P "$PWD/.clasp.json" create-version "message"
+npx @google/clasp@3.4.1 -P "$PWD/.clasp.json" update-deployment -V <n> AKfycbyaSTT80yEP9H9GXxJcbK-1P2rT_xgA3yyAKbMvJuJK8Mmbdv1UU9oT5dVsV13E_z2TgA
 ```
 
 Toujours passer `-P apps-script-test/.clasp.json` : sinon clasp prend le projet G-Systems de la racine du dépôt.
