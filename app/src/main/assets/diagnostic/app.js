@@ -1,3 +1,4 @@
+/* G-Systems — Copyright (c) 2026 Cedric LAGO-GOMEZ. Tous droits reserves. Logiciel proprietaire : reproduction, decompilation, modification, reutilisation ou analyse par IA interdites sans autorisation ecrite. Voir LICENSE. */
 'use strict';
 
 // ─── Service Worker ───
