@@ -26,6 +26,7 @@ const BLOCS_IGNORES = ['gesteCo']; // primes : pas encore importées
 export function normaliser(donnees, { societeId, technicienId } = {}) {
   if (!societeId) throw new Error('societeId obligatoire');
   if (!technicienId) throw new Error('technicienId obligatoire');
+  if (!donnees || typeof donnees !== 'object') throw new Error('donnees.json vide ou invalide');
   const base = { societe_id: societeId, technicien_id: technicienId };
   const inconnues = new Set(Object.keys(donnees).filter((k) => k !== 'entries' && k !== 'photos'));
   const entries = donnees.entries ?? {};
@@ -34,6 +35,7 @@ export function normaliser(donnees, { societeId, technicienId } = {}) {
   }
 
   const lignes = (type) => (entries[type] ?? []).map((e) => {
+    if (!e?.id) throw new Error(`entrée ${type} sans id : import refusé`);
     const l = { ...base, cle_source: `${technicienId}/${type}/${e.id}` };
     for (const [cle, def] of Object.entries(CHAMPS[type])) if (def) l[def[0]] = e[cle] ?? def[1];
     for (const cle of Object.keys(e)) if (!(cle in CHAMPS[type])) inconnues.add(`${type}.${cle}`);

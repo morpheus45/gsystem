@@ -15,10 +15,14 @@ function fusionProfonde(dest, src) {
   return out;
 }
 
-export function reglesDe(societe = {}) {
-  const result = fusionProfonde(REGLES_DEFAUT, societe.regles || {});
-  result.valide = Boolean(societe.regles_valide_par && societe.regles_valide_le);
+// Reçoit une ligne de la table regles_societe : { regles, valide_par, valide_le }.
+export function reglesDe(ligne = {}) {
+  const result = fusionProfonde(REGLES_DEFAUT, ligne.regles || {});
+  result.valide = Boolean(ligne.valide_par && ligne.valide_le);
   const heures = result.heures;
+  for (const k of ['seuilHebdo', 'tranche25']) {
+    if (!(Number.isFinite(heures[k]) && heures[k] >= 0)) throw new Error(`${k} doit etre un nombre positif`);
+  }
   if (heures.taux1 < 0.10 || heures.taux2 < 0.10) {
     throw new Error('taux de majoration inferieur au seuil de 10 %');
   }

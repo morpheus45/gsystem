@@ -68,3 +68,8 @@ test('blocs absents tolérés, clé inconnue dans entries signalée', () => {
   assert.deepEqual([r.frais, r.compteur, r.photos], [[], [], []]);
   assert.deepEqual(r.clesInconnues, ['entries.blocFutur']);
 });
+
+test('fichier vide ou entrée sans id : erreur claire, rien d\'importé en silence', () => {
+  assert.throws(() => normaliser(null, opts), /invalide/);
+  assert.throws(() => normaliser({ entries: { temps: [{ date: '2026-01-01' }] } }, opts), /sans id/);
+});

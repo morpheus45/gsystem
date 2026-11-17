@@ -70,6 +70,33 @@ begin
   return coalesce(new, old);
 end $$;
 
+-- Validation (règles, relevés km) : le validateur est TOUJOURS l'utilisateur
+-- connecté et la date est celle du serveur, quelle que soit la valeur envoyée.
+create function private.signer_validation() returns trigger language plpgsql as $$
+begin
+  if new.valide_par is null and new.valide_le is null then return new; end if;
+  if tg_op = 'UPDATE' and old.valide_le is not null then
+    new.valide_par := old.valide_par; new.valide_le := old.valide_le;   -- déjà signée : figée
+  else
+    new.valide_par := (select auth.uid()); new.valide_le := now();
+  end if;
+  return new;
+end $$;
+
+-- Une société garde toujours au moins un admin.
+create function private.garder_un_admin() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if old.role = 'admin'
+     and (tg_op = 'DELETE' or new.role <> 'admin' or new.societe_id <> old.societe_id)
+     and exists (select 1 from public.societes s where s.id = old.societe_id)
+     and not exists (select 1 from public.membres m where m.societe_id = old.societe_id
+                     and m.role = 'admin' and m.user_id <> old.user_id) then
+    raise exception 'dernier admin de la societe : impossible de le retirer';
+  end if;
+  return coalesce(new, old);
+end $$;
+
 alter table public.societes enable row level security;
 alter table public.membres enable row level security;
 alter table public.regles_societe enable row level security;
@@ -98,6 +125,10 @@ grant select, update on public.societes to authenticated;
 grant select, insert, update, delete on public.membres, public.regles_societe to authenticated;
 grant select on public.audit to authenticated;
 
+create trigger garder_un_admin before update or delete on public.membres
+  for each row execute function private.garder_un_admin();
+create trigger signer before insert or update on public.regles_societe
+  for each row execute function private.signer_validation();
 create trigger journal after insert or update or delete on public.membres
   for each row execute function private.journal();
 create trigger journal after insert or update or delete on public.regles_societe

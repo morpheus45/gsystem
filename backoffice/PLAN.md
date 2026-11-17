@@ -77,7 +77,7 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 
 ### Phase 5 — Export des variables de paie · M
 - **But** : un fichier par période pour le comptable.
-- **Livrables** : `core/paie.js` (fait : heures normales, sup 25 %, sup 50 %, absences, frais remboursables, primes ; CSV `;` à virgule décimale), table `periodes_paie` (brouillon → validée → exportée, puis verrouillée).
+- **Livrables** : `core/paie.js` (fait : heures normales, heures sup 1re tranche (`sup1`) et 2e tranche (`sup2`) avec le **taux réel** de la société, absences, frais remboursables, primes ; CSV `;` à virgule décimale, textes protégés), table `periodes_paie` (née en brouillon, une étape à la fois : brouillon → validée → exportée, puis verrouillée ; le validateur est toujours l'utilisateur connecté).
 - **Critères** : une période exportée ne bouge plus, ni ses heures ni ses frais (testé) ; l'export indique si les règles sont validées.
 - **Dépendances** : Phases 2 et 3 ; format attendu par le logiciel de paie du comptable.
 - **Risques** : une semaine à cheval sur deux périodes est rattachée à la période qui contient **son dimanche** (choix par défaut, **À DÉCIDER**).

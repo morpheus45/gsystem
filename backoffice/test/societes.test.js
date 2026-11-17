@@ -18,11 +18,16 @@ test('un réglage de la société remplace le défaut, le reste est gardé', () 
   assert.equal(r.heures.seuilHebdo, 35);
 });
 
-test('les règles ne sont validées qu\'avec valide_par ET valide_le', () => {
-  assert.equal(reglesDe({ regles_valide_par: 'u1' }).valide, false);
-  assert.equal(reglesDe({ regles_valide_par: 'u1', regles_valide_le: '2026-11-17' }).valide, true);
+test('reçoit une ligne regles_societe : validée seulement avec valide_par ET valide_le', () => {
+  assert.equal(reglesDe({ valide_par: 'u1' }).valide, false);
+  assert.equal(reglesDe({ valide_par: 'u1', valide_le: '2026-11-17' }).valide, true);
 });
 
 test('un taux de majoration sous 10 % est refusé', () => {
   assert.throws(() => reglesDe({ regles: { heures: { taux1: 0.05 } } }), /10 %/);
+});
+
+test('un seuil ou une tranche vide ou négatif est refusé (sinon NaN heures)', () => {
+  assert.throws(() => reglesDe({ regles: { heures: { seuilHebdo: null } } }), /seuilHebdo/);
+  assert.throws(() => reglesDe({ regles: { heures: { tranche25: -1 } } }), /tranche25/);
 });

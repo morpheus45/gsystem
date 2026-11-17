@@ -208,17 +208,35 @@ begin
   end loop;
 end $$;
 
--- Période de paie : on avance seulement (brouillon -> validée -> exportée),
--- et une période exportée est verrouillée.
+-- Période de paie : née en brouillon, elle avance d'une étape à la fois
+-- (brouillon -> validée -> exportée), puis elle est verrouillée.
+-- Le validateur et les dates sont posés ici : jamais pris de l'appelant.
 create function private.periode_avance() returns trigger language plpgsql as $$
 begin
+  if tg_op = 'INSERT' then
+    if new.statut <> 'brouillon' then raise exception 'une periode nait en brouillon'; end if;
+    new.valide_par := null; new.valide_le := null; new.exporte_le := null;
+    return new;
+  end if;
   if old.statut = 'exportee' then raise exception 'periode verrouillee'; end if;
   if tg_op = 'DELETE' then return old; end if;
-  if new.statut < old.statut then raise exception 'retour en arriere interdit'; end if;
+  if new.statut = old.statut then
+    new.valide_par := old.valide_par; new.valide_le := old.valide_le; new.exporte_le := old.exporte_le;
+  elsif old.statut = 'brouillon' and new.statut = 'validee' then
+    new.valide_par := (select auth.uid()); new.valide_le := now();
+  elsif old.statut = 'validee' and new.statut = 'exportee' then
+    new.valide_par := old.valide_par; new.valide_le := old.valide_le; new.exporte_le := now();
+  else
+    raise exception 'passage % -> % interdit (une etape a la fois, brouillon -> validee -> exportee)', old.statut, new.statut;
+  end if;
   return new;
 end $$;
-create trigger avance before update or delete on public.periodes_paie
+create trigger avance before insert or update or delete on public.periodes_paie
   for each row execute function private.periode_avance();
+
+-- Relevé km validé : le validateur est l'utilisateur connecté.
+create trigger signer before insert or update on public.releves_km
+  for each row execute function private.signer_validation();
 
 -- Heures et frais d'une période exportée : plus aucune modification.
 create function private.hors_periode_verrouillee() returns trigger

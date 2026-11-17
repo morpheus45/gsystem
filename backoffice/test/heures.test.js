@@ -31,16 +31,16 @@ test('semaine ISO, y compris en fin d\'année', () => {
 });
 
 test('ventilation : normales, sup 25 %, sup 50 %', () => {
-  assert.deepEqual(ventiler(30, R), { normales: 30, sup25: 0, sup50: 0 });
-  assert.deepEqual(ventiler(40, R), { normales: 35, sup25: 5, sup50: 0 });
-  assert.deepEqual(ventiler(48, R), { normales: 35, sup25: 8, sup50: 5 });
+  assert.deepEqual(ventiler(30, R), { normales: 30, sup1: 0, sup2: 0 });
+  assert.deepEqual(ventiler(40, R), { normales: 35, sup1: 5, sup2: 0 });
+  assert.deepEqual(ventiler(48, R), { normales: 35, sup1: 8, sup2: 5 });
 });
 
 test('cumul par semaine : 5 jours pleins = 40 h, le dimanche est ignoré par défaut', () => {
   const temps = ['05', '06', '07', '08', '09', '11'].flatMap((d) =>
     [jour(`2026-01-${d}`, 'MATIN'), jour(`2026-01-${d}`, 'APREM')]);
   assert.deepEqual(cumulSemaines(temps, R), [
-    { semaine: '2026-W02', travaillees: 40, absences: 0, normales: 35, sup25: 5, sup50: 0 },
+    { semaine: '2026-W02', travaillees: 40, absences: 0, normales: 35, sup1: 5, sup2: 0 },
   ]);
 });
 
@@ -48,6 +48,6 @@ test('cumul : les vacances vont en absence, hors du seuil des heures sup', () =>
   const temps = [jour('2026-01-12', '', '', 'VACANCES'),
     ...['13', '14', '15', '16'].flatMap((d) => [jour(`2026-01-${d}`, 'MATIN'), jour(`2026-01-${d}`, 'APREM')])];
   assert.deepEqual(cumulSemaines(temps, R), [
-    { semaine: '2026-W03', travaillees: 32, absences: 7, normales: 32, sup25: 0, sup50: 0 },
+    { semaine: '2026-W03', travaillees: 32, absences: 7, normales: 32, sup1: 0, sup2: 0 },
   ]);
 });

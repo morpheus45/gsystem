@@ -19,11 +19,12 @@ export function semaineIso(dateIso) {
   return `${anneeIso}-W${String(numero).padStart(2, '0')}`;
 }
 
+// sup1 = 1re tranche (payée à r.taux1), sup2 = au-delà (payée à r.taux2).
 export function ventiler(h, r) {
   const normales = Math.min(h, r.seuilHebdo);
-  const sup25 = Math.min(Math.max(h - r.seuilHebdo, 0), r.tranche25);
-  const sup50 = Math.max(h - r.seuilHebdo - r.tranche25, 0);
-  return { normales, sup25, sup50 };
+  const sup1 = Math.min(Math.max(h - r.seuilHebdo, 0), r.tranche25);
+  const sup2 = Math.max(h - r.seuilHebdo - r.tranche25, 0);
+  return { normales, sup1, sup2 };
 }
 
 function joursDeTravail(temps, r) {

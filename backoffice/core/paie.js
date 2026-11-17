@@ -12,14 +12,15 @@ function dimancheDeSemaine(semaine) {
 // Variables de paie d'un tech sur une période. Une semaine ISO est rattachée
 // à la période qui contient son dimanche (choix par défaut, À DÉCIDER).
 export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = [], primes = 0, regles }) {
-  const t = { heuresNormales: 0, sup25: 0, sup50: 0, absences: 0 };
+  const t = { heuresNormales: 0, sup1: 0, sup2: 0, absences: 0 };
   for (const s of cumulSemaines(temps, regles.heures)) {
     const dimanche = dimancheDeSemaine(s.semaine);
     if (dimanche < debut || dimanche > fin) continue;
-    t.heuresNormales += s.normales; t.sup25 += s.sup25; t.sup50 += s.sup50; t.absences += s.absences;
+    t.heuresNormales += s.normales; t.sup1 += s.sup1; t.sup2 += s.sup2; t.absences += s.absences;
   }
   const fraisRemboursables = totauxFrais(frais.filter((f) => f.date >= debut && f.date <= fin)).remboursable;
-  return { tech, debut, fin, ...t, fraisRemboursables, primes, reglesValidees: regles.valide };
+  const { taux1, taux2 } = regles.heures;
+  return { tech, debut, fin, ...t, fraisRemboursables, primes, taux1, taux2, reglesValidees: regles.valide };
 }
 
 export function versCsv(lignes) {

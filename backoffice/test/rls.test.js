@@ -101,7 +101,7 @@ test('audit : chaque écriture est journalisée, visible de sa société seuleme
 });
 
 test('période de paie : validée puis exportée, ensuite verrouillée', async () => {
-  const P = '00000000-0000-0000-0000-0000000000p1'.replace('p', 'c');
+  const P = '00000000-0000-0000-0000-0000000000c1';
   await comme(UC, async () => {
     await db.query(`insert into periodes_paie (id, societe_id, debut, fin) values ('${P}', '${A}', '2026-09-21', '2026-10-20')`);
     await db.query(`update periodes_paie set statut = 'validee', valide_par = '${UC}', valide_le = now() where id = '${P}'`);
@@ -123,4 +123,39 @@ test('réimport : la même clé source ne crée pas de doublon', async () => {
     await db.query(sql); await db.query(sql);
     assert.equal(await nb(`select count(*) n from temps where cle_source = 'a1'`), 1);
   });
+});
+
+test('le validateur est toujours l\'utilisateur connecté, jamais une valeur envoyée', async () => {
+  const P = '00000000-0000-0000-0000-0000000000c2';
+  await comme(UA, async () => {
+    await db.query(`insert into periodes_paie (id, societe_id, debut, fin) values ('${P}', '${A}', '2026-11-21', '2026-12-20')`);
+    await db.query(`update periodes_paie set statut = 'validee', valide_par = '${UC}', valide_le = now() where id = '${P}'`);
+    assert.equal((await db.query(`select valide_par from periodes_paie where id = '${P}'`)).rows[0].valide_par, UA);
+    await db.query(`insert into regles_societe (societe_id, version, valide_par, valide_le) values ('${A}', 1, '${UC}', now())`);
+    assert.equal((await db.query(`select valide_par from regles_societe where version = 1`)).rows[0].valide_par, UA);
+  });
+});
+
+test('une période naît en brouillon et ne saute pas l\'étape validée', async () => {
+  const P = '00000000-0000-0000-0000-0000000000c3';
+  await comme(UA, async () => {
+    await assert.rejects(db.query(`insert into periodes_paie (societe_id, debut, fin, statut, valide_par, valide_le, exporte_le)
+      values ('${A}', '2027-01-21', '2027-02-20', 'exportee', '${UA}', now(), now())`), /brouillon/);
+    await db.query(`insert into periodes_paie (id, societe_id, debut, fin) values ('${P}', '${A}', '2027-02-21', '2027-03-20')`);
+    await assert.rejects(db.query(`update periodes_paie set statut = 'exportee', valide_par = '${UA}', valide_le = now(),
+      exporte_le = now() where id = '${P}'`), /validee/);
+  });
+});
+
+test('le dernier admin d\'une société ne peut pas être retiré', async () => {
+  await comme(UA, async () => {
+    await assert.rejects(db.query(`update membres set role = 'lecture' where user_id = '${UA}'`), /dernier admin/);
+    await assert.rejects(db.query(`delete from membres where user_id = '${UA}'`), /dernier admin/);
+  });
+});
+
+test('supprimer une société entière (par le serveur) reste possible', async () => {
+  await db.exec(`delete from temps where societe_id = '${B}'; delete from techniciens where societe_id = '${B}';
+    delete from vehicules where societe_id = '${B}'; delete from societes where id = '${B}'`);
+  assert.equal(await nb(`select count(*) n from membres where societe_id = '${B}'`), 0);
 });

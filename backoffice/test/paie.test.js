@@ -13,8 +13,8 @@ test('variables de paie d\'un tech sur une période', () => {
     frais: [{ date: '2026-01-06', categorie: 'MOBILE', montantEur: 50 }, { date: '2026-01-25', categorie: 'DIVERS', montantEur: 9 }],
     primes: 12.5, regles: reglesDe({}),
   });
-  assert.deepEqual(v, { tech: 'T1', debut: '2025-12-21', fin: '2026-01-20', heuresNormales: 35, sup25: 8, sup50: 5,
-    absences: 0, fraisRemboursables: 20, primes: 12.5, reglesValidees: false });
+  assert.deepEqual(v, { tech: 'T1', debut: '2025-12-21', fin: '2026-01-20', heuresNormales: 35, sup1: 8, sup2: 5,
+    absences: 0, fraisRemboursables: 20, primes: 12.5, taux1: 0.25, taux2: 0.5, reglesValidees: false });
 });
 
 test('une semaine est rattachée à la période qui contient son dimanche', () => {
@@ -24,13 +24,19 @@ test('une semaine est rattachée à la période qui contient son dimanche', () =
 });
 
 test('export CSV séparé par des points-virgules', () => {
-  const csv = versCsv([{ tech: 'T1', debut: 'a', fin: 'b', heuresNormales: 35, sup25: 1.5, sup50: 0,
-    absences: 0, fraisRemboursables: 20, primes: 0, reglesValidees: false }]);
-  assert.equal(csv, 'tech;debut;fin;heuresNormales;sup25;sup50;absences;fraisRemboursables;primes;reglesValidees\n' +
-    'T1;a;b;35;1,5;0;0;20;0;non\n');
+  const csv = versCsv([{ tech: 'T1', debut: 'a', fin: 'b', heuresNormales: 35, sup1: 1.5, sup2: 0,
+    absences: 0, fraisRemboursables: 20, primes: 0, taux1: 0.25, taux2: 0.5, reglesValidees: false }]);
+  assert.equal(csv, 'tech;debut;fin;heuresNormales;sup1;sup2;absences;fraisRemboursables;primes;taux1;taux2;reglesValidees\n' +
+    'T1;a;b;35;1,5;0;0;20;0;0,25;0,5;non\n');
 });
 
 test('CSV : un texte avec ; ou guillemet est protégé, une formule est neutralisée', () => {
   const csv = versCsv([{ tech: 'Dupont; "Jo"', note: '=1+1' }]);
   assert.equal(csv, 'tech;note\n"Dupont; ""Jo""";"\'=1+1"\n');
+});
+
+test('le taux réel de la société est exporté avec les heures sup', () => {
+  const v = variablesPaie({ tech: 'T1', periode: { debut: '2025-12-21', fin: '2026-01-20' }, temps: [], frais: [],
+    regles: reglesDe({ regles: { heures: { taux1: 0.1 } } }) });
+  assert.equal(v.taux1, 0.1);
 });

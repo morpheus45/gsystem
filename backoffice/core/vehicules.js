@@ -22,6 +22,7 @@ export function prochaineEcheance(regle, dernier) {
   if (!regle?.tousLesMois && !regle?.tousLesKm) {
     throw new Error("règle d'échéance manquante : aucune périodicité définie");
   }
+  if (!dernier?.date) throw new Error('saisir la date et le km de départ (aucun entretien précédent)');
   const date = regle.tousLesMois ? ajouterMois(dernier.date, regle.tousLesMois) : null;
   const km = regle.tousLesKm ? Number(dernier.km) + regle.tousLesKm : null;
   return { date, km };
@@ -52,6 +53,7 @@ export function alertes(echeances, { aujourdhui, kmActuel, joursAvant, kmAvant }
     else if (e.km != null && kmActuel >= e.km) niveau = 'depassee';
     if (!niveau && e.date && e.date <= ajouterJours(aujourdhui, joursAvant)) niveau = 'proche';
     if (!niveau && e.km != null && kmActuel >= e.km - kmAvant) niveau = 'proche';
+    if (!niveau && e.km != null && kmActuel == null) niveau = 'km_inconnu';
     if (niveau) result.push({ type: e.type, niveau });
   }
   return result;

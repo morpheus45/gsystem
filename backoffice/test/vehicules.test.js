@@ -59,3 +59,12 @@ test('alerte « proche » comptée depuis aujourd\'hui, pas depuis le 1er du moi
 test('échéance au 31 : bloquée au dernier jour du mois', () => {
   assert.equal(prochaineEcheance({ tousLesMois: 1 }, { date: '2026-01-31', km: 0 }).date, '2026-02-28');
 });
+
+test('échéance en km sans kilométrage connu : signalée, pas ignorée', () => {
+  assert.deepEqual(alertes([{ type: 'VIDANGE', km: 65000 }], { aujourdhui: '2026-11-17', kmActuel: null, joursAvant: 30, kmAvant: 1000 }),
+    [{ type: 'VIDANGE', niveau: 'km_inconnu' }]);
+});
+
+test('sans entretien précédent : erreur claire, pas de plantage', () => {
+  assert.throws(() => prochaineEcheance({ tousLesKm: 15000 }, null), /date et le km de départ/);
+});
