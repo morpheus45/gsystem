@@ -9,16 +9,20 @@ export function normaliserPlaque(texte) {
   return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(p) ? p : null;
 }
 
+// Donnée d'un site extérieur : sans balise ni caractère de contrôle, et bornée (S6, SECURITE.md).
+const propre = (texte, max) => String(texte).replace(/<[^>]*>?/g, '').replace(/[<>\u0000-\u001f]/g, '')
+  .replace(/\s+/g, ' ').trim().slice(0, max);
+
 export function lireFicheImmat(html) {
   const s = String(html || '').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
   const champ = (nom) => (s.match(new RegExp(`"${nom}":\\[0,"([^"]*)"\\]`)) || [])[1] || '';
-  const marque = champ('brand').trim(), modele = champ('model').trim();
+  const marque = propre(champ('brand'), 60), modele = propre(champ('model'), 60);
   if (!marque || !modele) return null;
   const description = (s.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
   return {
     marque, modele,
     annee: Number(champ('year')) || null,
-    carburant: (description.match(/carburant (\S+)/) || [])[1] || '',
-    boite: (description.match(/ et sa (\S+)$/) || [])[1] || '',
+    carburant: propre((description.match(/carburant (\S+)/) || [])[1] || '', 30),
+    boite: propre((description.match(/ et sa (\S+)$/) || [])[1] || '', 30),
   };
 }

@@ -29,6 +29,13 @@ const GESTE_CONNUS = ['id', 'date', 'siteNumber', 'epsDerogation', 'nomClient', 
 // l'est (photos_apk) et le km sera relevé au bureau (releves_km).
 export const TABLES_PONT = { temps: 'temps', frais: 'frais', photos: 'photos_apk', gestes: 'gestes_co' };
 
+// Un nom de photo ou de dossier venu du téléphone devient un morceau de chemin dans le
+// stockage : jamais « . », « .. », de barre ni de caractère de contrôle (S5, SECURITE.md).
+export function nomDeFichierSur(nom) {
+  return typeof nom === 'string' && nom.length > 0 && nom.length <= 200 && nom !== '.' && nom !== '..'
+    && !/[\/\\\u0000-\u001f]/.test(nom);
+}
+
 export function normaliser(donnees, { societeId, technicienId } = {}) {
   if (!societeId) throw new Error('societeId obligatoire');
   if (!technicienId) throw new Error('technicienId obligatoire');

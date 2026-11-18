@@ -39,7 +39,8 @@ export function variablesPaie({ tech, periode: { debut, fin }, temps, frais = []
 // Texte : guillemets si ; " ou saut de ligne ; une formule (= + - @) est neutralisée.
 export function texteCsv(v) {
   let t = String(v ?? '');
-  if (/^[=+\-@]/.test(t)) t = `'${t}`;
+  // Injection de formule (OWASP) : = + - @, et tabulation ou retour chariot en tête.
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
   return /[;"\n\r]|^'/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
 }
 

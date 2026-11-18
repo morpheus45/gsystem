@@ -101,6 +101,7 @@ function copierPhotos(cle, technicienId, dossier, photos, dejaCopiees, bilan) {
 }
 
 function copierUnePhoto(cle, technicienId, dossier, p, blob) {
+  if (!nomDeFichierSur(dossier.getName()) || !nomDeFichierSur(p.nom_drive)) throw new Error('nom refusé (S5, SECURITE.md)');
   const chemin = [SOCIETE_ID, 'apk', technicienId, dossier.getName(), p.nom_drive].join('/');
   const rep = UrlFetchApp.fetch(SUPABASE_URL + '/storage/v1/object/photos/' + chemin.split('/').map(encodeURIComponent).join('/'), {
     method: 'post', contentType: blob.getContentType() || 'image/jpeg', payload: blob.getBytes(),

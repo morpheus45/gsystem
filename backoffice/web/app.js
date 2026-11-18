@@ -1965,7 +1965,7 @@ $('#tarifs-creer').addEventListener('click', async () => {
 
 $('#fact-export').addEventListener('click', () => {
   if (!recap) return;
-  const csv = `Client;${$('#fact-client').value.trim()}\nPériode;${recap.debut};${recap.fin}\n\n` + versCsv(recap.interventions) + '\n' + versCsv(recap.equipements)
+  const csv = `Client;${texteCsv($('#fact-client').value.trim())}\nPériode;${recap.debut};${recap.fin}\n\n` + versCsv(recap.interventions) + '\n' + versCsv(recap.equipements)
     + (facture?.lignes.length ? '\n' + versCsv(facture.lignes) + `Total HT;${String(facture.totalHt).replace('.', ',')}\n` : '');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));

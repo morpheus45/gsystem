@@ -35,6 +35,11 @@ function ficheVehicule(texte, jeton) {
   var u = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user',
     { headers: { apikey: SUPABASE_CLE_PUBLIQUE, Authorization: 'Bearer ' + jeton }, muteHttpExceptions: true });
   if (u.getResponseCode() !== 200) throw new Error('connexion requise');
+  // Membre d'au moins une société (la RLS ne montre que ses propres adhésions) : un compte
+  // inscrit sans invitation n'utilise pas ce service (S7, SECURITE.md).
+  var m = UrlFetchApp.fetch(SUPABASE_URL + '/rest/v1/membres?select=role&limit=1',
+    { headers: { apikey: SUPABASE_CLE_PUBLIQUE, Authorization: 'Bearer ' + jeton }, muteHttpExceptions: true });
+  if (m.getResponseCode() !== 200 || JSON.parse(m.getContentText()).length === 0) throw new Error('réservé aux membres');
   var cache = CacheService.getScriptCache();
   var cle = 'fiches-' + Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyyMMdd');
   var n = Number(cache.get(cle) || 0);

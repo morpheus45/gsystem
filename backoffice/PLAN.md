@@ -226,6 +226,10 @@ Même liste que la section 8 de `presentation/documentation-backoffice-gsystems.
 - [ ] Direction + développement : service d'envoi des emails d'invitation.
 - [ ] Direction : arrêter l'interface de l'ancien tableau de bord après le chat.
 
+**Sécurité** (registre complet : `SECURITE.md`, audit du 18/11/2026)
+- [ ] Cédric : mots de passe de 12 caractères minimum dans Supabase (R1) — prévenir les comptes existants.
+- [ ] Direction : protection contre les mots de passe divulgués (R2) = offre Pro payante, à décider.
+
 **Priorité 3 — RGPD**
 - [ ] Registre des traitements ; information des salariés ; contrats de sous-traitance (clients, Supabase, Google).
 - [ ] Durée de conservation des messages ; durée des amendes et localisation Google Drive à vérifier ; relecture juriste/DPO.

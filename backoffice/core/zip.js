@@ -15,6 +15,12 @@ function crc32(octets) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
+// Chemin relatif sûr (« Zip Slip ») : ni racine, ni lecteur, ni « .. », ni caractère de contrôle.
+export function nomDansZip(nom) {
+  return String(nom).replace(/[\u0000-\u001f]/g, '').replace(/\\/g, '/').replace(/:/g, '_')
+    .split('/').filter((p) => p && p !== '.' && p !== '..').join('/');
+}
+
 export function zipStocke(fichiers, date = new Date()) {
   const heure = (date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1);
   const jour = ((date.getFullYear() - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
@@ -29,7 +35,7 @@ export function zipStocke(fichiers, date = new Date()) {
     return [new Uint8Array(v.buffer), nom];
   };
   for (const { nom, donnees } of fichiers) {
-    const n = new TextEncoder().encode(nom), crc = crc32(donnees), taille = donnees.length;
+    const n = new TextEncoder().encode(nomDansZip(nom)), crc = crc32(donnees), taille = donnees.length;
     const commun = [[20, 2], [0x0800, 2], [0, 2], [heure, 2], [jour, 2], [crc, 4], [taille, 4], [taille, 4], [n.length, 2], [0, 2]];
     const [local] = entete(0x04034b50, commun);
     morceaux.push(local, n, donnees);

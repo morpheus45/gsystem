@@ -8,3 +8,6 @@ create function auth.uid() returns uuid language sql stable as $$
 create role authenticated nologin;
 create role anon nologin;
 grant usage on schema auth, public to authenticated, anon;
+-- Comme Supabase : toute table créée dans public est d'office ouverte à anon et authenticated
+-- (seule la RLS protège). La migration de durcissement retire ce qui ne sert pas.
+alter default privileges in schema public grant all on tables to anon, authenticated;
