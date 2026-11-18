@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Décision du 17/11/2026 : l'opérateur de la plateforme est SUPER ADMIN,
 -- avec accès à tout (lecture et écriture) dans toutes les sociétés.
 -- Un seul point de décision : toutes les policies passent par private.a_role.

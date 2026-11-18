@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 18/11/2026 : un extrait comptable par technicien, « validé en tout points ».
 -- Chaque frais est validé ou refusé un par un (admin, gestion), signé par la base ;
 -- seuls les validés partent chez le comptable ; un frais exporté est figé.

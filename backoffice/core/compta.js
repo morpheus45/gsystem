@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Extrait comptable des notes de frais, par technicien.
 // Comptes : plan comptable général (règlement ANC n° 2014-03, plan de comptes 2025).
 // TVA : déductible seulement si la facture est délivrée à l'entreprise (CGI art. 271 et 289,

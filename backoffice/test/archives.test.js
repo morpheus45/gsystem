@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Archiver un technicien : il sort des actifs, ses données restent ; signé par la base.
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';

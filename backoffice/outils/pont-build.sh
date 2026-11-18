@@ -1,4 +1,5 @@
 #!/bin/sh
+# © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 # Construit l'Apps Script SÉPARÉ du pont APK -> back-office (dossier Drive « Backoffice »).
 # Usage : SUPABASE_URL=... SOCIETE_ID=<uuid de la société choisie> sh outils/pont-build.sh
 # La clé serveur n'est JAMAIS ici : elle se met dans les Propriétés du script.
@@ -21,7 +22,7 @@ cat > "$D/appsscript.json" <<'J'
 }
 J
 {
-  printf '// FICHIER CONSTRUIT par outils/pont-build.sh : modifier pont/*.js, pas ce fichier.\n'
+  printf '// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'\''auteur (CPI L.122-4, L.122-6, L.335-2).\n// FICHIER CONSTRUIT par outils/pont-build.sh : modifier pont/*.js, pas ce fichier.\n'
   printf 'const SUPABASE_URL = "%s";\nconst SOCIETE_ID = "%s";\n\n' "$SUPABASE_URL" "$SOCIETE_ID"
   # installer() en tête : c'est la fonction proposée par défaut dans l'éditeur.
   sed -n '/^\/\/ À lancer UNE fois/,$p' pont/apps-script.js

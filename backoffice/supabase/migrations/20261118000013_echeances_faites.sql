@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Échéance « Fait » (demande du 17/11/2026) : on note quand (et à quel km) elle a été faite,
 -- elle passe dans l'historique et la suivante est créée à part. Le signataire est posé par la
 -- base ; une échéance faite ne s'efface plus (historique du véhicule).

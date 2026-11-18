@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 """Assemble la page du back-office en UN fichier HTML (Apps Script ne sert qu'un fichier).
 
 Suit les imports relatifs de web/app.js (core/*.js, docs/app/*.js...) et inclut chaque
@@ -14,6 +15,8 @@ import sys
 
 IMPORT = re.compile(r"^import \{[^}]*\} from '([^']+)';\n", re.M)
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # backoffice/
+MENTION = ("/*! © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, "
+           "même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2). */")
 
 
 def assembler(entree):
@@ -51,6 +54,9 @@ def main():
     open(essai, 'w', encoding='utf-8').write(js)
     subprocess.run(['node', '--check', essai], check=True)
     os.remove(essai)
+    # Code servi minifié (noms raccourcis, commentaires retirés), mention de propriété en tête.
+    js = subprocess.run(['npx', '-y', 'esbuild@0.24.2', '--minify', '--format=esm', '--loader=js', '--legal-comments=none',
+                         '--banner=' + MENTION], input=js, capture_output=True, text=True, check=True).stdout
     html = open(os.path.join(RACINE, 'web', 'index.html'), encoding='utf-8').read()
     balise = '<script type="module" src="app.js"></script>'
     assert balise in html, 'balise script introuvable'

@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 17/11/2026 : purger « selon les textes en vigueur ». Les données réelles
 -- restent ineffaçables, SAUF une ligne dont le délai légal de conservation est dépassé,
 -- effacée par le super admin via purger_donnees() (mot de confirmation exigé).

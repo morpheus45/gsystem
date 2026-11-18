@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Purge légale : seules les données dont le délai légal est dépassé s'effacent,
 // seulement par le super admin, avec confirmation ; le reste reste ineffaçable.
 import { test, before } from 'node:test';

@@ -1,4 +1,5 @@
 #!/bin/sh
+# © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 # Construit la version « test en ligne » servie par un Apps Script SÉPARÉ
 # (dossier Drive « Backoffice »), à partir de web/ qui reste la seule source.
 # Usage : SUPABASE_URL=... SUPABASE_CLE_PUBLIQUE=sb_publishable_... sh outils/apps-script-build.sh
@@ -18,6 +19,7 @@ cat > "$D/appsscript.json" <<'J'
 }
 J
 cat > "$D/Code.js" <<'J'
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2).
 // Sert seulement la page : aucune donnée ici, tout passe par Supabase (RLS).
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')

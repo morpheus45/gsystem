@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Répartition d'une liste de valeurs (type de mission, résultat...) pour un camembert :
 // parts triées de la plus grande à la plus petite (à égalité, ordre d'apparition),
 // 5 parts au plus — au-delà, les plus petites sont regroupées en « Autres ».

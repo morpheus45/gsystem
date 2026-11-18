@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 export const REGLES_DEFAUT = {
   heures: { seuilHebdo: 35, tranche25: 8, taux1: 0.25, taux2: 0.5, typesAbsence: ['VACANCES', 'FERIE'], dimancheCompte: false },
   sources: { majoration: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000033020341', tauxMinimum: 'https://travail-emploi.gouv.fr/les-heures-supplementaires-contreparties' }

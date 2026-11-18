@@ -1,4 +1,5 @@
 #!/bin/sh
+# © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 # Lance l'écran du back-office sur http://127.0.0.1:5180 (ce poste seulement).
 # Assemble la page avec l'adresse et la clé PUBLIQUE de Supabase local
 # (jamais la clé secrète). Supabase local doit déjà tourner.

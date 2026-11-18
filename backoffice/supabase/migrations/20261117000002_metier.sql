@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Tables métier : personnel, heures, paie, frais, factures, véhicules.
 -- Les clés étrangères composites (societe_id, x_id) empêchent de relier
 -- une ligne de la société A à un objet de la société B.

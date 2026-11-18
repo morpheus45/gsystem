@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Liste des interventions (reprise de l'ancien tableau de bord, apps-script/Code.js : durHM, cltFilter).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

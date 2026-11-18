@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Primes GesteCo venues de l'APK (règle : core/primes.js, reprise de data/Models.kt).
 -- Écrites seulement par le pont (clé serveur) ; lecture par la société ; jamais effacées.
 

@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Décision du 17/11/2026 : les heures sup se VALIDENT par une case cochée dans le
 -- back-office, par admin ou gestion (pas par le comptable). Une ligne par tech et
 -- par semaine ISO ; seules les heures sup validées partent dans l'export de paie.

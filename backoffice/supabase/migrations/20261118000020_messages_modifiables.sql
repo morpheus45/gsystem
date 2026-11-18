@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 18/11/2026 : un message se corrige (faute de frappe), des deux côtés, et
 -- s'efface tant que le destinataire ne l'a pas lu. Au bureau : par son auteur seulement
 -- (ou le super admin). Côté technicien : par le pont (clé serveur), plus tard.

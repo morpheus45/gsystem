@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Isolation entre sociétés, prouvée sur un vrai Postgres (PGlite) avec le rôle
 // « authenticated » : ni superutilisateur ni propriétaire des tables.
 import { test, before } from 'node:test';

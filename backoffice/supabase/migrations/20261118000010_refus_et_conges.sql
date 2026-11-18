@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demandes du 17/11/2026 :
 -- 1) heures sup : « Refusées » en plus de « Validées » (une semaine refusée n'est pas payée) ;
 -- 2) demandes de congés à valider (saisies au bureau ; branchement APK plus tard).

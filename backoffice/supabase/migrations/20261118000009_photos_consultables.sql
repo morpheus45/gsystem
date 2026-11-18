@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 17/11/2026 : les photos de l'APK doivent être consultables par la société
 -- (pas seulement par le propriétaire du Drive). Le pont copie chaque photo dans un
 -- stockage PRIVÉ par société et note ici son emplacement.

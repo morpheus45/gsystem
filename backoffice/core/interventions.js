@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Liste des interventions : durée et filtres, repris de l'ancien tableau de bord
 // (apps-script/Code.js : durHM, cltFilter).
 

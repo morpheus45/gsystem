@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- TEST SEULEMENT : imite ce que Supabase fournit déjà (schéma auth, rôles).
 -- auth.uid() lit l'identifiant de l'utilisateur comme le fait Supabase.
 create schema auth;

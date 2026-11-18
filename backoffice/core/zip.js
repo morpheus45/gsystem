@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Archive ZIP « stockée » (sans compression) : photos et PDF sont déjà compressés.
 // Format : APPNOTE de PKWARE (en-têtes locaux, répertoire central, fin de répertoire),
 // noms en UTF-8 (bit 11). Moins de 65 535 fichiers et 4 Go : pas de ZIP64.

@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Grille de tarifs de facturation (demande du 17/11/2026) : une ligne par type d'intervention
 -- ou par équipement, par client (EPS par défaut) ; le prix HT est rempli plus tard.
 create table public.tarifs_facturation (

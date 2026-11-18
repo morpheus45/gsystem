@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 18/11/2026 : reconstruire le chat bureau ↔ technicien (ancien tableau de bord :
 -- feuille « chat » d'Apps Script). Côté bureau maintenant ; côté technicien branché plus tard
 -- (l'APK n'est pas modifiée : ses messages seront déposés par le pont avec la clé serveur).

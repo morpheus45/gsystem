@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Clôture du mois de paie (décision du 17/11/2026) : un cycle d'environ 4 semaines qui se
 // termine en fin de semaine, le samedi le plus proche du 20 ; le suivant commence le lendemain.
 const enDate = (d) => new Date(`${d}T00:00:00Z`);

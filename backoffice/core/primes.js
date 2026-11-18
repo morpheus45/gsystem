@@ -1,3 +1,4 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 // Primes GesteCo : reprise de la règle de l'APK, sans la réinventer.
 // - prime d'un passage = Σ équipements INSTALLÉS × prix (data/Models.kt : totalPrime) ;
 // - une CAM ne compte que si le tech a une clôture INST le même jour (règle CAMÉRAS) ;

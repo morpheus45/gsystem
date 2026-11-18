@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 17/11/2026 : aucun scan sans les informations qui vont avec.
 -- Un scan ne peut être déposé qu'au chemin <societe_id>/amendes/<id de l'amende>.<ext>,
 -- pour une amende qui EXISTE déjà dans cette société et n'a pas encore de scan.

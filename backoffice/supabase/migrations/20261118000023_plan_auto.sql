@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 18/11/2026 : les échéances se posent toutes seules pour chaque véhicule
 -- qui entre. Dès que marque, modèle et carburant sont connus (saisis, ou lus depuis la
 -- plaque), le véhicule reprend les règles d'un véhicule identique de la même société,

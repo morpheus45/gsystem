@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 18/11/2026 : chaque société a son nom, son adresse et son logo, affichés
 -- dans l'en-tête (« Back-office <société> »). Modifiables par l'admin de la société
 -- (politique societes_modifier déjà en place) et par le super admin.

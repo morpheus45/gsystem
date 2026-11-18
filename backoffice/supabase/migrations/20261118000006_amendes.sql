@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Amendes des véhicules (demande du 17/11/2026) : avis, conducteur désigné, statut,
 -- scan privé par société. Document légal : jamais effacé (comme les données APK).
 -- Désignation sous 45 jours après la date de l'avis : https://www.antai.gouv.fr/la-reglementation

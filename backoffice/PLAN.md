@@ -1,3 +1,4 @@
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
 # Back-office multi-société G-Systems — plan d'action
 
 Vérifié le 17/11/2026 sur `main` = `89d0f44` (version 1.9.105).

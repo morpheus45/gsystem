@@ -1,3 +1,4 @@
+-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 -- Demande du 17/11/2026 : « supprimer » un utilisateur de l'appli = l'ARCHIVER (double
 -- validation à l'écran). Il sort des actifs ; toutes ses données sont conservées. La date
 -- d'archivage permettra une purge à 3 ans si elle est décidée (aujourd'hui : rien ne s'efface).
