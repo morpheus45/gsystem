@@ -6,7 +6,7 @@ import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
 import { repartition, tauxNr } from '../core/stats.js';
 import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
-import { dureeMinutes, texteDuree, filtrer } from '../core/interventions.js';
+import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/interventions.js';
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
@@ -1244,15 +1244,15 @@ function afficherMoisFiche() {
   const totalHeures = jours.reduce((s, [, h]) => s + h, 0);
   const totaux = totauxFrais(fraisMois.map(versFrais));
   const valides = totauxFrais(fraisMois.filter((f) => f.statut === 'valide').map(versFrais));
-  const nr = duMois.filter((e) => e.observation_type).length;
+  const nr = duMois.filter((e) => /^NR/.test(e.observation_type)).length;   // une annulation n'est pas un NR
   const primes = primesDuMois(fiche.gestes, fiche.interventions.map(versHeures), fiche.baremes, m);
   afficherPrimes(primes, m);
-  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.length - nr} — NR : ${nr} — Heures : ${totalHeures} h — Frais validés : ${euros(valides.remboursable)} — Photos (total) : ${fiche.photos}`;
+  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.filter((e) => !e.observation_type).length} — NR : ${nr} — Heures : ${totalHeures} h — Frais validés : ${euros(valides.remboursable)} — Photos (total) : ${fiche.photos}`;
 
   const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
   $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
     creneau[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—',
-    e.numero_intervention || '—', e.observation_type || 'OK', e.heure_debut || '—', e.heure_fin || '—'])));
+    e.numero_intervention || '—', libelleResultat(e.observation_type), e.heure_debut || '—', e.heure_fin || '—'])));
   $('#tech-jours-table tbody').replaceChildren(...jours.map(([d, h]) => ligne([formaterDate(d), `${h} h`])));
   $('#tech-jours-total').textContent = `Total du mois : ${totalHeures} h`;
 
@@ -1309,7 +1309,7 @@ function afficherMoisFiche() {
   afficherGalerie(m);
   $('#tech-camemberts').replaceChildren(
     camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
-    camembert('Résultats', repartition(duMois.map((e) => e.observation_type || 'OK'))));
+    camembert('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type)))));
   $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)} | Validé (remboursé) : ${euros(valides.remboursable)}`;
 }
 
@@ -1727,7 +1727,7 @@ async function chargerBord() {
 
     $('#bord-camemberts').replaceChildren(
       camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
-      camembert('Résultats', repartition(duMois.map((e) => e.observation_type || 'OK'))));
+      camembert('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type)))));
 
     $('#bord-techs tbody').replaceChildren(...lignes.map((l) => {
       const tr = ligne([l.t.nom, l.interventions, pc(l.nr), `${l.heures} h`, euros(l.frais), euros(l.primes)]);
@@ -1869,7 +1869,7 @@ async function chargerInterventions() {
     const distincts = (cle) => [...new Set(listeInterventions.map(cle))].sort().map((v) => [v, v]);
     options($('#int-tech'), techniciens.filter((t) => listeInterventions.some((e) => e.technicien_id === t.id)).map((t) => [t.id, t.nom]), 'Tous');
     options($('#int-type'), distincts((e) => e.type_mission || '—'), 'Tous');
-    options($('#int-resultat'), distincts((e) => e.observation_type || 'OK'), 'Tous');
+    options($('#int-resultat'), [...new Set(listeInterventions.map((e) => e.observation_type || 'OK'))].sort().map((c) => [c, libelleResultat(c === 'OK' ? '' : c)]), 'Tous');
     afficherInterventions();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des interventions');
@@ -1881,11 +1881,11 @@ const interventionsFiltrees = () => filtrer(listeInterventions, { tech: $('#int-
 
 function afficherInterventions() {
   const l = interventionsFiltrees();
-  const nr = l.filter((e) => e.observation_type).length;
-  $('#int-resume').textContent = `${l.length} intervention(s) — OK : ${l.length - nr} — NR : ${nr}` + (l.length > 300 ? ' — 300 premières affichées, toutes dans l’export.' : '');
+  const nr = l.filter((e) => /^NR/.test(e.observation_type)).length;
+  $('#int-resume').textContent = `${l.length} intervention(s) — OK : ${l.filter((e) => !e.observation_type).length} — NR : ${nr}` + (l.length > 300 ? ' — 300 premières affichées, toutes dans l’export.' : '');
   $('#int-table tbody').replaceChildren(...l.slice(0, 300).map((e) => ligne([formaterDate(e.date), nomTech(e.technicien_id),
     CRENEAUX[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—', e.numero_intervention || '—',
-    e.observation_type || 'OK', e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—'])));
+    libelleResultat(e.observation_type), e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—'])));
 }
 
 $('#int-form').addEventListener('submit', (e) => { e.preventDefault(); chargerInterventions(); });
@@ -1896,7 +1896,7 @@ $('#int-export').addEventListener('click', () => {
   if (!l.length) { alert('Aucune intervention à exporter.'); return; }
   telecharger(`interventions-${$('#int-debut').value}-au-${$('#int-fin').value}.csv`, versCsv(l.map((e) => ({
     Date: formaterDate(e.date), Technicien: nomTech(e.technicien_id), Créneau: CRENEAUX[e.slot_midi] || '', Type: e.type_mission,
-    Ville: e.ville, Département: e.departement, 'N° intervention': e.numero_intervention, Résultat: e.observation_type || 'OK',
+    Ville: e.ville, Département: e.departement, 'N° intervention': e.numero_intervention, Résultat: libelleResultat(e.observation_type),
     Arrivée: e.heure_debut, Fin: e.heure_fin, Durée: texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) }))));
 });
 

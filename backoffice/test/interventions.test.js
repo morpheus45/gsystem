@@ -27,3 +27,9 @@ test('filtres : technicien, type, résultat (vide = OK), texte sur n°/ville/dé
   assert.equal(filtrer(l, { texte: 'blo' })[0].numero_intervention, '456');
   assert.equal(filtrer(l, { texte: '45' }).length, 2);   // département 45 et n° 456
 });
+
+test('résultat lisible, comme l’APK (StatsUploader.kt) : codes -> libellés', async () => {
+  const { libelleResultat } = await import('../core/interventions.js');
+  assert.deepEqual(['', 'NR_CLIENT', 'NR_TECHNIQUE', 'NR_CLIENT_ABS', 'NR_AUTRES', 'ANNULE', 'XYZ'].map(libelleResultat),
+    ['OK', 'NR client', 'NR technique', 'NR client absent', 'NR autres', 'Annulé', 'XYZ']);
+});
