@@ -205,7 +205,7 @@ function switchOnglet(tabId, calculer = true) {
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
     b.classList.toggle('active', actif);
-    b.setAttribute('aria-selected', String(actif));
+    if (actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);

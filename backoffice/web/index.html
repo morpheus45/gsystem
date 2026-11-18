@@ -4,43 +4,58 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Back-office</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <style>
+    /* Jetons de design : palette claire complète sur :root, redéfinie pour le thème sombre. */
     :root {
-      --bg: #fafafa;
-      --text: #1a1a1a;
-      --muted: #666;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --surface-2: #eef0f3;
+      --text: #111827;
+      --muted: #4b5563;
+      --border: #e2e5ea;
+      --accent: #1d4ed8;
+      --accent-hover: #1e40af;
       --accent-fond: #2563eb;
       --accent-fond-hover: #1d4ed8;
+      --accent-doux: #e8efff;
+      --danger: #b42318;
       --serie-1: #2a78d6; --serie-2: #eb6834; --serie-3: #1baf7a; --serie-4: #eda100; --serie-5: #e87ba4; --serie-autres: #9a9a9a;
-      --border: #e5e5e5;
-      --card: #fff;
-      --alert-bg: #fef2f2;
-      --alert-text: #991b1b;
-      --alert-border: #fecaca;
-      --success-bg: #f0fdf4;
-      --success-text: #166534;
-      --success-border: #bbf7d0;
+      --alert-bg: #fef3f2;
+      --alert-text: #912018;
+      --alert-border: #fecdca;
+      --success-bg: #ecfdf3;
+      --success-text: #05603a;
+      --success-border: #abefc6;
+      --rayon: 10px;
+      --rayon-sm: 8px;
+      --ombre: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.07);
+      --police: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #111;
-        --text: #f5f5f5;
-        --muted: #a3a3a3;
-        --accent: #3b82f6;
-        --accent-hover: #60a5fa;
+        --bg: #0c0e12;
+        --card: #15181e;
+        --surface-2: #1d2128;
+        --text: #f3f4f6;
+        --muted: #a5adba;
+        --border: #2a2f38;
+        --accent: #7aa7ff;
+        --accent-hover: #a3c2ff;
         --accent-fond: #2563eb;
         --accent-fond-hover: #1d4ed8;
+        --accent-doux: #172554;
+        --danger: #fd8a80;
         --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --serie-5: #d55181; --serie-autres: #7a7a7a;
-        --border: #333;
-        --card: #1a1a1a;
-        --alert-bg: #7f1d1d;
-        --alert-text: #fecaca;
-        --alert-border: #991b1b;
-        --success-bg: #14532d;
-        --success-text: #bbf7d0;
-        --success-border: #166534;
+        --alert-bg: #3b0d0c;
+        --alert-text: #fecdca;
+        --alert-border: #7a271a;
+        --success-bg: #053321;
+        --success-text: #abefc6;
+        --success-border: #085d3a;
+        --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -49,7 +64,8 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: var(--police);
+      -webkit-font-smoothing: antialiased;
       background: var(--bg);
       color: var(--text);
       line-height: 1.5;
@@ -273,6 +289,128 @@
     td.fleche { width: 24px; text-align: right; color: var(--muted); }
     .tech-barre { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
     .tech-resume-carte { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+
+    /* ================= Design « pro » (18/11/2026) : une seule couche, après l'existant ================= */
+    body { font-size: 15px; }
+    h1, h2, h3 { letter-spacing: -0.01em; }
+    .container { max-width: 1440px; padding: 0 clamp(16px, 3vw, 32px) 48px; }
+    .banner { background: var(--surface-2); color: var(--muted); font-size: 0.8125rem; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+
+    /* Barre du haut : sobre, collée en haut, filet discret. */
+    .header { position: sticky; top: 0; z-index: 20; margin: 0 calc(-1 * clamp(16px, 3vw, 32px)) 24px; padding: 12px clamp(16px, 3vw, 32px);
+      background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.4) blur(8px); border-bottom: 1px solid var(--border); }
+    .header h2 { font-size: 1.0625rem; font-weight: 600; }
+    #logout-btn { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { #logout-btn:hover { background: var(--surface-2); } }
+    #fil { font-size: 0.875rem; }
+
+    /* Boutons : un seul plein (l'action principale), le reste discret ; danger en contour. */
+    button { border-radius: var(--rayon-sm); font-weight: 600; min-height: 40px; }
+    button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: var(--ombre); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { button.secondary:hover { background: var(--surface-2); } }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { button.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); } }
+    td button { padding: 6px 12px; font-size: 0.8125rem; }
+    td button + button { margin-left: 6px; }
+
+    /* Champs */
+    input, select, textarea { border-radius: var(--rayon-sm); border: 1px solid var(--border); background: var(--card); color: var(--text); min-height: 40px; font: inherit; }
+    textarea { padding: 10px 12px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-fond); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-fond) 22%, transparent); }
+    label { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+
+    /* « + Ajouter … » : un vrai bouton secondaire, pas un lien. */
+    details.ajout > summary { display: inline-flex; padding: 8px 14px; min-height: 40px; border: 1px solid var(--border); border-radius: var(--rayon-sm);
+      background: var(--card); color: var(--text); font-weight: 500; box-shadow: var(--ombre); }
+    @media (hover: hover) and (pointer: fine) { details.ajout > summary:hover { background: var(--surface-2); } }
+    details.ajout[open] { background: var(--card); border: 1px solid var(--border); border-radius: var(--rayon); padding: 16px; box-shadow: var(--ombre); }
+    details.ajout[open] > summary { border: none; box-shadow: none; padding: 0 0 8px; min-height: 0; background: none; }
+
+    /* Accueil : cartes des sociétés */
+    #titre-societes { font-size: 1.375rem; font-weight: 600; margin: 8px 0 16px; }
+    .societe-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .societe-item { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); min-height: 88px; padding: 16px 20px;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms; }
+    @media (hover: hover) and (pointer: fine) { .societe-item:hover { border-color: color-mix(in srgb, var(--accent-fond) 50%, var(--border)); transform: translateY(-1px); } }
+    .societe-name { font-weight: 600; font-size: 1rem; }
+
+    /* Coquille d'une société : menu latéral + contenu */
+    .coquille { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 32px; align-items: start; }
+    .nav-laterale { position: sticky; top: 88px; }
+    .lien-retour { background: none; color: var(--muted); padding: 4px 0; min-height: 32px; font-weight: 500; font-size: 0.8125rem; box-shadow: none; }
+    @media (hover: hover) and (pointer: fine) { .lien-retour:hover { color: var(--text); background: none; } }
+    #societe-detail-title { font-size: 1.125rem; font-weight: 600; margin: 4px 0 16px; overflow-wrap: anywhere; }
+    .tabs { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 2px; background: none; padding: 0; border: none; border-radius: 0; margin: 0; }
+    .nav-groupe { margin: 16px 12px 4px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    .nav-groupe:first-child { margin-top: 0; }
+    .tab { flex: none; justify-content: flex-start; text-align: left; width: 100%; min-height: 40px; padding: 8px 12px; border-radius: var(--rayon-sm);
+      color: var(--muted); font-weight: 500; box-shadow: none; background: transparent; white-space: nowrap; }
+    @media (hover: hover) and (pointer: fine) { .tab:hover { background: var(--surface-2); color: var(--text); } }
+    .tab.active { background: var(--accent-doux); color: var(--accent); box-shadow: none; font-weight: 600; }
+    .tab .point { top: 50%; right: 12px; transform: translateY(-50%); }
+    .contenu { min-width: 0; }
+
+    /* Panneaux : une carte par section principale */
+    .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details) {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--rayon); padding: 20px 24px; box-shadow: var(--ombre); }
+    .section h3 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; }
+    .section h3:first-child { margin-top: 0; }
+    .tab-panel > .section .tuile { box-shadow: none; border: 1px solid var(--border); }
+    .barre { gap: 12px 16px; }
+
+    /* Tableaux : en-têtes discrets, chiffres alignés, survol léger */
+    table { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+    th { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    th:first-child { border-top-left-radius: var(--rayon-sm); } th:last-child { border-top-right-radius: var(--rayon-sm); }
+    td { padding: 12px; }
+    @media (hover: hover) and (pointer: fine) { tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); } }
+
+    /* Tableau de bord : tuiles alignées, chiffre lisible */
+    .tuiles { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 16px; }
+    .tuile { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); padding: 16px 20px; align-content: start; gap: 6px; }
+    .tuile .libelle { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+    .tuile .valeur { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .tuile .note { font-size: 0.8125rem; }
+    .carte-resume, .tech-resume-carte { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); }
+    .taches button { box-shadow: var(--ombre); font-weight: 500; }
+    .sous-onglets { background: var(--surface-2); }
+
+    /* Connexion et création de compte : une carte centrée */
+    #login-screen.active, #signup-screen.active { max-width: 420px; margin: clamp(32px, 10vh, 96px) auto 0; background: var(--card);
+      border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--ombre); padding: 32px clamp(20px, 5vw, 36px); }
+    #login-screen h1, #signup-screen h1 { margin: 0 0 20px; font-size: 1.5rem; font-weight: 600; }
+    #login-screen form, #signup-screen form { max-width: none; }
+    #login-screen form button, #signup-screen form button { width: 100%; margin-top: 4px; }
+
+    /* Écran tactile : cibles de 44 px au moins */
+    @media (pointer: coarse) { button, .tab, input, select, details.ajout > summary { min-height: 44px; } }
+
+    /* Point « à traiter » */
+    .point { background: #d92d20; }
+
+    /* Tablette et téléphone : menu en une ligne qui défile, sans les titres de groupes. */
+    @media (max-width: 1023px) {
+      .coquille { display: block; }
+      .nav-laterale { position: static; margin-bottom: 16px; }
+      .tabs { flex-direction: row; overflow-x: auto; scroll-snap-type: x proximity; gap: 6px; padding: 2px 0 6px; margin: 0; scrollbar-width: none; }
+      .tabs::-webkit-scrollbar { display: none; }
+      .nav-groupe { display: none; }
+      .tab { width: auto; scroll-snap-align: start; border: 1px solid var(--border); background: var(--card); min-height: 40px; }
+      .tab.active { border-color: transparent; }
+      .tab .point { top: 6px; right: 6px; transform: none; }
+      .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details) { padding: 16px; }
+    }
+    @media (max-width: 640px) {
+      #user-email { display: none; }   /* l'email reste visible dans Membres ; la barre du haut tient sur une ligne */
+      .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .tuile { padding: 12px 14px; }
+      .tuile .valeur { font-size: 1.375rem; }
+    }
+    @media (max-width: 900px) {
+      tr { background: var(--card); box-shadow: var(--ombre); }
+      th { background: none; }
+      .tab-panel > .section { background: none; border: none; box-shadow: none; padding: 0; }
+    }
   </style>
 </head>
 <body>
@@ -353,21 +491,30 @@
       </div>
 
       <section id="societe-detail" class="section hidden">
-        <button id="retour-societes" class="secondary">← Toutes les sociétés</button>
-        <h1 id="societe-detail-title" style="margin:12px 0 16px;">Société sélectionnée</h1>
-        <!-- Onglets -->
-        <div class="tabs" role="tablist">
-          <button class="tab active" role="tab" data-tab="bord" aria-selected="true">Tableau de bord</button>
-          <button class="tab" role="tab" data-tab="membres" aria-selected="false">Membres</button>
-          <button class="tab" role="tab" data-tab="techniciens" aria-selected="false">Techniciens</button>
-          <button class="tab" role="tab" data-tab="interventions" aria-selected="false">Interventions</button>
-          <button class="tab" role="tab" data-tab="vehicules" aria-selected="false">Véhicules</button>
-          <button class="tab" role="tab" data-tab="paie" aria-selected="false">Paie</button>
-          <button class="tab" role="tab" data-tab="facturation" aria-selected="false">Facturation</button>
-          <button class="tab" role="tab" data-tab="compta" aria-selected="false">Compta</button>
-          <button class="tab" role="tab" data-tab="conges" aria-selected="false" id="onglet-conges">Congés</button>
-          <button class="tab" role="tab" data-tab="messages" aria-selected="false" id="onglet-messages">Messages</button>
-        </div>
+       <div class="coquille">
+        <!-- Menu de la société : latéral sur ordinateur, une ligne qui défile sur téléphone. -->
+        <aside class="nav-laterale">
+          <button id="retour-societes" class="lien-retour">← Toutes les sociétés</button>
+          <h1 id="societe-detail-title">Société sélectionnée</h1>
+          <nav class="tabs" aria-label="Sections de la société">
+            <p class="nav-groupe">Pilotage</p>
+            <button class="tab active" data-tab="bord" aria-current="page">Tableau de bord</button>
+            <p class="nav-groupe">Équipe</p>
+            <button class="tab" data-tab="techniciens">Techniciens</button>
+            <button class="tab" data-tab="interventions">Interventions</button>
+            <button class="tab" data-tab="conges" id="onglet-conges">Congés</button>
+            <button class="tab" data-tab="messages" id="onglet-messages">Messages</button>
+            <p class="nav-groupe">Flotte</p>
+            <button class="tab" data-tab="vehicules">Véhicules</button>
+            <p class="nav-groupe">Finance</p>
+            <button class="tab" data-tab="paie">Paie</button>
+            <button class="tab" data-tab="compta">Compta</button>
+            <button class="tab" data-tab="facturation">Facturation</button>
+            <p class="nav-groupe">Administration</p>
+            <button class="tab" data-tab="membres">Membres</button>
+          </nav>
+        </aside>
+        <div class="contenu">
 
         <!-- Panneau Membres -->
         <div id="panel-bord" class="tab-panel" role="tabpanel">
@@ -1039,6 +1186,8 @@
             </div>
           </div>
         </div>
+        </div>
+       </div>
       </section>
     </section>
   </div>
