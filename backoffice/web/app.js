@@ -2027,7 +2027,13 @@ $('#id-logo').addEventListener('change', async () => {
   const f = $('#id-logo').files[0];
   if (!f) return;
   try {
-    logoChoisi = await reduireLogo(f);
+    // Déjà assez léger : gardé tel quel (un WebP animé reste animé) ; sinon réduit en PNG fixe.
+    logoChoisi = f.size <= 220000 ? await new Promise((ok, ko) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = ko;
+      r.readAsDataURL(f);
+    }) : await reduireLogo(f);
     if (logoChoisi.length > 300000) { logoChoisi = undefined; alert('Logo trop détaillé : essayez une image plus simple.'); return; }
     apercuLogo(logoChoisi);
   } catch {
