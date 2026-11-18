@@ -99,3 +99,34 @@ test('conducteur à une date : affectation en cours ce jour-là, la plus récent
 test('désignation du conducteur : 45 jours après la date de l\'avis (ANTAI)', () => {
   assert.equal(limiteDesignation('2026-11-01'), '2026-12-16');
 });
+
+test('plan d’entretien : dernier fait, prochaine échéance, estimation au rythme réel, état', async () => {
+  const { planEntretien } = await import('../core/vehicules.js');
+  const regles = [
+    { type: 'Vidange', tousLesKm: 30000, tousLesMois: 24 },
+    { type: 'Courroie de distribution', tousLesKm: 160000, tousLesMois: 120 },
+    { type: 'Pneus', tousLesKm: 40000 },
+    { type: 'Freins', tousLesKm: 60000 },
+  ];
+  const entretiens = [
+    { type: 'VIDANGE', date: '2026-01-10', km: 140000 }, { type: 'vidange', date: '2025-01-05', km: 110000 },
+    { type: 'Courroie de distribution', date: '2019-03-01', km: 5000 },
+    { type: 'Pneus', date: '2026-06-01', km: 155000 },
+  ];
+  const p = planEntretien({ regles, entretiens, kmActuel: 162050, kmMoyenMois: 2000, aujourdhui: '2026-11-18' });
+  const v = p.find((l) => l.type === 'Vidange');
+  assert.deepEqual(v.dernier, { date: '2026-01-10', km: 140000 });
+  assert.deepEqual(v.prochain, { date: '2028-01-10', km: 170000 });
+  assert.equal(v.estimation, '2027-03-19');   // 7 950 km à 2 000 km/mois = 3,98 mois × 30,44 j = 121 jours
+  assert.equal(v.etat, 'ok');
+  const c = p.find((l) => l.type === 'Courroie de distribution');
+  assert.deepEqual(c.prochain, { date: '2029-03-01', km: 165000 });
+  assert.equal(c.etat, 'proche');             // à moins de 3 000 km
+  assert.equal(p.find((l) => l.type === 'Pneus').etat, 'ok');
+  const f = p.find((l) => l.type === 'Freins');
+  assert.equal(f.dernier, null);
+  assert.equal(f.etat, 'inconnu');            // jamais saisi : on ne devine pas
+  const depasse = planEntretien({ regles: [regles[0]], entretiens, kmActuel: 171000, kmMoyenMois: null, aujourdhui: '2026-11-18' });
+  assert.equal(depasse[0].etat, 'depasse');
+  assert.equal(depasse[0].estimation, null);  // rythme inconnu : pas d'estimation
+});

@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
-import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto } from '../core/vehicules.js';
+import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto, planEntretien } from '../core/vehicules.js';
 import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
@@ -23,7 +23,8 @@ let monRole = null;       // rôle de l'utilisateur dans la société sélection
 let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
 let techniciens = [];     // cache de la société courante (pour les select)
 let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
-let messages = [], chatTech = null, relanceChat = null;   // chat : messages de la société, conversation ouverte, relance
+let messages = [], chatTech = null, relanceChat = null;
+let listeVehicules = [];   // véhicules de la société (plan d'entretien : même modèle)   // chat : messages de la société, conversation ouverte, relance
 
 // Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
 function peutEcrire() {
@@ -592,8 +593,9 @@ function ouvrirFicheTechnicien(t) {
 // === VÉHICULES ===
 async function loadVehicules(societeId) {
   try {
-    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle').eq('societe_id', societeId).order('plaque');
+    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, motorisation, mise_en_circulation').eq('societe_id', societeId).order('plaque');
     if (error) throw error;
+    listeVehicules = vehicules;
     // Charger les affectations de cette société
     const { data: affectations, error: affectErr } = await sb.from('affectations').select('vehicule_id, technicien_id, debut, fin').eq('societe_id', societeId).order('debut', { ascending: false });
     if (affectErr) throw affectErr;
@@ -843,9 +845,14 @@ async function deleteEcheance(id) {
 // 4. Entretiens
 async function loadEntretiens(vehiculeId) {
   try {
-    const { data, error } = await sb.from('entretiens').select('id, date, type, km, garage, cout').eq('vehicule_id', vehiculeId).order('date', { ascending: false });
-    if (error) throw error;
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [data, regles, releves] = await Promise.all([
+      lire(sb.from('entretiens').select('id, date, type, km, garage, cout').eq('vehicule_id', vehiculeId).order('date', { ascending: false })),
+      lire(sb.from('entretien_regles').select('id, type, tous_les_km, tous_les_mois, source').eq('vehicule_id', vehiculeId).order('type')),
+      lire(sb.from('releves_km').select('date, km, valide_par').eq('vehicule_id', vehiculeId).order('date')),
+    ]);
     renderEntretiens(data);
+    afficherPlan(data, regles, releves);
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des entretiens');
   }
@@ -880,9 +887,87 @@ function renderEntretiens(list) {
 }
 
 const LIB_ENTRETIEN = {
-  DISTRIBUTION: 'Distribution', PNEUS: 'Pneus', FREINS: 'Freins',
-  VIDANGE: 'Vidange', REVISION: 'Révision', REPARATION: 'Réparation diverse', AUTRE: 'Autre'
+  DISTRIBUTION: 'Distribution', PNEUS: 'Pneus', FREINS: 'Freins', VIDANGE: 'Vidange', FILTRES: 'Filtres',
+  LIQUIDE_FREINS: 'Liquide de frein', REVISION: 'Révision', REPARATION: 'Réparation diverse', AUTRE: 'Autre'
 };
+
+// Plan d'entretien : préconisations du véhicule suivies au fil des km (core/vehicules.js : planEntretien).
+const ETATS_PLAN = { ok: ['À jour', ''], proche: ['Bientôt', 'alerte-proche'], depasse: ['À faire', 'alerte-depassee'], inconnu: ['Dernier entretien non saisi', 'alerte-proche'] };
+const nombreFr = (n) => Number(n).toLocaleString('fr-FR');
+let reglesVehicule = [];
+
+function afficherPlan(entretiensListe, regles, releves) {
+  reglesVehicule = regles;
+  const v = vehiculeActif;
+  const kmActuel = releves.length ? Math.max(...releves.map((r) => Number(r.km))) : null;
+  const kmMoyen = kmMoyenParMois(releves);
+  const plan = planEntretien({ regles: regles.map((r) => ({ type: r.type, tousLesKm: r.tous_les_km, tousLesMois: r.tous_les_mois })),
+    entretiens: entretiensListe, kmActuel, kmMoyenMois: kmMoyen, aujourdhui: iso(new Date()) });
+  const identite = [v.marque, v.modele, v.motorisation].filter(Boolean).join(' ');
+  $('#plan-resume').textContent = (identite ? `${identite} — ` : 'Modèle non renseigné (Identité du véhicule) — ')
+    + `${kmActuel != null ? nombreFr(kmActuel) + ' km' : 'km inconnu'}` + (kmMoyen ? ` — ${nombreFr(kmMoyen)} km par mois en moyenne` : '')
+    + (regles.length ? '' : ' — aucune préconisation : ajoutez celles du constructeur.');
+  $('#plan-table tbody').replaceChildren(...plan.map((l, i) => {
+    const pre = [l.tousLesKm && `${nombreFr(l.tousLesKm)} km`, l.tousLesMois && `${l.tousLesMois} mois`].filter(Boolean).join(' ou ');
+    const dernier = l.dernier ? `${formaterDate(l.dernier.date)}${l.dernier.km != null ? ' — ' + nombreFr(l.dernier.km) + ' km' : ''}` : '—';
+    const prochain = l.prochain ? [l.prochain.km != null && `${nombreFr(l.prochain.km)} km`, l.prochain.date && formaterDate(l.prochain.date)].filter(Boolean).join(' ou le ') : '—';
+    const [etat, classe] = ETATS_PLAN[l.etat];
+    const tr = ligne([libEntretien(l.type), `Tous les ${pre}`, dernier, prochain, l.estimation ? `vers le ${formaterDate(l.estimation)}` : '—', etat, regles[i].source || '—']);
+    tr.children[5].className = classe;
+    const td = tr.appendChild(document.createElement('td'));
+    const b = td.appendChild(document.createElement('button'));
+    b.type = 'button'; b.className = 'danger'; b.textContent = 'Supprimer';
+    b.addEventListener('click', async () => {
+      if (!confirm(`Supprimer la préconisation « ${libEntretien(l.type)} » ?`)) return;
+      const { error } = await sb.from('entretien_regles').delete().eq('id', regles[i].id);
+      if (error) { alert(error.message); return; }
+      await loadEntretiens(v.id);
+    });
+    return tr;
+  }));
+  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-motorisation', 'motorisation'], ['#vi-mec', 'mise_en_circulation']]) $(id).value = v[champ] || '';
+}
+
+$('#regle-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const km = Number($('#regle-km').value) || null, mois = Number($('#regle-mois').value) || null;
+  if (!km && !mois) { alert('Indiquez un intervalle en km, en mois, ou les deux.'); return; }
+  const { error } = await sb.from('entretien_regles').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id, type: $('#regle-type').value,
+    tous_les_km: km, tous_les_mois: mois, source: $('#regle-source').value.trim() });
+  if (error) { alert(error.message); return; }
+  $('#regle-form').reset();
+  await loadEntretiens(vehiculeActif.id);
+});
+
+$('#vehicule-identite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champs = { marque: $('#vi-marque').value.trim(), modele: $('#vi-modele').value.trim(), motorisation: $('#vi-motorisation').value.trim(),
+    mise_en_circulation: $('#vi-mec').value || null };
+  const { error } = await sb.from('vehicules').update(champs).eq('id', vehiculeActif.id);
+  if (error) { alert(error.message); return; }
+  Object.assign(vehiculeActif, champs);
+  const dansListe = listeVehicules.find((x) => x.id === vehiculeActif.id);
+  if (dansListe) Object.assign(dansListe, champs);
+  await loadEntretiens(vehiculeActif.id);
+});
+
+// Même modèle = même marque, modèle et motorisation : le plan est copié là où le type manque.
+$('#plan-copier').addEventListener('click', async () => {
+  const v = vehiculeActif;
+  if (!v.marque || !v.modele || !v.motorisation) { alert("Renseignez d'abord la marque, le modèle et la motorisation (Identité du véhicule)."); return; }
+  if (!reglesVehicule.length) { alert('Ce véhicule n\'a pas encore de préconisation à copier.'); return; }
+  const memes = listeVehicules.filter((x) => x.id !== v.id && x.marque === v.marque && x.modele === v.modele && x.motorisation === v.motorisation);
+  if (!memes.length) { alert('Aucun autre véhicule de ce modèle.'); return; }
+  const { data: existantes, error: e1 } = await sb.from('entretien_regles').select('vehicule_id, type').in('vehicule_id', memes.map((x) => x.id));
+  if (e1) { alert(e1.message); return; }
+  const lignes = memes.flatMap((x) => reglesVehicule.filter((r) => !existantes.some((ex) => ex.vehicule_id === x.id && ex.type === r.type))
+    .map((r) => ({ societe_id: selectedSociete, vehicule_id: x.id, type: r.type, tous_les_km: r.tous_les_km, tous_les_mois: r.tous_les_mois, source: r.source })));
+  if (!lignes.length) { alert('Les véhicules de ce modèle ont déjà ces préconisations.'); return; }
+  if (!confirm(`Copier ${lignes.length} préconisation(s) sur ${memes.length} véhicule(s) du même modèle ?`)) return;
+  const { error } = await sb.from('entretien_regles').insert(lignes);
+  if (error) { alert(error.message); return; }
+  alert(`${lignes.length} préconisation(s) copiée(s).`);
+});
 function libEntretien(type) { return LIB_ENTRETIEN[type] || type; }
 
 function formaterDate(date) {

@@ -90,3 +90,29 @@ export const ANTAI = {
 };
 export const limiteDesignation = (dateAvis) =>
   new Date(Date.parse(`${dateAvis}T00:00:00Z`) + ANTAI.delaiJours * 86400000).toISOString().slice(0, 10);
+
+// Plan d'entretien d'un véhicule : pour chaque règle (préconisation), le dernier entretien
+// du même type, la prochaine échéance (km et/ou date), la date estimée au rythme réel
+// (km moyens par mois) et l'état. Sans entretien connu : « inconnu », rien n'est deviné.
+// Proche = moins de 3 000 km ou 30 jours (par la date ou par l'estimation).
+export function planEntretien({ regles, entretiens, kmActuel, kmMoyenMois, aujourdhui, kmAvant = 3000, joursAvant = 30 }) {
+  const norme = (t) => String(t || '').trim().toUpperCase();
+  const limite = ajouterJours(aujourdhui, joursAvant);
+  return regles.map((r) => {
+    const faits = entretiens.filter((e) => norme(e.type) === norme(r.type) && e.date).sort((a, b) => (a.date < b.date ? 1 : -1));
+    const d = faits[0];
+    const base = { type: r.type, tousLesKm: r.tousLesKm || null, tousLesMois: r.tousLesMois || null };
+    if (!d) return { ...base, dernier: null, prochain: null, estimation: null, etat: 'inconnu' };
+    const dernier = { date: d.date, km: d.km == null ? null : Number(d.km) };
+    const prochain = {
+      date: r.tousLesMois ? ajouterMois(dernier.date, r.tousLesMois) : null,
+      km: r.tousLesKm && dernier.km != null ? dernier.km + r.tousLesKm : null,
+    };
+    const reste = prochain.km != null && kmActuel != null ? prochain.km - kmActuel : null;
+    const estimation = reste != null && kmMoyenMois > 0 ? ajouterJours(aujourdhui, Math.max(0, Math.round(reste / kmMoyenMois * 30.44))) : null;
+    let etat = 'ok';
+    if ((prochain.date && prochain.date < aujourdhui) || (reste != null && reste <= 0)) etat = 'depasse';
+    else if ((prochain.date && prochain.date <= limite) || (reste != null && reste <= kmAvant) || (estimation && estimation <= limite)) etat = 'proche';
+    return { ...base, dernier, prochain, estimation, etat };
+  });
+}

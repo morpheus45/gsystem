@@ -845,6 +845,43 @@
             </div>
 
             <div id="vehicule-section-entretiens" class="section sous-section hidden">
+              <h3>Plan d'entretien</h3>
+              <p id="plan-resume" class="aide"></p>
+              <div class="table-wrapper">
+                <table id="plan-table">
+                  <thead><tr><th>Entretien</th><th>Préconisation</th><th>Dernier fait</th><th>Prochaine échéance</th><th>Estimation</th><th>État</th><th>Source</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="flex" style="margin-bottom:16px;">
+                <details class="ajout">
+                  <summary>Ajouter une préconisation</summary>
+                  <form id="regle-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <div class="field"><label for="regle-type">Entretien</label>
+                      <select id="regle-type" required>
+                        <option value="VIDANGE">Vidange</option><option value="DISTRIBUTION">Distribution</option>
+                        <option value="PNEUS">Pneus</option><option value="FREINS">Freins</option>
+                        <option value="FILTRES">Filtres</option><option value="LIQUIDE_FREINS">Liquide de frein</option>
+                        <option value="REVISION">Révision</option>
+                      </select></div>
+                    <div class="field"><label for="regle-km">Tous les (km)</label><input type="number" id="regle-km" min="1" step="1"></div>
+                    <div class="field"><label for="regle-mois">Ou tous les (mois)</label><input type="number" id="regle-mois" min="1" step="1"></div>
+                    <div class="field" style="flex:2;min-width:200px;"><label for="regle-source">Source (constructeur, carnet, garage…)</label><input id="regle-source" maxlength="300" required></div>
+                    <button type="submit">Ajouter</button>
+                  </form>
+                </details>
+                <button type="button" id="plan-copier" class="secondary">Appliquer ce plan aux véhicules du même modèle</button>
+              </div>
+              <details class="ajout">
+                <summary>Identité du véhicule (marque, modèle, motorisation)</summary>
+                <form id="vehicule-identite-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field"><label for="vi-marque">Marque</label><input id="vi-marque" maxlength="60"></div>
+                  <div class="field"><label for="vi-modele">Modèle</label><input id="vi-modele" maxlength="60"></div>
+                  <div class="field" style="flex:2;min-width:200px;"><label for="vi-motorisation">Motorisation</label><input id="vi-motorisation" maxlength="120" placeholder="ex. 1.5 dCi 95 ch, diesel"></div>
+                  <div class="field"><label for="vi-mec">Mise en circulation</label><input type="date" id="vi-mec"></div>
+                  <button type="submit">Enregistrer</button>
+                </form>
+              </details>
               <h3>Entretiens</h3>
               <div class="table-wrapper">
                 <table id="entretiens-table">
@@ -873,6 +910,8 @@
                       <option value="PNEUS">Pneus</option>
                       <option value="FREINS">Freins</option>
                       <option value="VIDANGE">Vidange</option>
+                      <option value="FILTRES">Filtres</option>
+                      <option value="LIQUIDE_FREINS">Liquide de frein</option>
                       <option value="REVISION">Révision</option>
                       <option value="REPARATION">Réparation diverse</option>
                       <option value="AUTRE">Autre</option>
