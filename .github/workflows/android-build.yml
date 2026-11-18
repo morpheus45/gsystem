@@ -79,7 +79,11 @@ jobs:
         run: |
           # Canal "sideload" = l'APK GitHub Releases (auto-update + IntegrityGuard).
           # La variante Play (AAB) est produite par playstore-release.yml.
-          if [ -n "$RELEASE_STORE_FILE" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          # Version publiée (tag vX.Y.Z) : toujours la variante release, brouillée par
+          # R8 et non déboguable. Signée avec la clé de production si le secret existe,
+          # sinon avec la clé actuelle (keystore/debug.keystore) : la mise à jour
+          # s'installe alors par-dessus l'appli en place, sans perte de données.
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "variant=release" >> "$GITHUB_OUTPUT"
             ./gradlew :app:assembleSideloadRelease --stacktrace
           else
@@ -108,6 +112,31 @@ jobs:
           path: ${{ steps.apk.outputs.apk_path }}
           if-no-files-found: error
           retention-days: 7
+
+      # Brouillage (R8) : mapping.txt décode les rapports de plantage de CETTE version.
+      # Le fichier complet (~240 Mo) liste aussi les classes des bibliothèques gardées
+      # telles quelles : seules les classes de l'appli et les classes renommées sont
+      # gardées (~0,6 Mo compressé, quota de stockage). Gardé 90 jours (le maximum) ;
+      # au-delà, il se régénère en reconstruisant le tag (même code, mêmes outils).
+      # Jamais joint à la Release.
+      - name: Reduce R8 mapping
+        if: startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true
+        run: |
+          awk '/^#/ && !c {print; next}
+               /^[^ #]/ {c=1; split($0,a," -> "); o=a[2]; sub(/:$/,"",o);
+                         garder = (a[1] ~ /^com\.morpheus45\.gsystem\./) || (a[1] != o)}
+               c && garder' app/build/outputs/mapping/sideloadRelease/mapping.txt > mapping-utile.txt
+
+      - name: Upload R8 mapping
+        if: startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-${{ github.ref_name }}
+          path: mapping-utile.txt
+          if-no-files-found: warn
+          retention-days: 90
 
       # --- Publication automatique d'une Release quand un tag vX.Y.Z est poussé ---
       # L'app (UpdateChecker) lit /releases/latest et propose la MAJ aux techs.
