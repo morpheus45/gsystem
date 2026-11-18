@@ -189,3 +189,10 @@ Décisions de Cédric : relevé + écritures ; chaque frais validé un par un av
 - **Fichiers** : relevé (une ligne par frais, contrôles : justificatif absent, montant nul, doublon possible) et écritures aux colonnes du FEC (LPF art. A47 A-1), séparateur « ; », virgule décimale. Ce n'est pas le FEC de l'entreprise (produit par le logiciel comptable), c'est un fichier d'import.
 - Testé : `test/compta.test.js`, `test/compta-base.test.js` ; parcours vérifié dans le navigateur sur la base locale (données fictives).
 - **À VÉRIFIER avec le comptable** : format d'import de son logiciel (colonnes, séparateur, encodage) ; comptes ; numéro de compte auxiliaire de chaque technicien.
+
+## Amendes et rotations de véhicules — mis de côté le 18/11/2026
+
+- Flotte G-Systems : 31 véhicules, qui changent de mains pour lisser les km.
+- **Convention ANTAI** (connexion directe, « plus de 10 véhicules » sur entreprises.antai.gouv.fr ; une autre page dit « plus de 1 000 » : À VÉRIFIER auprès de l'ANTAI) : l'avis part directement au conducteur. Compte + justificatifs, convention signée par le dirigeant, raccordement technique avec l'ANTAI (format non public : rien codé).
+- Pas de robot sur le site de l'État ; contestation : manuelle.
+- Idées en attente : fiche de désignation pré-remplie (adresse et n° de permis des techniciens à enregistrer) ; alertes « conducteur incertain » (amende le jour d'un changement de mains, deux techs sur un véhicule, plaque des photos compteur ≠ affectation) ; heure d'échange en option ; aide au lissage des km (suggestions d'échange).
