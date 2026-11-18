@@ -1819,9 +1819,17 @@ async function chargerBord() {
       return d;
     };
     const pc = (x) => (x.pourcent == null ? '—' : `${x.pourcent.toFixed(1).replace('.', ',')} %`);
+    // Objectif NR : vert jusqu'à 8 %, rouge au-dessus (icône + texte, pas la couleur seule).
+    const tuileNr = () => {
+      const p = nrSociete.pourcent;
+      const t = tuile('Taux NR (installations)', pc(nrSociete),
+        p == null ? 'Aucune installation' : p <= 8 ? '✓ Objectif atteint (≤ 8 %)' : '⚠ Au-dessus de l\'objectif (8 %)');
+      if (p != null) t.classList.add(p <= 8 ? 'objectif-ok' : 'objectif-ko');
+      return t;
+    };
     $('#bord-chiffres').replaceChildren(
       tuile('Interventions', duMois.length),
-      tuile('Taux NR (installations)', pc(nrSociete), nrSociete.pourcent == null ? 'Aucune installation' : nrSociete.pourcent <= 8 ? 'Objectif atteint (≤ 8 %)' : 'Au-dessus de l\'objectif (8 %)'),
+      tuileNr(),
       tuile('Heures', `${somme('heures')} h`),
       tuile('Frais remboursables', euros(somme('frais'))),
       tuile('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`));

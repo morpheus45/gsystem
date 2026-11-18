@@ -378,6 +378,11 @@
     .tuile .libelle { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
     .tuile .valeur { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
     .tuile .note { font-size: 0.8125rem; }
+    .tuile.objectif-ok, .tab-panel > .section .tuile.objectif-ok { background: var(--success-bg); border: 1px solid var(--success-border); }
+    .tuile.objectif-ko, .tab-panel > .section .tuile.objectif-ko { background: var(--alert-bg); border: 1px solid var(--alert-border); }
+    .tuile.objectif-ok .valeur, .tuile.objectif-ok .note { color: var(--success-text); }
+    .tuile.objectif-ko .valeur, .tuile.objectif-ko .note { color: var(--alert-text); }
+    .tuile.objectif-ok .note, .tuile.objectif-ko .note { font-weight: 500; }
     .carte-resume, .tech-resume-carte { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); }
     .taches button { box-shadow: var(--ombre); font-weight: 500; }
     .sous-onglets { background: var(--surface-2); }
