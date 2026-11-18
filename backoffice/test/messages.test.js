@@ -4,16 +4,16 @@ import assert from 'node:assert/strict';
 import { ouvrirBase } from './base.js';
 
 const A = '00000000-0000-0000-0000-00000000000a', B = '00000000-0000-0000-0000-00000000000b';
-const UG = '00000000-0000-0000-0000-0000000000f1', UC = '00000000-0000-0000-0000-0000000000f2', UB = '00000000-0000-0000-0000-0000000000f3';
+const UG2 = '00000000-0000-0000-0000-0000000000f4', UG = '00000000-0000-0000-0000-0000000000f1', UC = '00000000-0000-0000-0000-0000000000f2', UB = '00000000-0000-0000-0000-0000000000f3';
 const T = '00000000-0000-0000-0000-0000000000f9';
 let db;
 const comme = (uid, sql) => db.comme(uid, () => db.query(sql));
 
 before(async () => {
   db = await ouvrirBase();
-  await db.exec(`insert into auth.users (id) values ('${UG}'), ('${UC}'), ('${UB}');
+  await db.exec(`insert into auth.users (id) values ('${UG2}'), ('${UG}'), ('${UC}'), ('${UB}');
     insert into societes (id, nom) values ('${A}', 'A fictive'), ('${B}', 'B fictive');
-    insert into membres values ('${A}', '${UG}', 'gestion'), ('${A}', '${UC}', 'comptable'), ('${B}', '${UB}', 'admin');
+    insert into membres values ('${A}', '${UG2}', 'gestion'), ('${A}', '${UG}', 'gestion'), ('${A}', '${UC}', 'comptable'), ('${B}', '${UB}', 'admin');
     insert into techniciens (id, societe_id, nom) values ('${T}', '${A}', 'Tech A');
     -- message d'un technicien (plus tard : déposé par le pont avec la clé serveur)
     insert into messages (societe_id, technicien_id, de, texte) values ('${A}', '${T}', 'technicien', 'Bonjour le bureau');`);
@@ -36,14 +36,28 @@ test('ni le comptable, ni une autre société ne lisent la conversation', async 
   assert.equal((await comme(UG, `select count(*)::int n from messages`)).rows[0].n, 2);
 });
 
-test('le bureau marque lu un message du technicien ; le texte ne change jamais', async () => {
+test('le bureau marque lu un message du technicien, sans pouvoir en changer le texte', async () => {
   await comme(UG, `update messages set lu_le = now() where de = 'technicien'`);
   assert.equal((await db.query(`select lu_le is not null as lu from messages where de = 'technicien'`)).rows[0].lu, true);
-  await assert.rejects(comme(UG, `update messages set texte = 'modifié' where de = 'technicien'`), /modifi/);
+  await assert.rejects(comme(UG, `update messages set texte = 'changé' where de = 'technicien'`), /auteur/);
 });
 
-test('message vide ou trop long refusé ; un message ne s’efface pas', async () => {
+test('faute de frappe : l’auteur corrige son message, marqué « modifié » ; un collègue ne peut pas', async () => {
+  await comme(UG, `update messages set texte = 'Bonjour Tech A !' where de = 'bureau'`);
+  const r = (await db.query(`select texte, modifie_le is not null as modifie from messages where de = 'bureau'`)).rows[0];
+  assert.deepEqual(r, { texte: 'Bonjour Tech A !', modifie: true });
+  await assert.rejects(comme(UG2, `update messages set texte = 'pas à moi' where de = 'bureau'`), /auteur/);
+});
+
+test('effacer : par son auteur, tant que le destinataire ne l’a pas lu', async () => {
+  await comme(UG, `insert into messages (societe_id, technicien_id, de, texte) values ('${A}', '${T}', 'bureau', 'erreur'), ('${A}', '${T}', 'bureau', 'déjà lu')`);
+  await db.query(`update messages set lu_le = now() where texte = 'déjà lu'`);   // lu par le technicien (plus tard : le pont)
+  await comme(UG2, `delete from messages where texte = 'erreur'`);              // pas l'auteur : rien
+  await comme(UG, `delete from messages where texte in ('erreur', 'déjà lu')`);
+  assert.deepEqual((await db.query(`select texte from messages where de = 'bureau' order by texte`)).rows.map((x) => x.texte), ['Bonjour Tech A !', 'déjà lu']);
+});
+
+test('message vide ou trop long refusé', async () => {
   await assert.rejects(comme(UG, `insert into messages (societe_id, technicien_id, de, texte) values ('${A}', '${T}', 'bureau', '   ')`), /check/);
   await assert.rejects(comme(UG, `insert into messages (societe_id, technicien_id, de, texte) values ('${A}', '${T}', 'bureau', repeat('x', 2001))`), /check/);
-  await assert.rejects(comme(UG, `delete from messages`), /permission/);
 });

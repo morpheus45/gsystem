@@ -1964,7 +1964,7 @@ async function compterMessagesNonLus() {
 
 async function chargerMessages() {
   try {
-    messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, cree_le, lu_le').eq('societe_id', selectedSociete).order('cree_le'));
+    messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, auteur, cree_le, lu_le, modifie_le').eq('societe_id', selectedSociete).order('cree_le'));
     afficherChat();
   } catch (err) {
     clearInterval(relanceChat);
@@ -2010,7 +2010,15 @@ function afficherFil() {
     d.className = `bulle ${m.de}`;
     d.textContent = m.texte;
     d.appendChild(document.createElement('small')).textContent = `${m.de === 'bureau' ? 'Bureau' : chatTech.nom} — ${heureMessage(m.cree_le)}`
-      + (m.de === 'bureau' && m.lu_le ? ' — lu' : '');
+      + (m.modifie_le ? ' — modifié' : '') + (m.de === 'bureau' && m.lu_le ? ' — lu' : '');
+    if (m.de === 'bureau' && (m.auteur === session.user.id || superAdmin)) {   // la base vérifie de toute façon
+      const actions = d.appendChild(document.createElement('div'));
+      actions.className = 'bulle-actions';
+      const bouton = (texte, action) => Object.assign(actions.appendChild(document.createElement('button')),
+        { type: 'button', className: 'secondary', textContent: texte, onclick: action });
+      bouton('Modifier', () => modifierMessage(m));
+      if (!m.lu_le) bouton('Supprimer', () => supprimerMessage(m));
+    }
     return d;
   }) : [Object.assign(document.createElement('p'), { textContent: 'Aucun message pour l’instant.' })]));
   if (enBas) zone.scrollTop = zone.scrollHeight;
@@ -2028,6 +2036,23 @@ async function ouvrirConversation(t) {
       .eq('technicien_id', t.id).eq('de', 'technicien').is('lu_le', null);
     if (!error) await chargerMessages();
   }
+}
+
+async function modifierMessage(m) {
+  const texte = (prompt('Corriger le message :', m.texte) || '').trim();
+  if (!texte || texte === m.texte) return;
+  const { data, error } = await sb.from('messages').update({ texte }).eq('id', m.id).select('id');
+  if (error || !data.length) { alert(error?.message || 'Modification refusée.'); return; }
+  await chargerMessages();
+}
+
+// Effaçable tant que le destinataire ne l'a pas lu (la base refuse sinon).
+async function supprimerMessage(m) {
+  if (!confirm('Supprimer ce message ? Il ne sera pas récupérable.')) return;
+  const { data, error } = await sb.from('messages').delete().eq('id', m.id).select('id');
+  if (error) { alert(error.message); return; }
+  if (!data.length) alert('Trop tard : le message a déjà été lu.');
+  await chargerMessages();
 }
 
 async function envoyerMessages(ids, texte) {
