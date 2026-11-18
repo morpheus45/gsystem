@@ -229,6 +229,16 @@ Même liste que la section 8 de `presentation/documentation-backoffice-gsystems.
 **Sécurité** (registre complet : `SECURITE.md`, audit du 18/11/2026)
 - [ ] Cédric : mots de passe de 12 caractères minimum dans Supabase (R1) — prévenir les comptes existants.
 - [ ] Direction : protection contre les mots de passe divulgués (R2) = offre Pro payante, à décider.
+- [ ] Cédric + développement : activer le brouillage de l'APK (A1) — branche `apk/brouillage-r8`
+      prête et testée (commit 8ac139c) ; il reste à la fusionner dans `main` puis à publier une
+      nouvelle version. La mise à jour s'installe par-dessus, sans perte de données.
+- [ ] Cédric (décision) + développement : clé de signature privée pour l'APK (A2) — aujourd'hui,
+      la clé de test du dépôt. Une désinstallation/réinstallation unique, puis « Restaurer depuis
+      le Drive ». À faire tant que Cédric est le seul à avoir l'APK.
+- [ ] Développement : jeton de sauvegarde écrit en clair dans l'APK (A3) — le remplacer par un
+      compte par technicien (voir « Plus tard ») ou un jeton par appareil, puis changer le jeton.
+- [ ] Cédric : retirer la version de test du Play Store (A4, 1.9.95, non brouillée) — Play Console ›
+      Tester et publier › Tests › mettre fin au test.
 
 **Priorité 3 — RGPD**
 - [ ] Registre des traitements ; information des salariés ; contrats de sous-traitance (clients, Supabase, Google).
@@ -238,3 +248,19 @@ Même liste que la section 8 de `presentation/documentation-backoffice-gsystems.
 - [ ] Convention ANTAI (seuil à confirmer) ; fiche de désignation, alertes conducteur, lissage des km.
 - [ ] Un compte par technicien avant d'ouvrir à d'autres sociétés.
 - [ ] Mise en production et fusion de la PR n°25.
+
+## Propositions d'amélioration en attente de décision (18/11/2026)
+
+Proposées après l'audit de sécurité ; c'est Cédric qui choisit. La n° 8 (brouillage de l'APK)
+est faite sur la branche `apk/brouillage-r8`. Effort : S = rapide, M = moyen.
+
+- Sécurité : 1. double authentification pour admins et comptable (M) · 2. déconnexion
+  automatique après 30 min sans activité (S) · 3. invitations par lien envoyé par email, pour
+  fermer les inscriptions libres (M, petit service serveur Supabase à créer avec accord) ·
+  4. écran « Historique » pour l'admin, le journal existe déjà en base (S/M).
+- Logique : 5. entretiens proches ou dépassés dans « À faire » du tableau de bord (S) ·
+  6. taux NR vert/rouge aussi par technicien (S) · 7. plan d'entretien d'un véhicule en PDF (S).
+- Graphique : 9. bouton clair/sombre (S) · 10. courbe du taux NR sur 12 mois (M) ·
+  11. validation des frais et heures sup depuis le téléphone (M).
+- Performance : 12. index sur les clés étrangères et règles de lecture regroupées, comme le
+  recommande Supabase (S).

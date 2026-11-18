@@ -53,6 +53,18 @@ Page : https://supabase.com/dashboard/project/ajaakvqemhmryhfgapqa/auth/provider
 | R2 | « Prevent use of leaked passwords » | Refuse les mots de passe déjà divulgués. Signalé par l'audit Supabase, mais **réservé à l'offre Pro (payante)** : non activable sur l'offre gratuite, aucun abonnement sans accord. |
 | R3 | Inscriptions ouvertes à tous (`disable_signup = false`) | Accepté pour l'instant : le parcours d'invitation en dépend. Un compte inscrit sans invitation ne voit rien (RLS) et n'utilise aucun service (S7). Voir la proposition « invitations par lien ». |
 
+## APK des techniciens — relevé du 18/11/2026 (à reprendre)
+
+Relevé en préparant le brouillage du code. Rien n'est publié : l'APK en service (1.9.105)
+est inchangé. Suivi dans `PLAN.md`, rubrique « Sécurité » des tâches restantes.
+
+| N° | Constat | État |
+|----|---------|------|
+| A1 | Les versions publiées sont la variante **debug** (aucun secret `RELEASE_KEYSTORE_BASE64` dans GitHub) : APK déboguable (avec un câble, on lit les données privées de l'appli) et code lisible. | **Prêt, à activer** : branche `apk/brouillage-r8` (commit 8ac139c) — la publication construit la variante release, brouillée par R8 et non déboguable, avec la même clé. Testé sur émulateur (mise à jour sans perte de données, import PDF, Excel, fiche EPS). Reste : fusionner dans `main` puis publier une version. |
+| A2 | L'APK est signé avec la **clé de test du dépôt** (`keystore/debug.keystore`), aussi attendue par `IntegrityGuard` : toute personne ayant accès au dépôt peut fabriquer une mise à jour acceptée par le téléphone. | **À décider** : clé de production privée (secret GitHub), nouvelle empreinte dans `IntegrityGuard`, une désinstallation/réinstallation puis « Restaurer depuis le Drive ». Moment idéal : tant que Cédric est le seul utilisateur. |
+| A3 | Le jeton de sauvegarde (`BackupConfig.TOKEN`) est écrit en clair dans le code : le brouillage ne cache pas les textes, il se lit dans l'APK. | **À reprendre** : un compte par technicien (tâche « Plus tard ») ou un jeton par appareil, puis changer le jeton. |
+| A4 | Une version de test Play Store (1.9.95) a été construite sans brouillage. Le Play Store ne brouille pas le code (le brouillage se règle à la construction : R8, `isMinifyEnabled`). | **À faire par Cédric** : Play Console › Tester et publier › Tests › mettre fin au test. |
+
 ## Règles permanentes (à vérifier à chaque évolution)
 
 1. **Toute nouvelle table** : `enable row level security`, une règle par action, et le rôle
@@ -73,3 +85,5 @@ Page : https://supabase.com/dashboard/project/ajaakvqemhmryhfgapqa/auth/provider
    uniquement dans les Propriétés du script du pont ; aucun secret dans le dépôt.
 8. **Tests** : chaque faille corrigée a son test ; la base de test imite les droits par défaut
    de Supabase (L1).
+9. **APK** : jamais de secret écrit dans le code (le brouillage ne cache pas les textes) ; toute
+   version publiée doit être la variante release, brouillée et non déboguable (A1, à activer).
