@@ -90,7 +90,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Brouillage (R8) : le code de l'appli est renommé dans l'APK publié ;
+            // le code source ne change pas. Règles : proguard-rules.pro.
+            isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }

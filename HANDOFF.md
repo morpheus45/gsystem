@@ -390,6 +390,20 @@ curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep
    (écrans, CSV, mails GESTE CO, bulletin PDF, stats Drive) : à traiter séparément si besoin.
 8. **CI** : minSdk = **26** obligatoire (POI dépend de MethodHandle Android O+).
 9. **BON RETOUR supprimé** : ne pas réintroduire de références.
+10. **Brouillage R8 (variante release)** : seul `com.morpheus45.gsystem` est renommé ; les
+    bibliothèques restent intactes (POI/XMLBeans et PdfBox chargent des classes par leur nom).
+    - Code appelé par son nom (réflexion, pont JavaScript `@JavascriptInterface`, sérialisation
+      hors kotlinx) : ajouter sa règle dans `app/proguard-rules.pro`.
+    - Nouvelle bibliothèque qui cite des classes absentes → R8 échoue : ajouter les `-dontwarn`
+      proposés dans `app/build/outputs/mapping/sideloadRelease/missing_rules.txt`.
+    - R8 a besoin de 4 Go (`org.gradle.jvmargs=-Xmx4g`, POI est volumineux).
+    - Plantage d'une version publiée : décoder la trace avec son `mapping.txt` (artefact CI
+      « mapping-vX.Y.Z », 90 jours ; au-delà, reconstruire le tag) :
+      `~/Android/sdk/cmdline-tools/latest/bin/retrace mapping.txt trace.txt`.
+    - Le brouillage ne cache PAS les textes : un jeton écrit dans le code (`BackupConfig.TOKEN`)
+      reste lisible dans l'APK.
+    - Vérifié le 18/11/2026 sur émulateur (mise à jour par-dessus la 1.9.105 sans perte de
+      données, import PDF, remplissage Excel, impression de la fiche EPS).
 
 ---
 
