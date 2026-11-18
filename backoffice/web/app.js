@@ -2530,21 +2530,24 @@ $('#entretien-form').addEventListener('submit', async (e) => {
   clearAlert();
   if (!peutEcrire() || !vehiculeActif) return;
   const date = $('#ent-date').value;
-  const type = $('#ent-type').value;
+  // Un passage au garage = une ligne par type coché (révision + filtres le même jour…).
+  const types = [...document.querySelectorAll('input[name="ent-type"]:checked')].map((c) => c.value);
   const km = $('#ent-km').value;
   const garage = $('#ent-garage').value;
   const cout = $('#ent-cout').value;
-  if (!date || !type) return;
+  if (!date) return;
+  if (!types.length) { alert('Cochez au moins un entretien fait.'); return; }
   try {
-    const { error } = await sb.from('entretiens').insert({
+    // Le coût est la facture du passage : posé une seule fois, sur la 1re ligne.
+    const { error } = await sb.from('entretiens').insert(types.map((type, i) => ({
       societe_id: selectedSociete,
       vehicule_id: vehiculeActif.id,
       date,
       type,
       km: km ? Number(km) : null,
       garage,
-      cout: cout ? Number(cout.replace(',', '.')) : null
-    });
+      cout: cout && i === 0 ? Number(cout.replace(',', '.')) : null
+    })));
     if (error) throw error;
     $('#entretien-form').reset();
     await loadEntretiens(vehiculeActif.id);

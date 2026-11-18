@@ -306,6 +306,10 @@
 
     /* Boutons : un seul plein (l'action principale), le reste discret ; danger en contour. */
     button { border-radius: var(--rayon-sm); font-weight: 600; min-height: 40px; }
+    .ent-types { flex-basis: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px 12px; margin: 0; }
+    .ent-types legend { font-size: 13px; padding: 0 4px; }
+    .ent-types div { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .ent-types label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 400; }
     button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: var(--ombre); font-weight: 500; }
     @media (hover: hover) and (pointer: fine) { button.secondary:hover { background: var(--surface-2); } }
     button.danger { background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); font-weight: 500; }
@@ -905,20 +909,20 @@
                     <label for="ent-date">Date</label>
                     <input type="date" id="ent-date" name="date" required>
                   </div>
-                  <div class="field" style="flex:1;min-width:140px;">
-                    <label for="ent-type">Type</label>
-                    <select id="ent-type" name="type" required>
-                      <option value="DISTRIBUTION">Distribution</option>
-                      <option value="PNEUS">Pneus</option>
-                      <option value="FREINS">Freins</option>
-                      <option value="VIDANGE">Vidange</option>
-                      <option value="FILTRES">Filtres</option>
-                      <option value="LIQUIDE_FREINS">Liquide de frein</option>
-                      <option value="REVISION">Révision</option>
-                      <option value="REPARATION">Réparation diverse</option>
-                      <option value="AUTRE">Autre</option>
-                    </select>
-                  </div>
+                  <fieldset class="ent-types">
+                    <legend>Fait lors de ce passage (cochez tout ce qui a été fait)</legend>
+                    <div>
+                      <label><input type="checkbox" name="ent-type" value="REVISION"> Révision</label>
+                      <label><input type="checkbox" name="ent-type" value="VIDANGE"> Vidange</label>
+                      <label><input type="checkbox" name="ent-type" value="FILTRES"> Filtres</label>
+                      <label><input type="checkbox" name="ent-type" value="DISTRIBUTION"> Distribution</label>
+                      <label><input type="checkbox" name="ent-type" value="PNEUS"> Pneus</label>
+                      <label><input type="checkbox" name="ent-type" value="FREINS"> Freins</label>
+                      <label><input type="checkbox" name="ent-type" value="LIQUIDE_FREINS"> Liquide de frein</label>
+                      <label><input type="checkbox" name="ent-type" value="REPARATION"> Réparation diverse</label>
+                      <label><input type="checkbox" name="ent-type" value="AUTRE"> Autre</label>
+                    </div>
+                  </fieldset>
                   <div class="field">
                     <label for="ent-km">Km</label>
                     <input type="number" id="ent-km" name="km" min="0">
