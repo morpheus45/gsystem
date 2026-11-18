@@ -23,6 +23,7 @@ let monRole = null;       // rôle de l'utilisateur dans la société sélection
 let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
 let techniciens = [];     // cache de la société courante (pour les select)
 let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
+let messages = [], chatTech = null, relanceChat = null;   // chat : messages de la société, conversation ouverte, relance
 
 // Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
 function peutEcrire() {
@@ -206,7 +207,7 @@ function switchOnglet(tabId, calculer = true) {
     b.classList.toggle('active', actif);
     b.setAttribute('aria-selected', String(actif));
   });
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -217,6 +218,8 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-facturation') chargerFacturation();
   if (tabId === 'panel-compta') chargerCompta();
   if (tabId === 'panel-interventions') chargerInterventions();
+  clearInterval(relanceChat);
+  if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 30000); }
 }
 
 function fermerPanneauVehicule() {
@@ -344,6 +347,10 @@ function renderSocietes() {
 
 async function selectSociete(id) {
   selectedSociete = id;
+  chatTech = null;   // une conversation ne passe pas d'une société à l'autre
+  $('#chat-titre').textContent = 'Choisissez un technicien';
+  $('#chat-messages').classList.add('hidden');
+  $('#chat-form').classList.add('hidden');
   renderSocietes();
   fermerFicheTechnicien();
   await loadSocieteDetail(id);
@@ -381,6 +388,8 @@ async function loadSocieteDetail(societeId) {
     // Techniciens d'abord : la liste des véhicules affiche le nom du conducteur.
     await loadTechniciens(societeId);
     compterCongesAValider();
+    compterMessagesNonLus();
+    $('#onglet-messages').classList.toggle('hidden', !peutEcrire());   // admin et gestion seulement
     await loadVehicules(societeId);
     chargerBord();   // le tableau de bord a besoin de la liste des techniciens
 
@@ -1941,6 +1950,108 @@ $('#int-zip').addEventListener('click', async () => {
     bouton.disabled = false;
     bouton.textContent = 'Photos et frais (ZIP)';
   }
+});
+
+// ===== Messages : chat bureau ↔ technicien (côté technicien branché plus tard) =====
+const nonLus = (id) => messages.filter((m) => m.technicien_id === id && m.de === 'technicien' && !m.lu_le).length;
+const heureMessage = (ts) => new Date(ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+async function compterMessagesNonLus() {
+  const { count, error } = await sb.from('messages').select('id', { count: 'exact', head: true })
+    .eq('societe_id', selectedSociete).eq('de', 'technicien').is('lu_le', null);
+  $('#onglet-messages').textContent = !error && count ? `Messages (${count})` : 'Messages';
+}
+
+async function chargerMessages() {
+  try {
+    messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, cree_le, lu_le').eq('societe_id', selectedSociete).order('cree_le'));
+    afficherChat();
+  } catch (err) {
+    clearInterval(relanceChat);
+    alert(err.message || 'Erreur lors du chargement des messages');
+  }
+}
+
+function afficherChat() {
+  const avecMessages = new Set(messages.map((m) => m.technicien_id));
+  $('#chat-liste').replaceChildren(...techniciens.filter((t) => t.actif || avecMessages.has(t.id)).map((t) => {
+    const li = document.createElement('li');
+    const b = li.appendChild(document.createElement('button'));
+    b.type = 'button';
+    b.className = 'secondary';
+    b.setAttribute('aria-current', String(chatTech?.id === t.id));
+    const n = nonLus(t.id);
+    b.append(t.nom, Object.assign(document.createElement('span'), { textContent: n ? `${n} non lu(s)` : '' }));
+    marquer(b, n > 0);
+    b.addEventListener('click', () => ouvrirConversation(t));
+    return li;
+  }));
+  const coches = new Set([...$$('#chat-destinataires input:checked')].map((c) => c.value));
+  $('#chat-destinataires').replaceChildren(Object.assign(document.createElement('legend'), { textContent: 'Destinataires' }),
+    ...techniciens.filter((t) => t.actif).map((t) => {
+      const l = document.createElement('label');
+      const c = l.appendChild(document.createElement('input'));
+      c.type = 'checkbox';
+      c.value = t.id;
+      c.checked = coches.has(t.id);   // la relance toutes les 30 s ne décoche rien
+      l.append(t.nom);
+      return l;
+    }));
+  if (chatTech) afficherFil();
+  compterMessagesNonLus();
+}
+
+function afficherFil() {
+  const zone = $('#chat-messages');
+  const enBas = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 40;
+  const fil = messages.filter((m) => m.technicien_id === chatTech.id);
+  zone.replaceChildren(...(fil.length ? fil.map((m) => {
+    const d = document.createElement('div');
+    d.className = `bulle ${m.de}`;
+    d.textContent = m.texte;
+    d.appendChild(document.createElement('small')).textContent = `${m.de === 'bureau' ? 'Bureau' : chatTech.nom} — ${heureMessage(m.cree_le)}`
+      + (m.de === 'bureau' && m.lu_le ? ' — lu' : '');
+    return d;
+  }) : [Object.assign(document.createElement('p'), { textContent: 'Aucun message pour l’instant.' })]));
+  if (enBas) zone.scrollTop = zone.scrollHeight;
+}
+
+async function ouvrirConversation(t) {
+  chatTech = t;
+  $('#chat-titre').textContent = t.nom;
+  $('#chat-messages').classList.remove('hidden');
+  $('#chat-form').classList.remove('hidden');
+  afficherChat();
+  $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+  if (nonLus(t.id)) {   // conversation ouverte = messages du technicien lus par le bureau
+    const { error } = await sb.from('messages').update({ lu_le: new Date().toISOString() })
+      .eq('technicien_id', t.id).eq('de', 'technicien').is('lu_le', null);
+    if (!error) await chargerMessages();
+  }
+}
+
+async function envoyerMessages(ids, texte) {
+  const { error } = await sb.from('messages').insert(ids.map((technicien_id) => ({ societe_id: selectedSociete, technicien_id, de: 'bureau', texte })));
+  if (error) { alert(error.message); return false; }
+  await chargerMessages();
+  return true;
+}
+
+$('#chat-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const texte = $('#chat-texte').value.trim();
+  if (texte && chatTech && await envoyerMessages([chatTech.id], texte)) {
+    $('#chat-texte').value = '';
+    $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+  }
+});
+
+$('#chat-diffusion').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ids = [...$$('#chat-destinataires input:checked')].map((c) => c.value);
+  const texte = $('#chat-diffusion-texte').value.trim();
+  if (!ids.length) { alert('Cochez au moins un technicien.'); return; }
+  if (texte && await envoyerMessages(ids, texte)) $('#chat-diffusion').reset();
 });
 
 // ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
