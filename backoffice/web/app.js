@@ -312,7 +312,7 @@ async function checkOperator() {
 
 async function loadSocietes() {
   try {
-    const { data, error } = await sb.from('societes').select('id, nom, adresse, logo').order('nom');
+    const { data, error } = await sb.from('societes').select('id, nom, adresse, siret, logo').order('nom');
     if (error) throw error;
     societes = data;
     renderSocietes();
@@ -2191,7 +2191,7 @@ function texteReleve(t, liste, justifs, debut, fin) {
   const enClair = r.lignes.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) =>
     [ENTETES_RELEVE[k], typeof v === 'number' ? deuxDecimales(v) : v])));
   const soc = societes.find((x) => x.id === selectedSociete) || {};
-  return `Société;${texteCsv(soc.nom)};${texteCsv((soc.adresse || '').replace(/\s*\n\s*/g, ', '))}\nTechnicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
+  return `Société;${texteCsv(soc.nom)};${texteCsv((soc.adresse || '').replace(/\s*\n\s*/g, ', '))};SIRET ${soc.siret || 'non renseigné'}\nTechnicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
     + `Total;;;${deuxDecimales(r.total.ttc)};;;${deuxDecimales(r.total.rembourse)};${deuxDecimales(r.total.tvaRecuperee)};${deuxDecimales(r.total.charge)}\n`;
 }
 
@@ -2264,6 +2264,7 @@ function remplirIdentite(s) {
   $('#identite-form').reset();
   $('#id-nom').value = s?.nom || '';
   $('#id-adresse').value = s?.adresse || '';
+  $('#id-siret').value = s?.siret || '';
   apercuLogo(s?.logo);
 }
 
@@ -2305,9 +2306,11 @@ $('#id-logo-retirer').addEventListener('click', () => { logoChoisi = null; $('#i
 
 $('#identite-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const champs = { nom: $('#id-nom').value.trim(), adresse: $('#id-adresse').value.trim() };
+  const siret = $('#id-siret').value.replace(/\s/g, '');
+  if (siret && !/^\d{14}$/.test(siret)) { alert('Le SIRET compte 14 chiffres.'); return; }
+  const champs = { nom: $('#id-nom').value.trim(), adresse: $('#id-adresse').value.trim(), siret: siret || null };
   if (logoChoisi !== undefined) champs.logo = logoChoisi;
-  const { data, error } = await sb.from('societes').update(champs).eq('id', selectedSociete).select('id, nom, adresse, logo');
+  const { data, error } = await sb.from('societes').update(champs).eq('id', selectedSociete).select('id, nom, adresse, siret, logo');
   if (error) { alert(error.message); return; }
   if (!data.length) { alert("Modification refusée : réservée à l'admin de la société."); return; }
   Object.assign(societes.find((x) => x.id === selectedSociete), data[0]);

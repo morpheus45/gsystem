@@ -37,3 +37,10 @@ test('logo : image PNG, JPEG ou WebP seulement (pas de SVG), et petite', async (
 test('nom vide refusé', async () => {
   await assert.rejects(maj(UA, `update societes set nom = '  ' where id = '${A}'`), /check/);
 });
+
+test('SIRET : 14 chiffres, sinon refusé ; vide accepté', async () => {
+  await maj(UA, `update societes set siret = '79195355700018' where id = '${A}'`);
+  assert.equal((await db.query(`select siret from societes where id = '${A}'`)).rows[0].siret, '79195355700018');
+  await assert.rejects(maj(UA, `update societes set siret = '7919 5355' where id = '${A}'`), /check/);
+  await maj(UA, `update societes set siret = null where id = '${A}'`);
+});
