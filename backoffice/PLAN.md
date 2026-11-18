@@ -203,3 +203,33 @@ Décisions de Cédric : relevé + écritures ; chaque frais validé un par un av
 - Corrigé : lecture page par page au-delà de 1 000 lignes (limite de la base) pour la paie, le tableau de bord, la facturation, la compta et la fiche technicien.
 - Fait aussi : **export ZIP** (photos des techniciens actifs ou du technicien choisi, rangées technicien/mois, + relevé des frais de chacun), construit dans la page (`core/zip.js`, sans compression).
 - **Chat** reconstruit côté bureau (onglet Messages, admin et gestion seulement ; envoi à un ou plusieurs ; lu / non lu ; message corrigeable par son auteur (marqué « modifié »), effaçable tant qu'il n'est pas lu). **Pas encore relié à l'APK** : à brancher plus tard (le pont déposera les messages des techniciens avec la clé serveur, `de = 'technicien'`) ; l'APK n'est pas modifiée. Durée de conservation des messages : À DÉCIDER.
+
+## Tâches restantes (arrêtées au 18/11/2026)
+
+Même liste que la section 8 de `presentation/documentation-backoffice-gsystems.pdf`.
+
+**Priorité 1 — avant la première paie réelle**
+- [ ] Gestion : valider ou refuser les 18 frais réels (Techniciens › fiche › Frais).
+- [ ] Gestion : traiter les semaines d'heures sup (Techniciens › fiche › Heures).
+- [ ] Comptable : valider les règles d'heures sup (35/39 h, taux, absences, contingent) et le forfait par demi-journée.
+- [ ] Comptable : valider les comptes (Compta › Comptes utilisés) et saisir les comptes auxiliaires.
+- [ ] Comptable : format d'import du logiciel comptable.
+- [ ] Direction : mois de primes versé avec quelle paie (règle actuelle M-2).
+- [ ] Gestion : créer, valider et exporter le premier mois de paie réel.
+
+**Priorité 2**
+- [ ] Direction : tarifs EPS (Facturation › Grille de tarifs).
+- [ ] Direction : plateforme de facture électronique et logiciel comptable par société.
+- [ ] Comptable : exercice comptable = année civile ?
+- [ ] Développement : brancher le chat de l'APK (le pont lit/écrit la feuille « chat » du Drive, APK inchangée).
+- [ ] Direction + développement : service d'envoi des emails d'invitation.
+- [ ] Direction : arrêter l'interface de l'ancien tableau de bord après le chat.
+
+**Priorité 3 — RGPD**
+- [ ] Registre des traitements ; information des salariés ; contrats de sous-traitance (clients, Supabase, Google).
+- [ ] Durée de conservation des messages ; durée des amendes et localisation Google Drive à vérifier ; relecture juriste/DPO.
+
+**Plus tard**
+- [ ] Convention ANTAI (seuil à confirmer) ; fiche de désignation, alertes conducteur, lissage des km.
+- [ ] Un compte par technicien avant d'ouvrir à d'autres sociétés.
+- [ ] Mise en production et fusion de la PR n°25.
