@@ -341,12 +341,15 @@
     @media (hover: hover) and (pointer: fine) { .lien-retour:hover { color: var(--text); background: none; } }
     #societe-detail-title { font-size: 1.125rem; font-weight: 600; margin: 4px 0 16px; overflow-wrap: anywhere; }
     .tabs { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 2px; background: none; padding: 0; border: none; border-radius: 0; margin: 0; }
-    .nav-groupe { margin: 16px 12px 4px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+    /* Titre de groupe : bandeau plein (texte inversé), bien distinct des liens cliquables en dessous. */
+    .nav-groupe { margin: 20px 0 6px; padding: 7px 12px; border-radius: var(--rayon-sm); background: var(--text); color: var(--card);
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
     .nav-groupe:first-child { margin-top: 0; }
-    .tab { flex: none; justify-content: flex-start; text-align: left; width: 100%; min-height: 40px; padding: 8px 12px; border-radius: var(--rayon-sm);
+    .tab { flex: none; justify-content: flex-start; text-align: left; width: calc(100% - 12px); margin-left: 12px; min-height: 40px; padding: 8px 12px;
+      border-radius: 0 var(--rayon-sm) var(--rayon-sm) 0; border-left: 2px solid var(--border);   /* rattaché à son groupe */
       color: var(--muted); font-weight: 500; box-shadow: none; background: transparent; white-space: nowrap; }
     @media (hover: hover) and (pointer: fine) { .tab:hover { background: var(--surface-2); color: var(--text); } }
-    .tab.active { background: var(--accent-doux); color: var(--accent); box-shadow: none; font-weight: 600; }
+    .tab.active { background: var(--accent-doux); color: var(--accent); box-shadow: none; font-weight: 600; border-left-color: var(--accent-fond); }
     .tab .point { top: 50%; right: 12px; transform: translateY(-50%); }
     .contenu { min-width: 0; }
 
@@ -395,7 +398,7 @@
       .tabs { flex-direction: row; overflow-x: auto; scroll-snap-type: x proximity; gap: 6px; padding: 2px 0 6px; margin: 0; scrollbar-width: none; }
       .tabs::-webkit-scrollbar { display: none; }
       .nav-groupe { display: none; }
-      .tab { width: auto; scroll-snap-align: start; border: 1px solid var(--border); background: var(--card); min-height: 40px; }
+      .tab { width: auto; margin-left: 0; border-radius: var(--rayon-sm); scroll-snap-align: start; border: 1px solid var(--border); background: var(--card); min-height: 40px; }
       .tab.active { border-color: transparent; }
       .tab .point { top: 6px; right: 6px; transform: none; }
       .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details) { padding: 16px; }
