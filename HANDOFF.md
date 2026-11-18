@@ -404,6 +404,10 @@ curl -s "https://api.github.com/repos/morpheus45/gsystem/releases/latest" | grep
       reste lisible dans l'APK.
     - Vérifié le 18/11/2026 sur émulateur (mise à jour par-dessus la 1.9.105 sans perte de
       données, import PDF, remplissage Excel, impression de la fiche EPS).
+    - **À reprendre** (registre : `backoffice/SECURITE.md`, section APK, sur la branche
+      `backoffice/squelette`) : A2 clé de signature privée — aujourd'hui la clé de test du dépôt,
+      réinstallation unique + « Restaurer depuis le Drive » ; A3 jeton de sauvegarde en clair
+      dans l'APK ; A4 retirer la version de test du Play Store (1.9.95, non brouillée).
 
 ---
 
