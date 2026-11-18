@@ -7,6 +7,7 @@ import { reglesDe } from '../core/societes.js';
 import { repartition, tauxNr } from '../core/stats.js';
 import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
 import { dureeMinutes, texteDuree, filtrer } from '../core/interventions.js';
+import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -1888,6 +1889,58 @@ $('#int-export').addEventListener('click', () => {
     Date: formaterDate(e.date), Technicien: nomTech(e.technicien_id), Créneau: CRENEAUX[e.slot_midi] || '', Type: e.type_mission,
     Ville: e.ville, Département: e.departement, 'N° intervention': e.numero_intervention, Résultat: e.observation_type || 'OK',
     Arrivée: e.heure_debut, Fin: e.heure_fin, Durée: texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) }))));
+});
+
+// ZIP de la période (ancien tableau de bord : makeZip) : photos copiées des techniciens actifs
+// (ou du technicien choisi), rangées <technicien>/<AAAA-MM>/, plus le relevé des frais de chacun.
+$('#int-zip').addEventListener('click', async () => {
+  const debut = $('#int-debut').value, fin = $('#int-fin').value, choisi = $('#int-tech').value;
+  const techs = techniciens.filter((t) => (choisi ? t.id === choisi : t.actif));
+  const bouton = $('#int-zip');
+  try {
+    const [photos, frais] = await Promise.all([
+      toutLire(sb.from('photos_apk').select('id, technicien_id, nom_drive, stockage').eq('societe_id', selectedSociete).not('stockage', 'is', null)),
+      toutLire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable')
+        .eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+    ]);
+    const duMois = (p) => { const m = p.stockage.split('/').at(-2); return m >= debut.slice(0, 7) && m <= fin.slice(0, 7); };
+    const choix = photos.filter((p) => techs.some((t) => t.id === p.technicien_id) && duMois(p));
+    if (!choix.length && !frais.length) { alert('Aucune photo ni aucun frais sur la période.'); return; }
+    if (!confirm(`Préparer un ZIP de ${choix.length} photo(s) et des relevés de frais ? Cela peut prendre un moment.`)) return;
+    bouton.disabled = true;
+    const fichiers = [], pris = new Set();
+    for (let i = 0; i < choix.length; i += 100) {   // liens signés par paquets de 100, valables 10 minutes
+      bouton.textContent = `Photos ${i}/${choix.length}…`;
+      const paquet = choix.slice(i, i + 100);
+      const { data, error } = await sb.storage.from('photos').createSignedUrls(paquet.map((p) => p.stockage), 600);
+      if (error) throw error;
+      for (const [k, p] of paquet.entries()) {
+        const rep = await fetch(data[k].signedUrl);
+        if (!rep.ok) throw new Error(`Photo ${p.nom_drive} : ${rep.status}`);
+        const base = `${nomTech(p.technicien_id)}/${p.stockage.split('/').at(-2)}/${p.nom_drive}`;
+        let nom = base;
+        for (let n = 2; pris.has(nom); n++) nom = base.replace(/(\.[^./]+)?$/, `-${n}$1`);
+        pris.add(nom);
+        fichiers.push({ nom, donnees: new Uint8Array(await rep.arrayBuffer()) });
+      }
+    }
+    const justifs = await justificatifsDe(frais);
+    for (const t of techs) {
+      const siens = frais.filter((f) => f.technicien_id === t.id).map(versCompta);
+      if (siens.length) fichiers.push({ nom: `${t.nom}/releve-frais-${debut}-au-${fin}.csv`,
+        donnees: new TextEncoder().encode('\uFEFF' + texteReleve(t, siens, justifs, debut, fin)) });
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zipStocke(fichiers)], { type: 'application/zip' }));
+    a.download = `photos-frais-${debut}-au-${fin}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert(err.message || 'Erreur pendant la préparation du ZIP');
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = 'Photos et frais (ZIP)';
+  }
 });
 
 // ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
