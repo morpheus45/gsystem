@@ -196,3 +196,9 @@ Décisions de Cédric : relevé + écritures ; chaque frais validé un par un av
 - **Convention ANTAI** (connexion directe, « plus de 10 véhicules » sur entreprises.antai.gouv.fr ; une autre page dit « plus de 1 000 » : À VÉRIFIER auprès de l'ANTAI) : l'avis part directement au conducteur. Compte + justificatifs, convention signée par le dirigeant, raccordement technique avec l'ANTAI (format non public : rien codé).
 - Pas de robot sur le site de l'État ; contestation : manuelle.
 - Idées en attente : fiche de désignation pré-remplie (adresse et n° de permis des techniciens à enregistrer) ; alertes « conducteur incertain » (amende le jour d'un changement de mains, deux techs sur un véhicule, plaque des photos compteur ≠ affectation) ; heure d'échange en option ; aide au lissage des km (suggestions d'échange).
+
+## Parité avec l'ancien tableau de bord (18/11/2026)
+
+- Fait : onglet **Interventions** (toutes les interventions d'une période, filtres technicien / type / résultat / recherche, durée arrivée→fin comme `durHM`, export CSV) ; prime **payée / à payer** d'après les paies clôturées ; récap des frais (onglet Compta).
+- Corrigé : lecture page par page au-delà de 1 000 lignes (limite de la base) pour la paie, le tableau de bord, la facturation, la compta et la fiche technicien.
+- Reste : export ZIP des photos d'une période ; le **chat** reste sur l'ancien tableau de bord (il passe par l'APK, qu'on ne modifie pas).

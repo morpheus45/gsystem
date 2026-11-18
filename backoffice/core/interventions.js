@@ -1,0 +1,25 @@
+// Liste des interventions : durée et filtres, repris de l'ancien tableau de bord
+// (apps-script/Code.js : durHM, cltFilter).
+
+// Fin - arrivée en minutes ; une fin avant l'arrivée passe minuit. Heure illisible : null.
+export function dureeMinutes(debut, fin) {
+  const hm = (t) => /^\d{1,2}:\d{2}$/.test(String(t)) ? t.split(':').map(Number) : null;
+  const a = hm(debut), b = hm(fin);
+  if (!a || !b) return null;
+  const m = (b[0] * 60 + b[1]) - (a[0] * 60 + a[1]);
+  return m < 0 ? m + 1440 : m;
+}
+
+export function texteDuree(m) {
+  if (m == null) return '';
+  return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`;
+}
+
+// Filtres : technicien, type, résultat (vide = OK), texte cherché dans n°, ville, département.
+export function filtrer(liste, { tech, type, resultat, texte } = {}) {
+  const t = String(texte || '').trim().toLowerCase();
+  return liste.filter((e) => (!tech || e.technicien_id === tech)
+    && (!type || e.type_mission === type)
+    && (!resultat || (e.observation_type || 'OK') === resultat)
+    && (!t || [e.numero_intervention, e.ville, e.departement].join(' ').toLowerCase().includes(t)));
+}

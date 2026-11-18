@@ -344,6 +344,7 @@
           <button class="tab active" role="tab" data-tab="bord" aria-selected="true">Tableau de bord</button>
           <button class="tab" role="tab" data-tab="membres" aria-selected="false">Membres</button>
           <button class="tab" role="tab" data-tab="techniciens" aria-selected="false">Techniciens</button>
+          <button class="tab" role="tab" data-tab="interventions" aria-selected="false">Interventions</button>
           <button class="tab" role="tab" data-tab="vehicules" aria-selected="false">Véhicules</button>
           <button class="tab" role="tab" data-tab="paie" aria-selected="false">Paie</button>
           <button class="tab" role="tab" data-tab="facturation" aria-selected="false">Facturation</button>
@@ -897,6 +898,30 @@
             <div class="table-wrapper">
               <table id="tarifs-table">
                 <thead><tr><th>Libellé</th><th>Catégorie</th><th>Code</th><th>Base</th><th>Prix HT (€)</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-interventions" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <form id="int-form" class="barre">
+              <div class="field"><label for="int-debut">Du</label><input type="date" id="int-debut" required></div>
+              <div class="field"><label for="int-fin">Au</label><input type="date" id="int-fin" required></div>
+              <button type="submit">Afficher</button>
+            </form>
+            <div class="barre">
+              <div class="field"><label for="int-tech">Technicien</label><select id="int-tech"></select></div>
+              <div class="field"><label for="int-type">Type</label><select id="int-type"></select></div>
+              <div class="field"><label for="int-resultat">Résultat</label><select id="int-resultat"></select></div>
+              <div class="field"><label for="int-texte">Rechercher</label><input id="int-texte" placeholder="N°, ville, département"></div>
+              <button type="button" id="int-export" class="secondary">Exporter (CSV)</button>
+            </div>
+            <p id="int-resume" class="carte-resume"></p>
+            <div class="table-wrapper">
+              <table id="int-table">
+                <thead><tr><th>Date</th><th>Technicien</th><th>Créneau</th><th>Type</th><th>Ville</th><th>Dépt</th><th>N° intervention</th><th>Résultat</th><th>Arrivée</th><th>Fin</th><th>Durée</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>

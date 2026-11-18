@@ -31,3 +31,11 @@ test('mois des primes versées avec la paie qui finit le 20/03 : janvier (M+2)',
   assert.equal(moisDesPrimes('2026-03-20'), '2026-01');
   assert.equal(moisDesPrimes('2026-02-20'), '2025-12');
 });
+
+test('prime payée : la paie qui la verse (fin du mois M+2) est clôturée', async () => {
+  const { primePayee } = await import('../core/primes.js');
+  const periodes = [{ fin: '2026-03-21', statut: 'exportee' }, { fin: '2026-04-18', statut: 'validee' }];
+  assert.equal(primePayee('2026-01', periodes), true);
+  assert.equal(primePayee('2026-02', periodes), false);   // paie d'avril pas encore clôturée
+  assert.equal(primePayee('2026-05', periodes), false);
+});

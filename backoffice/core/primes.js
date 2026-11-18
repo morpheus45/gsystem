@@ -35,3 +35,8 @@ export function moisDesPrimes(finPeriode) {
   const [a, m] = finPeriode.split('-').map(Number);
   return new Date(Date.UTC(a, m - 3, 1)).toISOString().slice(0, 7);
 }
+
+// Prime du mois M payée : la paie qui la verse (moisDesPrimes(fin) = M) est clôturée.
+export function primePayee(mois, periodes) {
+  return periodes.some((p) => p.statut === 'exportee' && moisDesPrimes(p.fin) === mois);
+}

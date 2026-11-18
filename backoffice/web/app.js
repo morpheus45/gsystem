@@ -5,7 +5,8 @@ import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
 import { repartition, tauxNr } from '../core/stats.js';
-import { primesDuMois, moisDesPrimes } from '../core/primes.js';
+import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
+import { dureeMinutes, texteDuree, filtrer } from '../core/interventions.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -29,6 +30,19 @@ function peutEcrire() {
 const peutCompta = () => superAdmin || ['admin', 'comptable'].includes(monRole);   // comptes et leur validation
 
 const $ = (sel) => document.querySelector(sel);
+
+// La base rend 1 000 lignes au plus par requête : au-delà, on lit page par page
+// (sinon une paie de 30 techniciens serait calculée sur des données tronquées, sans erreur).
+async function toutLire(requete) {
+  const q = requete.order('id');   // ordre stable d'une page à l'autre
+  const tout = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await q.range(de, de + 999);
+    if (error) throw error;
+    tout.push(...data);
+    if (data.length < 1000) return tout;
+  }
+}
 const $$ = (sel) => document.querySelectorAll(sel);
 
 // Ligne de tableau construite en textContent : un nom ou un email piégé reste du texte.
@@ -191,7 +205,7 @@ function switchOnglet(tabId, calculer = true) {
     b.classList.toggle('active', actif);
     b.setAttribute('aria-selected', String(actif));
   });
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -201,6 +215,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-bord' && calculer) chargerBord();
   if (tabId === 'panel-facturation') chargerFacturation();
   if (tabId === 'panel-compta') chargerCompta();
+  if (tabId === 'panel-interventions') chargerInterventions();
 }
 
 function fermerPanneauVehicule() {
@@ -1174,15 +1189,16 @@ async function chargerFicheTechnicien(t) {
   try {
     $('#tech-info').textContent = "Données envoyées par l'APK, mises à jour automatiquement toutes les heures.";
     const lire = async (requete) => { const { data, error, count } = await requete; if (error) throw error; return count ?? data; };
-    const [aff, interventions, frais, photos, regles, validations, listePhotos, gestes, tarifs] = await Promise.all([
+    const [aff, interventions, frais, photos, regles, validations, listePhotos, gestes, periodesPaie, tarifs] = await Promise.all([
       lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
-      lire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
-      lire(sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, observations, fichier, statut, tva_recuperable, motif_refus').eq('technicien_id', t.id).order('date')),
+      toutLire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
+      toutLire(sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, observations, fichier, statut, tva_recuperable, motif_refus').eq('technicien_id', t.id).order('date')),
       lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
-      lire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
-      lire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
-      lire(sb.from('gestes_co').select('date, installes').eq('technicien_id', t.id)),
+      toutLire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
+      toutLire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
+      toutLire(sb.from('gestes_co').select('date, installes').eq('technicien_id', t.id)),
+      lire(sb.from('periodes_paie').select('fin, statut').eq('societe_id', selectedSociete)),
       lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('technicien_id', t.id)),
     ]);
     const v = aff[0];
@@ -1190,7 +1206,7 @@ async function chargerFicheTechnicien(t) {
     $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
     fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
       validations: new Map(validations.map((x) => [x.semaine, x.valide ? 'validee' : x.refusee ? 'refusee' : 'a_traiter'])),
-      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos, gestes, baremes: baremes(tarifs) };
+      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos, gestes, periodesPaie, baremes: baremes(tarifs) };
     const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
     $('#tech-mois').replaceChildren(...mois.map((m) => {
       const o = document.createElement('option');
@@ -1474,9 +1490,9 @@ async function calculerPaie(debut, fin) {
     const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
     // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur samedi).
     const [temps, frais, validations, conges, regles] = await Promise.all([
-      lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
-      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva, statut').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
-      lire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      toutLire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      toutLire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva, statut').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
       lire(sb.from('conges').select('technicien_id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
     ]);
@@ -1485,9 +1501,9 @@ async function calculerPaie(debut, fin) {
     // Primes versées avec cette paie : celles du mois - 2 (règle de l'APK).
     const mp = moisDesPrimes(fin), finMp = decaler(plusMois(mp, 1) + '-01', -1);
     const [gestes, tarifs, jours] = await Promise.all([
-      lire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+      toutLire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
       lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
-      lire(sb.from('temps').select('technicien_id, date, type_mission').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+      toutLire(sb.from('temps').select('technicien_id, date, type_mission').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
     ]);
     $('#paie-primes-info').textContent = `Primes : celles de ${libelleMois(mp)}, versées avec cette paie.`;
     lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
@@ -1610,7 +1626,8 @@ const libelleMois = (m) => `${m.slice(5)}/${m.slice(0, 4)}`;
 const plusMois = (m, n) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 7);
 
 function afficherPrimes(primes, m) {
-  $('#tech-primes-info').textContent = `Prime de ${libelleMois(m)} : ${euros(primes.total)} — versée sur le salaire de ${libelleMois(plusMois(m, 2))}.`;
+  const payee = primePayee(m, fiche.periodesPaie);
+  $('#tech-primes-info').textContent = `Prime de ${libelleMois(m)} : ${euros(primes.total)} — ${payee ? 'payée' : 'à payer'} sur le salaire de ${libelleMois(plusMois(m, 2))}${payee ? ' (paie clôturée)' : ''}.`;
   $('#tech-primes-table tbody').replaceChildren(...primes.detail.map((d) => ligne([d.type, d.qte, euros(d.montant)])));
 }
 
@@ -1632,11 +1649,11 @@ async function chargerBord() {
   try {
     const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
     const [temps, frais, gestes, tarifs, validations, regles, echeances, amendes, conges, aCloturer] = await Promise.all([
-      lire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
-      lire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
-      lire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      toutLire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
       lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
-      lire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      toutLire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
       lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
       lire(sb.from('echeances').select('type, date, vehicules(id, plaque)').eq('societe_id', selectedSociete).is('fait_le', null).not('date', 'is', null).lte('date', dansJours(30)).order('date')),
       lire(sb.from('amendes').select('numero_avis, date_avis, vehicules(id, plaque)').eq('societe_id', selectedSociete).eq('statut', 'a_traiter')),
@@ -1733,8 +1750,8 @@ async function chargerFacturation() {
   const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
   try {
     const [temps, gestes] = await Promise.all([
-      lire(sb.from('temps').select('type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
-      lire(sb.from('gestes_co').select('installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('temps').select('type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('gestes_co').select('installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
     ]);
     recap = { debut, fin, ...recapFacturation(temps.map((e) => ({ typeMission: e.type_mission, observationType: e.observation_type })), gestes) };
     const total = recap.interventions.reduce((t, l) => ({ ok: t.ok + l.ok, nrClient: t.nrClient + l.nrClient, nrTechnique: t.nrTechnique + l.nrTechnique, nrAutres: t.nrAutres + l.nrAutres, total: t.total + l.total }),
@@ -1819,6 +1836,60 @@ $('#fact-export').addEventListener('click', () => {
   URL.revokeObjectURL(a.href);
 });
 
+// ===== Interventions : toutes celles de la société sur une période (ancien tableau de bord : clôtures) =====
+let listeInterventions = [];
+const CRENEAUX = { MATIN: 'Matin', APREM: 'Après-midi' };
+const nomTech = (id) => techniciens.find((t) => t.id === id)?.nom || '—';
+
+function options(select, valeurs, tous) {
+  const avant = select.value;
+  select.replaceChildren(new Option(tous, ''), ...valeurs.map(([v, libelle]) => new Option(libelle, v)));
+  select.value = valeurs.some(([v]) => v === avant) ? avant : '';
+}
+
+async function chargerInterventions() {
+  if (!$('#int-debut').value) {   // par défaut : le mois en cours
+    const m = iso(new Date()).slice(0, 7);
+    $('#int-debut').value = m + '-01';
+    $('#int-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  try {
+    listeInterventions = await toutLire(sb.from('temps').select('id, technicien_id, date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin')
+      .eq('societe_id', selectedSociete).gte('date', $('#int-debut').value).lte('date', $('#int-fin').value).order('date', { ascending: false }));
+    const distincts = (cle) => [...new Set(listeInterventions.map(cle))].sort().map((v) => [v, v]);
+    options($('#int-tech'), techniciens.filter((t) => listeInterventions.some((e) => e.technicien_id === t.id)).map((t) => [t.id, t.nom]), 'Tous');
+    options($('#int-type'), distincts((e) => e.type_mission || '—'), 'Tous');
+    options($('#int-resultat'), distincts((e) => e.observation_type || 'OK'), 'Tous');
+    afficherInterventions();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des interventions');
+  }
+}
+
+const interventionsFiltrees = () => filtrer(listeInterventions, { tech: $('#int-tech').value, type: $('#int-type').value,
+  resultat: $('#int-resultat').value, texte: $('#int-texte').value });
+
+function afficherInterventions() {
+  const l = interventionsFiltrees();
+  const nr = l.filter((e) => e.observation_type).length;
+  $('#int-resume').textContent = `${l.length} intervention(s) — OK : ${l.length - nr} — NR : ${nr}` + (l.length > 300 ? ' — 300 premières affichées, toutes dans l’export.' : '');
+  $('#int-table tbody').replaceChildren(...l.slice(0, 300).map((e) => ligne([formaterDate(e.date), nomTech(e.technicien_id),
+    CRENEAUX[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—', e.numero_intervention || '—',
+    e.observation_type || 'OK', e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—'])));
+}
+
+$('#int-form').addEventListener('submit', (e) => { e.preventDefault(); chargerInterventions(); });
+for (const id of ['#int-tech', '#int-type', '#int-resultat']) $(id).addEventListener('change', afficherInterventions);
+$('#int-texte').addEventListener('input', afficherInterventions);
+$('#int-export').addEventListener('click', () => {
+  const l = interventionsFiltrees();
+  if (!l.length) { alert('Aucune intervention à exporter.'); return; }
+  telecharger(`interventions-${$('#int-debut').value}-au-${$('#int-fin').value}.csv`, versCsv(l.map((e) => ({
+    Date: formaterDate(e.date), Technicien: nomTech(e.technicien_id), Créneau: CRENEAUX[e.slot_midi] || '', Type: e.type_mission,
+    Ville: e.ville, Département: e.departement, 'N° intervention': e.numero_intervention, Résultat: e.observation_type || 'OK',
+    Arrivée: e.heure_debut, Fin: e.heure_fin, Durée: texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) }))));
+});
+
 // ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
 let compta = null;   // { params, frais, exportes, justifs, debut, fin }
 const versParams = (p) => p ? { journal: p.journal, journalLib: p.journal_lib, compteTva: p.compte_tva, compteSalarie: p.compte_salarie, comptes: p.comptes } : PARAMS_DEFAUT;
@@ -1854,7 +1925,7 @@ async function chargerCompta() {
     const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
     const [params, frais, exports] = await Promise.all([
       lire(sb.from('parametres_compta').select('*').eq('societe_id', selectedSociete).maybeSingle()),
-      lire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable, motif_refus').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin).order('date')),
+      toutLire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable, motif_refus').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin).order('date')),
       lire(sb.from('exports_compta').select('id, technicien_id, debut, fin, frais_ids, parametres, le').eq('societe_id', selectedSociete).order('le', { ascending: false })),
     ]);
     compta = { params, frais, exports, exportes: new Set(exports.flatMap((e) => e.frais_ids)), justifs: await justificatifsDe(frais), debut, fin };
