@@ -24,7 +24,26 @@ function doGet() {
     .setTitle('Back-office (test)')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
+
+// Identité d'un véhicule depuis sa plaque, à son entrée dans la flotte (page : google.script.run).
+// Réservé aux comptes connectés (jeton vérifié auprès de Supabase), 50 consultations par jour au plus.
+function ficheVehicule(texte, jeton) {
+  var plaque = normaliserPlaque(texte);
+  if (!plaque) return null;
+  var u = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user',
+    { headers: { apikey: SUPABASE_CLE_PUBLIQUE, Authorization: 'Bearer ' + jeton }, muteHttpExceptions: true });
+  if (u.getResponseCode() !== 200) throw new Error('connexion requise');
+  var cache = CacheService.getScriptCache();
+  var cle = 'fiches-' + Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyyMMdd');
+  var n = Number(cache.get(cle) || 0);
+  if (n >= 50) return null;
+  cache.put(cle, String(n + 1), 21600);
+  var r = UrlFetchApp.fetch('https://immatriculation-auto.info/vehicle/' + plaque, { muteHttpExceptions: true });
+  return r.getResponseCode() === 200 ? lireFicheImmat(r.getContentText()) : null;
+}
 J
+printf "\nvar SUPABASE_URL = '%s', SUPABASE_CLE_PUBLIQUE = '%s';\n" "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" >> "$D/Code.js"
+sed 's/^export //' core/plaque.js >> "$D/Code.js"
 # La page : un seul fichier HTML, avec tous les calculs testés inclus (outils/assembler.py).
 python3 outils/assembler.py "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" "$D" "Version de test — données réelles de l'APK"
 echo "Construit dans $D/"

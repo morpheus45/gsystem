@@ -593,7 +593,7 @@ function ouvrirFicheTechnicien(t) {
 // === VÉHICULES ===
 async function loadVehicules(societeId) {
   try {
-    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, motorisation, mise_en_circulation').eq('societe_id', societeId).order('plaque');
+    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, carburant, motorisation, mise_en_circulation').eq('societe_id', societeId).order('plaque');
     if (error) throw error;
     listeVehicules = vehicules;
     // Charger les affectations de cette société
@@ -925,7 +925,8 @@ function afficherPlan(entretiensListe, regles, releves) {
     });
     return tr;
   }));
-  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-motorisation', 'motorisation'], ['#vi-mec', 'mise_en_circulation']]) $(id).value = v[champ] || '';
+  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-carburant', 'carburant'], ['#vi-motorisation', 'motorisation'], ['#vi-mec', 'mise_en_circulation']]) $(id).value = v[champ] || '';
+  $('#vi-lire').hidden = !window.google?.script?.run;
 }
 
 $('#regle-form').addEventListener('submit', async (e) => {
@@ -941,14 +942,28 @@ $('#regle-form').addEventListener('submit', async (e) => {
 
 $('#vehicule-identite-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const champs = { marque: $('#vi-marque').value.trim(), modele: $('#vi-modele').value.trim(), motorisation: $('#vi-motorisation').value.trim(),
-    mise_en_circulation: $('#vi-mec').value || null };
+  const champs = { marque: $('#vi-marque').value.trim(), modele: $('#vi-modele').value.trim(), carburant: $('#vi-carburant').value.trim(),
+    motorisation: $('#vi-motorisation').value.trim(), mise_en_circulation: $('#vi-mec').value || null };
   const { error } = await sb.from('vehicules').update(champs).eq('id', vehiculeActif.id);
   if (error) { alert(error.message); return; }
+  majIdentite(champs);
+});
+
+function majIdentite(champs) {
   Object.assign(vehiculeActif, champs);
   const dansListe = listeVehicules.find((x) => x.id === vehiculeActif.id);
   if (dansListe) Object.assign(dansListe, champs);
-  await loadEntretiens(vehiculeActif.id);
+  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-carburant', 'carburant'], ['#vi-motorisation', 'motorisation']]) $(id).value = vehiculeActif[champ] || '';
+  return loadEntretiens(vehiculeActif.id);
+}
+
+$('#vi-lire').addEventListener('click', async () => {
+  const b = $('#vi-lire');
+  b.disabled = true; b.textContent = 'Lecture…';
+  const champs = await identiteDepuisPlaque(vehiculeActif.id, vehiculeActif.plaque);
+  b.disabled = false; b.textContent = 'Lire la plaque';
+  if (!champs) { alert('Plaque introuvable sur la fiche publique : remplissez l\'identité à la main.'); return; }
+  await majIdentite(champs);
 });
 
 // Même modèle = même marque, modèle et motorisation : le plan est copié là où le type manque.
@@ -1248,6 +1263,24 @@ $('#technicien-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Identité lue depuis la plaque (page en ligne seulement, via l'Apps Script). La base reprend
+// ensuite toute seule le plan d'entretien d'un véhicule identique (migration plan_auto).
+function lirePlaque(plaque) {
+  return new Promise((ok) => {
+    if (!window.google?.script?.run) { ok(null); return; }
+    sb.auth.getSession().then(({ data }) => google.script.run.withSuccessHandler(ok).withFailureHandler(() => ok(null))
+      .ficheVehicule(plaque, data.session?.access_token || ''));
+  });
+}
+async function identiteDepuisPlaque(id, plaque) {
+  const f = await lirePlaque(plaque);
+  if (!f) return null;
+  const champs = { marque: f.marque, modele: f.modele, carburant: f.carburant,
+    motorisation: [f.carburant, f.boite && `boîte ${f.boite.toLowerCase()}`, f.annee && `modèle ${f.annee}`].filter(Boolean).join(', ') };
+  const { error } = await sb.from('vehicules').update(champs).eq('id', id);
+  return error ? null : champs;
+}
+
 // Formulaire Véhicules
 $('#vehicule-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1257,9 +1290,10 @@ $('#vehicule-form').addEventListener('submit', async (e) => {
   const libelle = $('#veh-libelle').value.trim();
   if (!plaque) return;
   try {
-    const { error } = await sb.from('vehicules').insert({ societe_id: selectedSociete, plaque, libelle });
+    const { data: cree, error } = await sb.from('vehicules').insert({ societe_id: selectedSociete, plaque, libelle }).select('id').single();
     if (error) throw error;
     $('#vehicule-form').reset();
+    await identiteDepuisPlaque(cree.id, plaque);
     await loadVehicules(selectedSociete);
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'ajout');

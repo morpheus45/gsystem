@@ -877,9 +877,11 @@
                 <form id="vehicule-identite-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
                   <div class="field"><label for="vi-marque">Marque</label><input id="vi-marque" maxlength="60"></div>
                   <div class="field"><label for="vi-modele">Modèle</label><input id="vi-modele" maxlength="60"></div>
+                  <div class="field"><label for="vi-carburant">Carburant</label><input id="vi-carburant" maxlength="30" placeholder="ex. Gazole"></div>
                   <div class="field" style="flex:2;min-width:200px;"><label for="vi-motorisation">Motorisation</label><input id="vi-motorisation" maxlength="120" placeholder="ex. 1.5 dCi 95 ch, diesel"></div>
                   <div class="field"><label for="vi-mec">Mise en circulation</label><input type="date" id="vi-mec"></div>
                   <button type="submit">Enregistrer</button>
+                  <button type="button" id="vi-lire" class="secondary" hidden>Lire la plaque</button>
                 </form>
               </details>
               <h3>Entretiens</h3>
