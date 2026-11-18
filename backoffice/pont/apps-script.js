@@ -2,6 +2,7 @@
 // LECTURE SEULE du Drive (permission drive.readonly) : il ne crée, ne modifie
 // ni ne supprime aucun fichier. En base, il ne fait qu'AJOUTER : une ligne déjà
 // importée (même cle_source) est ignorée, rien n'est écrasé ni effacé.
+// Seule exception : le logo de la société, posé s'il est déposé dans le Drive (logoDuDrive).
 // normaliser() et TABLES_PONT sont ajoutés à la construction (pont/normaliser.js).
 // Réglages : constantes posées à la construction ; la clé serveur (secrète)
 // est dans les Propriétés du script, jamais dans le code.
@@ -20,6 +21,11 @@ function importer() {
   if (!dossiers.hasNext()) throw new Error('Dossier introuvable : ' + RACINE);
   const techs = dossiers.next().getFolders();
   const bilan = { techs: 0, fichiers: 0, photos: 0, photosIntrouvables: 0, erreurs: [] };
+  try {
+    logoDuDrive(cle);
+  } catch (e) {
+    bilan.erreurs.push('logo : ' + e.message);
+  }
   while (techs.hasNext()) {
     const dossierTech = techs.next();
     const fichiers = donneesDuTech(dossierTech);
@@ -145,6 +151,28 @@ function vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate) {
   }
   ajouter(cle, 'vehicules_photos', v.photosCompteur.map((p) => ({ societe_id: SOCIETE_ID, vehicule_id: vehiculeId,
     type: 'compteur', periode: p.periode, source: 'apk', emplacement: 'drive:' + p.nom_drive })), 'societe_id,emplacement');
+}
+
+// Logo de la société : le fichier logo-backoffice.(webp|png|jpg) déposé n'importe où dans
+// le Drive. Posé une fois par version du fichier (date retenue dans les Propriétés).
+// Gardé tel quel : un WebP animé reste animé. La base vérifie le format et la taille.
+function logoDuDrive(cle) {
+  const types = { 'image/webp': 1, 'image/png': 1, 'image/jpeg': 1 };
+  for (const nom of ['logo-backoffice.webp', 'logo-backoffice.png', 'logo-backoffice.jpg']) {
+    const f = DriveApp.getFilesByName(nom);
+    if (!f.hasNext()) continue;
+    const fichier = f.next();
+    const version = String(fichier.getLastUpdated().getTime());
+    const props = PropertiesService.getScriptProperties();
+    if (props.getProperty('LOGO_POSE') === version) return;
+    const blob = fichier.getBlob();
+    if (!types[blob.getContentType()]) throw new Error(nom + ' : format ' + blob.getContentType() + ' refusé');
+    if (blob.getBytes().length > 220000) throw new Error(nom + ' : plus de 220 Ko');
+    appel(cle, 'patch', 'societes?id=eq.' + SOCIETE_ID,
+      { logo: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes()) });
+    props.setProperty('LOGO_POSE', version);
+    return;
+  }
 }
 
 function appel(cle, methode, chemin, corps, prefer) {
