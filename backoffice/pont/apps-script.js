@@ -2,8 +2,10 @@
 // LECTURE SEULE du Drive (permission drive.readonly) : il ne crée, ne modifie
 // ni ne supprime aucun fichier. En base, il ne fait qu'AJOUTER : une ligne déjà
 // importée (même cle_source) est ignorée, rien n'est écrasé ni effacé.
-// Seule exception : le logo de la société, posé s'il est déposé dans le Drive (logoDuDrive).
-// normaliser() et TABLES_PONT sont ajoutés à la construction (pont/normaliser.js).
+// Exceptions : le logo de la société, posé s'il est déposé dans le Drive (logoDuDrive),
+// et l'identité VIDE d'un véhicule, lue depuis sa plaque (identiteDuVehicule).
+// normaliser() et TABLES_PONT sont ajoutés à la construction (pont/normaliser.js),
+// normaliserPlaque() et lireFicheImmat() aussi (core/plaque.js).
 // Réglages : constantes posées à la construction ; la clé serveur (secrète)
 // est dans les Propriétés du script, jamais dans le code.
 
@@ -151,6 +153,27 @@ function vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate) {
   }
   ajouter(cle, 'vehicules_photos', v.photosCompteur.map((p) => ({ societe_id: SOCIETE_ID, vehicule_id: vehiculeId,
     type: 'compteur', periode: p.periode, source: 'apk', emplacement: 'drive:' + p.nom_drive })), 'societe_id,emplacement');
+  identiteDuVehicule(cle, vehiculeId, v.plaque);
+}
+
+// Identité d'un véhicule sans marque, lue sur la fiche publique de sa plaque (core/plaque.js).
+// N'écrit que dans une identité VIDE ; la base reprend alors le plan d'un véhicule identique.
+// Une plaque introuvable n'est retentée qu'au bout de 7 jours (usage occasionnel).
+function identiteDuVehicule(cle, vehiculeId, plaqueApk) {
+  const vide = appel(cle, 'get', 'vehicules?select=id&marque=eq.&id=eq.' + vehiculeId);
+  const plaque = normaliserPlaque(plaqueApk);
+  if (!vide.length || !plaque) return;
+  const props = PropertiesService.getScriptProperties();
+  const essais = JSON.parse(props.getProperty('PLAQUES_LUES') || '{}');
+  if (essais[plaque] && Date.now() - essais[plaque] < 7 * 86400000) return;
+  essais[plaque] = Date.now();
+  props.setProperty('PLAQUES_LUES', JSON.stringify(essais));
+  const rep = UrlFetchApp.fetch('https://immatriculation-auto.info/vehicle/' + plaque, { muteHttpExceptions: true });
+  const f = rep.getResponseCode() === 200 ? lireFicheImmat(rep.getContentText()) : null;
+  if (!f) return;
+  const motorisation = [f.carburant, f.boite && 'boîte ' + f.boite.toLowerCase(), f.annee && 'modèle ' + f.annee].filter(Boolean).join(', ');
+  appel(cle, 'patch', 'vehicules?marque=eq.&id=eq.' + vehiculeId,
+    { marque: f.marque, modele: f.modele, carburant: f.carburant, motorisation: motorisation }, 'return=minimal');
 }
 
 // Logo de la société : le fichier logo-backoffice.(webp|png|jpg) déposé n'importe où dans

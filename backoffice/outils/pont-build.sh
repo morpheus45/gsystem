@@ -29,6 +29,8 @@ J
   sed '/^\/\/ À lancer UNE fois/,$d' pont/apps-script.js
   printf '\n'
   sed 's/^export //' pont/normaliser.js
+  printf '\n'
+  sed 's/^export //' core/plaque.js
 } > "$D/Code.js"
 node --check "$D/Code.js" 2>/dev/null || node -e "new Function(require('fs').readFileSync('$D/Code.js','utf8'))"
 echo "Construit dans $D/"
