@@ -11,3 +11,8 @@ grant usage on schema auth, public to authenticated, anon;
 -- Comme Supabase : toute table créée dans public est d'office ouverte à anon et authenticated
 -- (seule la RLS protège). La migration de durcissement retire ce qui ne sert pas.
 alter default privileges in schema public grant all on tables to anon, authenticated;
+-- Comme Supabase : la clé serveur (le pont) agit en service_role, qui passe outre la RLS mais n'est
+-- PAS super-utilisateur : sans droit explicite, pas d'accès au schéma private (panne du 18/11/2026).
+create role service_role nologin bypassrls;
+grant usage on schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;

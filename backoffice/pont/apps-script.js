@@ -66,7 +66,55 @@ function importer() {
     }
   }
   console.log(JSON.stringify(bilan));
+  // Dernier bilan gardé pour le back-office : une panne ne doit plus passer inaperçue (18-19/11/2026).
+  const garde = Object.assign({ le: new Date().toISOString() }, bilan,
+    { erreurs: bilan.erreurs.slice(0, 20).map((x) => String(x).slice(0, 300)) });
+  PropertiesService.getScriptProperties().setProperty('DERNIER_BILAN', JSON.stringify(garde));
   return bilan;
+}
+
+// ---- Synchro forcée depuis le back-office (bouton « Synchroniser maintenant ») ----
+// La page envoie le jeton de connexion Supabase de l'utilisateur (POST en texte brut : pas de
+// pré-vérification CORS). Seuls un admin ou un gestionnaire de la société, ou un opérateur, sont
+// acceptés. Action « etat » : dernier bilan ; action « synchroniser » : import immédiat, un seul à la
+// fois et au plus un par minute. Seuls des compteurs et des messages d'erreur sont renvoyés.
+function doPost(e) {
+  let corps;
+  try { corps = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (_) { return repondre({ erreur: 'Requête illisible.' }); }
+  const props = PropertiesService.getScriptProperties();
+  const cle = props.getProperty('SUPABASE_CLE_SERVEUR');
+  if (!cle || !utilisateurAutorise(cle, String(corps.jeton || ''))) return repondre({ erreur: 'Non autorisé.' });
+  if (corps.action !== 'synchroniser') return repondre({ dernier: JSON.parse(props.getProperty('DERNIER_BILAN') || 'null') });
+  const cache = CacheService.getScriptCache();
+  if (cache.get('synchro-forcee')) return repondre({ erreur: 'Une synchronisation vient d\'être lancée : réessayez dans une minute.' });
+  const verrou = LockService.getScriptLock();
+  if (!verrou.tryLock(1000)) return repondre({ erreur: 'Une synchronisation est déjà en cours.' });
+  cache.put('synchro-forcee', '1', 60);
+  try {
+    return repondre({ bilan: importer() });
+  } catch (err) {
+    return repondre({ erreur: err.message });
+  } finally {
+    verrou.releaseLock();
+  }
+}
+
+function repondre(objet) {
+  return ContentService.createTextOutput(JSON.stringify(objet)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Jeton vérifié par Supabase, puis rôle lu en base avec la clé serveur : admin ou gestion de CETTE
+// société, ou opérateur de la plateforme.
+function utilisateurAutorise(cle, jeton) {
+  if (!jeton) return false;
+  const u = UrlFetchApp.fetch(SUPABASE_URL + '/auth/v1/user',
+    { headers: { apikey: cle, Authorization: 'Bearer ' + jeton }, muteHttpExceptions: true });
+  if (u.getResponseCode() !== 200) return false;
+  const id = JSON.parse(u.getContentText()).id || '';
+  if (!/^[0-9a-f-]{36}$/.test(id)) return false;
+  if (appel(cle, 'get', 'operateurs?select=user_id&user_id=eq.' + id).length) return true;
+  return appel(cle, 'get', 'membres?select=role&societe_id=eq.' + SOCIETE_ID + '&user_id=eq.' + id)
+    .some((m) => m.role === 'admin' || m.role === 'gestion');
 }
 
 // Les donnees.json des dossiers de cycle (AAAA-MM) d'un tech.

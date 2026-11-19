@@ -99,6 +99,11 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 - **Critères** (testés) : `societeId` obligatoire ; `numeroClient` → `numero_intervention` ; `nomClient` jamais importé ; réimport sans doublon (`cle_source` + `on conflict do nothing`) ; clés inconnues tolérées et signalées ; valeurs par défaut Kotlin remises.
 - **Dépendances** : Phases 1, 2, 3 ; accès en lecture au Drive (à décider).
 - **Risques** : `gesteCo` (primes) n'est pas importé dans ce squelette. Les photos restent dans Drive (référence seule) tant que le stockage n'est pas décidé.
+- **Panne du 18-19/11/2026, réparée** : un déclencheur de la base refusait chaque écriture du pont (règle 10 de
+  `SECURITE.md`, migration `…025_synchro_pont`). Le pont enregistre désormais son dernier bilan (`DERNIER_BILAN`),
+  affiché sur la page, pour qu'une panne silencieuse se voie.
+- **Synchro forcée (19/11/2026)** : bouton « Synchroniser maintenant » en haut de la page, pour la société du pont
+  seulement et pour un admin ou un gestionnaire (jeton et rôle vérifiés par le pont) ; un lancement par minute au plus.
 
 ### Phase 7 — Bascule depuis l'ancien tableau de bord · M
 - **But** : arrêter le tableau de bord Apps Script quand le nouveau fait aussi bien.

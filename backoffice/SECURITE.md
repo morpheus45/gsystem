@@ -87,3 +87,7 @@ est inchangé. Suivi dans `PLAN.md`, rubrique « Sécurité » des tâches resta
    de Supabase (L1).
 9. **APK** : jamais de secret écrit dans le code (le brouillage ne cache pas les textes) ; toute
    version publiée doit être la variante release, brouillée et non déboguable (A1, à activer).
+10. **Déclencheurs** : toute fonction de déclencheur qui appelle une fonction du schéma `private` est
+   `security definer` (avec `set search_path = ''`). Sinon le pont, qui écrit avec la clé serveur
+   (`service_role`, sans accès à `private`), est refusé : c'est la panne de synchro du 18-19/11/2026
+   (migration `…025_synchro_pont`, test `pont-service.test.js`, qui écrit avec ce rôle-là).

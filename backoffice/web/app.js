@@ -13,6 +13,11 @@ import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
 import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
+import { OBJETS_3D } from './objets3d.js';
+import { compteur, anneau, barres, avatar, entree, installerPastille, placerPastille, orbite, variation, miniCourbe } from './rendu.js';
+import { courbe, majCourbe } from './courbe.js';
+import { ouvrirPalette, installerRaccourci } from './recherche.js';
+import { ouverture } from './ouverture.js';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
@@ -209,6 +214,7 @@ function switchOnglet(tabId, calculer = true) {
     b.classList.toggle('active', actif);
     if (actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
+  placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
   for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
@@ -364,6 +370,10 @@ async function loadSocieteDetail(societeId) {
     if (error) throw error;
     const societe = societes.find(s => s.id === societeId);
     $('#societe-detail-title').textContent = societe?.nom || 'Société';
+    $('.nav-nom').textContent = societe?.nom || 'Société';
+    $('#nav-logo').src = societe?.logo || OBJETS_3D.noeud;
+    $('#nav-email').textContent = session.user.email || '';
+    $('#nav-avatar').replaceWith(Object.assign(avatar(session.user.email || '?'), { id: 'nav-avatar' }));
 
     // Un seul panneau visible : on repart sur Membres à chaque société.
     switchOnglet('panel-bord', false);
@@ -397,6 +407,9 @@ async function loadSocieteDetail(societeId) {
 
     $('#niveau-societes').classList.add('hidden');
     $('#societe-detail').classList.remove('hidden');
+    requestAnimationFrame(() => placerPastille($('.tabs')));   // positions connues une fois affiché
+    ouverture($('#societe-detail'));   // « la pièce s'allume » : une fois par jour, rien si animations réduites
+    afficherEtatSynchro();   // bouton et date de la dernière synchro (société reliée au pont)
     mettreAJourFil();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement');
@@ -1764,6 +1777,87 @@ function afficherPrimes(primes, m) {
 // ===== Tableau de bord de la société : chiffres du mois et tâches à faire =====
 $('#bord-mois').addEventListener('change', chargerBord);
 
+// Rendu « doux » (RENDU.md) : forme 3D, pastille du menu, recherche ⌘K, bouton du bandeau.
+$('#forme-connexion').src = OBJETS_3D.noeud;
+installerPastille($('.tabs'));
+$('#bord-voir-interventions').addEventListener('click', () => switchOnglet('panel-interventions'));
+const SECTIONS = [['bord', 'Tableau de bord'], ['techniciens', 'Techniciens'], ['interventions', 'Interventions'], ['conges', 'Congés'],
+  ['messages', 'Messages'], ['vehicules', 'Véhicules'], ['paie', 'Paie'], ['compta', 'Compta'], ['facturation', 'Facturation'], ['membres', 'Membres']];
+function ouvrirRecherche() {
+  if (!selectedSociete || $('#societe-detail').classList.contains('hidden')) return;
+  const elements = [
+    ...SECTIONS.filter(([t]) => !$(`.tab[data-tab="${t}"]`)?.classList.contains('hidden'))
+      .map(([t, nom]) => ({ titre: nom, sousTitre: 'Aller à la section', motsCles: t, action: () => switchOnglet(`panel-${t}`) })),
+    ...techniciens.map((t) => ({ titre: t.nom, sousTitre: t.actif === false ? 'Technicien archivé' : 'Technicien', motsCles: t.nom_apk || '',
+      action: () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(t); } })),
+    ...listeVehicules.map((v) => ({ titre: v.plaque, sousTitre: ['Véhicule', v.marque, v.modele].filter(Boolean).join(' · '), motsCles: v.libelle || '',
+      action: () => { switchOnglet('panel-vehicules'); ouvrirVehicule(v); } })),
+  ];
+  ouvrirPalette({ elements, onChoisir: (e) => e.action() });
+}
+installerRaccourci(ouvrirRecherche);
+$('#ouvrir-recherche').addEventListener('click', ouvrirRecherche);
+// Le raccourci affiché suit la machine : ⌘K sur Mac, Ctrl K ailleurs (les deux marchent partout).
+$('#ouvrir-recherche kbd').textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
+let entreeFaite = false;              // arrivée des cartes : une seule fois par ouverture de la page
+const derniersChiffres = new Map();   // un chiffre ne redéfile que s'il a changé
+let activite = null;                  // { mois12, parMois } : interventions des 12 derniers mois (courbe)
+
+// ---- Synchro forcée (bouton « Synchroniser maintenant ») : appelle le pont (Apps Script) ----
+// Le pont vérifie le jeton et le rôle ; il renvoie seulement des compteurs et des erreurs.
+const PONT = { url: typeof URL_PONT === 'string' ? URL_PONT : '', societe: typeof SOCIETE_PONT === 'string' ? SOCIETE_PONT : '' };
+const boutonSynchro = Object.assign(document.createElement('button'),
+  { type: 'button', id: 'synchro-forcee', className: 'secondary hidden', textContent: 'Synchroniser maintenant' });
+const etatSynchro = Object.assign(document.createElement('span'), { id: 'synchro-etat', className: 'synchro-etat' });
+etatSynchro.setAttribute('aria-live', 'polite');
+$('#logout-btn').before(etatSynchro, boutonSynchro);
+async function appelPont(action) {
+  const { data } = await sb.auth.getSession();
+  // Corps en texte brut : requête « simple », sans pré-vérification CORS ; le pont suit la double redirection.
+  const r = await fetch(PONT.url, { method: 'POST', body: JSON.stringify({ jeton: data.session?.access_token || '', action }) });
+  const res = await r.json();
+  if (res.erreur) throw new Error(res.erreur);
+  return res;
+}
+const ilYa = (iso) => {
+  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  return min < 1 ? 'à l\'instant' : min < 60 ? `il y a ${min} min` : `il y a ${Math.round(min / 60)} h`;
+};
+const resumeBilan = (b) => `${b.fichiers} fichier(s), ${b.photos} photo(s)` + (b.erreurs?.length ? ` — ⚠ ${b.erreurs.length} alerte(s)` : ' — ✓ sans erreur');
+async function afficherEtatSynchro() {
+  const visible = Boolean(PONT.url) && selectedSociete === PONT.societe && peutEcrire();
+  boutonSynchro.classList.toggle('hidden', !visible);
+  etatSynchro.textContent = '';
+  etatSynchro.title = '';
+  if (!visible) return;
+  try {
+    const { dernier } = await appelPont('etat');
+    etatSynchro.textContent = dernier ? `Dernière synchro ${ilYa(dernier.le)} : ${resumeBilan(dernier)}` : 'Aucune synchro enregistrée pour l\'instant.';
+    etatSynchro.title = dernier?.erreurs?.join('\n') || '';
+  } catch (e) {
+    etatSynchro.textContent = `Synchro : ${e.message}`;
+  }
+}
+boutonSynchro.addEventListener('click', async () => {
+  if (boutonSynchro.getAttribute('aria-busy') === 'true') return;
+  boutonSynchro.setAttribute('aria-busy', 'true');
+  boutonSynchro.textContent = 'Synchronisation…';
+  etatSynchro.textContent = 'Import des données des téléphones en cours (jusqu\'à quelques minutes)…';
+  try {
+    const { bilan } = await appelPont('synchroniser');
+    const ouvert = $('.tab.active')?.dataset.tab;
+    await loadSocieteDetail(selectedSociete);   // données à jour à l'écran ; l'état est réaffiché ensuite
+    if (ouvert && ouvert !== 'bord') switchOnglet(`panel-${ouvert}`);   // on reste sur l'écran ouvert
+    etatSynchro.textContent = `Synchronisé à l'instant : ${resumeBilan(bilan)}`;
+    etatSynchro.title = bilan.erreurs.join('\n');
+  } catch (e) {
+    etatSynchro.textContent = `Échec de la synchro : ${e.message}`;
+  } finally {
+    boutonSynchro.removeAttribute('aria-busy');
+    boutonSynchro.textContent = 'Synchroniser maintenant';
+  }
+});
+
 async function chargerBord() {
   const sel = $('#bord-mois');
   if (!sel.options.length) {
@@ -1776,6 +1870,7 @@ async function chargerBord() {
     }));
   }
   const m = sel.value, debut = m + '-01', fin = decaler(plusMois(m, 1) + '-01', -1);
+  $('#bord-surtitre').textContent = `${$('#societe-detail-title').textContent} · ${libelleMois(m)}`;
   try {
     const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
     const [temps, frais, gestes, tarifs, validations, regles, echeances, amendes, conges, aCloturer] = await Promise.all([
@@ -1791,6 +1886,14 @@ async function chargerBord() {
       lire(sb.from('periodes_paie').select('debut, fin').eq('societe_id', selectedSociete).neq('statut', 'exportee').lt('fin', dansJours(0))),
     ]);
     const r = reglesDe(regles[0] || {});
+    const mois12 = Array.from({ length: 12 }, (_, i) => plusMois(m, i - 11));
+    const parMois = await Promise.all(mois12.map(async (mm) => {
+      const { count, error } = await sb.from('temps').select('id', { count: 'exact', head: true }).eq('societe_id', selectedSociete)
+        .gte('date', mm + '-01').lte('date', decaler(plusMois(mm, 1) + '-01', -1));
+      if (error) throw error;
+      return count || 0;
+    }));
+    activite = { mois12, parMois };
     const duMois = temps.filter((e) => e.date >= debut && e.date <= fin);
     const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
     const heuresDe = (liste) => [...new Set(liste.map((e) => e.date))]
@@ -1809,14 +1912,30 @@ async function chargerBord() {
     const nrSociete = tauxNr(duMois.map(versHeuresNr), m);
 
     // Tuiles du mois.
-    const tuile = (libelle, valeur, note) => {
+    const tuile = (libelle, valeur, note, { ico, delta, serie, forte } = {}) => {
       const d = document.createElement('div');
-      d.className = 'tuile';
+      d.className = forte ? 'tuile forte' : 'tuile';
+      const entete = d.appendChild(document.createElement('div'));
+      entete.className = 'entete';
+      const icone = entete.appendChild(document.createElement('span'));
+      icone.className = 'icone';
+      icone.dataset.ico = ico || '';
+      icone.setAttribute('aria-hidden', 'true');
+      if (delta) {
+        const b = entete.appendChild(document.createElement('span'));
+        b.className = `delta ${delta.sens}`;
+        b.textContent = delta.texte;
+        b.title = 'Par rapport au mois précédent';
+      }
       d.appendChild(document.createElement('span')).className = 'libelle';
       d.lastChild.textContent = libelle;
-      d.appendChild(document.createElement('span')).className = 'valeur';
-      d.lastChild.textContent = valeur;
+      const v = d.appendChild(document.createElement('span'));
+      v.className = 'valeur';
+      const texte = String(valeur);
+      compteur(v, texte, derniersChiffres.get(libelle) !== texte);   // ne redéfile que si la valeur change
+      derniersChiffres.set(libelle, texte);
       if (note) { d.appendChild(document.createElement('span')).className = 'note'; d.lastChild.textContent = note; }
+      if (serie) d.appendChild(miniCourbe(serie));
       return d;
     };
     const pc = (x) => (x.pourcent == null ? '—' : `${x.pourcent.toFixed(1).replace('.', ',')} %`);
@@ -1824,41 +1943,71 @@ async function chargerBord() {
     const tuileNr = () => {
       const p = nrSociete.pourcent;
       const t = tuile('Taux NR (installations)', pc(nrSociete),
-        p == null ? 'Aucune installation' : p <= 8 ? '✓ Objectif atteint (≤ 8 %)' : '⚠ Au-dessus de l\'objectif (8 %)');
-      if (p != null) t.classList.add(p <= 8 ? 'objectif-ok' : 'objectif-ko');
+        p == null ? 'Aucune installation' : p <= 8 ? '✓ Objectif atteint (≤ 8 %)' : '⚠ Au-dessus de l\'objectif (8 %)', { ico: 'nr' });
+      if (p != null) {
+        t.classList.add(p <= 8 ? 'objectif-ok' : 'objectif-ko');
+        t.appendChild(anneau(1 - p / 100, derniersChiffres.get('anneau') !== String(p)));   // part d'installations réussies
+        derniersChiffres.set('anneau', String(p));
+      }
       return t;
     };
     $('#bord-chiffres').replaceChildren(
-      tuile('Interventions', duMois.length),
+      tuile('Interventions', duMois.length, null,
+        { ico: 'interventions', forte: true, delta: variation(parMois[11], parMois[10]), serie: parMois.slice(-6) }),
       tuileNr(),
-      tuile('Heures', `${somme('heures')} h`),
-      tuile('Frais remboursables', euros(somme('frais'))),
-      tuile('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`));
+      tuile('Heures', `${somme('heures')} h`, null, { ico: 'heures' }),
+      tuile('Frais remboursables', euros(somme('frais')), null, { ico: 'frais' }),
+      tuile('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`, { ico: 'primes' }));
+
+    // Bandeau : 3 chiffres clés et anneau des installations réussies, entouré des techniciens actifs.
+    const reussite = nrSociete.pourcent == null ? null : 100 - nrSociete.pourcent;
+    const actifs = lignes.filter((l) => l.interventions > 0);
+    $('#bord-chiffres-cles')?.replaceChildren(...[[duMois.length, 'interventions'], [actifs.length, 'techniciens actifs'],
+      [reussite == null ? '—' : `${Math.round(reussite)} %`, 'installations réussies']].map(([v, lib]) => {
+      const d = document.createElement('div');
+      d.appendChild(document.createElement('span')).className = 'valeur';
+      d.lastChild.textContent = v;
+      d.appendChild(document.createElement('span')).textContent = lib;
+      return d;
+    }));
+    if ($('#bord-orbite')) {
+      orbite($('#bord-orbite'), { part: reussite == null ? 0 : reussite / 100, valeur: reussite == null ? '—' : `${Math.round(reussite)} %`,
+        libelle: 'réussies', noms: actifs.map((l) => l.t.nom), animer: derniersChiffres.get('orbite') !== m });
+      derniersChiffres.set('orbite', m);
+    }
 
     // À faire : chaque ligne mène à l'endroit où agir.
     const plaque = (x) => (Array.isArray(x.vehicules) ? x.vehicules[0] : x.vehicules) || {};
     const taches = [
-      ...(conges.length ? [[`${conges.length} demande(s) de congés à valider`, () => switchOnglet('panel-conges')]] : []),
-      ...lignes.filter((l) => l.semainesATraiter).map((l) => [`${l.t.nom} : ${l.semainesATraiter} semaine(s) d'heures sup à traiter (${libelleMois(m)})`, () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); }]),
-      ...echeances.map((e) => [`${plaque(e).plaque} — ${e.type} ${e.date < dansJours(0) ? 'dépassée depuis le' : 'prévue le'} ${formaterDate(e.date)}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(e)); }]),
-      ...amendes.filter((a) => limiteDesignation(a.date_avis) <= dansJours(7)).map((a) => [`${plaque(a).plaque} — amende n° ${a.numero_avis} : désigner le conducteur avant le ${formaterDate(limiteDesignation(a.date_avis))}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(a)); }]),
-      ...aCloturer.map((p) => [`Mois de paie du ${formaterDate(p.debut)} au ${formaterDate(p.fin)} terminé : à valider et clôturer`, () => switchOnglet('panel-paie')]),
+      ...(conges.length ? [[`${conges.length} demande(s) de congés à valider`, () => switchOnglet('panel-conges'), '#7048e8']] : []),
+      ...lignes.filter((l) => l.semainesATraiter).map((l) => [`${l.t.nom} : ${l.semainesATraiter} semaine(s) d'heures sup à traiter (${libelleMois(m)})`, () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); }, '#c77d00']),
+      ...echeances.map((e) => [`${plaque(e).plaque} — ${e.type} ${e.date < dansJours(0) ? 'dépassée depuis le' : 'prévue le'} ${formaterDate(e.date)}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(e)); }, '#1c7ed6']),
+      ...amendes.filter((a) => limiteDesignation(a.date_avis) <= dansJours(7)).map((a) => [`${plaque(a).plaque} — amende n° ${a.numero_avis} : désigner le conducteur avant le ${formaterDate(limiteDesignation(a.date_avis))}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(a)); }, '#e6001c']),
+      ...aCloturer.map((p) => [`Mois de paie du ${formaterDate(p.debut)} au ${formaterDate(p.fin)} terminé : à valider et clôturer`, () => switchOnglet('panel-paie'), '#0c8a5f']),
     ];
-    $('#bord-taches').replaceChildren(...(taches.length ? taches.map(([texte, aller]) => {
+    $('#bord-taches').replaceChildren(...(taches.length ? taches.map(([texte, aller, couleur]) => {
       const li = document.createElement('li');
       const b = li.appendChild(document.createElement('button'));
       b.type = 'button';
-      b.textContent = texte + ' ›';
+      const puce = b.appendChild(document.createElement('span'));
+      puce.className = 'puce';
+      puce.style.setProperty('--c', couleur);
+      b.appendChild(document.createElement('span')).textContent = texte;
+      b.appendChild(document.createElement('span')).className = 'ouvrir';
+      b.lastChild.textContent = 'Ouvrir';
       b.addEventListener('click', aller);
       return li;
     }) : [Object.assign(document.createElement('li'), { className: 'vide', textContent: 'Rien à faire pour l\'instant.' })]));
 
-    $('#bord-camemberts').replaceChildren(
-      camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
-      camembert('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type)))));
+    const animerBarres = derniersChiffres.get('barres') !== m;
+    derniersChiffres.set('barres', m);
+    $('#bord-types').replaceChildren(barres('Types de mission', repartition(duMois.map((e) => e.type_mission || '—')), animerBarres));
+    $('#bord-resultats').replaceChildren(barres('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type))), animerBarres));
+    dessinerCourbe();
 
     $('#bord-techs tbody').replaceChildren(...lignes.map((l) => {
       const tr = ligne([l.t.nom, l.interventions, pc(l.nr), `${l.heures} h`, euros(l.frais), euros(l.primes)]);
+      tr.cells[0].prepend(avatar(l.t.nom));
       tr.classList.add('ligne-cliquable');
       const fl = tr.appendChild(document.createElement('td'));
       fl.className = 'fleche';
@@ -1867,11 +2016,34 @@ async function chargerBord() {
       tr.addEventListener('click', () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); });
       return tr;
     }));
+    if (!entreeFaite) {   // arrivée des cartes en cascade : une seule fois par ouverture de la page
+      entreeFaite = true;
+      entree([...$$('#panel-bord .bandeau, #panel-bord .tuile, #panel-bord .carte')]);
+    }
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement du tableau de bord');
   }
 }
 const versHeuresNr = (e) => ({ date: e.date, typeMission: e.type_mission, observationType: e.observation_type });
+
+function dessinerCourbe() {
+  const zone = $('#bord-courbe');
+  if (!zone || !activite) return;
+  const n = Number($('#bord-periodes button.active')?.dataset.mois || 6);
+  const etiquettes = activite.mois12.slice(-n).map((mm) => `${mm.slice(5)}/${mm.slice(2, 4)}`);
+  const series = [{ nom: 'Interventions', valeurs: activite.parMois.slice(-n), classe: 'principale' }];
+  const fig = zone.querySelector('figure.courbe');
+  // Même nombre de mois (autre mois choisi, autre société) : le tracé se transforme (transition CSS sur « d »).
+  if (fig && fig.querySelectorAll('text.etiquette').length === n) { majCourbe(fig, series, etiquettes); return; }
+  // Sinon on redessine, à la largeur réelle de la carte : 1 unité = 1 pixel, textes à leur vraie taille.
+  zone.replaceChildren(courbe({ titre: 'Interventions par mois', etiquettes, series, largeur: Math.round(zone.clientWidth) || 640 }));
+}
+$('#bord-periodes')?.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-mois]');
+  if (!b) return;
+  $$('#bord-periodes button').forEach((x) => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+  dessinerCourbe();
+});
 
 // ===== Facturation : récap des quantités pour le donneur d'ordre (EPS...) =====
 let recap = null;

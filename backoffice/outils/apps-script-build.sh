@@ -52,5 +52,8 @@ J
 printf "\nvar SUPABASE_URL = '%s', SUPABASE_CLE_PUBLIQUE = '%s';\n" "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" >> "$D/Code.js"
 sed 's/^export //' core/plaque.js >> "$D/Code.js"
 # La page : un seul fichier HTML, avec tous les calculs testés inclus (outils/assembler.py).
+# Pont de la société G-SYSTEM, déployé en application web (doPost : synchro forcée, jeton vérifié).
+export URL_PONT="${URL_PONT:-https://script.google.com/macros/s/AKfycbxm1s_iOhI4qjx-BWJdyIcpDlvk0KBp5Kv29bdDY8kZeGq1X8ZzPYiri073EODZ-FMllQ/exec}"
+export SOCIETE_PONT="${SOCIETE_PONT:-d51b14a2-6359-478d-9c88-0b01df21eb36}"
 python3 outils/assembler.py "$SUPABASE_URL" "$SUPABASE_CLE_PUBLIQUE" "$D" "Version de test — données réelles de l'APK"
 echo "Construit dans $D/"

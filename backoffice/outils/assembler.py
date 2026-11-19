@@ -47,7 +47,10 @@ def main():
     if not cle.startswith('sb_publishable_'):
         sys.exit('clé publique sb_publishable_ attendue')
     externes, code = assembler(os.path.join(RACINE, 'web', 'app.js'))
-    js = externes + f'const SUPABASE_URL = "{url}";\nconst SUPABASE_CLE_PUBLIQUE = "{cle}";\n\n' + code
+    # Synchro forcée : adresse du pont (Apps Script) et société qu'il alimente (rien de secret).
+    pont, societe_pont = os.environ.get('URL_PONT', ''), os.environ.get('SOCIETE_PONT', '')
+    js = externes + (f'const SUPABASE_URL = "{url}";\nconst SUPABASE_CLE_PUBLIQUE = "{cle}";\n'
+                     f'const URL_PONT = "{pont}";\nconst SOCIETE_PONT = "{societe_pont}";\n\n') + code
     os.makedirs(sortie, exist_ok=True)
     # Contrôle : le module assemblé doit se lire sans erreur (noms en double, syntaxe).
     essai = os.path.join(sortie, 'controle.mjs')
@@ -58,6 +61,10 @@ def main():
     js = subprocess.run(['npx', '-y', 'esbuild@0.24.2', '--minify', '--format=esm', '--loader=js', '--legal-comments=none',
                          '--banner=' + MENTION], input=js, capture_output=True, text=True, check=True).stdout
     html = open(os.path.join(RACINE, 'web', 'index.html'), encoding='utf-8').read()
+    # Feuilles de style séparées (<link rel="stylesheet" href="x.css">, dans web/) : intégrées en <style>.
+    def integrer_css(m):
+        return '<style>\n' + open(os.path.join(RACINE, 'web', m.group(1)), encoding='utf-8').read() + '</style>'
+    html = re.sub(r'<link rel="stylesheet" href="([a-z0-9-]+\.css)">', integrer_css, html)
     balise = '<script type="module" src="app.js"></script>'
     assert balise in html, 'balise script introuvable'
     html = html.replace(balise, '<script type="module">\n' + js + '\n</script>')
