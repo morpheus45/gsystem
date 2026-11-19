@@ -682,6 +682,10 @@
           <button type="button" class="nav-recherche" id="ouvrir-recherche" aria-keyshortcuts="Control+K Meta+K">Rechercher <kbd>⌘K</kbd></button>
           <button id="retour-societes" class="lien-retour">← Toutes les sociétés</button>
           <h1 id="societe-detail-title">Société sélectionnée</h1>
+          <!-- Synchro des téléphones (société reliée au pont ; admin ou gestion) : app.js l'affiche et tient le voyant à jour. -->
+          <button type="button" class="nav-synchro hidden" id="synchro-forcee" aria-describedby="synchro-etat"><span class="libelle">Synchroniser</span><span class="temps" aria-hidden="true"></span></button>
+          <span class="lecteur-seul" id="synchro-etat"></span>
+          <span class="lecteur-seul" id="synchro-annonce" role="status"></span>
           <nav class="tabs" aria-label="Sections de la société">
             <p class="nav-groupe">Pilotage</p>
             <button class="tab active" data-tab="bord" aria-current="page">Tableau de bord</button>

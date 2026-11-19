@@ -409,7 +409,7 @@ async function loadSocieteDetail(societeId) {
     $('#societe-detail').classList.remove('hidden');
     requestAnimationFrame(() => placerPastille($('.tabs')));   // positions connues une fois affiché
     ouverture($('#societe-detail'));   // « la pièce s'allume » : une fois par jour, rien si animations réduites
-    afficherEtatSynchro();   // bouton et date de la dernière synchro (société reliée au pont)
+    verifierSynchro({ rafraichir: false });   // bouton et voyant de la synchro (société reliée au pont) ; les données viennent d'être lues
     mettreAJourFil();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement');
@@ -1803,14 +1803,11 @@ let entreeFaite = false;              // arrivée des cartes : une seule fois pa
 const derniersChiffres = new Map();   // un chiffre ne redéfile que s'il a changé
 let activite = null;                  // { mois12, parMois } : interventions des 12 derniers mois (courbe)
 
-// ---- Synchro forcée (bouton « Synchroniser maintenant ») : appelle le pont (Apps Script) ----
+// ---- Synchro des téléphones : petit bouton du menu et voyant vérifié en continu (pont Apps Script) ----
 // Le pont vérifie le jeton et le rôle ; il renvoie seulement des compteurs et des erreurs.
 const PONT = { url: typeof URL_PONT === 'string' ? URL_PONT : '', societe: typeof SOCIETE_PONT === 'string' ? SOCIETE_PONT : '' };
-const boutonSynchro = Object.assign(document.createElement('button'),
-  { type: 'button', id: 'synchro-forcee', className: 'secondary hidden', textContent: 'Synchroniser maintenant' });
-const etatSynchro = Object.assign(document.createElement('span'), { id: 'synchro-etat', className: 'synchro-etat' });
-etatSynchro.setAttribute('aria-live', 'polite');
-$('#logout-btn').before(etatSynchro, boutonSynchro);
+const boutonSynchro = $('#synchro-forcee');
+let dernierBilan = null, erreurEtat = '';   // dernier import connu (horaire ou forcé), tel que le pont l'a gardé
 async function appelPont(action) {
   const { data } = await sb.auth.getSession();
   // Corps en texte brut : requête « simple », sans pré-vérification CORS ; le pont suit la double redirection.
@@ -1820,42 +1817,65 @@ async function appelPont(action) {
   if (res.erreur) throw new Error(res.erreur);
   return res;
 }
-const ilYa = (iso) => {
-  const min = Math.round((Date.now() - Date.parse(iso)) / 60000);
-  return min < 1 ? 'à l\'instant' : min < 60 ? `il y a ${min} min` : `il y a ${Math.round(min / 60)} h`;
-};
-const resumeBilan = (b) => `${b.fichiers} fichier(s), ${b.photos} photo(s)` + (b.erreurs?.length ? ` — ⚠ ${b.erreurs.length} alerte(s)` : ' — ✓ sans erreur');
-async function afficherEtatSynchro() {
-  const visible = Boolean(PONT.url) && selectedSociete === PONT.societe && peutEcrire();
-  boutonSynchro.classList.toggle('hidden', !visible);
-  etatSynchro.textContent = '';
-  etatSynchro.title = '';
-  if (!visible) return;
-  try {
-    const { dernier } = await appelPont('etat');
-    etatSynchro.textContent = dernier ? `Dernière synchro ${ilYa(dernier.le)} : ${resumeBilan(dernier)}` : 'Aucune synchro enregistrée pour l\'instant.';
-    etatSynchro.title = dernier?.erreurs?.join('\n') || '';
-  } catch (e) {
-    etatSynchro.textContent = `Synchro : ${e.message}`;
-  }
+const synchroVisible = () => Boolean(PONT.url && session) && selectedSociete === PONT.societe && peutEcrire();
+const resumeBilan = (b) => `${b.fichiers} fichier(s), ${b.photos} photo(s)` + (b.erreurs?.length ? ` — ${b.erreurs.length} alerte(s)` : ' — sans erreur');
+// Voyant : vert = import de moins de 75 min sans erreur ; orange = alertes ; rouge = plus d'import depuis 75 min
+// (le pont passe toutes les heures : au-delà, il est en panne, comme les 18 et 19/11/2026).
+function etatSynchro(b) {
+  if (!b) return { etat: 'inconnu', court: '—', long: erreurEtat ? `État de la synchro indisponible : ${erreurEtat}` : 'Aucune synchro enregistrée pour l\'instant.' };
+  const min = Math.max(0, Math.round((Date.now() - Date.parse(b.le)) / 60000));
+  const court = min < 1 ? 'à l\'instant' : min < 60 ? `${min} min` : `${Math.floor(min / 60)} h`;
+  const long = `Dernière synchro ${min < 1 ? 'à l\'instant' : `il y a ${court}`} : ${resumeBilan(b)}.`;
+  if (min > 75) return { etat: 'retard', court: 'en retard', long: `${long} L'import automatique (toutes les heures) ne passe plus.` };
+  if (b.erreurs?.length) return { etat: 'alerte', court: 'alerte', long: `${long} ${b.erreurs.join(' ; ')}` };
+  return { etat: 'ok', court, long };
 }
+function peindreSynchro() {
+  boutonSynchro.classList.toggle('hidden', !synchroVisible());
+  if (boutonSynchro.getAttribute('aria-busy') === 'true') return;
+  const e = etatSynchro(dernierBilan);
+  boutonSynchro.dataset.etat = e.etat;
+  boutonSynchro.title = e.long;
+  boutonSynchro.querySelector('.temps').textContent = e.court;
+  $('#synchro-etat').textContent = e.long;
+}
+// Demande au pont l'état du dernier import. Un nouvel import (horaire, ou lancé par un collègue) met à jour
+// le tableau de bord tout seul ; les autres écrans ne bougent pas sous les yeux de l'utilisateur.
+async function verifierSynchro({ rafraichir = true } = {}) {
+  if (!synchroVisible()) { peindreSynchro(); return; }
+  const avant = dernierBilan?.le;
+  try {
+    dernierBilan = (await appelPont('etat')).dernier;
+    erreurEtat = '';
+  } catch (err) {
+    dernierBilan = null;
+    erreurEtat = err.message;
+  }
+  peindreSynchro();
+  if (rafraichir && avant && dernierBilan?.le && dernierBilan.le !== avant && $('.tab.active')?.dataset.tab === 'bord') chargerBord();
+}
+setInterval(peindreSynchro, 30 * 1000);   // « 4 min » avance sans appel réseau
+setInterval(() => { if (document.visibilityState === 'visible') verifierSynchro(); }, 2 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifierSynchro(); });
 boutonSynchro.addEventListener('click', async () => {
   if (boutonSynchro.getAttribute('aria-busy') === 'true') return;
   boutonSynchro.setAttribute('aria-busy', 'true');
-  boutonSynchro.textContent = 'Synchronisation…';
-  etatSynchro.textContent = 'Import des données des téléphones en cours (jusqu\'à quelques minutes)…';
+  boutonSynchro.querySelector('.libelle').textContent = 'Synchronisation…';
+  boutonSynchro.querySelector('.temps').textContent = '';
   try {
     const { bilan } = await appelPont('synchroniser');
+    dernierBilan = { ...bilan, le: new Date().toISOString() };
     const ouvert = $('.tab.active')?.dataset.tab;
-    await loadSocieteDetail(selectedSociete);   // données à jour à l'écran ; l'état est réaffiché ensuite
+    await loadSocieteDetail(selectedSociete);   // données à jour à l'écran
     if (ouvert && ouvert !== 'bord') switchOnglet(`panel-${ouvert}`);   // on reste sur l'écran ouvert
-    etatSynchro.textContent = `Synchronisé à l'instant : ${resumeBilan(bilan)}`;
-    etatSynchro.title = (bilan.erreurs || []).join('\n');
-  } catch (e) {
-    etatSynchro.textContent = `Échec de la synchro : ${e.message}`;
+    $('#synchro-annonce').textContent = `Synchronisation terminée : ${resumeBilan(bilan)}.`;
+  } catch (err) {
+    $('#synchro-annonce').textContent = `Échec de la synchro : ${err.message}`;
+    alert(`Échec de la synchro : ${err.message}`);
   } finally {
     boutonSynchro.removeAttribute('aria-busy');
-    boutonSynchro.textContent = 'Synchroniser maintenant';
+    boutonSynchro.querySelector('.libelle').textContent = 'Synchroniser';
+    peindreSynchro();
   }
 });
 

@@ -102,8 +102,11 @@ Taille : S = petit, M = moyen, L = gros. Aucune durée ni aucun coût n'est esti
 - **Panne du 18-19/11/2026, réparée** : un déclencheur de la base refusait chaque écriture du pont (règle 10 de
   `SECURITE.md`, migration `…025_synchro_pont`). Le pont enregistre désormais son dernier bilan (`DERNIER_BILAN`),
   affiché sur la page, pour qu'une panne silencieuse se voie.
-- **Synchro forcée (19/11/2026)** : bouton « Synchroniser maintenant » en haut de la page, pour la société du pont
-  seulement et pour un admin ou un gestionnaire (jeton et rôle vérifiés par le pont) ; un lancement par minute au plus.
+- **Synchro forcée (19/11/2026)** : petit bouton « Synchroniser » dans le menu, au-dessus de « Pilotage » (demande de
+  Cédric : le gros bouton du haut « jurait avec le reste »), pour la société du pont seulement et pour un admin ou un
+  gestionnaire (jeton et rôle vérifiés par le pont) ; un lancement par minute au plus. Son voyant est vérifié toutes les
+  2 minutes et au retour sur la page : vert (import de moins de 75 min sans erreur), orange (alertes), rouge (« en retard » :
+  plus d'import automatique depuis 75 min). Un nouvel import met à jour le tableau de bord tout seul.
 
 ### Phase 7 — Bascule depuis l'ancien tableau de bord · M
 - **But** : arrêter le tableau de bord Apps Script quand le nouveau fait aussi bien.
