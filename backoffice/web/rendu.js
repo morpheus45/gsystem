@@ -227,3 +227,48 @@ export function installerPastille(nav) {
   placerPastille(nav);
   addEventListener('resize', () => placerPastille(nav));
 }
+
+// ---- Pastille d'état (« Validée », « NR », « Dépassé »…) : texte + couleur, jamais la couleur seule ----
+// Tons : ok (vert), alerte (orange), danger (rouge), info (bleu), neutre (gris) ; styles dans halo.css.
+
+export function pastille(texte, ton = 'neutre') {
+  const s = document.createElement('span');
+  s.className = `pastille ${ton}`;
+  s.textContent = texte;
+  return s;
+}
+
+// ---- Filtre court (2 à 5 choix) affiché en pilules, comme les périodes de la courbe ----
+// Le <select> reste la source de vérité : masqué, toujours lu par le code existant ; un clic sur une pilule
+// le change et déclenche son « change ». À réserver aux listes fixes (les pilules ne suivent pas un ajout d'option).
+
+export function pilulesDepuisSelect(select, libelle) {
+  if (!select || select.dataset.pilules) return;
+  select.dataset.pilules = 'oui';
+  const groupe = document.createElement('div');
+  groupe.className = 'periodes pilules';
+  groupe.setAttribute('role', 'group');
+  groupe.setAttribute('aria-label', libelle || select.labels?.[0]?.textContent?.trim() || 'Filtre');
+  const peindre = () => groupe.querySelectorAll('button').forEach((b) => {
+    const actif = b.dataset.valeur === select.value;
+    b.classList.toggle('active', actif);
+    b.setAttribute('aria-pressed', String(actif));
+  });
+  for (const o of select.options) {
+    const b = groupe.appendChild(document.createElement('button'));
+    b.type = 'button';
+    b.dataset.valeur = o.value;
+    b.textContent = o.textContent;
+    b.addEventListener('click', () => {
+      if (select.value === o.value) return;
+      select.value = o.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      peindre();
+    });
+  }
+  select.addEventListener('change', peindre);
+  select.classList.add('hidden');
+  select.labels?.forEach((l) => l.classList.add('hidden'));   // le groupe porte le libellé
+  select.after(groupe);
+  peindre();
+}

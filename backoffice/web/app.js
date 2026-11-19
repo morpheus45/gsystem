@@ -14,7 +14,7 @@ import { recapFacturation, montantsFacture, lignesManquantes } from '../core/fac
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
 import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
 import { OBJETS_3D } from './objets3d.js';
-import { compteur, anneau, barres, avatar, entree, installerPastille, placerPastille, orbite, variation, miniCourbe } from './rendu.js';
+import { compteur, anneau, barres, avatar, entree, installerPastille, placerPastille, orbite, variation, miniCourbe, pastille, pilulesDepuisSelect } from './rendu.js';
 import { courbe, majCourbe } from './courbe.js';
 import { ouvrirPalette, installerRaccourci } from './recherche.js';
 import { ouverture } from './ouverture.js';
@@ -1879,6 +1879,35 @@ boutonSynchro.addEventListener('click', async () => {
   }
 });
 
+// Tuile chiffrée (tableau de bord et autres écrans) : icône, évolution, valeur qui défile, note, mini-courbe.
+// `cle` distingue deux tuiles de même libellé sur deux écrans (le chiffre ne redéfile que s'il a changé).
+function tuileChiffre(libelle, valeur, note, { ico, delta, serie, forte, cle = libelle } = {}) {
+  const d = document.createElement('div');
+  d.className = forte ? 'tuile forte' : 'tuile';
+  const entete = d.appendChild(document.createElement('div'));
+  entete.className = 'entete';
+  const icone = entete.appendChild(document.createElement('span'));
+  icone.className = 'icone';
+  icone.dataset.ico = ico || '';
+  icone.setAttribute('aria-hidden', 'true');
+  if (delta) {
+    const b = entete.appendChild(document.createElement('span'));
+    b.className = `delta ${delta.sens}`;
+    b.textContent = delta.texte;
+    b.title = 'Par rapport au mois précédent';
+  }
+  d.appendChild(document.createElement('span')).className = 'libelle';
+  d.lastChild.textContent = libelle;
+  const v = d.appendChild(document.createElement('span'));
+  v.className = 'valeur';
+  const texte = String(valeur);
+  compteur(v, texte, derniersChiffres.get(cle) !== texte);   // ne redéfile que si la valeur change
+  derniersChiffres.set(cle, texte);
+  if (note) { d.appendChild(document.createElement('span')).className = 'note'; d.lastChild.textContent = note; }
+  if (serie) d.appendChild(miniCourbe(serie));
+  return d;
+}
+
 async function chargerBord() {
   const sel = $('#bord-mois');
   if (!sel.options.length) {
@@ -1932,38 +1961,11 @@ async function chargerBord() {
     const somme = (k) => lignes.reduce((x, l) => x + l[k], 0);
     const nrSociete = tauxNr(duMois.map(versHeuresNr), m);
 
-    // Tuiles du mois.
-    const tuile = (libelle, valeur, note, { ico, delta, serie, forte } = {}) => {
-      const d = document.createElement('div');
-      d.className = forte ? 'tuile forte' : 'tuile';
-      const entete = d.appendChild(document.createElement('div'));
-      entete.className = 'entete';
-      const icone = entete.appendChild(document.createElement('span'));
-      icone.className = 'icone';
-      icone.dataset.ico = ico || '';
-      icone.setAttribute('aria-hidden', 'true');
-      if (delta) {
-        const b = entete.appendChild(document.createElement('span'));
-        b.className = `delta ${delta.sens}`;
-        b.textContent = delta.texte;
-        b.title = 'Par rapport au mois précédent';
-      }
-      d.appendChild(document.createElement('span')).className = 'libelle';
-      d.lastChild.textContent = libelle;
-      const v = d.appendChild(document.createElement('span'));
-      v.className = 'valeur';
-      const texte = String(valeur);
-      compteur(v, texte, derniersChiffres.get(libelle) !== texte);   // ne redéfile que si la valeur change
-      derniersChiffres.set(libelle, texte);
-      if (note) { d.appendChild(document.createElement('span')).className = 'note'; d.lastChild.textContent = note; }
-      if (serie) d.appendChild(miniCourbe(serie));
-      return d;
-    };
     const pc = (x) => (x.pourcent == null ? '—' : `${x.pourcent.toFixed(1).replace('.', ',')} %`);
     // Objectif NR : vert jusqu'à 8 %, rouge au-dessus (icône + texte, pas la couleur seule).
     const tuileNr = () => {
       const p = nrSociete.pourcent;
-      const t = tuile('Taux NR (installations)', pc(nrSociete),
+      const t = tuileChiffre('Taux NR (installations)', pc(nrSociete),
         p == null ? 'Aucune installation' : p <= 8 ? '✓ Objectif atteint (≤ 8 %)' : '⚠ Au-dessus de l\'objectif (8 %)', { ico: 'nr' });
       if (p != null) {
         t.classList.add(p <= 8 ? 'objectif-ok' : 'objectif-ko');
@@ -1973,12 +1975,12 @@ async function chargerBord() {
       return t;
     };
     $('#bord-chiffres').replaceChildren(
-      tuile('Interventions', duMois.length, null,
+      tuileChiffre('Interventions', duMois.length, null,
         { ico: 'interventions', forte: true, delta: variation(parMois[11], parMois[10]), serie: parMois.slice(-6) }),
       tuileNr(),
-      tuile('Heures', `${somme('heures')} h`, null, { ico: 'heures' }),
-      tuile('Frais remboursables', euros(somme('frais')), null, { ico: 'frais' }),
-      tuile('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`, { ico: 'primes' }));
+      tuileChiffre('Heures', `${somme('heures')} h`, null, { ico: 'heures' }),
+      tuileChiffre('Frais remboursables', euros(somme('frais')), null, { ico: 'frais' }),
+      tuileChiffre('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`, { ico: 'primes' }));
 
     // Bandeau : 3 chiffres clés et anneau des installations réussies, entouré des techniciens actifs.
     const reussite = nrSociete.pourcent == null ? null : 100 - nrSociete.pourcent;
