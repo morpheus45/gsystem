@@ -240,6 +240,11 @@ Même liste que la section 8 de `presentation/documentation-backoffice-gsystems.
 - [ ] Cédric : retirer la version de test du Play Store (A4, 1.9.95, non brouillée) — Play Console ›
       Tester et publier › Tests › mettre fin au test.
 
+**Rendu « doux » du back-office** (demande du 19/11/2026, en cours — tout est dans `RENDU.md`)
+- [ ] Style de la vidéo de référence adapté aux couleurs G-Systems : rail noir, tableau de bord en
+      mosaïque, chiffres qui défilent, anneau du taux NR, barres arrondies, forme 3D abstraite (nœud).
+      Prototype sur le tableau de bord, validation de Cédric, puis extension aux autres écrans.
+
 **Priorité 3 — RGPD**
 - [ ] Registre des traitements ; information des salariés ; contrats de sous-traitance (clients, Supabase, Google).
 - [ ] Durée de conservation des messages ; durée des amendes et localisation Google Drive à vérifier ; relecture juriste/DPO.
