@@ -1815,7 +1815,8 @@ async function appelPont(action) {
   const { data } = await sb.auth.getSession();
   // Corps en texte brut : requête « simple », sans pré-vérification CORS ; le pont suit la double redirection.
   const r = await fetch(PONT.url, { method: 'POST', body: JSON.stringify({ jeton: data.session?.access_token || '', action }) });
-  const res = await r.json();
+  // Une page d'erreur Google (quota, panne) n'est pas du JSON : message clair plutôt qu'une erreur technique.
+  const res = await r.json().catch(() => { throw new Error('le pont ne répond pas normalement, réessayez plus tard'); });
   if (res.erreur) throw new Error(res.erreur);
   return res;
 }
@@ -1849,7 +1850,7 @@ boutonSynchro.addEventListener('click', async () => {
     await loadSocieteDetail(selectedSociete);   // données à jour à l'écran ; l'état est réaffiché ensuite
     if (ouvert && ouvert !== 'bord') switchOnglet(`panel-${ouvert}`);   // on reste sur l'écran ouvert
     etatSynchro.textContent = `Synchronisé à l'instant : ${resumeBilan(bilan)}`;
-    etatSynchro.title = bilan.erreurs.join('\n');
+    etatSynchro.title = (bilan.erreurs || []).join('\n');
   } catch (e) {
     etatSynchro.textContent = `Échec de la synchro : ${e.message}`;
   } finally {
