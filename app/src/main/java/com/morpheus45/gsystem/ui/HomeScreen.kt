@@ -378,9 +378,11 @@ fun HomeScreen(
             HomeTile("09", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
                 onClick = onDemandeCamera),
-            HomeTile("10", "DIAGNOSTIC SÉCURITÉ", "Fiche EPS · pro et particulier",
-                Icons.Outlined.Shield, DiagStart, DiagEnd, DiagAccent, HomeGroup.INTERV,
-                onClick = onDiagnostic),
+            // DIAGNOSTIC SÉCURITÉ débranché le 20/11/2026 (demande de Cédric) : l'écran reste dans le code.
+            // Pour le rebrancher, remettre la tuile :
+            // HomeTile("10", "DIAGNOSTIC SÉCURITÉ", "Fiche EPS · pro et particulier",
+            //     Icons.Outlined.Shield, DiagStart, DiagEnd, DiagAccent, HomeGroup.INTERV,
+            //     onClick = onDiagnostic),
             HomeTile("11", "RÉCAP", "Cumul du cycle · total euros",
                 Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
                 onClick = onGesteCoRecap),
