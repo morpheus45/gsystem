@@ -643,7 +643,13 @@ function renderVehicules(list, affectations) {
     const tech = techniciens.find(t => t.id === techId);
     const nomTech = tech ? tech.nom : '—';
     const debut = affectationsV.find(a => a.debut <= aujourdhui && (!a.fin || a.fin >= aujourdhui))?.debut || '—';
-    const tr = ligne([v.plaque, v.libelle || '', nomTech, debut]);
+    const tr = ligne(['', v.libelle || '', '', debut]);
+    const plaque = tr.children[0].appendChild(document.createElement('span'));
+    plaque.className = 'plaque';
+    plaque.textContent = v.plaque;
+    const conducteur = tr.children[2];
+    if (tech) conducteur.append(avatar(nomTech), document.createTextNode(nomTech));
+    else conducteur.textContent = nomTech;
     tr.classList.add('ligne-cliquable');
     tr.addEventListener('click', () => ouvrirVehicule(v));
     const fleche = tr.appendChild(document.createElement('td'));
@@ -659,7 +665,11 @@ async function ouvrirVehicule(v) {
   fermerFicheTechnicien();
   $('#vehicules-liste').classList.add('hidden');
   $('#vehicule-detail').classList.remove('hidden');
-  $('#vehicule-detail-title').textContent = v.plaque;
+  const titre = $('#vehicule-detail-title');
+  titre.replaceChildren();
+  const plaque = titre.appendChild(document.createElement('span'));
+  plaque.className = 'plaque';
+  plaque.textContent = v.plaque;
   initialiserSousOnglets($('#vehicule-detail'));
   mettreAJourFil();
   await Promise.all([
@@ -793,14 +803,15 @@ function renderEcheances(list) {
   tbody.replaceChildren(...list.map(e => {
     const al = alertes([e], { aujourdhui: new Date().toISOString().slice(0, 10), kmActuel: kmActuelGlobal, joursAvant: 30, kmAvant: 1000 });
     const niveau = al[0]?.niveau;
-    let label = '';
+    let label = 'À jour';
     let classe = '';
     if (niveau === 'depassee') { label = 'Dépassée'; classe = 'alerte-depassee'; }
     else if (niveau === 'proche') { label = 'Proche'; classe = 'alerte-proche'; }
     else if (niveau === 'km_inconnu') { label = 'Km inconnu'; }
-    const tr = ligne([e.type, e.date ? formaterDate(e.date) : '—', e.km != null ? String(e.km) : '—', label]);
+    const tr = ligne([e.type, e.date ? formaterDate(e.date) : '—', e.km != null ? String(e.km) : '—', '']);
     const alertTd = tr.children[3];
     if (classe) alertTd.classList.add(classe);
+    alertTd.appendChild(pastille(label, classe === 'alerte-depassee' ? 'danger' : classe === 'alerte-proche' || niveau === 'km_inconnu' ? 'alerte' : 'ok'));
     const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
     b.className = 'danger';
     b.textContent = 'Supprimer';
@@ -912,7 +923,18 @@ function renderEntretiens(list) {
   // Coût total (non vide)
   const total = list.filter(e => e.cout != null && e.cout !== '').reduce((s, e) => s + Number(e.cout), 0);
   const totalEl = $('#entretiens-total');
-  totalEl.textContent = `Coût total : ${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  let tuiles = $('#entretiens-tuiles');
+  if (!tuiles) {
+    tuiles = document.createElement('div');
+    tuiles.id = 'entretiens-tuiles';
+    tuiles.className = 'tuiles';
+    totalEl.parentElement.insertBefore(tuiles, totalEl);
+  }
+  tuiles.replaceChildren(
+    tuileChiffre('Entretiens', list.length, null, { ico: 'interventions', cle: 'veh-entretiens-nombre' }),
+    tuileChiffre('Coût total', `${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`, null, { ico: 'frais', cle: 'veh-entretiens-cout' })
+  );
+  totalEl.hidden = true;
 }
 
 const LIB_ENTRETIEN = {
@@ -941,8 +963,10 @@ function afficherPlan(entretiensListe, regles, releves) {
     const dernier = l.dernier ? `${formaterDate(l.dernier.date)}${l.dernier.km != null ? ' — ' + nombreFr(l.dernier.km) + ' km' : ''}` : '—';
     const prochain = l.prochain ? [l.prochain.km != null && `${nombreFr(l.prochain.km)} km`, l.prochain.date && formaterDate(l.prochain.date)].filter(Boolean).join(' ou le ') : '—';
     const [etat, classe] = ETATS_PLAN[l.etat];
-    const tr = ligne([libEntretien(l.type), `Tous les ${pre}`, dernier, prochain, l.estimation ? `vers le ${formaterDate(l.estimation)}` : '—', etat, regles[i].source || '—']);
-    tr.children[5].className = classe;
+    const tr = ligne([libEntretien(l.type), `Tous les ${pre}`, dernier, prochain, l.estimation ? `vers le ${formaterDate(l.estimation)}` : '—', '', regles[i].source || '—']);
+    const etatTd = tr.children[5];
+    etatTd.className = classe;
+    etatTd.appendChild(pastille(etat, classe === 'alerte-depassee' ? 'danger' : classe === 'alerte-proche' ? 'alerte' : 'ok'));
     const td = tr.appendChild(document.createElement('td'));
     const b = td.appendChild(document.createElement('button'));
     b.type = 'button'; b.className = 'danger'; b.textContent = 'Supprimer';
@@ -1114,7 +1138,7 @@ function renderAmendes(list) {
     const nomTech = tech ? tech.nom : '—';
     const limite = a.date_avis ? limiteDesignation(a.date_avis) : '';
     const aujourdhui = new Date().toISOString().slice(0, 10);
-    let limiteLabel = limite ? formaterDate(limite) : '—';
+    const limiteLabel = limite ? formaterDate(limite) : '—';
     let classeLimite = '';
     if (a.statut === 'a_traiter' && limite) {
       if (limite < aujourdhui) classeLimite = 'alerte-depassee';
@@ -1130,11 +1154,14 @@ function renderAmendes(list) {
       a.lieu || '—',
       a.montant != null ? `${Number(a.montant).toFixed(2).replace('.', ',')} €` : '—',
       nomTech,
-      limiteLabel,
+      '',
       '',
       ''
     ]);
-    if (classeLimite) tr.children[6].classList.add(classeLimite);
+    const limiteTd = tr.children[6];
+    if (classeLimite) limiteTd.classList.add(classeLimite);
+    if (limite) limiteTd.appendChild(pastille(limiteLabel, classeLimite === 'alerte-depassee' ? 'danger' : classeLimite === 'alerte-proche' ? 'alerte' : 'ok'));
+    else limiteTd.textContent = limiteLabel;
     const statutTd = tr.children[7];
     if (peutEcrire()) {
       const sel = document.createElement('select');
@@ -1151,6 +1178,7 @@ function renderAmendes(list) {
         if (a.statut === val) o.selected = true;
         sel.appendChild(o);
       }
+      statutTd.appendChild(sel);
       sel.addEventListener('change', async () => {
         const newStatut = sel.value;
         const updates = { statut: newStatut };
@@ -1159,7 +1187,6 @@ function renderAmendes(list) {
         if (error) { alert(error.message); return; }
         await loadAmendes(vehiculeActif.id);
       });
-      statutTd.appendChild(sel);
     } else {
       const labels = { a_traiter: 'À traiter', designee: 'Conducteur désigné', contestee: 'Contestée', payee: 'Payée' };
       statutTd.textContent = labels[a.statut] || a.statut || '—';
