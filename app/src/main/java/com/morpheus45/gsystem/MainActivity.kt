@@ -303,7 +303,7 @@ fun AppNav() {
                 android.widget.Toast.LENGTH_LONG
             ).show()
         } else {
-            missionStore.replaceAll(parsed)
+            missionStore.mergeNew(parsed)
             android.widget.Toast.makeText(
                 context, "${parsed.size} mission(s) importée(s).",
                 android.widget.Toast.LENGTH_SHORT
