@@ -78,12 +78,37 @@ function importer() {
 // pré-vérification CORS). Seuls un admin ou un gestionnaire de la société, ou un opérateur, sont
 // acceptés. Action « etat » : dernier bilan ; action « synchroniser » : import immédiat, un seul à la
 // fois et au plus un par minute. Seuls des compteurs et des messages d'erreur sont renvoyés.
+// Chat bureau ↔ technicien : lecture de la feuille de chat de l'APK (partage Drive) et
+// ajout d'une ligne « bureau ». L'identifiant de la feuille vient de la Propriété CHAT_FEUILLE_ID,
+// jamais écrit dans le code. L'APK continue de lire/écrire la même feuille toutes les 12 s.
+const CHAT_FEUILLE_ID_PROP = 'CHAT_FEUILLE_ID';
+
 function doPost(e) {
   let corps;
   try { corps = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (_) { return repondre({ erreur: 'Requête illisible.' }); }
   const props = PropertiesService.getScriptProperties();
   const cle = props.getProperty('SUPABASE_CLE_SERVEUR');
   if (!cle || !utilisateurAutorise(cle, String(corps.jeton || ''))) return repondre({ erreur: 'Non autorisé.' });
+
+  // --- Chat bureau ↔ technicien ---
+  if (corps.action === 'chat_lire') {
+    try {
+      const depuis = Number(corps.depuis) || 0;
+      return repondre({ ok: true, messages: chatLire_(depuis) });
+    } catch (err) {
+      return repondre({ erreur: err.message });
+    }
+  }
+  if (corps.action === 'chat_ecrire') {
+    try {
+      const id = chatEcrire_(String(corps.technicien || ''), String(corps.texte || ''));
+      return repondre({ ok: true, id });
+    } catch (err) {
+      return repondre({ erreur: err.message });
+    }
+  }
+
+  // --- Synchronisation forcée (action « synchroniser ») ---
   if (corps.action !== 'synchroniser') return repondre({ dernier: JSON.parse(props.getProperty('DERNIER_BILAN') || 'null') });
   const cache = CacheService.getScriptCache();
   if (cache.get('synchro-forcee')) return repondre({ erreur: 'Une synchronisation vient d\'être lancée : réessayez dans une minute.' });
@@ -260,6 +285,37 @@ function appel(cle, methode, chemin, corps, prefer) {
   if (code >= 300) throw new Error(methode + ' ' + chemin.split('?')[0] + ' : ' + code + ' ' + rep.getContentText().slice(0, 300));
   const texte = rep.getContentText();
   return texte ? JSON.parse(texte) : null;
+}
+
+// --- Chat : lecture/écriture de la feuille partagée avec l'APK ---
+// Les transformations pures (feuilleEnMessages, messagesEnFeuille) sont dans
+// pont/chat.js ; testées par test/chat.test.js. Le build les ajoute avant celles-ci.
+function getChatSheet_() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty(CHAT_FEUILLE_ID_PROP);
+  if (!id) throw new Error('Propriété du script manquante : ' + CHAT_FEUILLE_ID_PROP);
+  const ss = SpreadsheetApp.openById(id);
+  let sh = ss.getSheetByName('messages');
+  if (!sh) throw new Error('Onglet « messages » introuvable dans la feuille de chat');
+  return sh;
+}
+
+function chatLire_(depuis) {
+  const sh = getChatSheet_();
+  const n = sh.getLastRow();
+  const rows = n > 1 ? sh.getRange(2, 1, n - 1, 7).getValues() : [];
+  return feuilleEnMessages(rows, depuis);
+}
+
+function chatEcrire_(tech, texte) {
+  const sh = getChatSheet_();
+  const now = Date.now();
+  const last = sh.getLastRow() > 1 ? Number(sh.getRange(sh.getLastRow(), 1).getValue()) : 0;
+  const id = Math.max(now, last + 1);   // id strictement croissant
+  const rows = messagesEnFeuille([{ id, tech, from: 'bureau', text: texte, ts: now }]);
+  if (!rows.length) throw new Error('tech et texte requis');
+  sh.appendRow(rows[0]);
+  return id;
 }
 
 // À lancer UNE fois : importe tout, puis installe l'import automatique toutes les heures.

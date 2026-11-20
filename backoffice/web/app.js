@@ -227,7 +227,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-compta') chargerCompta();
   if (tabId === 'panel-interventions') chargerInterventions();
   clearInterval(relanceChat);
-  if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 30000); }
+  if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
 }
 
 function fermerPanneauVehicule() {
@@ -501,7 +501,7 @@ async function cancelInvitation(id) {
 // === TECHNICIENS ===
 async function loadTechniciens(societeId) {
   try {
-    const { data, error } = await sb.from('techniciens').select('id, nom, actif, archive_le, compte_auxiliaire').eq('societe_id', societeId).order('nom');
+    const { data, error } = await sb.from('techniciens').select('id, nom, nom_apk, actif, archive_le, compte_auxiliaire').eq('societe_id', societeId).order('nom');
     if (error) throw error;
     techniciens = data;
     renderTechniciens(data);
@@ -1844,10 +1844,10 @@ let activite = null;                  // { mois12, parMois } : interventions des
 const PONT = { url: typeof URL_PONT === 'string' ? URL_PONT : '', societe: typeof SOCIETE_PONT === 'string' ? SOCIETE_PONT : '' };
 const boutonSynchro = $('#synchro-forcee');
 let dernierBilan = null, erreurEtat = '';   // dernier import connu (horaire ou forcé), tel que le pont l'a gardé
-async function appelPont(action) {
+async function appelPont(action, corps = {}) {
   const { data } = await sb.auth.getSession();
   // Corps en texte brut : requête « simple », sans pré-vérification CORS ; le pont suit la double redirection.
-  const r = await fetch(PONT.url, { method: 'POST', body: JSON.stringify({ jeton: data.session?.access_token || '', action }) });
+  const r = await fetch(PONT.url, { method: 'POST', body: JSON.stringify({ jeton: data.session?.access_token || '', action, ...corps }) });
   // Une page d'erreur Google (quota, panne) n'est pas du JSON : message clair plutôt qu'une erreur technique.
   const res = await r.json().catch(() => { throw new Error('le pont ne répond pas normalement, réessayez plus tard'); });
   if (res.erreur) throw new Error(res.erreur);

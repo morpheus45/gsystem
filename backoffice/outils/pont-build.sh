@@ -17,7 +17,8 @@ cat > "$D/appsscript.json" <<'J'
   "oauthScopes": [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/script.external_request",
-    "https://www.googleapis.com/auth/script.scriptapp"
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/spreadsheets"
   ],
   "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
 }
@@ -29,6 +30,8 @@ J
   sed -n '/^\/\/ À lancer UNE fois/,$p' pont/apps-script.js
   printf '\n'
   sed '/^\/\/ À lancer UNE fois/,$d' pont/apps-script.js
+  printf '\n'
+  cat pont/chat.js
   printf '\n'
   sed 's/^export //' pont/normaliser.js
   printf '\n'
