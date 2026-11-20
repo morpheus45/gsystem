@@ -1692,6 +1692,8 @@ function afficherPaie() {
     const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables), euros(v.primes),
       h(v.supRefusees), reste.join(', ') || '—', reste.length ? 'À traiter' : 'Prêt']);
     tr.children[9].className = reste.length ? 'alerte-proche' : 'etat-pret';
+    tr.children[0].prepend(avatar(t.nom));
+    tr.children[9].replaceChildren(pastille(reste.length ? 'À traiter' : 'Prêt', reste.length ? 'alerte' : 'ok'));
     tr.classList.add('ligne-cliquable');
     const fleche = tr.appendChild(document.createElement('td'));
     fleche.className = 'fleche';
@@ -1701,8 +1703,16 @@ function afficherPaie() {
     return tr;
   }));
   const somme = (k) => lignesPaie.reduce((s, l) => s + l.v[k], 0);
-  $('#paie-resume').textContent = `${lignesPaie.length} technicien(s) — ${aTraiter} à traiter — ${lignesPaie.length - aTraiter} prêt(s)`;
-  $('#paie-totaux').textContent = `Totaux : ${h(somme('heuresNormales'))} normales, ${h(somme('sup1'))} + ${h(somme('sup2'))} sup validées, ${euros(somme('fraisRemboursables'))} de frais, ${euros(somme('primes'))} de primes.`;
+  const sup1 = somme('sup1'), sup2 = somme('sup2');
+  $('#paie-resume').replaceChildren(
+    tuileChiffre('Techniciens', lignesPaie.length, `${lignesPaie.length - aTraiter} prêt(s)`, { ico: 'interventions', cle: 'paie-techniciens' }),
+    tuileChiffre('À traiter', aTraiter, null, { cle: 'paie-a-traiter' }),
+    tuileChiffre('Heures normales', h(somme('heuresNormales')), null, { ico: 'heures', cle: 'paie-heures' }),
+    tuileChiffre('Heures supplémentaires', h(sup1 + sup2), `validées : ${h(sup1)} + ${h(sup2)}`, { ico: 'heures', cle: 'paie-heures-sup' }),
+    tuileChiffre('Frais remboursables', euros(somme('fraisRemboursables')), null, { ico: 'frais', cle: 'paie-frais' }),
+    tuileChiffre('Primes', euros(somme('primes')), null, { ico: 'primes', cle: 'paie-primes' }),
+  );
+  $('#paie-totaux').textContent = '';
 }
 
 $('#paie-export').addEventListener('click', async () => {
@@ -2119,6 +2129,10 @@ async function chargerFacturation() {
     $('#fact-interventions tbody').lastChild.style.fontWeight = '700';
     $('#fact-equipements tbody').replaceChildren(...(recap.equipements.length
       ? recap.equipements.map((e) => ligne([e.type, e.qte])) : [ligne(['Aucun équipement installé sur la période', ''])]));
+    $('#fact-resume').replaceChildren(
+      tuileChiffre('Lignes d’intervention', recap.interventions.length, null, { ico: 'interventions', cle: 'fact-interventions' }),
+      tuileChiffre('Lignes d’équipement', recap.equipements.length, null, { cle: 'fact-equipements' }),
+    );
     await chargerTarifs();
   } catch (err) {
     alert(err.message || 'Erreur lors du récapitulatif');
@@ -2157,6 +2171,7 @@ async function chargerTarifs() {
       base.value = t.base;
     } else tr.appendChild(document.createElement('td')).textContent = '—';
     const prix = champ(Object.assign(document.createElement('input'), { type: 'number', min: '0', step: '0.01', value: t.prix_ht ?? '' }));
+    if (t.prix_ht == null) prix.parentElement.classList.add('prix-vide');
     prix.setAttribute('aria-label', `Prix HT ${t.code}`);
     prix.placeholder = 'à renseigner';
     const td = tr.appendChild(document.createElement('td'));
@@ -2506,6 +2521,7 @@ function afficherCompta() {
     const aExporter = siens.filter((f) => f.statut === 'valide' && !exportes.has(f.id));
     const total = aExporter.reduce((x, f) => x + releve(t, [versCompta(f)], compta.justifs).total.rembourse, 0);
     const tr = ligne([t.nom]);
+    tr.children[0].prepend(avatar(t.nom));
     const aux = tr.appendChild(document.createElement('td')).appendChild(document.createElement('input'));
     aux.value = t.compte_auxiliaire || '';
     aux.maxLength = 20;
@@ -2518,7 +2534,10 @@ function afficherCompta() {
     for (const v of [n('valide'), n('a_traiter'), n('refuse'), `${aExporter.length} (${euros(total)})`, siens.filter((f) => exportes.has(f.id)).length]) {
       tr.appendChild(document.createElement('td')).textContent = v;
     }
-    if (n('a_traiter')) tr.children[3].className = 'alerte-proche';
+    if (n('a_traiter')) {
+      tr.children[3].className = 'alerte-proche';
+      tr.children[3].replaceChildren(pastille(String(n('a_traiter')), 'alerte'));
+    }
     const actions = tr.appendChild(document.createElement('td'));
     const bouton = (texte, action) => { const b = actions.appendChild(document.createElement('button')); b.type = 'button';
       b.className = 'secondary voir'; b.textContent = texte; b.addEventListener('click', action); return b; };
