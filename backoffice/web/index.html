@@ -1338,20 +1338,22 @@
 
         <div id="panel-interventions" class="tab-panel hidden" role="tabpanel">
           <div class="section">
-            <form id="int-form" class="barre">
+             <div class="carte" id="int-filtres">
+              <form id="int-form" class="barre">
               <div class="field"><label for="int-debut">Du</label><input type="date" id="int-debut" required></div>
               <div class="field"><label for="int-fin">Au</label><input type="date" id="int-fin" required></div>
               <button type="submit">Afficher</button>
-            </form>
-            <div class="barre">
+              </form>
+              <div class="barre">
               <div class="field"><label for="int-tech">Technicien</label><select id="int-tech"></select></div>
               <div class="field"><label for="int-type">Type</label><select id="int-type"></select></div>
               <div class="field"><label for="int-resultat">Résultat</label><select id="int-resultat"></select></div>
               <div class="field"><label for="int-texte">Rechercher</label><input id="int-texte" placeholder="N°, ville, département"></div>
               <button type="button" id="int-export" class="secondary">Exporter (CSV)</button>
               <button type="button" id="int-zip" class="secondary">Photos et frais (ZIP)</button>
-            </div>
-            <p id="int-resume" class="carte-resume"></p>
+              </div>
+             </div>
+             <div id="int-resume" class="tuiles"></div>
             <div class="table-wrapper">
               <table id="int-table">
                 <thead><tr><th>Date</th><th>Technicien</th><th>Créneau</th><th>Type</th><th>Ville</th><th>Dépt</th><th>N° intervention</th><th>Résultat</th><th>Arrivée</th><th>Fin</th><th>Durée</th></tr></thead>
@@ -1428,7 +1430,7 @@
 
         <div id="panel-conges" class="tab-panel hidden" role="tabpanel">
           <div class="section">
-            <div class="barre">
+             <div class="barre carte" id="conges-filtres">
               <div class="field"><label for="conges-filtre">Afficher</label>
                 <select id="conges-filtre"><option value="demandee">À valider</option><option value="validee">Validés</option><option value="refusee">Refusés</option><option value="">Tous</option></select>
               </div>

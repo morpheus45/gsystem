@@ -1732,6 +1732,7 @@ async function compterCongesAValider() {
 }
 
 $('#conges-filtre').addEventListener('change', chargerConges);
+pilulesDepuisSelect($('#conges-filtre'), 'Demandes affichées');
 
 async function chargerConges() {
   let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut').eq('societe_id', selectedSociete).order('debut');
@@ -1742,7 +1743,9 @@ async function chargerConges() {
   $('#conges-table tbody').replaceChildren(...data.map((c) => {
     const jours = (Date.parse(c.fin) - Date.parse(c.debut)) / 86400000 + 1;
     const tr = ligne([nom(c.technicien_id), formaterDate(c.debut), formaterDate(c.fin), jours,
-      TYPES_CONGE[c.type] || c.type, c.motif || '—', STATUTS_CONGE[c.statut] || c.statut]);
+      TYPES_CONGE[c.type] || c.type, c.motif || '—', '']);
+    const statut = STATUTS_CONGE[c.statut] || c.statut;
+    tr.children[6].replaceChildren(pastille(statut, c.statut === 'demandee' ? 'alerte' : c.statut === 'validee' ? 'ok' : c.statut === 'refusee' ? 'danger' : 'neutre'));
     const td = tr.appendChild(document.createElement('td'));
     if (c.statut !== 'demandee' || !peutEcrire()) { td.textContent = '—'; return tr; }
     for (const [statut, libelle, classe] of [['validee', 'Valider', ''], ['refusee', 'Refuser', 'danger']]) {
@@ -2223,10 +2226,21 @@ const interventionsFiltrees = () => filtrer(listeInterventions, { tech: $('#int-
 function afficherInterventions() {
   const l = interventionsFiltrees();
   const nr = l.filter((e) => /^NR/.test(e.observation_type)).length;
-  $('#int-resume').textContent = `${l.length} intervention(s) — OK : ${l.filter((e) => !e.observation_type).length} — NR : ${nr}` + (l.length > 300 ? ' — 300 premières affichées, toutes dans l’export.' : '');
-  $('#int-table tbody').replaceChildren(...l.slice(0, 300).map((e) => ligne([formaterDate(e.date), nomTech(e.technicien_id),
-    CRENEAUX[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—', e.numero_intervention || '—',
-    libelleResultat(e.observation_type), e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—'])));
+  const ok = l.filter((e) => !e.observation_type).length;
+  const resume = $('#int-resume');
+  resume.replaceChildren(
+    tuileChiffre('Interventions', l.length, l.length > 300 ? '300 affichées, toutes dans l’export' : null, { ico: 'interventions', cle: 'int-total' }),
+    tuileChiffre('OK', ok, null, { ico: 'interventions', cle: 'int-ok' }),
+    tuileChiffre('NR', nr, null, { ico: 'nr', cle: 'int-nr' }));
+  resume.className = 'tuiles';
+  $('#int-table tbody').replaceChildren(...l.slice(0, 300).map((e) => {
+    const tr = ligne([formaterDate(e.date), nomTech(e.technicien_id),
+      CRENEAUX[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—', e.numero_intervention || '—',
+      '', e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—']);
+    const ton = !e.observation_type ? 'ok' : /^NR/.test(e.observation_type) ? 'danger' : 'neutre';
+    tr.children[7].replaceChildren(pastille(libelleResultat(e.observation_type), ton));
+    return tr;
+  }));
 }
 
 $('#int-form').addEventListener('submit', (e) => { e.preventDefault(); chargerInterventions(); });
