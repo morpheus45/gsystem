@@ -145,10 +145,22 @@ export function parseTexte(texte) {
   return missions.sort((a, b) => a.heure.localeCompare(b.heure));
 }
 
-/** Fichier PDF choisi -> missions (remplace la tournee precedente). */
+/** Fusionne les nouvelles missions sans effacer celles existantes (clé: num|dateRdv). */
+export function fusionnerMissions(nouvelles) {
+  const existantes = JSON.parse(localStorage.getItem(CLE) || '[]');
+  if (!Array.isArray(existantes)) return;
+  const cle = (m) => (m.num || '') + '|' + (m.dateRdv || '');
+  const known = new Set(existantes.map(cle));
+  const fresh = nouvelles.filter(m => !known.has(cle(m)));
+  if (fresh.length === 0) return;
+  const merged = [...existantes, ...fresh].sort((a, b) => (a.heure || '').localeCompare(b.heure || ''));
+  ecrireMissions(merged);
+}
+
+/** Fichier PDF choisi -> missions (fusionne sans effacer). */
 export async function importerPdf(fichier) {
   const donnees = new Uint8Array(await fichier.arrayBuffer());
   const missions = parseTexte(await texteDuPdf(donnees));
-  if (missions.length) ecrireMissions(missions);
+  if (missions.length) fusionnerMissions(missions);
   return missions;
 }
