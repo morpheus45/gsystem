@@ -553,12 +553,14 @@ function doubleValidation(question, mot) {
 }
 
 $('#tech-filtre').addEventListener('change', () => renderTechniciens(techniciens));
+pilulesDepuisSelect($('#tech-filtre'), 'Techniciens affichés');
 
 function renderTechniciens(list) {
   const archives = $('#tech-filtre').value === 'archives';
   const tbody = $('#techniciens-table tbody');
   tbody.replaceChildren(...list.filter((t) => !!t.archive_le === archives).map(t => {
     const tr = ligne([t.nom, archives ? `Archivé le ${formaterDate(t.archive_le)}` : t.actif ? 'Oui' : 'Non']);
+    tr.cells[0].prepend(avatar(t.nom));
     tr.classList.add('ligne-cliquable');
     tr.addEventListener('click', () => ouvrirFicheTechnicien(t));
     const td = tr.appendChild(document.createElement('td'));
@@ -607,7 +609,10 @@ function ouvrirFicheTechnicien(t) {
   fermerPanneauVehicule();
   $('#tech-liste').classList.add('hidden');
   $('#tech-fiche').classList.remove('hidden');
-  $('#tech-fiche-titre').textContent = t.nom;
+  const titre = $('#tech-fiche-titre');
+  titre.replaceChildren(avatar(t.nom));
+  titre.querySelector('.avatar').classList.add('grand');
+  titre.appendChild(document.createTextNode(t.nom));
   initialiserSousOnglets($('#tech-fiche'));
   mettreAJourFil();
   // Charger les données de la fiche
@@ -1390,7 +1395,20 @@ function afficherMoisFiche() {
   const nr = duMois.filter((e) => /^NR/.test(e.observation_type)).length;   // une annulation n'est pas un NR
   const primes = primesDuMois(fiche.gestes, fiche.interventions.map(versHeures), fiche.baremes, m);
   afficherPrimes(primes, m);
-  $('#tech-resume').textContent = `Prime : ${euros(primes.total)} — ${duMois.length} interventions — OK : ${duMois.filter((e) => !e.observation_type).length} — NR : ${nr} — Heures : ${totalHeures} h — Frais validés : ${euros(valides.remboursable)} — Photos (total) : ${fiche.photos}`;
+  const resume = $('#tech-resume');
+  resume.replaceChildren();
+  const resumeTuiles = document.createElement('div');
+  resumeTuiles.className = 'tuiles';
+  resumeTuiles.append(
+    tuileChiffre('Prime', euros(primes.total), null, { ico: 'primes', cle: 'fiche-prime' }),
+    tuileChiffre('Interventions', duMois.length, null, { ico: 'interventions', cle: 'fiche-interventions' }),
+    tuileChiffre('OK', duMois.filter((e) => !e.observation_type).length, null, { cle: 'fiche-ok' }),
+    tuileChiffre('NR', nr, null, { ico: 'nr', cle: 'fiche-nr' }),
+    tuileChiffre('Heures', `${totalHeures} h`, null, { ico: 'heures', cle: 'fiche-heures' }),
+    tuileChiffre('Frais validés', euros(valides.remboursable), null, { ico: 'frais', cle: 'fiche-frais-valides' }),
+    tuileChiffre('Photos (total)', fiche.photos, null, { cle: 'fiche-photos' })
+  );
+  resume.appendChild(resumeTuiles);
 
   const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
   $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
@@ -1410,13 +1428,17 @@ function afficherMoisFiche() {
     const tr = ligne([s.semaine, s.travaillees, s.absences, s.normales, s.sup1, s.sup2]);
     const td = tr.appendChild(document.createElement('td'));
     if (s.sup1 + s.sup2 === 0) { td.textContent = '—'; return tr; }
+    const statutSemaine = fiche.validations.get(s.semaine) || 'a_traiter';
+    const libelleStatut = statutSemaine === 'validee' ? 'Validées' : statutSemaine === 'refusee' ? 'Refusées' : 'À traiter';
+    td.appendChild(pastille(libelleStatut, statutSemaine === 'validee' ? 'ok' : statutSemaine === 'refusee' ? 'danger' : 'alerte'));
+    if (!peutEcrire()) return tr;
     const c = td.appendChild(document.createElement('select'));
     for (const [v, l] of [['a_traiter', 'À traiter'], ['validee', 'Validées'], ['refusee', 'Refusées']]) {
       const o = c.appendChild(document.createElement('option'));
       o.value = v;
       o.textContent = l;
     }
-    c.value = fiche.validations.get(s.semaine) || 'a_traiter';
+    c.value = statutSemaine;
     c.disabled = !peutEcrire();
     c.setAttribute('aria-label', `Heures sup, semaine ${s.semaine}`);
     c.addEventListener('change', () => validerHeuresSup(s, c));
@@ -1451,9 +1473,18 @@ function afficherMoisFiche() {
   marquer(sousOnglet('tech-section-frais'), fiche.frais.some((f) => f.statut === 'a_traiter'));
   afficherGalerie(m);
   $('#tech-camemberts').replaceChildren(
-    camembert('Types de mission', repartition(duMois.map((e) => e.type_mission || '—'))),
-    camembert('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type)))));
-  $('#tech-frais-totaux').textContent = `TTC : ${euros(totaux.ttc)} | HT : ${euros(totaux.ht)} | TVA : ${euros(totaux.tva)} | Remboursable : ${euros(totaux.remboursable)} | Validé (remboursé) : ${euros(valides.remboursable)}`;
+    barres('Types de mission', repartition(duMois.map((e) => e.type_mission || '—')), false),
+    barres('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type))), false));
+  const fraisTuiles = document.createElement('div');
+  fraisTuiles.className = 'tuiles';
+  fraisTuiles.append(
+    tuileChiffre('TTC', euros(totaux.ttc), null, { ico: 'frais', cle: 'fiche-frais-ttc' }),
+    tuileChiffre('HT', euros(totaux.ht), null, { cle: 'fiche-frais-ht' }),
+    tuileChiffre('TVA', euros(totaux.tva), null, { cle: 'fiche-frais-tva' }),
+    tuileChiffre('Remboursable', euros(totaux.remboursable), null, { cle: 'fiche-frais-remboursable' }),
+    tuileChiffre('Validé (remboursé)', euros(valides.remboursable), null, { cle: 'fiche-frais-valide' })
+  );
+  $('#tech-frais-totaux').replaceChildren(fraisTuiles);
 }
 
 // Photo du stockage privé : lien signé valable 10 minutes, ouvert dans un nouvel onglet.
@@ -1505,56 +1536,6 @@ async function afficherGalerie(m) {
     b.addEventListener('click', () => window.open(d.signedUrl, '_blank', 'noopener'));
     return b;
   }));
-}
-
-// Camembert en anneau (part d'un tout, 5 parts max) + légende chiffrée : la couleur
-// n'est jamais seule (libellé, nombre et % à côté ; détail au survol).
-function camembert(titre, lignes) {
-  const fig = document.createElement('figure');
-  fig.className = 'camembert';
-  fig.appendChild(document.createElement('figcaption')).textContent = titre;
-  if (!lignes.length) { fig.appendChild(document.createElement('p')).textContent = 'Aucune intervention ce mois-ci.'; return fig; }
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 160 160');
-  svg.setAttribute('role', 'img');
-  const total = lignes.reduce((t, l) => t + l.n, 0);
-  svg.setAttribute('aria-label', `${titre} : ` + lignes.map((l) => `${l.libelle} ${l.n}`).join(', '));
-  const couleur = (l, i) => (l.libelle === 'Autres' ? 'var(--serie-autres)' : `var(--serie-${i + 1})`);
-  const point = (r, a) => [80 + r * Math.sin(a), 80 - r * Math.cos(a)].map((x) => x.toFixed(2)).join(' ');
-  let angle = 0;
-  lignes.forEach((l, i) => {
-    const fin = angle + Math.min(l.part, 0.9999) * 2 * Math.PI;   // 100 % : presque un tour (un arc ne peut pas boucler)
-    const grand = fin - angle > Math.PI ? 1 : 0;
-    const path = svg.appendChild(document.createElementNS(NS, 'path'));
-    path.setAttribute('d', l.part >= 1   // une seule part : anneau complet (deux demi-cercles, sans fente)
-      ? `M 80 10 A 70 70 0 1 1 80 150 A 70 70 0 1 1 80 10 Z M 80 36 A 44 44 0 1 0 80 124 A 44 44 0 1 0 80 36 Z`
-      : `M ${point(70, angle)} A 70 70 0 ${grand} 1 ${point(70, fin)} L ${point(44, fin)} A 44 44 0 ${grand} 0 ${point(44, angle)} Z`);
-    if (l.part >= 1) path.setAttribute('fill-rule', 'evenodd');
-    path.setAttribute('fill', couleur(l, i));
-    path.setAttribute('stroke', 'var(--card)');
-    path.setAttribute('stroke-width', '2');
-    path.appendChild(document.createElementNS(NS, 'title')).textContent = `${l.libelle} : ${l.n} (${Math.round(l.part * 100)} %)`;
-    angle = fin;
-  });
-  const centre = svg.appendChild(document.createElementNS(NS, 'text'));
-  centre.setAttribute('x', '80');
-  centre.setAttribute('y', '86');
-  centre.setAttribute('text-anchor', 'middle');
-  centre.setAttribute('fill', 'var(--text)');
-  centre.setAttribute('font-size', '20');
-  centre.setAttribute('font-weight', '600');
-  centre.textContent = total;
-  fig.appendChild(svg);
-  const ul = fig.appendChild(document.createElement('ul'));
-  lignes.forEach((l, i) => {
-    const li = ul.appendChild(document.createElement('li'));
-    const p = li.appendChild(document.createElement('span'));
-    p.className = 'pastille';
-    p.style.background = couleur(l, i);
-    li.appendChild(document.createElement('span')).textContent = `${l.libelle} — ${l.n} (${Math.round(l.part * 100)} %)`;
-  });
-  return fig;
 }
 
 // ===== Paie : tous les techniciens d'une période (cycle du 21 au 20) =====
