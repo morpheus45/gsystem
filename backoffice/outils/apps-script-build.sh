@@ -24,7 +24,9 @@ cat > "$D/Code.js" <<'J'
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Back-office (test)')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    // Affichée dans le site G-Systems (backoffice.html) : adresse Apps Script et bandeau Google masqués.
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // Identité d'un véhicule depuis sa plaque, à son entrée dans la flotte (page : google.script.run).

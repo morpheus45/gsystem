@@ -1276,6 +1276,7 @@ $('#signup-form').addEventListener('submit', (e) => {
 $('#signup-link').addEventListener('click', () => showScreen('signup-screen'));
 $('#login-link').addEventListener('click', () => showScreen('login-screen'));
 $('#logout-btn').addEventListener('click', logout);
+$('#nav-deconnexion').addEventListener('click', logout);   // même action, en bas du menu de la société
 
 $('#creer-societe-form').addEventListener('submit', (e) => {
   e.preventDefault();
