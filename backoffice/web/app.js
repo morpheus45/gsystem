@@ -342,12 +342,22 @@ function renderSocietes() {
   societes.forEach(s => {
     const li = document.createElement('li');
     li.className = 'societe-item';
+    li.setAttribute('tabindex', '0');
+    li.setAttribute('role', 'button');
     if (selectedSociete === s.id) li.classList.add('selected');
     if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));   // le nom suit : alt vide pour ne pas le lire deux fois
+    else li.prepend(avatar(s.nom));   // pas de logo : avatar d'initiales à gauche du nom
     const nom = li.appendChild(document.createElement('div'));
     nom.textContent = s.nom;
     nom.className = 'societe-name';
-    li.addEventListener('click', () => selectSociete(s.id));
+    const ouvrir = () => selectSociete(s.id);
+    li.addEventListener('click', ouvrir);
+    li.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        ouvrir();
+      }
+    });
     ul.appendChild(li);
     tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
   });
