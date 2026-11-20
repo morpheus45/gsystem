@@ -39,7 +39,6 @@ mindmap
       CI GitHub Actions (build-apk + playstore-release)
     Tutos (GitHub Pages)
       docs/index.html (technicien)
-      docs/comptable.html (comptable)
       docs/backoffice.html (iframe du /exec)
     Drive
       Sauvegardes G-Systems / <tech> / <mois> / fichiers
@@ -60,7 +59,7 @@ mindmap
 | Sauvegarde Drive | `backup/StatsUploader.kt` (push/syncAll), `backup/BackupExporter.kt`, `backup/BackupUploader.kt` |
 | Signature doigt | `ui/PvCameraScreen.kt` (SignatureController, SignaturePad internal) |
 | Backend dashboard | `apps-script/Code.js` (doGet DASHBOARD_HTML, doPost, getAllData) |
-| Tuto tech / comptable | `docs/index.html`, `docs/comptable.html`, `docs/backoffice.html` |
+| Tuto tech / comptable | `docs/index.html`, `docs/backoffice.html` |
 | Version app | `app/build.gradle.kts` (versionCode / versionName) |
 
 ## Workflows

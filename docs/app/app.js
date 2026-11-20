@@ -1357,7 +1357,10 @@ async function ouvrir(cible) {
   if (cible === 'bulletin') { aller('bulletin'); return; }
   if (cible === 'pv') { aller('pv'); return; }
   if (cible === 'demandecam') { aller('demandecam'); return; }
-  if (cible === 'diagnostic') { aller('diagnostic'); return; }
+  if (cible === 'diagnostic') {
+    toast('Diagnostic Sécurité indisponible (d\u00e9branch\u00e9 le 20/11/2026).');
+    return;
+  }
   if (cible === 'recap') { aller('recap'); return; }
   if (cible === 'prime') { aller('prime'); return; }
   if (cible === 'envoi') { aller('envoi'); return; }
@@ -1532,12 +1535,19 @@ async function validerConge() {
   if (conge.au < conge.du) { toast('La date de fin doit suivre le d\u00e9but.'); return; }
   if (!pad || pad.vide()) { toast('Signez la demande.'); return; }
 
+  const nbJours = Math.floor(
+    (new Date(conge.au + 'T00:00:00').getTime()
+      - new Date(conge.du + 'T00:00:00').getTime()) / 86400000)
+    + (conge.inclus ? 1 : 0);
+  const texteJours = nbJours > 0 ? nbJours + ' jour' + (nbJours > 1 ? 's' : '') : '';
+
   const donnees = {
     nom: conge.nom.toUpperCase(),
     congesPayes: conge.congesPayes,
     du: versFr(conge.du), au: versFr(conge.au),
     inclus: conge.inclus, date: versFr(conge.date),
     traces: pad.traces(),
+    jours: nbJours, texteJours: texteJours,
   };
   const blob = await genererConge(donnees);
   const fichier = new File([blob], nomFichierConge(donnees), { type: 'application/pdf' });
@@ -1720,6 +1730,25 @@ async function enregistrerCompteur(dataUrl) {
     toast('M\u00e9moire du navigateur pleine : envoyez le mensuel, puis reprenez.', 6000);
     return false;
   }
+  // Demander le kilométrage (entier, ≥ dernier relevé connu).
+  let dernierKm = 0;
+  if (entrees.compteur && entrees.compteur.length) {
+    for (const c of entrees.compteur) {
+      if (typeof c.kilometres === 'number' && c.kilometres > dernierKm) {
+        dernierKm = c.kilometres;
+      }
+    }
+  }
+  const saisie = prompt('Kilométrage du compteur (entier, \u2265 ' + dernierKm + ') :', String(dernierKm));
+  if (saisie === null) {
+    // Annulé : on ne crée pas l'entrée, la photo reste mais ne sera pas liée.
+    return false;
+  }
+  const km = parseInt(saisie, 10);
+  if (isNaN(km) || km < dernierKm) {
+    toast('Kilométrage invalide (doit être \u2265 ' + dernierKm + ').');
+    return false;
+  }
   // Une seule photo par cycle : les precedentes sont retirees, fichier compris,
   // ce qui nettoie au passage les doublons deja accumules.
   contenuPeriode(envoi.debut, envoi.fin).compteur.forEach((c) => {
@@ -1727,7 +1756,7 @@ async function enregistrerCompteur(dataUrl) {
   });
   const autres = (entrees.compteur || []).filter(
     (c) => !dansPeriode(c.date, envoi.debut, envoi.fin));
-  autres.push({ id: idUnique(), date: date, timestamp: Date.now(), fileName: nom });
+  autres.push({ id: idUnique(), date: date, timestamp: Date.now(), fileName: nom, kilometres: km });
   entrees.compteur = autres;
   ecrireEntrees(entrees);
   return true;

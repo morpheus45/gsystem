@@ -125,16 +125,6 @@ export const TUILES = [
     "ecran": "demandecam"
   },
   {
-    "num": "10",
-    "nom": "DIAGNOSTIC SÉCURITÉ",
-    "sous": "Fiche EPS · pro et particulier",
-    "ic": "🛡️",
-    "debut": "#8A5CF6",
-    "fin": "#6366F1",
-    "groupe": "INTERV",
-    "ecran": "diagnostic"
-  },
-  {
     "num": "11",
     "nom": "RÉCAP",
     "sous": "Cumul du cycle · total euros",
