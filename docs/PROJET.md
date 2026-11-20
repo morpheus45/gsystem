@@ -1,3 +1,4 @@
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
 # G-Systems — mémoire projet
 
 > Référence dense pour retrouver vite l'essentiel. MAJ : 2026-07-18.

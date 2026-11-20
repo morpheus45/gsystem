@@ -1,3 +1,4 @@
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
 # Snapshot G-Systems v0.13.14 — point de rollback
 
 Document de référence permettant de revenir à l'état v0.13.14 si jamais
