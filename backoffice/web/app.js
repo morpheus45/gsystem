@@ -434,6 +434,10 @@ function renderMembers(members) {
   const admin = superAdmin || members.find((m) => m.user_id === session.user.id)?.role === 'admin';
   $('#membres-table tbody').replaceChildren(...members.map((m) => {
     const tr = ligne([m.email, ROLES[m.role] || m.role, m.user_id === session.user.id ? '✓' : '']);
+    const cellule = tr.children[0];
+    cellule.replaceChildren();
+    cellule.appendChild(avatar(m.email));
+    cellule.appendChild(document.createTextNode(m.email));
     const td = tr.appendChild(document.createElement('td'));
     if (!admin) { td.textContent = '—'; return tr; }
     const role = td.appendChild(document.createElement('select'));
@@ -2331,6 +2335,9 @@ function afficherChat() {
   const avecMessages = new Set(messages.map((m) => m.technicien_id));
   $('#chat-liste').replaceChildren(...techniciens.filter((t) => t.actif || avecMessages.has(t.id)).map((t) => {
     const li = document.createElement('li');
+    li.className = 'conversation';
+    li.classList.toggle('active', chatTech?.id === t.id);
+    li.appendChild(avatar(t.nom));
     const b = li.appendChild(document.createElement('button'));
     b.type = 'button';
     b.className = 'secondary';
