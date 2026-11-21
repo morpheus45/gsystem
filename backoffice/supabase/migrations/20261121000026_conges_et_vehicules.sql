@@ -13,7 +13,7 @@ alter table public.conges add column if not exists modifie_le timestamptz;
 alter table public.conges add column if not exists motif_modification text not null default '';
 
 create or replace function private.signer_conge() returns trigger
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' then
     if new.statut = 'demandee' then
@@ -55,7 +55,7 @@ alter table public.vehicules add column if not exists archive_par uuid reference
 alter table public.vehicules add column if not exists motif_archive text not null default '';
 
 create or replace function private.archiver_vehicule() returns trigger
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 begin
   if new.archive_le is not null and old.archive_le is null then
     if btrim(new.motif_archive) = '' then
@@ -81,7 +81,7 @@ create trigger archiver before update on public.vehicules
   for each row execute function private.archiver_vehicule();
 
 create or replace function private.interdire_effacement_vehicule() returns trigger
-language plpgsql set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 begin
   if old.archive_le is not null then
     raise exception 'effacement interdit : véhicule archivé';
