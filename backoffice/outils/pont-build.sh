@@ -31,7 +31,7 @@ J
   printf '\n'
   sed '/^\/\/ À lancer UNE fois/,$d' pont/apps-script.js
   printf '\n'
-  cat pont/chat.js
+  sed 's/^export //' pont/chat.js
   printf '\n'
   sed 's/^export //' pont/normaliser.js
   printf '\n'
