@@ -18,11 +18,8 @@
 
 #vehicule-detail-title .plaque { font-size: 0.9em; }
 
-#vehicules-table td:nth-child(3) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* La cellule reste une cellule de tableau (un display:flex décalait la ligne et son trait) ; l'avatar s'aligne au texte. */
+#vehicules-table td:nth-child(3) .avatar { margin-right: 8px; vertical-align: middle; }
 
 #vehicules-table .avatar {
   flex: none;
