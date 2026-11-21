@@ -1842,6 +1842,7 @@ let activite = null;                  // { mois12, parMois } : interventions des
 // ---- Synchro des téléphones : petit bouton du menu et voyant vérifié en continu (pont Apps Script) ----
 // Le pont vérifie le jeton et le rôle ; il renvoie seulement des compteurs et des erreurs.
 const PONT = { url: typeof URL_PONT === 'string' ? URL_PONT : '', societe: typeof SOCIETE_PONT === 'string' ? SOCIETE_PONT : '' };
+const estSocietePont = () => Boolean(PONT.url) && selectedSociete === PONT.societe;
 const boutonSynchro = $('#synchro-forcee');
 let dernierBilan = null, erreurEtat = '';   // dernier import connu (horaire ou forcé), tel que le pont l'a gardé
 async function appelPont(action, corps = {}) {
@@ -2331,7 +2332,29 @@ $('#int-zip').addEventListener('click', async () => {
 const nonLus = (id) => messages.filter((m) => m.technicien_id === id && m.de === 'technicien' && !m.lu_le).length;
 const heureMessage = (ts) => new Date(ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+// Feuille `_gsystem_chat` -> objet message au même format que la base `messages`
+// (l'id et la clé d'auteur de la feuille ne sont pas ceux de la base : on retrouve
+// le technicien par son nom_apk, et on repère le bureau par son adresse de session).
+function pontVersMessage(m) {
+  const t = techniciens.find((x) => x.nom_apk === m.tech);
+  return {
+    id: m.id,
+    technicien_id: t ? t.id : null,
+    de: m.from === 'tech' ? 'technicien' : 'bureau',
+    texte: m.text,
+    cree_le: new Date(m.ts).toISOString(),
+    lu_le: m.lu ? new Date(m.ts).toISOString() : null,
+    auteur: m.from === 'bureau' ? (session?.user?.id || null) : null,
+    ts: m.ts
+  };
+}
+
 async function compterMessagesNonLus() {
+  if (estSocietePont()) {
+    const n = messages.filter((m) => m.de === 'technicien' && !m.lu_le).length;
+    $('#onglet-messages').textContent = n ? `Messages (${n})` : 'Messages';
+    return;
+  }
   const { count, error } = await sb.from('messages').select('id', { count: 'exact', head: true })
     .eq('societe_id', selectedSociete).eq('de', 'technicien').is('lu_le', null);
   $('#onglet-messages').textContent = !error && count ? `Messages (${count})` : 'Messages';
@@ -2339,7 +2362,17 @@ async function compterMessagesNonLus() {
 
 async function chargerMessages() {
   try {
-    messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, auteur, cree_le, lu_le, modifie_le').eq('societe_id', selectedSociete).order('cree_le'));
+    if (estSocietePont()) {
+      if (messages.some((m) => m.ts === undefined)) messages = [];   // messages d'une autre société (base) : on repart de zéro
+      const depuis = messages.length ? Math.max(...messages.map((m) => Number(m.ts))) : 0;
+      const res = await appelPont('chat_lire', { depuis });
+      const recus = (res.messages || []).map(pontVersMessage);
+      // dédup par id + de
+      const deja = new Set(messages.map((m) => `${m.id}|${m.de}`));
+      messages.push(...recus.filter((m) => !deja.has(`${m.id}|${m.de}`)));
+    } else {
+      messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, auteur, cree_le, lu_le, modifie_le').eq('societe_id', selectedSociete).order('cree_le'));
+    }
     afficherChat();
   } catch (err) {
     clearInterval(relanceChat);
@@ -2348,6 +2381,7 @@ async function chargerMessages() {
 }
 
 function afficherChat() {
+  $('#chat-alerte-apk').classList.toggle('hidden', estSocietePont());
   const avecMessages = new Set(messages.map((m) => m.technicien_id));
   $('#chat-liste').replaceChildren(...techniciens.filter((t) => t.actif || avecMessages.has(t.id)).map((t) => {
     const li = document.createElement('li');
@@ -2389,7 +2423,7 @@ function afficherFil() {
     d.textContent = m.texte;
     d.appendChild(document.createElement('small')).textContent = `${m.de === 'bureau' ? 'Bureau' : chatTech.nom} — ${heureMessage(m.cree_le)}`
       + (m.modifie_le ? ' — modifié' : '') + (m.de === 'bureau' && m.lu_le ? ' — lu' : '');
-    if (m.de === 'bureau' && (m.auteur === session.user.id || superAdmin)) {   // la base vérifie de toute façon
+    if (m.de === 'bureau' && !estSocietePont() && (m.auteur === session.user.id || superAdmin)) {   // la base vérifie de toute façon ; via le pont, seul le bureau écrit (via chat_ecrire)
       const actions = d.appendChild(document.createElement('div'));
       actions.className = 'bulle-actions';
       const bouton = (texte, action) => Object.assign(actions.appendChild(document.createElement('button')),
@@ -2409,7 +2443,7 @@ async function ouvrirConversation(t) {
   $('#chat-form').classList.remove('hidden');
   afficherChat();
   $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-  if (nonLus(t.id)) {   // conversation ouverte = messages du technicien lus par le bureau
+  if (!estSocietePont() && nonLus(t.id)) {   // conversation ouverte = messages du technicien lus par le bureau
     const { error } = await sb.from('messages').update({ lu_le: new Date().toISOString() })
       .eq('technicien_id', t.id).eq('de', 'technicien').is('lu_le', null);
     if (!error) await chargerMessages();
@@ -2434,6 +2468,20 @@ async function supprimerMessage(m) {
 }
 
 async function envoyerMessages(ids, texte) {
+  if (estSocietePont()) {
+    // La feuille garde le nom de l'APK du technicien (techniciens[].nom_apk).
+    try {
+      for (const id of ids) {
+        const t = techniciens.find((x) => x.id === id);
+        await appelPont('chat_ecrire', { technicien: t ? t.nom_apk : '', texte });
+      }
+    } catch (err) {
+      alert(err.message || 'Envoi impossible par le pont');
+      return false;
+    }
+    await chargerMessages();
+    return true;
+  }
   const { error } = await sb.from('messages').insert(ids.map((technicien_id) => ({ societe_id: selectedSociete, technicien_id, de: 'bureau', texte })));
   if (error) { alert(error.message); return false; }
   await chargerMessages();

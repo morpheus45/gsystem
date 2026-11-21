@@ -292,8 +292,13 @@ function appel(cle, methode, chemin, corps, prefer) {
 // pont/chat.js ; testées par test/chat.test.js. Le build les ajoute avant celles-ci.
 function getChatSheet_() {
   const props = PropertiesService.getScriptProperties();
-  const id = props.getProperty(CHAT_FEUILLE_ID_PROP);
-  if (!id) throw new Error('Propriété du script manquante : ' + CHAT_FEUILLE_ID_PROP);
+  let id = props.getProperty(CHAT_FEUILLE_ID_PROP);
+  if (!id) {
+    const it = DriveApp.getFilesByName('_gsystem_chat');
+    if (!it.hasNext()) throw new Error('Feuille « _gsystem_chat » introuvable dans le Drive');
+    id = it.next().getId();
+    props.setProperty(CHAT_FEUILLE_ID_PROP, id);
+  }
   const ss = SpreadsheetApp.openById(id);
   let sh = ss.getSheetByName('messages');
   if (!sh) throw new Error('Onglet « messages » introuvable dans la feuille de chat');
