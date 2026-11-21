@@ -5,7 +5,7 @@
 // importée (même cle_source) est ignorée, rien n'est écrasé ni effacé.
 // Exceptions : le logo de la société, posé s'il est déposé dans le Drive (logoDuDrive),
 // et l'identité VIDE d'un véhicule, lue depuis sa plaque (identiteDuVehicule).
-// normaliser() et TABLES_PONT sont ajoutés à la construction (pont/normaliser.js),
+// normaliser(), TABLES_PONT et relevesKmDepuisCompteurs sont ajoutés à la construction (pont/normaliser.js),
 // normaliserPlaque() et lireFicheImmat() aussi (core/plaque.js).
 // Réglages : constantes posées à la construction ; la clé serveur (secrète)
 // est dans les Propriétés du script, jamais dans le code.
@@ -38,14 +38,16 @@ function importer() {
     const dejaCopiees = new Set(appel(cle, 'get', 'photos_apk?select=cle_source&technicien_id=eq.' + technicienId +
       '&stockage=not.is.null').map((p) => p.cle_source));
     const photos = {};          // toutes les photos du tech (pour le compteur)
+    const compteurs = [];       // tous les compteurs du tech (pour relevés km)
     let premiereDate = null;    // 1re donnée du tech (début de sa 1re affectation)
     for (const { fichier: f, dossier } of fichiers) {
       try {
-        const donnees = JSON.parse(f.getBlob().getDataAsString('UTF-8'));
+         const donnees = JSON.parse(f.getBlob().getDataAsString('UTF-8'));
         const r = normaliser(donnees, { societeId: SOCIETE_ID, technicienId });
         for (const bloc of Object.keys(TABLES_PONT)) ajouter(cle, TABLES_PONT[bloc], r[bloc]);
         copierPhotos(cle, technicienId, dossier, r.photos, dejaCopiees, bilan);
         Object.assign(photos, donnees.photos || {});
+        compteurs.push(...r.compteur);
         for (const t of r.temps) if (t.date && (!premiereDate || t.date < premiereDate)) premiereDate = t.date;
         bilan.fichiers++;
       } catch (e) {
@@ -58,6 +60,11 @@ function importer() {
       vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate);
     } catch (e) {
       bilan.erreurs.push(dossierTech.getName() + '/véhicule : ' + e.message);
+    }
+    try {
+      relevesKmDuTech(cle, compteurs, technicienId, photos);
+    } catch (e) {
+      bilan.erreurs.push(dossierTech.getName() + '/relevés km : ' + e.message);
     }
     try {
       baremesDuTech(cle, reglages, technicienId);
@@ -229,6 +236,21 @@ function vehiculeDuTech(cle, reglages, technicienId, photos, premiereDate) {
   ajouter(cle, 'vehicules_photos', v.photosCompteur.map((p) => ({ societe_id: SOCIETE_ID, vehicule_id: vehiculeId,
     type: 'compteur', periode: p.periode, source: 'apk', emplacement: 'drive:' + p.nom_drive })), 'societe_id,emplacement');
   identiteDuVehicule(cle, vehiculeId, v.plaque);
+}
+
+// Relevés km du tech : récupère les photos du compteur du tech et crée les relevés avec les compteurs normalisés.
+function relevesKmDuTech(cle, compteurs, technicienId, photos) {
+  if (!compteurs.length) return;
+  // Photos du compteur déjà posées par identiteDuVehicule : retrouvées par leur emplacement drive:<nom sur le Drive>
+  // (vehicules_photos n'a pas de colonne technicien).
+  const noms = [...new Set(Object.values(photos || {}))].map((n) => '"' + String(n).replace(/"/g, '') + '"');
+  if (!noms.length) return;
+  const photosCompteur = appel(cle, 'get', 'vehicules_photos?select=id,vehicule_id,periode&type=eq.compteur&source=eq.apk&emplacement=in.(' +
+    encodeURIComponent(noms.map((n) => '"drive:' + n.slice(1)).join(',')) + ')');
+  if (!photosCompteur.length) return;  // Pas de photos du compteur, aucun relevé à insérer
+  
+  const releves = relevesKmDepuisCompteurs(compteurs, photosCompteur, SOCIETE_ID, technicienId);
+  if (releves.length) ajouter(cle, 'releves_km', releves, 'vehicule_id,date,source');
 }
 
 // Identité d'un véhicule sans marque, lue sur la fiche publique de sa plaque (core/plaque.js).

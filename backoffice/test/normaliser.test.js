@@ -105,3 +105,60 @@ test('gesteCo : équipements installés regroupés, nom du client jamais import�
   assert.deepEqual(gestes, [{ societe_id: 'soc-A', technicien_id: 'tech-1', cle_source: 'tech-1/gesteCo/g1',
     date: '2026-10-22', numero_site: '10000001', installes: { gsm: 1 } }]);
 });
+
+import { relevesKmDepuisCompteurs } from '../pont/normaliser.js';
+
+test('relevés km : km > 0, date valide, photo existante du compteur du même mois', () => {
+  const compteurs = [
+    { date: '2026-11-19', kilometres: 12345, fileName: 'c1.jpg' },
+    { date: '2026-11-20', kilometres: 12400, fileName: 'c2.jpg' },
+  ];
+  const photos = [
+    { id: 'photo-1', vehicule_id: 'v1', periode: '2026-11' },
+    { id: 'photo-2', vehicule_id: 'v2', periode: '2026-10' },
+  ];
+  const releves = relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', 'tech-1');
+  assert.equal(releves.length, 2);
+  assert.deepEqual(releves[0], {
+    societe_id: 'soc-A', vehicule_id: 'v1', date: '2026-11-19', km: 12345, source: 'saisie', photo_id: 'photo-1',
+  });
+  assert.deepEqual(releves[1], {
+    societe_id: 'soc-A', vehicule_id: 'v1', date: '2026-11-20', km: 12400, source: 'saisie', photo_id: 'photo-1',
+  });
+});
+
+test('relevés km : filtre km <= 0', () => {
+  const compteurs = [
+    { date: '2026-11-19', kilometres: 0, fileName: 'c1.jpg' },
+    { date: '2026-11-20', kilometres: -100, fileName: 'c2.jpg' },
+  ];
+  const photos = [{ id: 'photo-1', vehicule_id: 'v1', periode: '2026-11' }];
+  const releves = relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', 'tech-1');
+  assert.equal(releves.length, 0);
+});
+
+test('relevés km : filtre date invalide', () => {
+  const compteurs = [
+    { date: '2026-13-01', kilometres: 100, fileName: 'c1.jpg' },
+    { date: '2026-02-30', kilometres: 100, fileName: 'c2.jpg' },
+    { date: 'pas-une-date', kilometres: 100, fileName: 'c3.jpg' },
+    { date: '', kilometres: 100, fileName: 'c4.jpg' },
+  ];
+  const photos = [{ id: 'photo-1', vehicule_id: 'v1', periode: '2026-11' }];
+  const releves = relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', 'tech-1');
+  assert.equal(releves.length, 0);
+});
+
+test('relevés km : pas de photo du compteur pour le mois → rejeté', () => {
+  const compteurs = [{ date: '2026-11-19', kilometres: 12345, fileName: 'c1.jpg' }];
+  const photos = [{ id: 'photo-1', vehicule_id: 'v1', periode: '2026-10' }];
+  const releves = relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', 'tech-1');
+  assert.equal(releves.length, 0);
+});
+
+test('relevés km : societeId ou technicienId manquants', () => {
+  const compteurs = [{ date: '2026-11-19', kilometres: 12345, fileName: 'c1.jpg' }];
+  const photos = [{ id: 'photo-1', vehicule_id: 'v1', periode: '2026-11' }];
+  assert.throws(() => relevesKmDepuisCompteurs(compteurs, photos, null, 'tech-1'), /obligatoires/);
+  assert.throws(() => relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', null), /obligatoires/);
+});
