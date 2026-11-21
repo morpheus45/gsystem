@@ -117,3 +117,20 @@ export function planEntretien({ regles, entretiens, kmActuel, kmMoyenMois, aujou
     return { ...base, dernier, prochain, estimation, etat };
   });
 }
+
+// Détecte les photos de compteur en doublon pour un véhicule (plusieurs photos sur un même mois/période).
+export function detecterDoublonsCompteur(photos) {
+  const compte = new Map();
+  for (const p of photos) {
+    if (!p.periode) continue;
+    compte.set(p.periode, (compte.get(p.periode) || 0) + 1);
+  }
+  const doublons = new Set();
+  for (const p of photos) {
+    if (p.periode && compte.get(p.periode) > 1) {
+      doublons.add(p.id ?? p);
+    }
+  }
+  return doublons;
+}
+

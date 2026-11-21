@@ -81,11 +81,17 @@ export function vehiculeDepuisApk(reglages, photos) {
   const plaque = String(reglages?.plaqueVoiture ?? '').trim().toUpperCase() || null;
   if (!plaque) return { plaque: null, photosCompteur: [] };
   const motif = /^(.+)-(\d{2})-(\d{4})(?:-\d+)?\.jpg$/;
-  const photosCompteur = Object.values(photos ?? {}).flatMap((nom) => {
+  const premiers = new Map();   // periode -> { nom_drive, periode } : le premier importe gagne
+  // Le nom sans suffixe (FS-687-VT-08-2026.jpg) passe avant ses doublons -2, -3… : tri par longueur puis par nom.
+  for (const nom of Object.values(photos ?? {}).sort((x, y) => x.length - y.length || x.localeCompare(y))) {
     const m = motif.exec(nom);
-    return m && m[1].toUpperCase() === plaque ? [{ nom_drive: nom, periode: `${m[3]}-${m[2]}` }] : [];
-  });
-  return { plaque, photosCompteur };
+    if (m && m[1].toUpperCase() === plaque) {
+      const periode = `${m[3]}-${m[2]}`;
+      const cle = `${plaque}|${periode}`;
+      if (!premiers.has(cle)) premiers.set(cle, { nom_drive: nom, periode });
+    }
+  }
+  return { plaque, photosCompteur: [...premiers.values()] };
 }
 
 // Affectation tech ↔ véhicule d'après l'APK. ouvertes = affectations en cours du tech.

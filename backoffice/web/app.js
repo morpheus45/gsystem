@@ -1,7 +1,7 @@
 // © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
-import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto, planEntretien } from '../core/vehicules.js';
+import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto, planEntretien, detecterDoublonsCompteur } from '../core/vehicules.js';
 import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
 import { ligneFrais, totauxFrais } from '../core/frais.js';
 import { reglesDe } from '../core/societes.js';
@@ -740,10 +740,27 @@ async function terminerAffectation(id) {
 // 2. Kilométrage
 async function loadReleves(vehiculeId) {
   try {
-    const { data, error } = await sb.from('releves_km').select('id, date, km, source, valide_par').eq('vehicule_id', vehiculeId).order('date');
+    const { data, error } = await sb.from('releves_km').select('id, date, km, source, valide_par, photo_id').eq('vehicule_id', vehiculeId).order('date');
     if (error) throw error;
-    renderReleves(data);
-    const valides = data.filter(r => r.valide_par);   // triés par date
+    const ids = data.filter((r) => r.photo_id).map((r) => r.photo_id);
+    const { data: photos, error: e2 } = ids.length
+      ? await sb.from('vehicules_photos').select('id, emplacement').in('id', ids)
+      : { data: [] };
+    if (e2) throw e2;
+    const noms = (photos || []).map((p) => (p.emplacement || '').replace(/^drive:/, ''));
+    const { data: copies, error: e3 } = noms.length
+      ? await sb.from('photos_apk').select('nom_drive, stockage').eq('societe_id', selectedSociete).in('nom_drive', noms)
+      : { data: [] };
+    if (e3) throw e3;
+    const stockageParNom = new Map((copies || []).map((c) => [c.nom_drive, c.stockage]));
+    const stockageParPhoto = new Map((photos || []).map((p) => [p.id, stockageParNom.get((p.emplacement || '').replace(/^drive:/, ''))]));
+    const { data: corrections, error: e4 } = await sb.from('corrections_km').select('releve_id, nouveau_km, motif, cree_le').eq('vehicule_id', vehiculeId).order('cree_le');
+    if (e4) throw e4;
+    const corrigeParReleve = new Map();
+    for (const c of corrections || []) corrigeParReleve.set(c.releve_id, c);
+    const enrichis = data.map((r) => ({ ...r, stockage: stockageParPhoto.get(r.photo_id) || null, correction: corrigeParReleve.get(r.id) || null }));
+    renderReleves(enrichis);
+    const valides = enrichis.filter(r => r.valide_par);   // triés par date
     kmActuelGlobal = valides.length ? valides[valides.length - 1].km : null;
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des relevés');
@@ -754,14 +771,23 @@ function renderReleves(list) {
   const tbody = $('#releves-table tbody');
   tbody.replaceChildren(...list.map(r => {
     const tr = ligne([r.date, String(r.km), r.source || '—', r.valide_par ? 'Oui' : 'Non']);
+    const actions = tr.appendChild(document.createElement('td'));
     if (!r.valide_par) {
-      const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+      const b = actions.appendChild(document.createElement('button'));
       b.className = 'secondary';
       b.textContent = 'Valider';
       b.addEventListener('click', () => validerReleve(r.id));
-    } else {
-      tr.appendChild(document.createElement('td'));
+    } else if (peutEcrire()) {
+      const b = actions.appendChild(document.createElement('button'));
+      b.className = 'secondary';
+      b.textContent = 'Corriger';
+      b.addEventListener('click', () => ouvrirCorrection(r));
     }
+    if (r.correction) {
+      const note = actions.appendChild(document.createElement('small'));
+      note.textContent = `Corrigé le ${formaterDate(r.correction.cree_le.slice(0, 10))} : ${r.correction.motif}`;
+    }
+    if (r.stockage) tr.addEventListener('mouseenter', (ev) => montrerApercu(ev, r.stockage));
     return tr;
   }));
   const moy = kmMoyenParMois(list);
@@ -772,6 +798,16 @@ function renderReleves(list) {
     el.textContent = 'Moyenne : pas assez de relevés validés';
   }
   renderKmMois(list);
+}
+
+let releveACorriger = null;
+
+function ouvrirCorrection(r) {
+  releveACorriger = r;
+  $('#corr-ancien-km').value = r.km;
+  $('#corr-nouveau-km').value = '';
+  $('#corr-motif').value = '';
+  $('#dialog-correction-km').showModal();
 }
 
 function renderKmMois(list) {
@@ -873,6 +909,35 @@ $('#fait-le').addEventListener('change', () => {
   if (echeanceFaite?.type === 'CT' && $('#fait-le').value) $('#prochaine-date').value = prochaineEcheance(CT_VOITURE, { date: $('#fait-le').value, km: 0 }).date;
 });
 $('#fait-annuler').addEventListener('click', () => $('#dialog-fait').close());
+$('#corr-annuler').addEventListener('click', () => $('#dialog-correction-km').close());
+$('#corr-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  if (!releveACorriger) return;
+  const ancien = Number($('#corr-ancien-km').value);
+  const nouveau = Number($('#corr-nouveau-km').value);
+  const motif = $('#corr-motif').value.trim();
+  if (nouveau === ancien) { alert('Le nouveau km doit différer de l\'ancien'); return; }
+  if (!motif) { alert('Le motif est obligatoire'); return; }
+  try {
+    const { error: e1 } = await sb.from('corrections_km').insert({
+      societe_id: selectedSociete,
+      vehicule_id: vehiculeActif.id,
+      releve_id: releveACorriger.id,
+      ancien_km: ancien,
+      nouveau_km: nouveau,
+      motif: motif,
+      auteur: session.user.id
+    });
+    if (e1) throw e1;
+    const { error: e2 } = await sb.from('releves_km').update({ km: nouveau }).eq('id', releveACorriger.id);
+    if (e2) throw e2;
+    $('#dialog-correction-km').close();
+    releveACorriger = null;
+    await loadRelevesAndKm(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la correction');
+  }
+});
 $('#fait-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const e = echeanceFaite, km = $('#fait-km').value, pDate = $('#prochaine-date').value, pKm = $('#prochaine-km').value;
@@ -1067,7 +1132,7 @@ async function loadRelevesAndKm(vehiculeId) {
 async function loadPhotosCompteur(vehiculeId) {
   try {
     const { data: photos, error } = await sb.from('vehicules_photos')
-      .select('periode, emplacement')
+      .select('id, periode, emplacement')
       .eq('vehicule_id', vehiculeId)
       .eq('type', 'compteur')
       .order('periode', { ascending: false });
@@ -1078,7 +1143,8 @@ async function loadPhotosCompteur(vehiculeId) {
       ? await sb.from('photos_apk').select('nom_drive, stockage').eq('societe_id', selectedSociete).in('nom_drive', noms)
       : { data: [] };
     if (e2) throw e2;
-    renderPhotosCompteur(photos, new Map(copies.map((c) => [c.nom_drive, c.stockage])));
+    const doublons = detecterDoublonsCompteur(photos);
+    renderPhotosCompteur(photos, new Map(copies.map((c) => [c.nom_drive, c.stockage])), doublons);
     const aujourdhui = new Date().toISOString().slice(0, 10);
     const moisCourant = aujourdhui.slice(0, 7);
     const moisPrecedent = moisPrecedentDe(moisCourant);
@@ -1103,16 +1169,48 @@ function libelleStatut(s) {
   return s === 'recue' ? 'reçue' : s === 'manquante' ? 'manquante' : 'en retard';
 }
 
-function renderPhotosCompteur(photos, stockages) {
+function renderPhotosCompteur(photos, stockages, doublons = new Set()) {
   const tbody = $('#photos-compteur-table tbody');
   tbody.replaceChildren(...photos.map(p => {
     const [y, m] = p.periode.split('-');
     const fichier = (p.emplacement || '').replace(/^drive:/, '');
     const tr = ligne([`${m}/${y}`, fichier]);
     tr.appendChild(boutonPhoto(stockages.get(fichier)));
+    if (superAdmin && doublons.has(p.id)) {
+      const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+      b.className = 'danger';
+      b.textContent = 'Supprimer';
+      b.addEventListener('click', () => ouvrirSuppressionPhoto(p));
+    } else {
+      tr.appendChild(document.createElement('td'));
+    }
     return tr;
   }));
 }
+
+let photoASupprimer = null;
+
+function ouvrirSuppressionPhoto(p) {
+  photoASupprimer = p;
+  $('#suppr-message').textContent = `Supprimer la photo du compteur de ${p.periode} ? Cette action est irréversible.`;
+  $('#dialog-supprimer-photo').showModal();
+}
+
+$('#suppr-annuler').addEventListener('click', () => $('#dialog-supprimer-photo').close());
+$('#supprimer-photo-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  if (!photoASupprimer) return;
+  try {
+    const { error } = await sb.from('vehicules_photos').delete().eq('id', photoASupprimer.id);
+    if (error) throw error;
+    $('#dialog-supprimer-photo').close();
+    photoASupprimer = null;
+    await loadPhotosCompteur(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la suppression');
+  }
+});
+
 
 async function loadAmendes(vehiculeId) {
   try {
@@ -3036,6 +3134,65 @@ function renderTechniciensAmende() {
     o.value = t.id;
     o.textContent = t.nom;
     select.appendChild(o);
+  }
+}
+
+// Aperçu des photos de compteur au survol (non tactile)
+let apercu = null;
+async function montrerApercu(ev, stockage) {
+  if (ev.pointerType === 'touch') return;   // Rien au toucher
+  
+  const tr = ev.currentTarget;
+  if (apercu?.tr === tr) return;   // Déjà affiché pour cette ligne
+  
+  if (apercu?.el) apercu.el.remove();
+  
+  try {
+    const { data, error } = await sb.storage.from('photos').createSignedUrl(stockage, 600);
+    if (error) return;
+    
+    const el = document.createElement('div');
+    el.className = 'apercu-compteur';
+    
+    const img = el.appendChild(document.createElement('img'));
+    img.src = data.signedUrl;
+    img.alt = 'Aperçu de la photo';
+    img.loading = 'lazy';
+    
+    document.body.appendChild(el);
+    
+    const positionner = () => {
+      const rect = tr.getBoundingClientRect();
+      const x = ev.clientX + 12;
+      const y = ev.clientY + 12;
+      el.style.left = Math.max(8, Math.min(x, window.innerWidth - 260 - 8)) + 'px';
+      el.style.top = Math.max(8, Math.min(y, window.innerHeight - 200 - 8)) + 'px';
+    };
+    positionner();
+    
+    apercu = { el, tr, unsub: () => {} };
+    
+    const onMouseMove = (e) => {
+      if (e.target.closest('#releves-table tbody tr') !== tr) {
+        cacherApercu();
+      } else {
+        el.style.left = Math.max(8, Math.min(e.clientX + 12, window.innerWidth - 260 - 8)) + 'px';
+        el.style.top = Math.max(8, Math.min(e.clientY + 12, window.innerHeight - 200 - 8)) + 'px';
+      }
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    apercu.unsub = () => document.removeEventListener('mousemove', onMouseMove);
+    
+  } catch (err) {
+    // Silencieusement échouer si la photo n'existe pas
+  }
+}
+
+function cacherApercu() {
+  if (apercu) {
+    apercu.el?.remove();
+    apercu.unsub?.();
+    apercu = null;
   }
 }
 

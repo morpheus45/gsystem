@@ -1067,7 +1067,7 @@
               <div class="table-wrapper">
                 <table id="photos-compteur-table">
                   <thead>
-                    <tr><th>Mois</th><th>Fichier</th><th>Photo</th></tr>
+                    <tr><th>Mois</th><th>Fichier</th><th>Photo</th><th></th></tr>
                   </thead>
                   <tbody></tbody>
                 </table>
@@ -1501,6 +1501,28 @@
       <div class="barre">
         <button type="submit" id="fait-enregistrer">Enregistrer</button>
         <button type="button" id="fait-annuler" class="secondary">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-correction-km" aria-labelledby="dialog-correction-titre">
+    <form id="corr-form" method="dialog">
+      <h3 id="dialog-correction-titre">Corriger le kilométrage validé</h3>
+      <div class="field"><label for="corr-ancien-km">Ancien km (validé)</label><input type="number" id="corr-ancien-km" min="0" readonly></div>
+      <div class="field"><label for="corr-nouveau-km">Nouveau km</label><input type="number" id="corr-nouveau-km" min="0" required></div>
+      <div class="field"><label for="corr-motif">Motif de la correction</label><textarea id="corr-motif" required minlength="1" maxlength="500"></textarea></div>
+      <div class="barre">
+        <button type="submit" id="corr-enregistrer">Corriger</button>
+        <button type="button" id="corr-annuler" class="secondary">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-supprimer-photo" aria-labelledby="dialog-suppr-titre">
+    <form id="supprimer-photo-form" method="dialog">
+      <h3 id="dialog-suppr-titre">Supprimer la photo en doublon</h3>
+      <p id="suppr-message"></p>
+      <div class="barre">
+        <button type="submit" id="suppr-confirmer" class="danger">Supprimer</button>
+        <button type="button" id="suppr-annuler" class="secondary">Annuler</button>
       </div>
     </form>
   </dialog>
