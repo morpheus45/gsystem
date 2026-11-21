@@ -273,3 +273,5 @@ background:
   body:has(#societe-detail:not(.hidden)) .header .flex { display: none; }   /* email et déconnexion sont déjà dans le menu */
 }
 @media (max-width: 1023px) { .nav-deconnexion { display: none; } }
+/* Dans un tableau, une pastille longue (« NR client absent ») passe à la ligne au lieu de déborder sur la colonne voisine. */
+td .pastille { white-space: normal; max-width: 100%; }
