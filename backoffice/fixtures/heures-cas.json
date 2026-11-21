@@ -1,0 +1,18 @@
+[
+  {"nom": "aucune entree", "entrees": []},
+  {"nom": "planning vide", "entrees": [{"typeMission": "PLANNING VIDE", "slotMidi": "MATIN", "observationType": ""}]},
+  {"nom": "vacances", "entrees": [{"typeMission": "VACANCES", "slotMidi": "", "observationType": ""}]},
+  {"nom": "formation minuscules", "entrees": [{"typeMission": "formation", "slotMidi": "", "observationType": ""}]},
+  {"nom": "ferie", "entrees": [{"typeMission": "FERIE", "slotMidi": "APREM", "observationType": ""}]},
+  {"nom": "planning vide l emporte sur vacances", "entrees": [{"typeMission": "VACANCES", "slotMidi": "", "observationType": ""}, {"typeMission": "PLANNING VIDE", "slotMidi": "", "observationType": ""}]},
+  {"nom": "matin OK seul", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": ""}]},
+  {"nom": "aprem NR seul", "entrees": [{"typeMission": "INST", "slotMidi": "APREM", "observationType": "NR_CLIENT"}]},
+  {"nom": "creneau vide = matin", "entrees": [{"typeMission": "SAV", "slotMidi": "", "observationType": ""}, {"typeMission": "SAV", "slotMidi": "APREM", "observationType": ""}]},
+  {"nom": "OK + OK", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": ""}, {"typeMission": "INST", "slotMidi": "APREM", "observationType": ""}]},
+  {"nom": "OK + NR", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": ""}, {"typeMission": "INST", "slotMidi": "APREM", "observationType": "NR_TECHNIQUE"}]},
+  {"nom": "NR + NR", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": "NR_AUTRES"}, {"typeMission": "INST", "slotMidi": "APREM", "observationType": "NR_CLIENT_ABS"}]},
+  {"nom": "matin NR puis OK, aprem OK", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": "NR_CLIENT"}, {"typeMission": "INST", "slotMidi": "MATIN", "observationType": ""}, {"typeMission": "INST", "slotMidi": "APREM", "observationType": ""}]},
+  {"nom": "observation avec espace seul", "entrees": [{"typeMission": "INST", "slotMidi": "MATIN", "observationType": " "}, {"typeMission": "INST", "slotMidi": "APREM", "observationType": ""}]},
+  {"nom": "creneau avec espace seul", "entrees": [{"typeMission": "INST", "slotMidi": " ", "observationType": ""}]},
+  {"nom": "creneau inconnu", "entrees": [{"typeMission": "INST", "slotMidi": "SOIR", "observationType": ""}]}
+]

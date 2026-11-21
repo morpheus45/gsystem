@@ -1,0 +1,1482 @@
+<!doctype html>
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Back-office</title>
+  <meta name="author" content="Cédric LAGO-GOMEZ">
+  <meta name="copyright" content="© 2026 Cédric LAGO-GOMEZ — Tous droits réservés">
+  <meta name="robots" content="noindex, nofollow, noarchive, noai, noimageai">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <style>
+    /* Jetons de design : palette claire complète sur :root, redéfinie pour le thème sombre. */
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --surface-2: #eef0f3;
+      --text: #111827;
+      --muted: #4b5563;
+      --border: #e2e5ea;
+      --accent: #1d4ed8;
+      --accent-hover: #1e40af;
+      --accent-fond: #2563eb;
+      --accent-fond-hover: #1d4ed8;
+      --accent-doux: #e8efff;
+      --danger: #b42318;
+      --serie-1: #2a78d6; --serie-2: #eb6834; --serie-3: #1baf7a; --serie-4: #eda100; --serie-5: #e87ba4; --serie-autres: #9a9a9a;
+      --alert-bg: #fef3f2;
+      --alert-text: #912018;
+      --alert-border: #fecdca;
+      --success-bg: #ecfdf3;
+      --success-text: #05603a;
+      --success-border: #abefc6;
+      --rayon: 10px;
+      --rayon-sm: 8px;
+      --ombre: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.07);
+      --police: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0c0e12;
+        --card: #15181e;
+        --surface-2: #1d2128;
+        --text: #f3f4f6;
+        --muted: #a5adba;
+        --border: #2a2f38;
+        --accent: #7aa7ff;
+        --accent-hover: #a3c2ff;
+        --accent-fond: #2563eb;
+        --accent-fond-hover: #1d4ed8;
+        --accent-doux: #172554;
+        --danger: #fd8a80;
+        --serie-1: #3987e5; --serie-2: #d95926; --serie-3: #199e70; --serie-4: #c98500; --serie-5: #d55181; --serie-autres: #7a7a7a;
+        --alert-bg: #3b0d0c;
+        --alert-text: #fecdca;
+        --alert-border: #7a271a;
+        --success-bg: #053321;
+        --success-text: #abefc6;
+        --success-border: #085d3a;
+        --ombre: 0 1px 2px rgba(0, 0, 0, 0.4);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--police);
+      -webkit-font-smoothing: antialiased;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px;              /* PC : les tableaux respirent ; téléphone : toute la largeur */
+      margin: 0 auto;
+      padding: 16px clamp(16px, 3vw, 32px);
+    }
+    .banner {
+      background: var(--muted);
+      color: var(--bg);
+      text-align: center;
+      padding: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    h1 { font-size: 1.5rem; margin: 16px 0 8px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    form { display: grid; gap: 12px; max-width: 400px; }
+    .field { display: grid; gap: 4px; }
+    label { font-size: 0.9rem; font-weight: 500; }
+    input, select {
+      padding: 10px 12px;
+      font: inherit;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--text);
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    button {
+      padding: 10px 16px;
+      font: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--accent-fond);
+      color: #fff;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    button:active { transform: scale(0.97); }
+    @media (hover: hover) and (pointer: fine) {
+      button:hover { background: var(--accent-fond-hover); }
+    }
+    button.secondary { background: var(--border); color: var(--text); }
+    @media (hover: hover) and (pointer: fine) {
+      button.secondary:hover { background: color-mix(in srgb, var(--border) 80%, var(--text)); }
+    }
+    button.danger { background: #ef4444; color: #fff; }
+    @media (hover: hover) and (pointer: fine) {
+      button.danger:hover { background: #dc2626; }
+    }
+    .alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .alert.show { display: block; }
+    .alert.error { background: var(--alert-bg); color: var(--alert-text); border: 1px solid var(--alert-border); }
+    .alert.success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .header h2 { margin: 0; font-size: 1.25rem; }
+    .section { margin-bottom: 24px; }
+    .section h3 { margin: 0 0 12px; font-size: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    /* En-têtes compacts : casse normale, retour à la ligne permis (tableaux larges sur écran moyen). */
+    th { font-weight: 600; color: var(--muted); font-size: 0.8rem; vertical-align: bottom; }
+    tr:last-child td { border-bottom: none; }
+    .empty { padding: 24px; text-align: center; color: var(--muted); }
+    .societe-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    .societe-item {
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .societe-item:active { transform: scale(0.98); }
+    @media (hover: hover) and (pointer: fine) {
+      .societe-item:hover { border-color: var(--accent); }
+    }
+    .societe-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+    .societe-name { font-weight: 500; }
+    .chat { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .chat { grid-template-columns: 1fr; } }
+    .chat-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+    .chat-liste button { width: 100%; min-height: 44px; display: flex; justify-content: space-between; gap: 8px; text-align: left; position: relative; }
+    .chat-liste button[aria-current="true"] { border-color: var(--accent); }
+    .chat-messages { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; padding: 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+    .bulle { max-width: 80%; padding: 8px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .bulle.bureau { align-self: flex-end; background: var(--accent-fond); border-color: var(--accent-fond); color: #fff; }
+    .bulle.bureau small { color: #fff; }   /* blanc sur #2563eb : contraste 5.2:1 */
+    .bulle-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .bulle-actions button { min-height: 44px; padding: 4px 12px; font-size: 0.8rem; }   /* cible tactile 44 px */
+    .bulle small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.75rem; }
+    .chat-envoi { display: flex; gap: 8px; align-items: flex-end; }
+    .chat-envoi textarea { flex: 1; }
+    .chat-destinataires { display: flex; flex-wrap: wrap; gap: 8px 16px; border: none; padding: 0; margin: 0 0 8px; }
+    .chat-destinataires label { display: flex; align-items: center; gap: 6px; min-height: 44px; }
+    .marque { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    /* Logo sur fond blanc : lisible en thème clair comme sombre, quelles que soient ses couleurs. */
+    .logo-plaque { display: inline-flex; align-items: center; background: #fff; border-radius: 8px; padding: 4px 8px; flex: 0 0 auto; }
+    .logo-plaque img { display: block; height: 32px; max-width: 120px; object-fit: contain; }
+    .societe-item .logo-plaque { margin-right: 12px; }
+    .societe-item .logo-plaque img { height: 28px; max-width: 96px; }
+    .societe-id { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .hidden { display: none !important; }
+    .barre { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; }
+    .carte-resume { padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; margin: 0 0 12px; }
+    .camemberts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
+    .camembert { margin: 0; display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
+    .camembert figcaption { grid-column: 1 / -1; font-weight: 600; font-size: 0.9rem; }
+    .camembert svg { width: 120px; height: 120px; }
+    .camembert ul { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; display: grid; gap: 4px; }
+    .camembert li { display: flex; gap: 8px; align-items: center; }
+    .pastille { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+    .etat-pret { color: var(--text); }
+    .galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+    .galerie button { padding: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: none; min-height: 44px; }
+    .galerie img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; }
+    .vignette-pdf { display: grid; place-items: center; aspect-ratio: 3 / 4; font-weight: 700; color: var(--muted); background: var(--bg); }
+    .galerie figcaption { font-size: 0.75rem; padding: 4px 8px; color: var(--muted); text-align: left; overflow-wrap: anywhere; }
+    .aide { font-size: 0.875rem; color: var(--muted); margin: 0 0 12px; }
+    button:disabled, input:disabled, select:disabled { opacity: 0.5; cursor: not-allowed; }
+    .lecture-seule td button { display: none; }
+    .lecture-seule td button.voir { display: inline-block; }
+    .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    /* Champs côte à côte : ils passent à la ligne au lieu de déborder (téléphone). */
+    .flex > .field { flex: 1 1 11rem; min-width: 0; }
+    .field input, .field select { min-width: 0; }
+    .field input, .field select { width: 100%; box-sizing: border-box; }
+    .flex-center { justify-content: center; }
+    .link { color: var(--accent); text-decoration: none; cursor: pointer; }
+    @media (hover: hover) and (pointer: fine) {
+      .link:hover { text-decoration: underline; }
+    }
+    .table-wrapper { overflow-x: auto; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { background: transparent; color: var(--muted); border-radius: 0; border-bottom: 2px solid transparent; padding: 8px 14px; }
+    @media (hover: hover) and (pointer: fine) {
+      .tab:hover { background: var(--bg); }
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel:not(.hidden) { display: block; }
+    /* Contraste ≥ 4,5:1 sur les cartes claires et sombres (l'orange #d97706 tombait à 2,9:1). */
+    .alerte-depassee { color: #b91c1c; font-weight: 600; }
+    .alerte-proche { color: #a14a06; font-weight: 600; }
+    @media (prefers-color-scheme: dark) {
+      .alerte-depassee { color: #ff8f82; }
+      .alerte-proche { color: #fbbf24; }
+    }
+
+    /* === Organisation en trois niveaux === */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #fil { display: none; width: 100%; align-items: center; gap: 4px; flex-wrap: wrap; }
+    #fil button { background: none; color: var(--accent); font-weight: 500; padding: 4px; min-height: auto; }
+    @media (hover: hover) and (pointer: fine) { #fil button:hover { text-decoration: underline; } }
+    #fil span.cle { color: var(--muted); }
+    summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 4px; padding: 8px 4px; font-weight: 600; color: var(--accent); list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary::before { content: "+"; transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+    details[open] > summary::before { transform: rotate(45deg); }
+    details.ajout { margin-bottom: 16px; }
+    @media (min-width: 641px) { details.ajout { width: max-content; max-width: 100%; margin-left: auto; } }
+    .societe-list { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .societe-item { min-height: 72px; display: flex; align-items: center; border-radius: 8px; }
+    .tabs { gap: 4px; background: color-mix(in srgb, var(--border) 50%, var(--bg)); padding: 4px; border-radius: 8px; border: none; }
+    .tab { background: transparent; color: var(--muted); border: none; border-radius: 6px; min-height: 44px; padding: 10px 16px; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms; }
+    @media (hover: hover) and (pointer: fine) { .tab:hover { background: color-mix(in srgb, var(--card) 60%, transparent); } }
+    .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+    /* Onglets sur une seule ligne, largeurs égales (téléphone compris). */
+    /* Onglets : passent à la ligne dès que le texte ne tient plus (largeur ou grande police). */
+    .tabs { flex-wrap: wrap; }
+    .tab { flex: 1 1 auto; padding: 10px 12px; white-space: nowrap; }
+    .carte-resume:empty { display: none; }
+    .tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .tuile { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: grid; gap: 4px; }
+    .tuile .valeur { font-size: 1.5rem; font-weight: 700; }
+    .tuile .libelle, .tuile .note { font-size: 0.85rem; color: var(--muted); }
+    .taches { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 8px; }
+    .taches button { width: 100%; text-align: left; background: var(--card); color: var(--text); border: 1px solid var(--border); min-height: 44px; }
+    .taches .vide { color: var(--muted); }
+    dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); padding: 24px; width: min(420px, calc(100% - 32px)); }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+    dialog form { display: grid; gap: 12px; max-width: none; }
+    details.historique { margin-top: 16px; }
+    /* Point rouge « à traiter » : coin haut droit de l'onglet, du sous-onglet ou de la carte. */
+    .tab, .sous-onglets button, .societe-item { position: relative; }
+    .point { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%;
+      background: #dc2626; box-shadow: 0 0 0 2px var(--card); font-size: 0; overflow: hidden; pointer-events: none; }
+    /* Téléphone et tablette en hauteur : tableaux en fiches « Titre : valeur » (titres posés par app.js). */
+    @media (max-width: 900px) {
+      .table-wrapper { overflow: visible; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      tr { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; padding: 4px 0; }
+      td { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: none; padding: 6px 12px; text-align: right; overflow-wrap: anywhere; }
+      td button { white-space: nowrap; overflow-wrap: normal; flex: 0 0 auto; }
+      td:has(> button + button) { flex-wrap: wrap; justify-content: flex-end; }
+      td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; text-align: left; flex: 0 1 45%; overflow-wrap: normal; word-break: normal; hyphens: auto; }
+      td[data-label=""]::before { content: none; }
+      td.fleche { display: none; }
+    }
+    /* Champs et boutons : jamais plus larges que l'écran. */
+    input, select, button { max-width: 100%; }
+    .header > * { min-width: 0; overflow-wrap: anywhere; }
+    .sous-onglets { display: flex; gap: 4px; background: color-mix(in srgb, var(--border) 50%, var(--bg)); padding: 4px; border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .sous-onglets button { background: transparent; color: var(--muted); border: none; border-radius: 6px; min-height: 44px; padding: 8px 12px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms; }
+    @media (hover: hover) and (pointer: fine) { .sous-onglets button:hover { background: color-mix(in srgb, var(--card) 60%, transparent); } }
+    .sous-onglets button.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+    @media (max-width: 640px) { .sous-onglets button { flex: 1 1 auto; } }
+    tr.ligne-cliquable { cursor: pointer; }
+    @media (hover: hover) and (pointer: fine) { tr.ligne-cliquable:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); } }
+    td.fleche { width: 24px; text-align: right; color: var(--muted); }
+    .tech-barre { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .tech-resume-carte { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+
+    /* ================= Design « pro » (18/11/2026) : une seule couche, après l'existant ================= */
+    body { font-size: 15px; }
+    h1, h2, h3 { letter-spacing: -0.01em; }
+    .container { max-width: 1440px; padding: 0 clamp(16px, 3vw, 32px) 48px; }
+    .banner { background: var(--surface-2); color: var(--muted); font-size: 0.8125rem; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+
+    /* Barre du haut : sobre, collée en haut, filet discret. */
+    .header { position: sticky; top: 0; z-index: 20; margin: 0 calc(-1 * clamp(16px, 3vw, 32px)) 24px; padding: 12px clamp(16px, 3vw, 32px);
+      background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.4) blur(8px); border-bottom: 1px solid var(--border); }
+    .header h2 { font-size: 1.0625rem; font-weight: 600; }
+    #logout-btn { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { #logout-btn:hover { background: var(--surface-2); } }
+    #fil { font-size: 0.875rem; }
+
+    /* Boutons : un seul plein (l'action principale), le reste discret ; danger en contour. */
+    button { border-radius: var(--rayon-sm); font-weight: 600; min-height: 40px; }
+    .ent-types { flex-basis: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px 12px; margin: 0; }
+    .ent-types legend { font-size: 13px; padding: 0 4px; }
+    .ent-types div { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .ent-types label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-weight: 400; }
+    button.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: var(--ombre); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { button.secondary:hover { background: var(--surface-2); } }
+    button.danger { background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); font-weight: 500; }
+    @media (hover: hover) and (pointer: fine) { button.danger:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); } }
+    td button { padding: 6px 12px; font-size: 0.8125rem; }
+    td button + button { margin-left: 6px; }
+
+    /* Champs */
+    input, select, textarea { border-radius: var(--rayon-sm); border: 1px solid var(--border); background: var(--card); color: var(--text); min-height: 40px; font: inherit; }
+    textarea { padding: 10px 12px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-fond); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-fond) 22%, transparent); }
+    label { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+
+    /* « + Ajouter … » : un vrai bouton secondaire, pas un lien. */
+    details.ajout > summary { display: inline-flex; padding: 8px 14px; min-height: 40px; border: 1px solid var(--border); border-radius: var(--rayon-sm);
+      background: var(--card); color: var(--text); font-weight: 500; box-shadow: var(--ombre); }
+    @media (hover: hover) and (pointer: fine) { details.ajout > summary:hover { background: var(--surface-2); } }
+    details.ajout[open] { background: var(--card); border: 1px solid var(--border); border-radius: var(--rayon); padding: 16px; box-shadow: var(--ombre); }
+    details.ajout[open] > summary { border: none; box-shadow: none; padding: 0 0 8px; min-height: 0; background: none; }
+
+    /* Accueil : cartes des sociétés */
+    #titre-societes { font-size: 1.375rem; font-weight: 600; margin: 8px 0 16px; }
+    .societe-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .societe-item { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); min-height: 88px; padding: 16px 20px;
+      transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms; }
+    @media (hover: hover) and (pointer: fine) { .societe-item:hover { border-color: color-mix(in srgb, var(--accent-fond) 50%, var(--border)); transform: translateY(-1px); } }
+    .societe-name { font-weight: 600; font-size: 1rem; }
+
+    /* Coquille d'une société : menu latéral + contenu */
+    .coquille { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 32px; align-items: start; }
+    .nav-laterale { position: sticky; top: 88px; }
+    .lien-retour { background: none; color: var(--muted); padding: 4px 0; min-height: 32px; font-weight: 500; font-size: 0.8125rem; box-shadow: none; }
+    @media (hover: hover) and (pointer: fine) { .lien-retour:hover { color: var(--text); background: none; } }
+    #societe-detail-title { font-size: 1.125rem; font-weight: 600; margin: 4px 0 16px; overflow-wrap: anywhere; }
+    .tabs { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 2px; background: none; padding: 0; border: none; border-radius: 0; margin: 0; }
+    /* Titre de groupe : bandeau plein (texte inversé), bien distinct des liens cliquables en dessous. */
+    .nav-groupe { margin: 20px 0 6px; padding: 7px 12px; border-radius: var(--rayon-sm); background: var(--text); color: var(--card);
+      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-groupe:first-child { margin-top: 0; }
+    .tab { flex: none; justify-content: flex-start; text-align: left; width: calc(100% - 12px); margin-left: 12px; min-height: 40px; padding: 8px 12px;
+      border-radius: 0 var(--rayon-sm) var(--rayon-sm) 0; border-left: 2px solid var(--border);   /* rattaché à son groupe */
+      color: var(--muted); font-weight: 500; box-shadow: none; background: transparent; white-space: nowrap; }
+    @media (hover: hover) and (pointer: fine) { .tab:hover { background: var(--surface-2); color: var(--text); } }
+    .tab.active { background: var(--accent-doux); color: var(--accent); box-shadow: none; font-weight: 600; border-left-color: var(--accent-fond); }
+    .tab .point { top: 50%; right: 12px; transform: translateY(-50%); }
+    .contenu { min-width: 0; }
+
+    /* Panneaux : une carte par section principale */
+    .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details) {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--rayon); padding: 20px 24px; box-shadow: var(--ombre); }
+    .section h3 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; }
+    .section h3:first-child { margin-top: 0; }
+    .tab-panel > .section .tuile { box-shadow: none; border: 1px solid var(--border); }
+    .barre { gap: 12px 16px; }
+
+    /* Tableaux : en-têtes discrets, chiffres alignés, survol léger */
+    table { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
+    th { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    th:first-child { border-top-left-radius: var(--rayon-sm); } th:last-child { border-top-right-radius: var(--rayon-sm); }
+    td { padding: 12px; }
+    @media (hover: hover) and (pointer: fine) { tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); } }
+
+    /* Tableau de bord : tuiles alignées, chiffre lisible */
+    .tuiles { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 16px; }
+    .tuile { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); padding: 16px 20px; align-content: start; gap: 6px; }
+    .tuile .libelle { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+    .tuile .valeur { font-size: 1.75rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .tuile .note { font-size: 0.8125rem; }
+    .mention-propriete { padding: 16px; text-align: center; font-size: 0.75rem; color: var(--muted); }
+    .tuile.objectif-ok, .tab-panel > .section .tuile.objectif-ok { background: var(--success-bg); border: 1px solid var(--success-border); }
+    .tuile.objectif-ko, .tab-panel > .section .tuile.objectif-ko { background: var(--alert-bg); border: 1px solid var(--alert-border); }
+    .tuile.objectif-ok .valeur, .tuile.objectif-ok .note { color: var(--success-text); }
+    .tuile.objectif-ko .valeur, .tuile.objectif-ko .note { color: var(--alert-text); }
+    .tuile.objectif-ok .note, .tuile.objectif-ko .note { font-weight: 500; }
+    .carte-resume, .tech-resume-carte { background: var(--card); border-radius: var(--rayon); box-shadow: var(--ombre); }
+    .taches button { box-shadow: var(--ombre); font-weight: 500; }
+    .sous-onglets { background: var(--surface-2); }
+
+    /* Connexion et création de compte : une carte centrée */
+    #login-screen.active, #signup-screen.active { max-width: 420px; margin: clamp(32px, 10vh, 96px) auto 0; background: var(--card);
+      border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--ombre); padding: 32px clamp(20px, 5vw, 36px); }
+    #login-screen h1, #signup-screen h1 { margin: 0 0 20px; font-size: 1.5rem; font-weight: 600; }
+    #login-screen form, #signup-screen form { max-width: none; }
+    #login-screen form button, #signup-screen form button { width: 100%; margin-top: 4px; }
+
+    /* Écran tactile : cibles de 44 px au moins */
+    @media (pointer: coarse) { button, .tab, input, select, details.ajout > summary { min-height: 44px; } }
+
+    /* Point « à traiter » */
+    .point { background: #d92d20; }
+
+    /* Tablette et téléphone : menu en une ligne qui défile, sans les titres de groupes. */
+    @media (max-width: 1023px) {
+      .coquille { display: block; }
+      .nav-laterale { position: static; margin-bottom: 16px; }
+      .tabs { flex-direction: row; overflow-x: auto; scroll-snap-type: x proximity; gap: 6px; padding: 2px 0 6px; margin: 0; scrollbar-width: none; }
+      .tabs::-webkit-scrollbar { display: none; }
+      .nav-groupe { display: none; }
+      .tab { width: auto; margin-left: 0; border-radius: var(--rayon-sm); scroll-snap-align: start; border: 1px solid var(--border); background: var(--card); min-height: 40px; }
+      .tab.active { border-color: transparent; }
+      .tab .point { top: 6px; right: 6px; transform: none; }
+      .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details) { padding: 16px; }
+    }
+    @media (max-width: 640px) {
+      #user-email { display: none; }   /* l'email reste visible dans Membres ; la barre du haut tient sur une ligne */
+      .tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .tuile { padding: 12px 14px; }
+      .tuile .valeur { font-size: 1.375rem; }
+    }
+    @media (max-width: 900px) {
+      tr { background: var(--card); box-shadow: var(--ombre); }
+      th { background: none; }
+      .tab-panel > .section { background: none; border: none; box-shadow: none; padding: 0; }
+    }
+
+    /* ================= Rendu « doux » (19/11/2026) : référence vidéo aux couleurs G-Systems — voir RENDU.md ================= */
+    :root {
+      --bg: #f6f3f3;
+      --card: #ffffff;
+      --surface-2: #f3eeee;
+      --text: #160d0f;
+      --muted: #6b5f61;
+      --border: #ebe3e4;
+      --accent: #c4001a;
+      --accent-fond: #160d0f;
+      --rail: #150b0d;
+      --barre-douce: #f3e5e6;
+      --rayon: 20px;
+      --rayon-sm: 12px;
+      --champ: #f8f5f5;
+      --sur-accent: #ffffff;
+      --rail-texte: rgba(255,255,255,.72);
+      --rail-groupe: #ffb3a6;
+      --rail-bande: rgba(255,255,255,.07);
+      --marque: #e6001c;
+      --marque-2: #ff5a6e;
+      --marque-3: #ff8a3d;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ombre: 0 1px 2px rgba(40,10,15,.04), 0 12px 32px -16px rgba(60,15,25,.18);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d0809;
+        --card: #171012;
+        --surface-2: #20171a;
+        --text: #f8f1f1;
+        --muted: #b8aaac;
+        --border: #2d2225;
+        --accent: #ff8f82;
+        --accent-fond: #f8f1f1;
+        --rail: #060304;
+        --barre-douce: #2b1d20;
+        --champ: #20171a;
+        --sur-accent: #160d0f;
+        --ombre: 0 1px 2px rgba(0,0,0,.5), 0 14px 32px -18px rgba(0,0,0,.85);
+      }
+    }
+    /* Boutons : pilules */
+    button { border-radius: 999px; padding: 10px 18px; color: var(--sur-accent); }
+    button.secondary, button.danger, td button, details.ajout > summary { border-radius: 999px; }
+    button.secondary, details.ajout > summary { background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+    button:focus-visible, .tab:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--marque); outline-offset: 2px; }
+    /* Champs */
+    input, select, textarea { border-radius: var(--rayon-sm); background: var(--champ); }
+    input:focus, select:focus, textarea:focus { border-color: var(--marque); box-shadow: 0 0 0 3px color-mix(in srgb, var(--marque) 18%, transparent); }
+    /* Cartes */
+    .tab-panel > .section, #tech-liste > .section:not(details), #vehicules-liste > .section:not(details), .carte, .tuile { border-radius: var(--rayon); border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); box-shadow: var(--ombre); }
+    .carte { background: var(--card); padding: 18px 20px; min-width: 0; }
+    .carte h3 { margin: 0 0 14px; font-size: 1rem; font-weight: 650; }
+    /* Tableaux */
+    th { background: transparent; border-bottom: 1px solid var(--border); }
+    th:first-child, th:last-child { border-radius: 0; }
+    /* Sous-onglets en pilules */
+    .sous-onglets { border-radius: 999px; }
+    .sous-onglets button { border-radius: 999px; }
+    .sous-onglets button.active { background: var(--accent-fond); color: var(--sur-accent); box-shadow: none; }
+    /* Rail du menu (ordinateur) */
+    @media (min-width: 1024px) {
+      .nav-laterale { background: var(--rail); border-radius: 24px; padding: 18px 12px 14px; box-shadow: 0 20px 40px -24px rgba(20,5,10,.55); }
+      .nav-laterale .lien-retour { color: var(--rail-texte); padding: 4px 10px; }
+      #societe-detail-title { color: #fff; padding: 0 10px; }
+      .nav-groupe { background: var(--rail-bande); color: var(--rail-groupe); }
+      .tabs { position: relative; }
+      .tab { position: relative; z-index: 1; width: 100%; margin-left: 0; border-left: none; border-radius: 999px; color: var(--rail-texte); }
+      .tab.active { background: #fff; color: var(--rail); border-left: none; }
+      .tabs.avec-pastille .tab.active { background: transparent; }
+      .rail-pastille { position: absolute; left: 0; top: 0; width: 100%; height: var(--h, 40px); border-radius: 999px; background: #fff; z-index: 0; pointer-events: none; transform: translateY(var(--y, 0px)); transition: transform 360ms cubic-bezier(.34, 1.4, .5, 1); }
+    }
+    @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+      .nav-laterale .lien-retour:hover { color: #fff; }
+      .tab:not(.active):hover { background: rgba(255,255,255,.06); color: #fff; }
+    }
+    @media (min-width: 1024px) and (prefers-color-scheme: dark) {
+      .nav-laterale { border: 1px solid var(--border); }
+    }
+    /* Rail (téléphone) */
+    @media (max-width: 1023px) {
+      .nav-laterale { background: var(--rail); border-radius: 18px; padding: 8px; }
+      .nav-laterale .lien-retour, #societe-detail-title { color: #fff; }
+      .tab { background: transparent; border-color: transparent; color: var(--rail-texte); }
+      .tab.active { background: #fff; color: var(--rail); }
+      .rail-pastille { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rail-pastille { transition: none; }
+    }
+    /* Tableau de bord (mosaïque) */
+    .bord { display: grid; gap: 18px; }
+    .bandeau { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 26px 28px; border-radius: var(--rayon); color: #160d0f; background: linear-gradient(115deg, #ffe3e1, #ffd9cf 48%, #ffe7d6); }
+    @media (prefers-color-scheme: dark) {
+      .bandeau { color: #f8f1f1; background: linear-gradient(115deg, #3a1418, #3b1d16 55%, #3a2214); }
+    }
+    .bandeau .bandeau-texte { position: relative; z-index: 1; }
+    .bandeau .surtitre { margin: 0; font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #8a2b33; }
+    @media (prefers-color-scheme: dark) {
+      .bandeau .surtitre { color: #ffb3a6; }
+    }
+    .bandeau h2 { margin: 6px 0; font-size: clamp(1.375rem, 2.4vw, 1.875rem); font-weight: 700; letter-spacing: -0.025em; }
+    .bandeau p:not(.surtitre) { margin: 0 0 16px; max-width: 46ch; color: #5c4547; }
+    @media (prefers-color-scheme: dark) {
+      .bandeau p:not(.surtitre) { color: #e0cfd1; }
+    }
+    .bandeau .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .bandeau select { border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid rgba(22,13,15,.10); }
+    @media (prefers-color-scheme: dark) {
+      .bandeau select { background: rgba(255,255,255,.08); }
+    }
+    .bandeau .forme { width: clamp(120px, 16vw, 200px); aspect-ratio: 1; filter: drop-shadow(0 18px 24px rgba(200,30,40,.25)); animation: flotte 7s ease-in-out infinite alternate; }
+    @keyframes flotte { from { transform: translateY(-4px) rotate(-3deg); } to { transform: translateY(6px) rotate(3deg); } }
+    @media (max-width: 640px) {
+      .bandeau { grid-template-columns: 1fr; }
+      .bandeau .forme { position: absolute; right: -24px; top: -18px; width: 120px; opacity: .35; z-index: 0; }
+    }
+    .tuiles { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 18px; }
+    .tuile { position: relative; padding: 18px 20px; gap: 8px; }
+    .tuile .valeur { font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+    .compteur { display: inline-flex; align-items: baseline; }
+    .compteur .chiffre { display: inline-block; height: 1.1em; overflow: hidden; vertical-align: bottom; }
+    .compteur .bande { display: flex; flex-direction: column; transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .compteur .bande > span { height: 1.1em; line-height: 1.1em; }
+    .lecteur-seul { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .tuile .anneau { position: absolute; top: 16px; right: 16px; width: 52px; height: 52px; transform: rotate(-90deg); }
+    .anneau circle { fill: none; stroke-width: 6; }
+    .anneau .fond { stroke: var(--barre-douce); }
+    .anneau .plein { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 1100ms cubic-bezier(0.3, 0, 0.1, 1); }
+    .tuile.objectif-ok .anneau { color: var(--success-text); }
+    .tuile.objectif-ko .anneau { color: var(--alert-text); }
+    .bord-grille { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+    @media (max-width: 1200px) { .bord-grille { grid-template-columns: 1fr 1fr; } .bord-grille > :first-child { grid-column: 1 / -1; } }
+    @media (max-width: 720px) { .bord-grille { grid-template-columns: 1fr; } }
+    .barres { margin: 0; }
+    .barres .colonnes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; height: 170px; }
+    .barres .col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; height: 100%; }
+    .barres .zone { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+    .barres .val { font-size: .8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .barres .barre { width: 100%; max-width: 44px; height: var(--h); min-height: 6px; border-radius: 10px; background: var(--barre-douce); transform-origin: bottom; }
+    .barres .fort .barre { background: linear-gradient(180deg, var(--marque-2), var(--marque)); }
+    .barres .lib { font-size: .75rem; color: var(--muted); text-align: center; line-height: 1.2; overflow-wrap: anywhere; }
+    .barres.entre .barre { animation: monte 700ms var(--ease-out) both; animation-delay: calc(var(--i) * 40ms); }
+    @keyframes monte { from { transform: scaleY(0); } }
+    .taches { margin: 0; display: grid; gap: 8px; }
+    .taches button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 10px 10px 14px; border-radius: 16px; background: var(--surface-2); color: var(--text); border: none; box-shadow: none; font-weight: 500; min-height: 52px; }
+    .taches .puce { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--marque)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c, var(--marque)) 18%, transparent); }
+    .taches .ouvrir { background: var(--accent-fond); color: var(--sur-accent); border-radius: 999px; padding: 6px 12px; font-size: .8125rem; font-weight: 600; }
+    .taches .vide { color: var(--muted); padding: 8px 2px; }
+    .avatar { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-right: 10px; border-radius: 50%; vertical-align: middle; font-size: .75rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7) 0 6%, transparent 34%), radial-gradient(circle at 50% 62%, var(--c1), var(--c2)); box-shadow: inset 0 -3px 6px rgba(0,0,0,.18), 0 3px 8px -3px var(--c2); }
+    #login-screen .forme-connexion { display: block; width: 96px; height: 96px; margin: -6px auto 6px; }
+    @media (prefers-reduced-motion: reduce) {
+      .bandeau .forme, .barres.entre .barre { animation: none; }
+      .compteur .bande, .anneau .plein { transition: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="halo.css">
+  <link rel="stylesheet" href="ecran-accueil.css">
+  <link rel="stylesheet" href="ecran-techniciens.css">
+  <link rel="stylesheet" href="ecran-vehicules.css">
+  <link rel="stylesheet" href="ecran-interventions.css">
+  <link rel="stylesheet" href="ecran-messages.css">
+  <link rel="stylesheet" href="ecran-gestion.css">
+</head>
+<body>
+  <div class="banner">Base locale de développement — données fictives</div>
+  <div class="container">
+    <div id="alert" class="alert" role="alert" aria-live="polite"></div>
+
+    <section id="login-screen" class="screen active">
+      <img class="forme-connexion" id="forme-connexion" alt="" aria-hidden="true">
+      <h1>Connexion</h1>
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit">Se connecter</button>
+      </form>
+      <p style="margin-top:16px;font-size:0.9rem;">
+        Pas de compte ? <span id="signup-link" class="link">Créer mon compte</span>
+      </p>
+    </section>
+
+    <section id="signup-screen" class="screen">
+      <h1>Créer un compte</h1>
+      <form id="signup-form">
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <input type="email" id="signup-email" name="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="signup-password">Mot de passe</label>
+          <input type="password" id="signup-password" name="password" autocomplete="new-password" required minlength="6">
+        </div>
+        <button type="submit">Créer mon compte</button>
+      </form>
+      <p style="margin-top:16px;font-size:0.9rem;">
+        Déjà un compte ? <span id="login-link" class="link">Se connecter</span>
+      </p>
+    </section>
+
+    <section id="main-screen" class="screen">
+      <header class="header">
+        <div class="marque">
+          <span id="marque-plaque" class="logo-plaque hidden"><img id="marque-logo" alt=""></span>
+          <h2 id="marque-titre">Back-office</h2>
+        </div>
+        <div class="flex">
+          <span id="user-email" style="color:var(--muted);font-size:0.9rem;"></span>
+          <button id="logout-btn" class="secondary">Se déconnecter</button>
+        </div>
+        <nav id="fil" aria-label="Fil d'Ariane"></nav>
+      </header>
+
+      <div id="niveau-societes">
+        <section class="section">
+          <div class="flex" style="justify-content:space-between;align-items:flex-start;">
+            <h3 id="titre-societes">Mes sociétés</h3>
+            <details id="operator-section" class="ajout">
+              <summary>Nouvelle société cliente</summary>
+              <form id="creer-societe-form">
+                <div class="field">
+                  <label for="societe-nom">Nom de la société cliente</label>
+                  <input type="text" id="societe-nom" name="nom" required maxlength="120">
+                </div>
+                <div class="field">
+                  <label for="societe-email">Email de l'admin</label>
+                  <input type="email" id="societe-email" name="email_admin" required>
+                </div>
+                <button type="submit">Créer la société</button>
+              </form>
+            </details>
+          </div>
+          <ul id="societes-list" class="societe-list"></ul>
+        </section>
+      </div>
+
+      <section id="societe-detail" class="section hidden">
+       <div class="coquille">
+        <!-- Menu de la société : latéral sur ordinateur, une ligne qui défile sur téléphone. -->
+        <aside class="nav-laterale">
+          <div class="nav-marque">
+            <img id="nav-logo" alt="">
+            <div><div class="nav-nom">Société</div><div class="nav-sous">Back-office</div></div>
+          </div>
+          <button type="button" class="nav-recherche" id="ouvrir-recherche" aria-keyshortcuts="Control+K Meta+K">Rechercher <kbd>⌘K</kbd></button>
+          <button id="retour-societes" class="lien-retour">← Toutes les sociétés</button>
+          <h1 id="societe-detail-title">Société sélectionnée</h1>
+          <!-- Synchro des téléphones (société reliée au pont ; admin ou gestion) : app.js l'affiche et tient le voyant à jour. -->
+          <button type="button" class="nav-synchro hidden" id="synchro-forcee" aria-describedby="synchro-etat"><span class="libelle">Synchroniser</span><span class="temps" aria-hidden="true"></span></button>
+          <span class="lecteur-seul" id="synchro-etat"></span>
+          <span class="lecteur-seul" id="synchro-annonce" role="status"></span>
+          <nav class="tabs" aria-label="Sections de la société">
+            <p class="nav-groupe">Pilotage</p>
+            <button class="tab active" data-tab="bord" aria-current="page">Tableau de bord</button>
+            <p class="nav-groupe">Équipe</p>
+            <button class="tab" data-tab="techniciens">Techniciens</button>
+            <button class="tab" data-tab="interventions">Interventions</button>
+            <button class="tab" data-tab="conges" id="onglet-conges">Congés</button>
+            <button class="tab" data-tab="messages" id="onglet-messages">Messages</button>
+            <p class="nav-groupe">Flotte</p>
+            <button class="tab" data-tab="vehicules">Véhicules</button>
+            <p class="nav-groupe">Finance</p>
+            <button class="tab" data-tab="paie">Paie</button>
+            <button class="tab" data-tab="compta">Compta</button>
+            <button class="tab" data-tab="facturation">Facturation</button>
+            <p class="nav-groupe">Administration</p>
+            <button class="tab" data-tab="membres">Membres</button>
+          </nav>
+          <div class="nav-utilisateur" id="nav-utilisateur"><span class="avatar" id="nav-avatar" aria-hidden="true"></span><span class="nav-email" id="nav-email"></span></div>
+          <button type="button" class="nav-deconnexion" id="nav-deconnexion">Se déconnecter</button>
+        </aside>
+        <div class="contenu">
+
+        <!-- Panneau Membres -->
+        <div id="panel-bord" class="tab-panel" role="tabpanel">
+          <div class="bord">
+            <section class="bandeau" id="bord-bandeau">
+              <div class="bandeau-texte">
+                <p class="surtitre" id="bord-surtitre"></p>
+                <h2 id="bord-titre">L'équipe, <em>en un coup d'œil</em></h2>
+                <p id="bord-phrase">Interventions, heures, frais et primes du mois, à jour à chaque synchronisation des téléphones.</p>
+                <div class="chiffres-cles" id="bord-chiffres-cles"></div>
+                <div class="actions">
+                  <label for="bord-mois" class="lecteur-seul">Mois</label>
+                  <select id="bord-mois"></select>
+                  <button type="button" id="bord-voir-interventions">Voir les interventions</button>
+                </div>
+              </div>
+              <div class="orbite" id="bord-orbite" aria-hidden="true"></div>
+              <img class="forme" id="bord-forme" alt="" aria-hidden="true">
+            </section>
+            <div id="bord-chiffres" class="tuiles"></div>
+            <section class="carte" id="bord-activite">
+              <div class="entete-carte">
+                <h3>Interventions par mois</h3>
+                <div class="periodes" id="bord-periodes" role="group" aria-label="Période de la courbe">
+                  <button type="button" data-mois="3" aria-pressed="false">3 mois</button>
+                  <button type="button" data-mois="6" class="active" aria-pressed="true">6 mois</button>
+                  <button type="button" data-mois="12" aria-pressed="false">12 mois</button>
+                </div>
+              </div>
+              <div id="bord-courbe"></div>
+            </section>
+            <div class="bord-grille">
+              <section class="carte"><h3>À faire</h3><ul id="bord-taches" class="taches"></ul></section>
+              <section class="carte"><h3>Types de mission</h3><div id="bord-types"></div></section>
+              <section class="carte"><h3>Résultats</h3><div id="bord-resultats"></div></section>
+            </div>
+            <section class="carte">
+              <h3>Par technicien</h3>
+              <div class="table-wrapper">
+                <table id="bord-techs">
+                  <thead><tr><th>Technicien</th><th>Interventions</th><th>Taux NR</th><th>Heures</th><th>Frais remboursables</th><th>Primes</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div id="panel-membres" class="tab-panel hidden">
+          <div class="section">
+            <h3>Membres</h3>
+            <div class="table-wrapper">
+              <table id="membres-table">
+                <thead>
+                  <tr><th>Email</th><th>Rôle</th><th>Vous</th><th>Actions</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="admin-tools" class="section hidden">
+            <details class="ajout" id="identite">
+              <summary>Identité de la société (nom, adresse, logo)</summary>
+              <form id="identite-form">
+                <div class="field"><label for="id-nom">Nom de l'entreprise</label><input id="id-nom" required maxlength="120"></div>
+                <div class="field"><label for="id-siret">SIRET (14 chiffres)</label><input id="id-siret" inputmode="numeric" pattern="[0-9 ]*" maxlength="17"></div>
+                <div class="field"><label for="id-adresse">Adresse</label><textarea id="id-adresse" rows="3" maxlength="300"></textarea></div>
+                <div class="field">
+                  <label for="id-logo">Logo (PNG, JPEG ou WebP)</label>
+                  <span id="id-logo-plaque" class="logo-plaque hidden"><img id="id-logo-apercu" alt="Aperçu du logo"></span>
+                  <input type="file" id="id-logo" accept="image/png,image/jpeg,image/webp">
+                </div>
+                <button type="submit">Enregistrer</button>
+                <button type="button" id="id-logo-retirer" class="secondary">Retirer le logo</button>
+              </form>
+            </details>
+            <details class="ajout">
+              <summary>Inviter quelqu'un</summary>
+              <form id="inviter-form">
+                <div class="field">
+                  <label for="invite-email">Email</label>
+                  <input type="email" id="invite-email" name="email" required>
+                </div>
+                <div class="field">
+                  <label for="invite-role">Rôle</label>
+                  <select id="invite-role" name="role" required>
+                    <option value="admin">Admin</option>
+                    <option value="gestion">Gestion</option>
+                    <option value="comptable">Comptable</option>
+                    <option value="lecture">Lecture seule</option>
+                  </select>
+                </div>
+                <button type="submit">Inviter</button>
+              </form>
+            </details>
+            <h3>Invitations en attente</h3>
+            <div class="table-wrapper">
+              <table id="invitations-table">
+                <thead>
+                  <tr><th>Email</th><th>Rôle</th><th>Créée le</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="purge-section" class="section hidden">
+            <h3>Conservation légale des données (super admin)</h3>
+            <p>Chaque donnée est gardée le temps exigé par la loi, puis peut être purgée (RGPD : pas plus longtemps que nécessaire). Le délai part du 31/12 de l'année du document ; pour un technicien, de son départ.</p>
+            <div class="table-wrapper">
+              <table id="durees-table">
+                <thead><tr><th>Donnée</th><th>Durée</th><th>Texte</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <button type="button" id="purge-apercu" class="secondary">Voir ce qui peut être purgé</button>
+            <p id="purge-resultat"></p>
+            <button type="button" id="purge-lancer" class="danger hidden">Purger définitivement</button>
+          </div>
+        </div>
+
+        <!-- Panneau Techniciens -->
+        <div id="panel-techniciens" class="tab-panel hidden" role="tabpanel">
+          <div id="tech-liste">
+            <details class="section ajout">
+              <summary>Ajouter un technicien</summary>
+              <form id="technicien-form" class="section">
+                <div class="field">
+                  <label for="tech-nom">Nom</label>
+                  <input type="text" id="tech-nom" name="nom" required maxlength="120">
+                </div>
+                <button type="submit">Ajouter</button>
+              </form>
+            </details>
+            <div class="section">
+              <h3>Techniciens</h3>
+              <div class="barre"><div class="field"><label for="tech-filtre">Afficher</label>
+                <select id="tech-filtre"><option value="actuels">Actuels</option><option value="archives">Archivés</option></select></div></div>
+              <div class="table-wrapper">
+                <table id="techniciens-table">
+                  <thead>
+                    <tr><th>Nom</th><th>Actif</th><th></th><th aria-hidden="true"></th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fiche technicien -->
+          <div id="tech-fiche" class="section hidden">
+            <button id="tech-fiche-close" class="secondary">← Techniciens</button>
+            <h2 id="tech-fiche-titre" style="margin:12px 0 16px;">Fiche technicien</h2>
+
+            <div class="tech-barre">
+              <p id="tech-info" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
+              <p id="tech-vehicule" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
+              <div class="field">
+                <label for="tech-mois">Mois</label>
+                <select id="tech-mois"></select>
+              </div>
+            </div>
+            <div class="tech-resume-carte">
+              <p id="tech-resume" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
+              <div id="tech-camemberts" class="camemberts"></div>
+            </div>
+
+            <div class="sous-onglets" role="tablist">
+              <button data-cible="tech-section-interventions" class="active">Interventions</button>
+              <button data-cible="tech-section-heures">Heures</button>
+              <button data-cible="tech-section-frais">Frais</button>
+              <button data-cible="tech-section-photos">Photos</button>
+              <button data-cible="tech-section-primes">Primes</button>
+            </div>
+
+            <div id="tech-section-interventions" class="section sous-section">
+              <div class="table-wrapper">
+                <table id="tech-interventions-table">
+                  <thead>
+                    <tr><th>Date</th><th>Créneau</th><th>Type</th><th>Ville</th><th>Dépt</th><th>N° intervention</th><th>Résultat</th><th>Arrivée</th><th>Fin</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="tech-section-heures" class="section sous-section hidden">
+              <h4>Heures par jour</h4>
+              <div class="table-wrapper">
+                <table id="tech-jours-table">
+                  <thead>
+                    <tr><th>Date</th><th>Heures</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="tech-jours-total" style="font-size:0.9rem;color:var(--muted);"></p>
+
+              <div class="section" id="tech-regles-alerte">
+                <p style="margin:0;font-size:0.9rem;color:var(--muted);">Heures sup calculées avec le seuil et les taux de la société (par défaut : repères légaux). Seules les semaines « Validées » partent dans l'export de paie ; les « Refusées » ne sont pas payées.</p>
+              </div>
+
+              <h4>Heures par semaine</h4>
+              <div class="table-wrapper">
+                <table id="tech-semaines-table">
+                  <thead>
+                    <tr><th>Semaine</th><th>Travaillées</th><th>Absences</th><th>Normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Validées</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="tech-section-frais" class="section sous-section hidden">
+              <div class="table-wrapper">
+                <table id="tech-frais-table">
+                  <thead>
+                    <tr><th>Date</th><th>Catégorie</th><th>TTC</th><th>HT</th><th>TVA</th><th>Remboursable</th><th>Sans TVA</th><th>Observation</th><th>Justificatif</th><th>Contrôles</th><th>État</th><th>TVA récupérable</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="tech-frais-totaux" style="font-size:0.9rem;color:var(--muted);"></p>
+              <p class="aide">Validez ou refusez chaque frais : seuls les validés sont remboursés en paie et partent chez le comptable. Cochez « TVA récupérable » seulement si le justificatif est une facture au nom de l'entreprise.</p>
+            </div>
+            <div id="tech-section-photos" class="section sous-section hidden">
+              <p id="tech-photos-info" class="aide"></p>
+              <div id="tech-photos" class="galerie"></div>
+            </div>
+            <div id="tech-section-primes" class="section sous-section hidden">
+              <p id="tech-primes-info" class="aide"></p>
+              <div class="table-wrapper">
+                <table id="tech-primes-table"><thead><tr><th>Équipement installé</th><th>Quantité</th><th>Montant</th></tr></thead><tbody></tbody></table>
+              </div>
+              <p class="aide">Règle de l'APK : équipements installés × barème du mois ; une caméra ne compte que les jours avec une installation (INST).</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panneau Véhicules -->
+        <div id="panel-vehicules" class="tab-panel hidden" role="tabpanel">
+          <div id="vehicules-liste">
+            <details class="section ajout">
+              <summary>Ajouter un véhicule</summary>
+              <form id="vehicule-form" class="section">
+                <div class="field">
+                  <label for="veh-plaque">Plaque</label>
+                  <input type="text" id="veh-plaque" name="plaque" required maxlength="20">
+                </div>
+                <div class="field">
+                  <label for="veh-libelle">Libellé</label>
+                  <input type="text" id="veh-libelle" name="libelle" maxlength="120">
+                </div>
+                <button type="submit">Ajouter</button>
+              </form>
+            </details>
+            <div class="section">
+              <h3>Véhicules</h3>
+              <div class="table-wrapper">
+                <table id="vehicules-table">
+                  <thead>
+                    <tr><th>Plaque</th><th>Libellé</th><th>Conducteur actuel</th><th>Depuis</th><th aria-hidden="true"></th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fiche véhicule -->
+          <div id="vehicule-detail" class="section hidden">
+            <button id="vehicule-detail-close" class="secondary">← Véhicules</button>
+            <h2 id="vehicule-detail-title" style="margin:12px 0 16px;">Véhicule</h2>
+
+            <div class="sous-onglets" role="tablist">
+              <button data-cible="vehicule-section-conducteur" class="active">Conducteur</button>
+              <button data-cible="vehicule-section-km">Kilométrage</button>
+              <button data-cible="vehicule-section-entretiens">Entretiens</button>
+              <button data-cible="vehicule-section-echeances">Échéances</button>
+              <button data-cible="vehicule-section-amendes">Amendes</button>
+            </div>
+
+            <div id="vehicule-section-conducteur" class="section sous-section">
+              <h3>Affectations</h3>
+              <div class="table-wrapper">
+                <table id="affectations-table">
+                  <thead>
+                    <tr><th>Technicien</th><th>Début</th><th>Fin</th><th></th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <details class="ajout">
+                <summary>Ajouter une affectation</summary>
+                <form id="affectation-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field" style="flex:1;min-width:180px;">
+                    <label for="aff-tech">Technicien</label>
+                    <select id="aff-tech" name="technicien_id" required></select>
+                  </div>
+                  <div class="field">
+                    <label for="aff-debut">Début</label>
+                    <input type="date" id="aff-debut" name="debut" required>
+                  </div>
+                  <button type="submit">Affecter</button>
+                </form>
+              </details>
+            </div>
+
+            <div id="vehicule-section-km" class="section sous-section hidden">
+              <h3>Kilométrage</h3>
+              <div class="table-wrapper">
+                <table id="releves-table">
+                  <thead>
+                    <tr><th>Date</th><th>Km</th><th>Source</th><th>Validé</th><th></th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <p id="km-moyen" style="margin:8px 0;font-size:0.9rem;color:var(--muted);"></p>
+              <details class="ajout">
+                <summary>Ajouter un relevé</summary>
+                <form id="releve-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field">
+                    <label for="rel-date">Date</label>
+                    <input type="date" id="rel-date" name="date" required>
+                  </div>
+                  <div class="field">
+                    <label for="rel-km">Km</label>
+                    <input type="number" id="rel-km" name="km" min="0" required>
+                  </div>
+                  <button type="submit">Ajouter</button>
+                </form>
+              </details>
+
+              <h3>Km par mois</h3>
+              <div class="table-wrapper">
+                <table id="km-mois-table">
+                  <thead>
+                    <tr><th>Mois</th><th>Km fin de mois</th><th>Parcourus</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <h3>Photos du compteur (APK)</h3>
+              <p id="photo-statut" style="margin-bottom:8px;font-size:0.9rem;"></p>
+              <div class="table-wrapper">
+                <table id="photos-compteur-table">
+                  <thead>
+                    <tr><th>Mois</th><th>Fichier</th><th>Photo</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div id="vehicule-section-entretiens" class="section sous-section hidden">
+              <h3>Plan d'entretien</h3>
+              <p id="plan-resume" class="aide"></p>
+              <div class="table-wrapper">
+                <table id="plan-table">
+                  <thead><tr><th>Entretien</th><th>Préconisation</th><th>Dernier fait</th><th>Prochaine échéance</th><th>Estimation</th><th>État</th><th>Source</th><th></th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="flex" style="margin-bottom:16px;">
+                <details class="ajout">
+                  <summary>Ajouter une préconisation</summary>
+                  <form id="regle-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                    <div class="field"><label for="regle-type">Entretien</label>
+                      <select id="regle-type" required>
+                        <option value="VIDANGE">Vidange</option><option value="DISTRIBUTION">Distribution</option>
+                        <option value="PNEUS">Pneus</option><option value="FREINS">Freins</option>
+                        <option value="FILTRES">Filtres</option><option value="LIQUIDE_FREINS">Liquide de frein</option>
+                        <option value="REVISION">Révision</option>
+                      </select></div>
+                    <div class="field"><label for="regle-km">Tous les (km)</label><input type="number" id="regle-km" min="1" step="1"></div>
+                    <div class="field"><label for="regle-mois">Ou tous les (mois)</label><input type="number" id="regle-mois" min="1" step="1"></div>
+                    <div class="field" style="flex:2;min-width:200px;"><label for="regle-source">Source (constructeur, carnet, garage…)</label><input id="regle-source" maxlength="300" required></div>
+                    <button type="submit">Ajouter</button>
+                  </form>
+                </details>
+                <button type="button" id="plan-copier" class="secondary">Appliquer ce plan aux véhicules du même modèle</button>
+              </div>
+              <details class="ajout">
+                <summary>Identité du véhicule (marque, modèle, motorisation)</summary>
+                <form id="vehicule-identite-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field"><label for="vi-marque">Marque</label><input id="vi-marque" maxlength="60"></div>
+                  <div class="field"><label for="vi-modele">Modèle</label><input id="vi-modele" maxlength="60"></div>
+                  <div class="field"><label for="vi-carburant">Carburant</label><input id="vi-carburant" maxlength="30" placeholder="ex. Gazole"></div>
+                  <div class="field" style="flex:2;min-width:200px;"><label for="vi-motorisation">Motorisation</label><input id="vi-motorisation" maxlength="120" placeholder="ex. 1.5 dCi 95 ch, diesel"></div>
+                  <div class="field"><label for="vi-mec">Mise en circulation</label><input type="date" id="vi-mec"></div>
+                  <button type="submit">Enregistrer</button>
+                  <button type="button" id="vi-lire" class="secondary" hidden>Lire la plaque</button>
+                </form>
+              </details>
+              <h3>Entretiens</h3>
+              <div class="table-wrapper">
+                <table id="entretiens-table">
+                  <thead>
+                    <tr><th>Date</th><th>Type</th><th>Km</th><th>Garage</th><th>Coût</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div id="entretiens-stats" class="section" style="margin-top:12px;">
+                <h4>Dernière fois</h4>
+                <ul id="entretiens-last" class="flex flex-col"></ul>
+                <p id="entretiens-total">Coût total : — €</p>
+              </div>
+              <details class="ajout">
+                <summary>Ajouter un entretien</summary>
+                <form id="entretien-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field">
+                    <label for="ent-date">Date</label>
+                    <input type="date" id="ent-date" name="date" required>
+                  </div>
+                  <fieldset class="ent-types">
+                    <legend>Fait lors de ce passage (cochez tout ce qui a été fait)</legend>
+                    <div>
+                      <label><input type="checkbox" name="ent-type" value="REVISION"> Révision</label>
+                      <label><input type="checkbox" name="ent-type" value="VIDANGE"> Vidange</label>
+                      <label><input type="checkbox" name="ent-type" value="FILTRES"> Filtres</label>
+                      <label><input type="checkbox" name="ent-type" value="DISTRIBUTION"> Distribution</label>
+                      <label><input type="checkbox" name="ent-type" value="PNEUS"> Pneus</label>
+                      <label><input type="checkbox" name="ent-type" value="FREINS"> Freins</label>
+                      <label><input type="checkbox" name="ent-type" value="LIQUIDE_FREINS"> Liquide de frein</label>
+                      <label><input type="checkbox" name="ent-type" value="REPARATION"> Réparation diverse</label>
+                      <label><input type="checkbox" name="ent-type" value="AUTRE"> Autre</label>
+                    </div>
+                  </fieldset>
+                  <div class="field">
+                    <label for="ent-km">Km</label>
+                    <input type="number" id="ent-km" name="km" min="0">
+                  </div>
+                  <div class="field" style="flex:1;min-width:140px;">
+                    <label for="ent-garage">Garage</label>
+                    <input type="text" id="ent-garage" name="garage" maxlength="120">
+                  </div>
+                  <div class="field">
+                    <label for="ent-cout">Coût</label>
+                    <input type="text" id="ent-cout" name="cout" placeholder="12,50">
+                  </div>
+                  <button type="submit">Ajouter</button>
+                </form>
+              </details>
+            </div>
+
+            <div id="vehicule-section-echeances" class="section sous-section hidden">
+              <h3>Échéances</h3>
+              <div class="table-wrapper">
+                <table id="echeances-table">
+                  <thead>
+                    <tr><th>Type</th><th>Date</th><th>Km</th><th>Alerte</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <details class="historique">
+                <summary>Historique (échéances faites)</summary>
+                <div class="table-wrapper">
+                  <table id="echeances-historique">
+                    <thead><tr><th>Type</th><th>Prévue le</th><th>Faite le</th><th>Km</th></tr></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </details>
+              <details class="ajout">
+                <summary>Ajouter une échéance</summary>
+                <form id="echeance-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field" style="flex:1;min-width:160px;">
+                    <label for="ech-type">Type</label>
+                    <select id="ech-type" name="type" required>
+                      <option value="CT">Contrôle technique</option>
+                      <option value="ASSURANCE">Assurance</option>
+                      <option value="REVISION">Révision</option>
+                      <option value="PNEUS">Pneus</option>
+                      <option value="SINISTRE">Sinistre</option>
+                      <option value="AUTRE">Autre</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="ech-date">Date (facultatif)</label>
+                    <input type="date" id="ech-date" name="date">
+                  </div>
+                  <div class="field">
+                    <label for="ech-km">Km (facultatif)</label>
+                    <input type="number" id="ech-km" name="km" min="0">
+                  </div>
+                  <button type="submit">Ajouter</button>
+                </form>
+              </details>
+              <p id="ct-aide" style="margin-top:8px;font-size:0.8rem;color:var(--muted);"></p>
+            </div>
+
+            <div id="vehicule-section-amendes" class="section sous-section hidden">
+              <h3>Amendes</h3>
+              <div id="amendes-liens" class="flex" style="gap:16px;flex-wrap:wrap;margin-bottom:8px;"></div>
+              <p style="font-size:0.8rem;color:var(--muted);">Délai légal : 45 jours après la date de l'avis.</p>
+              <div class="table-wrapper">
+                <table id="amendes-table">
+                  <thead>
+                    <tr><th>N° avis</th><th>Date avis</th><th>Infraction</th><th>Lieu</th><th>Montant</th><th>Conducteur</th><th>À désigner avant</th><th>Statut</th><th>Scan</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <details class="ajout">
+                <summary>Ajouter une amende</summary>
+                <form id="amende-form" class="flex" style="gap:8px;margin-top:12px;flex-wrap:wrap;">
+                  <div class="field">
+                    <label for="amende-numero">N° d'avis</label>
+                    <input type="text" id="amende-numero" name="numero_avis" required>
+                  </div>
+                  <div class="field">
+                    <label for="amende-date-avis">Date de l'avis</label>
+                    <input type="date" id="amende-date-avis" name="date_avis" required>
+                  </div>
+                  <div class="field">
+                    <label for="amende-date-infraction">Date de l'infraction</label>
+                    <input type="date" id="amende-date-infraction" name="date_infraction">
+                  </div>
+                  <div class="field">
+                    <label for="amende-heure">Heure</label>
+                    <input type="time" id="amende-heure" name="heure_infraction">
+                  </div>
+                  <div class="field">
+                    <label for="amende-lieu">Lieu</label>
+                    <input type="text" id="amende-lieu" name="lieu">
+                  </div>
+                  <div class="field">
+                    <label for="amende-motif">Motif</label>
+                    <input type="text" id="amende-motif" name="motif">
+                  </div>
+                  <div class="field">
+                    <label for="amende-montant">Montant</label>
+                    <input type="text" id="amende-montant" name="montant" placeholder="12,50">
+                  </div>
+                  <div class="field">
+                    <label for="amende-conducteur">Conducteur</label>
+                    <select id="amende-conducteur" name="technicien_id">
+                      <option value="">—</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="amende-scan">Scan</label>
+                    <input type="file" id="amende-scan" name="scan" accept="image/*,application/pdf" capture="environment">
+                  </div>
+                  <button type="submit">Ajouter</button>
+                </form>
+              </details>
+            </div>
+          </div>
+        </div>
+        <div id="panel-paie" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="barre">
+              <div class="field"><label for="paie-periode">Mois de paie</label><select id="paie-periode"></select></div>
+              <button id="periode-valider" type="button" class="secondary">Valider le mois</button>
+              <button id="paie-export" type="button">Exporter et clôturer</button>
+            </div>
+            <p id="paie-statut" class="carte-resume"></p>
+            <details class="ajout"><summary>Nouveau mois de paie</summary>
+              <form id="periode-form" class="flex">
+                <div class="field"><label for="periode-debut">Du</label><input type="date" id="periode-debut" required></div>
+                <div class="field"><label for="periode-fin">Au (fin de semaine)</label><input type="date" id="periode-fin" required></div>
+                <button type="submit">Créer le mois</button>
+              </form>
+            </details>
+            <div id="paie-resume" class="tuiles carte-resume"></div>
+            <p class="aide">Seules les heures sup et les frais « Validés » sont exportés. <span id="paie-primes-info"></span> Cliquez sur un technicien pour traiter ses semaines.</p>
+            <div class="table-wrapper">
+              <table id="paie-table">
+                <thead><tr><th>Technicien</th><th>Heures normales</th><th>Sup. 1re tranche</th><th>Sup. 2e tranche</th><th>Absences</th><th>Frais remboursables</th><th>Primes</th><th>Sup. refusées</th><th>À traiter</th><th>État</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p id="paie-totaux" class="aide"></p>
+          </div>
+        </div>
+
+        <div id="panel-facturation" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <form id="fact-form" class="barre">
+              <div class="field"><label for="fact-client">Client</label><input id="fact-client" value="EPS" required maxlength="60"></div>
+              <div class="field"><label for="fact-debut">Du</label><input type="date" id="fact-debut" required></div>
+              <div class="field"><label for="fact-fin">Au</label><input type="date" id="fact-fin" required></div>
+              <button type="submit">Afficher</button>
+              <button type="button" id="fact-export" class="secondary">Exporter (CSV)</button>
+            </form>
+            <p class="aide">Récapitulatif pour la facture du donneur d'ordre (EPS…) : des quantités. Les prix seront ajoutés quand le barème de facturation sera fourni. Congés, formations, fériés et plannings vides ne sont pas comptés.</p>
+            <div id="fact-resume" class="tuiles"></div>
+            <h3>Interventions</h3>
+            <div class="table-wrapper">
+              <table id="fact-interventions">
+                <thead><tr><th>Type de mission</th><th>OK</th><th>NR client</th><th>NR technique</th><th>Autres NR</th><th>Total</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3>Équipements installés</h3>
+            <div class="table-wrapper">
+              <table id="fact-equipements">
+                <thead><tr><th>Équipement</th><th>Quantité</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3>Montants</h3>
+            <p id="fact-montants-info" class="carte-resume"></p>
+            <div class="table-wrapper">
+              <table id="fact-montants">
+                <thead><tr><th>Ligne</th><th>Quantité</th><th>Prix HT</th><th>Montant HT</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3>Grille de tarifs</h3>
+            <p class="aide">Une ligne par type d'intervention ou d'équipement ; le prix HT peut rester vide et être rempli plus tard. « Base » : ce qui est facturé pour une intervention.</p>
+            <button type="button" id="tarifs-creer" class="secondary">Créer les lignes manquantes</button>
+            <div class="table-wrapper">
+              <table id="tarifs-table">
+                <thead><tr><th>Libellé</th><th>Catégorie</th><th>Code</th><th>Base</th><th>Prix HT (€)</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-interventions" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+             <div class="carte" id="int-filtres">
+              <form id="int-form" class="barre">
+              <div class="field"><label for="int-debut">Du</label><input type="date" id="int-debut" required></div>
+              <div class="field"><label for="int-fin">Au</label><input type="date" id="int-fin" required></div>
+              <button type="submit">Afficher</button>
+              </form>
+              <div class="barre">
+              <div class="field"><label for="int-tech">Technicien</label><select id="int-tech"></select></div>
+              <div class="field"><label for="int-type">Type</label><select id="int-type"></select></div>
+              <div class="field"><label for="int-resultat">Résultat</label><select id="int-resultat"></select></div>
+              <div class="field"><label for="int-texte">Rechercher</label><input id="int-texte" placeholder="N°, ville, département"></div>
+              <button type="button" id="int-export" class="secondary">Exporter (CSV)</button>
+              <button type="button" id="int-zip" class="secondary">Photos et frais (ZIP)</button>
+              </div>
+             </div>
+             <div id="int-resume" class="tuiles"></div>
+            <div class="table-wrapper">
+              <table id="int-table">
+                <thead><tr><th>Date</th><th>Technicien</th><th>Créneau</th><th>Type</th><th>Ville</th><th>Dépt</th><th>N° intervention</th><th>Résultat</th><th>Arrivée</th><th>Fin</th><th>Durée</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-messages" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <p id="chat-alerte-apk" class="alerte-proche">Pas encore relié à l'APK : les techniciens ne reçoivent pas encore ces messages. Ce sera branché plus tard.</p>
+            <div class="chat">
+              <ul id="chat-liste" class="chat-liste" aria-label="Conversations"></ul>
+              <div>
+                <h3 id="chat-titre">Choisissez un technicien</h3>
+                <div id="chat-messages" class="chat-messages hidden" aria-live="polite"></div>
+                <form id="chat-form" class="chat-envoi hidden">
+                  <textarea id="chat-texte" rows="2" maxlength="2000" required aria-label="Votre message"></textarea>
+                  <button type="submit">Envoyer</button>
+                </form>
+              </div>
+            </div>
+            <details class="ajout">
+              <summary>Écrire à plusieurs techniciens</summary>
+              <form id="chat-diffusion">
+                <fieldset id="chat-destinataires" class="chat-destinataires"><legend>Destinataires</legend></fieldset>
+                <textarea id="chat-diffusion-texte" rows="3" maxlength="2000" required aria-label="Message à envoyer"></textarea>
+                <button type="submit">Envoyer aux techniciens cochés</button>
+              </form>
+            </details>
+          </div>
+        </div>
+
+        <div id="panel-compta" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <form id="compta-form" class="barre">
+              <div class="field"><label for="compta-debut">Du</label><input type="date" id="compta-debut" required></div>
+              <div class="field"><label for="compta-fin">Au</label><input type="date" id="compta-fin" required></div>
+              <button type="submit">Afficher</button>
+            </form>
+            <p class="aide">Extrait des notes de frais pour le comptable, par technicien. Seuls les frais validés un par un (fiche technicien, onglet Frais) partent ; un frais exporté ne peut plus changer. Deux fichiers : le relevé (une ligne par frais, avec les contrôles) et les écritures (colonnes du FEC, à importer dans le logiciel comptable).</p>
+            <p id="compta-params-etat" class="carte-resume"></p>
+            <div class="table-wrapper">
+              <table id="compta-table">
+                <thead><tr><th>Technicien</th><th>Compte auxiliaire</th><th>Validés</th><th>À traiter</th><th>Refusés</th><th>À exporter</th><th>Déjà exportés</th><th>Actions</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3>Exports déjà faits</h3>
+            <div class="table-wrapper">
+              <table id="compta-exports">
+                <thead><tr><th>Exporté le</th><th>Technicien</th><th>Période</th><th>Frais</th><th>Remboursé</th><th>Fichiers</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <details class="ajout" id="compta-params">
+              <summary>Comptes utilisés (plan comptable général)</summary>
+              <form id="compta-params-form">
+                <p class="aide">Proposés d'après le plan comptable général (ANC, règlement 2014-03) : à faire valider par le comptable. Changer un compte retire la validation. La TVA n'est récupérée que si la gestion coche « TVA récupérable » sur un frais (facture au nom de l'entreprise).</p>
+                <div class="field"><label for="cp-journal">Code journal</label><input id="cp-journal" required maxlength="10"></div>
+                <div class="field"><label for="cp-journal-lib">Nom du journal</label><input id="cp-journal-lib" required maxlength="60"></div>
+                <div class="field"><label for="cp-tva">TVA déductible</label><input id="cp-tva" required maxlength="20"></div>
+                <div class="field"><label for="cp-salarie">Salarié (note de frais due)</label><input id="cp-salarie" required maxlength="20"></div>
+                <div class="field"><label for="cp-parking">Charge PARKING</label><input id="cp-parking" required maxlength="20"></div>
+                <div class="field"><label for="cp-divers">Charge DIVERS</label><input id="cp-divers" required maxlength="20"></div>
+                <div class="field"><label for="cp-mobile">Charge MOBILE</label><input id="cp-mobile" required maxlength="20"></div>
+                <button type="submit">Enregistrer</button>
+                <button type="button" id="cp-valider" class="secondary">Valider (comptable)</button>
+              </form>
+            </details>
+          </div>
+        </div>
+
+        <div id="panel-conges" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+             <div class="barre carte" id="conges-filtres">
+              <div class="field"><label for="conges-filtre">Afficher</label>
+                <select id="conges-filtre"><option value="demandee">À valider</option><option value="validee">Validés</option><option value="refusee">Refusés</option><option value="">Tous</option></select>
+              </div>
+            </div>
+            <details class="ajout"><summary>Saisir une demande</summary>
+              <form id="conge-form" class="flex">
+                <div class="field"><label for="conge-tech">Technicien</label><select id="conge-tech" required></select></div>
+                <div class="field"><label for="conge-debut">Du</label><input type="date" id="conge-debut" required></div>
+                <div class="field"><label for="conge-fin">Au</label><input type="date" id="conge-fin" required></div>
+                <div class="field"><label for="conge-type">Type</label>
+                  <select id="conge-type"><option value="CP">Congés payés</option><option value="RTT">RTT</option><option value="SANS_SOLDE">Sans solde</option><option value="AUTRE">Autre</option></select>
+                </div>
+                <div class="field"><label for="conge-motif">Motif</label><input id="conge-motif" maxlength="200"></div>
+                <button type="submit">Enregistrer</button>
+              </form>
+            </details>
+            <div class="table-wrapper">
+              <table id="conges-table">
+                <thead><tr><th>Technicien</th><th>Du</th><th>Au</th><th>Jours</th><th>Type</th><th>Motif</th><th>Statut</th><th>Décision</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        </div>
+       </div>
+      </section>
+    </section>
+  </div>
+  <script type="module" src="app.js"></script>
+  <dialog id="dialog-fait" aria-labelledby="dialog-fait-titre">
+    <form id="fait-form" method="dialog">
+      <h3 id="dialog-fait-titre">Échéance faite</h3>
+      <div class="field"><label for="fait-le">Faite le</label><input type="date" id="fait-le" required></div>
+      <div class="field"><label for="fait-km">Km au compteur</label><input type="number" id="fait-km" min="0"></div>
+      <p class="aide" id="fait-aide"></p>
+      <div class="field"><label for="prochaine-date">Prochaine échéance : date</label><input type="date" id="prochaine-date"></div>
+      <div class="field"><label for="prochaine-km">Prochaine échéance : km</label><input type="number" id="prochaine-km" min="0"></div>
+      <div class="barre">
+        <button type="submit" id="fait-enregistrer">Enregistrer</button>
+        <button type="button" id="fait-annuler" class="secondary">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <footer class="mention-propriete">© 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Toute reproduction, copie ou adaptation, même partielle, est interdite sans autorisation écrite de l'auteur.</footer>
+</body>
+</html>

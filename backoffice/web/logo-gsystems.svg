@@ -1,0 +1,84 @@
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 200" role="img" aria-labelledby="t">
+<title id="t">G-Systems</title>
+<!-- Cycle commun de 6 s (boucle sans à-coup, aussi pour la version WebP).
+     Logo G-Systems animé, dans l'esprit PIPSILY : contour en dégradé qui tourne, halo qui respire,
+     reflet qui balaie, G qui se trace puis bat doucement. Animations CSS (transform, opacity, tracé). -->
+<style>
+  .halo { transform-origin: 100px 100px; animation: respire 3s cubic-bezier(0.77, 0, 0.175, 1) infinite alternate; }
+  .tour { transform-origin: 100px 100px; animation: tourne 6s linear infinite; }
+  .reflet { animation: balaie 3s linear infinite; }
+  .g { stroke-dasharray: 330; animation: trace 1.2s cubic-bezier(0.23, 1, 0.32, 1) both; }
+  .bat { transform-origin: 100px 100px; animation: bat 1.5s cubic-bezier(0.77, 0, 0.175, 1) 1.2s infinite alternate; }
+  .eclat { animation: balaie-mot 6s linear 0.6s infinite; }
+  .mot { fill: #f4f4f7; }
+  .barre { transform-origin: 208px 0; animation: deroule 0.9s cubic-bezier(0.23, 1, 0.32, 1) 0.4s both; }
+  @keyframes respire { from { opacity: 0.55; transform: scale(0.96); } to { opacity: 1; transform: scale(1.04); } }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  @keyframes balaie { from { transform: translateX(-160px); } to { transform: translateX(260px); } }
+  @keyframes balaie-mot { from { transform: translateX(-120px); } to { transform: translateX(420px); } }
+  @keyframes trace { from { stroke-dashoffset: 330; } to { stroke-dashoffset: 0; } }
+  @keyframes bat { from { transform: scale(1); } to { transform: scale(1.06); } }
+  @keyframes deroule { from { transform: scaleX(0.2); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+  @media (prefers-color-scheme: light) { .mot { fill: #17171c; } .lueur-mot { filter: drop-shadow(0 0 2px rgba(230, 0, 28, 0.35)); } }
+  @media (prefers-reduced-motion: reduce) {
+    .halo, .tour, .reflet, .g, .bat, .eclat, .barre { animation: none; }
+    .reflet, .eclat { opacity: 0; }
+  }
+</style>
+<defs>
+  <linearGradient id="rouge" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ff5a6e"/><stop offset="0.5" stop-color="#e6001c"/><stop offset="1" stop-color="#ff8a3d"/>
+  </linearGradient>
+  <radialGradient id="ecran" cx="0.5" cy="0.38" r="0.75">
+    <stop offset="0" stop-color="#4a0f18"/><stop offset="0.6" stop-color="#1c0a0e"/><stop offset="1" stop-color="#0d0607"/>
+  </radialGradient>
+  <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+    <stop offset="0" stop-color="#e6001c" stop-opacity="0.5"/><stop offset="1" stop-color="#e6001c" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="brillance" cx="0.5" cy="0" r="0.9">
+    <stop offset="0" stop-color="#fff" stop-opacity="0.35"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="lueur" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="5" result="f"/><feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ombre-rouge" x="-30%" y="-60%" width="160%" height="220%">
+    <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ff2a44" flood-opacity="0.75"/>
+  </filter>
+  <clipPath id="cadre"><rect x="28" y="28" width="144" height="144" rx="32"/></clipPath>
+  <mask id="anneau"><rect x="28" y="28" width="144" height="144" rx="32" fill="none" stroke="#fff" stroke-width="6"/></mask>
+  <clipPath id="lettres"><text x="208" y="124" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="80" letter-spacing="-2">systems</text></clipPath>
+</defs>
+
+<!-- Halo qui respire -->
+<ellipse class="halo" cx="100" cy="100" rx="98" ry="98" fill="url(#aura)"/>
+
+<!-- Écran sombre arrondi, contour en dégradé rouge qui tourne -->
+<rect x="28" y="28" width="144" height="144" rx="32" fill="url(#ecran)"/>
+<g mask="url(#anneau)" filter="url(#lueur)">
+  <g class="tour"><rect x="-20" y="-20" width="240" height="240" fill="url(#rouge)"/></g>
+</g>
+<g clip-path="url(#cadre)">
+  <g opacity="0.08" stroke="#ffb3bd" stroke-width="1">
+    <line x1="28" y1="52" x2="172" y2="52"/><line x1="28" y1="76" x2="172" y2="76"/><line x1="28" y1="100" x2="172" y2="100"/>
+    <line x1="28" y1="124" x2="172" y2="124"/><line x1="28" y1="148" x2="172" y2="148"/>
+  </g>
+  <polygon class="reflet" points="0,28 50,28 20,172 -30,172" fill="#fff" opacity="0.14"/>
+</g>
+
+<!-- Le G de G-Systems : se trace à l'arrivée, puis bat doucement -->
+<g class="bat" filter="url(#lueur)">
+  <path class="g" d="M132 72 Q132 58 118 58 H82 Q68 58 68 72 V128 Q68 142 82 142 H118 Q132 142 132 128 V104 H104"
+        fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<path d="M58 30 h84 a28 28 0 0 1 28 22 a150 60 0 0 0 -140 0 a28 28 0 0 1 28 -22 z" fill="url(#brillance)"/>
+
+<!-- Mot-symbole « systems » avec un éclat qui passe -->
+<g class="lueur-mot" filter="url(#ombre-rouge)">
+  <text class="mot" x="208" y="124" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="80" letter-spacing="-2">systems</text>
+</g>
+<g clip-path="url(#lettres)">
+  <g transform="skewX(-18)"><rect class="eclat" x="226" y="50" width="34" height="90" fill="#fff" opacity="0.55"/></g>
+</g>
+<rect class="barre" x="210" y="142" width="300" height="7" rx="3.5" fill="url(#rouge)"/>
+</svg>

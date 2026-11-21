@@ -1,0 +1,17 @@
+{
+  "name": "gsystem-backoffice",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "test": "node --test",
+    "web": "sh outils/web-local.sh"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.13"
+  },
+  "license": "UNLICENSED",
+  "author": "Cédric LAGO-GOMEZ"
+}

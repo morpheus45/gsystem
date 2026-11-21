@@ -1,0 +1,2977 @@
+// © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
+import { SUPABASE_URL, SUPABASE_CLE_PUBLIQUE } from './config.js';
+import { alertes, kmMoyenParMois, CT_VOITURE, prochaineEcheance, kmParMois, conducteurA, limiteDesignation, ANTAI, statutPhoto, planEntretien } from '../core/vehicules.js';
+import { heuresJour, cumulSemaines, semaineIso } from '../core/heures.js';
+import { ligneFrais, totauxFrais } from '../core/frais.js';
+import { reglesDe } from '../core/societes.js';
+import { repartition, tauxNr } from '../core/stats.js';
+import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
+import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/interventions.js';
+import { zipStocke } from '../core/zip.js';
+import { finProposee, lendemain } from '../core/periodes.js';
+import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
+import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
+import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
+import { OBJETS_3D } from './objets3d.js';
+import { compteur, anneau, barres, avatar, entree, installerPastille, placerPastille, orbite, variation, miniCourbe, pastille, pilulesDepuisSelect } from './rendu.js';
+import { courbe, majCourbe } from './courbe.js';
+import { ouvrirPalette, installerRaccourci } from './recherche.js';
+import { ouverture } from './ouverture.js';
+
+const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
+
+let session = null;
+let societes = [];
+let selectedSociete = null;
+let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
+let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
+let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
+let techniciens = [];     // cache de la société courante (pour les select)
+let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
+let messages = [], chatTech = null, relanceChat = null;
+let listeVehicules = [];   // véhicules de la société (plan d'entretien : même modèle)   // chat : messages de la société, conversation ouverte, relance
+
+// Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
+function peutEcrire() {
+  return superAdmin || ['admin', 'gestion'].includes(monRole);
+}
+const peutCompta = () => superAdmin || ['admin', 'comptable'].includes(monRole);   // comptes et leur validation
+
+const $ = (sel) => document.querySelector(sel);
+
+// La base rend 1 000 lignes au plus par requête : au-delà, on lit page par page
+// (sinon une paie de 30 techniciens serait calculée sur des données tronquées, sans erreur).
+async function toutLire(requete) {
+  const q = requete.order('id');   // ordre stable d'une page à l'autre
+  const tout = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await q.range(de, de + 999);
+    if (error) throw error;
+    tout.push(...data);
+    if (data.length < 1000) return tout;
+  }
+}
+const $$ = (sel) => document.querySelectorAll(sel);
+
+// Ligne de tableau construite en textContent : un nom ou un email piégé reste du texte.
+function ligne(valeurs) {
+  const tr = document.createElement('tr');
+  for (const v of valeurs) tr.appendChild(document.createElement('td')).textContent = v;
+  return tr;
+}
+
+// Téléphone : chaque cellule porte le titre de sa colonne ; le CSS affiche alors
+// chaque ligne comme une fiche « Titre : valeur » (aucun défilement de côté).
+function etiqueterTableaux() {
+  for (const table of document.querySelectorAll('table')) {
+    const titres = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    for (const tr of table.querySelectorAll('tbody tr')) {
+      [...tr.children].forEach((td, i) => { td.dataset.label = titres[i] ?? ''; });
+    }
+  }
+}
+let etiquetage = 0;
+new MutationObserver(() => { cancelAnimationFrame(etiquetage); etiquetage = requestAnimationFrame(etiqueterTableaux); })
+  .observe(document.body, { childList: true, subtree: true });
+
+// Point rouge « à traiter » ; le texte (invisible à l'œil) est lu par les lecteurs d'écran.
+function marquer(el, actif) {
+  if (!el) return;
+  el.querySelector(':scope > .point')?.remove();
+  if (actif) el.appendChild(document.createElement('span')).className = 'point';
+  if (actif) el.lastChild.textContent = ' (à traiter)';
+}
+const sousOnglet = (cible) => $(`.sous-onglets button[data-cible="${cible}"]`);
+const dansJours = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+// Ce qui attend une action dans une société : congés à répondre ; échéances dépassées ou
+// à moins de 30 jours ; amendes à désigner sous 7 jours ; mois de paie terminés non clôturés.
+async function tachesSociete(sid) {
+  const compte = (table) => sb.from(table).select('id', { count: 'exact', head: true }).eq('societe_id', sid);
+  const [c, e, a, p] = await Promise.all([
+    compte('conges').eq('statut', 'demandee'),
+    compte('echeances').is('fait_le', null).not('date', 'is', null).lte('date', dansJours(30)),
+    sb.from('amendes').select('date_avis').eq('societe_id', sid).eq('statut', 'a_traiter'),
+    compte('periodes_paie').neq('statut', 'exportee').lt('fin', dansJours(0)),
+  ]);
+  const amendes = (a.data || []).filter((x) => limiteDesignation(x.date_avis) <= dansJours(7)).length;
+  return { conges: c.count || 0, vehicules: (e.count || 0) + amendes, paie: p.count || 0 };
+}
+
+async function majPoints() {
+  if (!selectedSociete) return;
+  const t = await tachesSociete(selectedSociete);
+  for (const onglet of ['conges', 'vehicules', 'paie']) marquer($(`.tab[data-tab="${onglet}"]`), t[onglet] > 0);
+}
+
+function showScreen(id) {
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $(`#${id}`).classList.add('active');
+}
+
+function afficherSousOnglet(conteneur, cible) {
+  const section = $(`#${cible}`);
+  if (!section || !conteneur.contains(section)) return;
+  [...conteneur.querySelectorAll(':scope > .sous-section')].forEach(s => s.classList.toggle('hidden', s !== section));
+  conteneur.querySelectorAll(':scope > .sous-onglets button').forEach(b => b.classList.toggle('active', b.dataset.cible === cible));
+}
+
+function initialiserSousOnglets(conteneur) {
+  const premier = conteneur.querySelector(':scope > .sous-onglets button');
+  if (premier) afficherSousOnglet(conteneur, premier.dataset.cible);
+}
+
+function plaqueLogo(logo, alt) {
+  const plaque = document.createElement('span');
+  plaque.className = 'logo-plaque';
+  const img = plaque.appendChild(document.createElement('img'));
+  img.src = logo;
+  img.alt = alt;
+  return plaque;
+}
+
+// En-tête de la société ouverte : « logo + Back-office » si elle a un logo (il dit déjà son nom),
+// sinon « Back-office Société C ». Hors société : « Back-office ».
+function afficherMarque() {
+  const s = societes.find((x) => x.id === selectedSociete);
+  $('#marque-titre').textContent = s && !s.logo ? `Back-office ${s.nom}` : 'Back-office';
+  document.title = s ? `Back-office ${s.nom}` : 'Back-office';
+  $('#marque-plaque').classList.toggle('hidden', !s?.logo);
+  if (s?.logo) { $('#marque-logo').src = s.logo; $('#marque-logo').alt = `Logo ${s.nom}`; }
+}
+
+function mettreAJourFil() {
+  afficherMarque();
+  // Dans une fiche, un seul retour : « ← Techniciens » / « ← Véhicules » (le fil d'Ariane fait le reste).
+  $('#retour-societes').classList.toggle('hidden', !!(vehiculeActif || ficheTechnicien));
+  const fil = $('#fil');
+  fil.replaceChildren();
+  const societesBtn = document.createElement('button');
+  societesBtn.type = 'button';
+  societesBtn.textContent = 'Sociétés';
+  societesBtn.addEventListener('click', retournerSocietes);
+  fil.appendChild(societesBtn);
+  if (!selectedSociete) { fil.style.display = 'none'; return; }
+  fil.appendChild(document.createTextNode(' › '));
+  const societe = societes.find(s => s.id === selectedSociete);
+  const societeNom = societe?.nom || 'Société';
+  if (!vehiculeActif && !ficheTechnicien) {   // niveau société : son nom est le dernier élément
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = societeNom;
+    fil.appendChild(dernier);
+    fil.style.display = 'flex';
+    return;
+  }
+  const societeBtn = document.createElement('button');
+  societeBtn.type = 'button';
+  societeBtn.textContent = societeNom;
+  societeBtn.addEventListener('click', () => { fermerPanneauVehicule(); fermerFicheTechnicien(); });
+  fil.appendChild(societeBtn);
+  fil.appendChild(document.createTextNode(' › '));
+  if (vehiculeActif) {
+    const vehiculesBtn = document.createElement('button');
+    vehiculesBtn.type = 'button';
+    vehiculesBtn.textContent = 'Véhicules';
+    vehiculesBtn.addEventListener('click', fermerPanneauVehicule);
+    fil.appendChild(vehiculesBtn);
+    fil.appendChild(document.createTextNode(' › '));
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = vehiculeActif.plaque;
+    fil.appendChild(dernier);
+  } else {
+    const techniciensBtn = document.createElement('button');
+    techniciensBtn.type = 'button';
+    techniciensBtn.textContent = 'Techniciens';
+    techniciensBtn.addEventListener('click', fermerFicheTechnicien);
+    fil.appendChild(techniciensBtn);
+    fil.appendChild(document.createTextNode(' › '));
+    const dernier = document.createElement('span');
+    dernier.className = 'cle';
+    dernier.textContent = ficheTechnicien.nom;
+    fil.appendChild(dernier);
+  }
+  fil.style.display = 'flex';
+}
+
+function retournerSocietes() {
+  fermerPanneauVehicule();
+  fermerFicheTechnicien();
+  selectedSociete = null;
+  monRole = null;
+  $('#societe-detail').classList.add('hidden');
+  $('#niveau-societes').classList.remove('hidden');
+  renderSocietes();
+  mettreAJourFil();
+}
+
+// Basculer d'onglet
+function switchOnglet(tabId, calculer = true) {
+  $$('.tab').forEach(b => {
+    const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
+    b.classList.toggle('active', actif);
+    if (actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
+  });
+  placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
+    $(`#${id}`).classList.toggle('hidden', id !== tabId);
+  }
+  fermerPanneauVehicule();
+  fermerFicheTechnicien();
+  if (tabId === 'panel-paie') chargerPaie();
+  if (tabId === 'panel-conges') chargerConges();
+  if (tabId === 'panel-bord' && calculer) chargerBord();
+  if (tabId === 'panel-facturation') chargerFacturation();
+  if (tabId === 'panel-compta') chargerCompta();
+  if (tabId === 'panel-interventions') chargerInterventions();
+  clearInterval(relanceChat);
+  if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
+}
+
+function fermerPanneauVehicule() {
+  vehiculeActif = null;
+  $('#vehicule-detail').classList.add('hidden');
+  $('#vehicules-liste').classList.remove('hidden');
+  mettreAJourFil();
+}
+
+function fermerFicheTechnicien() {
+  ficheTechnicien = null;
+  $('#tech-fiche').classList.add('hidden');
+  $('#tech-liste').classList.remove('hidden');
+  mettreAJourFil();
+}
+
+function alert(message, type = 'error') {
+  const el = $('#alert');
+  el.textContent = message;
+  el.className = `alert ${type} show`;
+  setTimeout(() => { el.classList.remove('show'); }, 5000);
+}
+
+function clearAlert() {
+  $('#alert').classList.remove('show');
+}
+
+async function login(email, password) {
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;   // la suite est faite par onAuthStateChange
+  } catch (err) {
+    alert(err.message || 'Erreur de connexion');
+  }
+}
+
+async function signup(email, password) {
+  try {
+    const { data, error } = await sb.auth.signUp({ email, password });   // retour : « Site URL » de Supabase
+    if (error) throw error;
+    if (!data.session) {
+      alert('Un email de confirmation vous a été envoyé. Cliquez sur le lien, puis connectez-vous.', 'success');
+      showScreen('login-screen');
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'inscription');
+  }
+}
+
+async function logout() {
+  try {
+    await sb.auth.signOut();
+    session = null;
+    societes = [];
+    selectedSociete = null;
+    superAdmin = false;
+    for (const id of ['#operator-section', '#admin-tools', '#societe-detail']) $(id).classList.add('hidden');
+    $('#niveau-societes').classList.remove('hidden');
+    $('#fil').style.display = 'none';
+    showScreen('login-screen');
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la déconnexion');
+  }
+}
+
+async function init() {
+  try {
+    const { data: accepted, error: rpcErr } = await sb.rpc('accepter_invitations');
+    if (rpcErr) throw rpcErr;
+    if (accepted > 0) {
+      alert(`Vous avez rejoint ${accepted} société(s).`, 'success');
+    }
+    await checkOperator();
+    await loadSocietes();
+  } catch (err) {
+    alert(err.message || 'Erreur d\'initialisation');
+  }
+}
+
+async function checkOperator() {
+  try {
+    const { data, error } = await sb.from('operateurs').select('user_id');
+    if (error) throw error;
+    superAdmin = data.length > 0;
+    $('#operator-section').classList.toggle('hidden', !superAdmin);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadSocietes() {
+  try {
+    const { data, error } = await sb.from('societes').select('id, nom, adresse, siret, logo').order('nom');
+    if (error) throw error;
+    societes = data;
+    renderSocietes();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des sociétés');
+  }
+}
+
+function renderSocietes() {
+  const ul = $('#societes-list');
+  ul.replaceChildren();
+  $('#titre-societes').textContent = superAdmin ? 'Toutes les sociétés' : 'Mes sociétés';
+  if (societes.length === 0) {
+    const li = ul.appendChild(document.createElement('li'));
+    li.className = 'empty';
+    li.textContent = superAdmin ? "Aucune société pour l'instant." : "Vous n'êtes membre d'aucune société pour l'instant.";
+    return;
+  }
+  societes.forEach(s => {
+    const li = document.createElement('li');
+    li.className = 'societe-item';
+    li.setAttribute('tabindex', '0');
+    li.setAttribute('role', 'button');
+    if (selectedSociete === s.id) li.classList.add('selected');
+    if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));   // le nom suit : alt vide pour ne pas le lire deux fois
+    else li.prepend(avatar(s.nom));   // pas de logo : avatar d'initiales à gauche du nom
+    const nom = li.appendChild(document.createElement('div'));
+    nom.textContent = s.nom;
+    nom.className = 'societe-name';
+    const ouvrir = () => selectSociete(s.id);
+    li.addEventListener('click', ouvrir);
+    li.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        ouvrir();
+      }
+    });
+    ul.appendChild(li);
+    tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
+  });
+}
+
+async function selectSociete(id) {
+  selectedSociete = id;
+  chatTech = null;   // une conversation ne passe pas d'une société à l'autre
+  $('#chat-titre').textContent = 'Choisissez un technicien';
+  $('#chat-messages').classList.add('hidden');
+  $('#chat-form').classList.add('hidden');
+  renderSocietes();
+  fermerFicheTechnicien();
+  await loadSocieteDetail(id);
+}
+
+async function loadSocieteDetail(societeId) {
+  try {
+    const { data: members, error } = await sb.rpc('membres_de', { s: societeId });
+    if (error) throw error;
+    const societe = societes.find(s => s.id === societeId);
+    $('#societe-detail-title').textContent = societe?.nom || 'Société';
+    $('.nav-nom').textContent = societe?.nom || 'Société';
+    $('#nav-logo').src = societe?.logo || OBJETS_3D.noeud;
+    $('#nav-email').textContent = session.user.email || '';
+    $('#nav-avatar').replaceWith(Object.assign(avatar(session.user.email || '?'), { id: 'nav-avatar' }));
+
+    // Un seul panneau visible : on repart sur Membres à chaque société.
+    switchOnglet('panel-bord', false);
+
+    renderMembers(members);
+    monRole = members.find(m => m.user_id === session.user.id)?.role || null;
+    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form', '#conge-form']) {
+      const form = $(f);
+      (form.closest('details') || form).classList.toggle('hidden', !peutEcrire());
+    }
+    // Lecture seule : les boutons d'action des tableaux sont masqués (CSS).
+    document.body.classList.toggle('lecture-seule', !peutEcrire());
+    if (superAdmin || monRole === 'admin') {
+      $('#admin-tools').classList.remove('hidden');
+      await loadInvitations(societeId);
+    } else {
+      $('#admin-tools').classList.add('hidden');
+    }
+    remplirIdentite(societe);
+    $('#purge-section').classList.toggle('hidden', !superAdmin);
+    if (superAdmin) await chargerDurees();
+
+    // Charger les données des onglets Techniciens et Véhicules (elles resteront masquées)
+    // Techniciens d'abord : la liste des véhicules affiche le nom du conducteur.
+    await loadTechniciens(societeId);
+    compterCongesAValider();
+    compterMessagesNonLus();
+    $('#onglet-messages').classList.toggle('hidden', !peutEcrire());   // admin et gestion seulement
+    await loadVehicules(societeId);
+    chargerBord();   // le tableau de bord a besoin de la liste des techniciens
+
+    $('#niveau-societes').classList.add('hidden');
+    $('#societe-detail').classList.remove('hidden');
+    requestAnimationFrame(() => placerPastille($('.tabs')));   // positions connues une fois affiché
+    ouverture($('#societe-detail'));   // « la pièce s'allume » : une fois par jour, rien si animations réduites
+    verifierSynchro({ rafraichir: false });   // bouton et voyant de la synchro (société reliée au pont) ; les données viennent d'être lues
+    mettreAJourFil();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement');
+  }
+}
+
+const ROLES = { admin: 'Admin', gestion: 'Gestion', comptable: 'Comptable', lecture: 'Lecture seule' };
+
+// Admin (ou super admin) : changer le rôle d'un membre ou le retirer. La base refuse de
+// retirer le dernier admin de la société (trigger garder_un_admin).
+function renderMembers(members) {
+  const admin = superAdmin || members.find((m) => m.user_id === session.user.id)?.role === 'admin';
+  $('#membres-table tbody').replaceChildren(...members.map((m) => {
+    const tr = ligne([m.email, ROLES[m.role] || m.role, m.user_id === session.user.id ? '✓' : '']);
+    const cellule = tr.children[0];
+    cellule.replaceChildren();
+    cellule.appendChild(avatar(m.email));
+    cellule.appendChild(document.createTextNode(m.email));
+    const td = tr.appendChild(document.createElement('td'));
+    if (!admin) { td.textContent = '—'; return tr; }
+    const role = td.appendChild(document.createElement('select'));
+    role.setAttribute('aria-label', `Rôle de ${m.email}`);
+    for (const [v, l] of Object.entries(ROLES)) {
+      const o = role.appendChild(document.createElement('option'));
+      o.value = v;
+      o.textContent = l;
+    }
+    role.value = m.role;
+    role.addEventListener('change', async () => {
+      const { error } = await sb.from('membres').update({ role: role.value }).eq('societe_id', selectedSociete).eq('user_id', m.user_id);
+      if (error) { role.value = m.role; alert(error.message); return; }
+      await loadSocieteDetail(selectedSociete);
+    });
+    const retirer = td.appendChild(document.createElement('button'));
+    retirer.className = 'danger';
+    retirer.textContent = 'Retirer';
+    retirer.addEventListener('click', async () => {
+      if (!doubleValidation(`Retirer ${m.email} de la société ? Ses accès seront coupés (son historique est gardé).`, 'RETIRER')) return;
+      const { error } = await sb.from('membres').delete().eq('societe_id', selectedSociete).eq('user_id', m.user_id);
+      if (error) { alert(error.message); return; }
+      await loadSocieteDetail(selectedSociete);
+    });
+    return tr;
+  }));
+}
+
+async function loadInvitations(societeId) {
+  try {
+    const { data, error } = await sb.from('invitations').select('id, email, role, cree_le').eq('societe_id', societeId).is('accepte_le', null);
+    if (error) throw error;
+    renderInvitations(data);
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des invitations');
+  }
+}
+
+function renderInvitations(invitations) {
+  const tbody = $('#invitations-table tbody');
+  tbody.replaceChildren(...invitations.map(inv => {
+    const tr = ligne([inv.email, inv.role, new Date(inv.cree_le).toLocaleDateString('fr-FR')]);
+    const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+    b.className = 'danger';
+    b.textContent = 'Annuler';
+    b.addEventListener('click', () => cancelInvitation(inv.id));
+    return tr;
+  }));
+}
+
+async function cancelInvitation(id) {
+  try {
+    const { error } = await sb.from('invitations').delete().eq('id', id);
+    if (error) throw error;
+    await loadInvitations(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'annulation');
+  }
+}
+
+// === TECHNICIENS ===
+async function loadTechniciens(societeId) {
+  try {
+    const { data, error } = await sb.from('techniciens').select('id, nom, nom_apk, actif, archive_le, compte_auxiliaire').eq('societe_id', societeId).order('nom');
+    if (error) throw error;
+    techniciens = data;
+    renderTechniciens(data);
+    renderTechniciensActifs();
+    renderTechniciensAmende();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des techniciens');
+  }
+}
+
+// Conservation légale (super admin) : délais, aperçu, puis purge confirmée.
+const NOMS_DONNEES = { temps: 'Interventions et heures', heures_sup: 'Heures sup validées', gestes_co: 'Équipements posés (primes)',
+  primes_tarifs: 'Barèmes de primes', conges: 'Congés', frais: 'Notes de frais', photos_apk: 'Photos et justificatifs',
+  amendes: 'Amendes', techniciens: 'Techniciens partis' };
+
+async function chargerDurees() {
+  const { data, error } = await sb.from('durees_conservation').select('table_nom, annees, source').order('annees');
+  if (error) return alert(error.message);
+  $('#durees-table tbody').replaceChildren(...data.map((d) => ligne([NOMS_DONNEES[d.table_nom] || d.table_nom, `${d.annees} ans`, d.source])));
+  $('#purge-resultat').textContent = '';
+  $('#purge-lancer').classList.add('hidden');
+}
+
+const resumePurge = (lignes) => lignes.map((l) => `${NOMS_DONNEES[l.table_nom] || l.table_nom} : ${l.lignes}`).join(' — ');
+
+$('#purge-apercu').addEventListener('click', async () => {
+  const { data, error } = await sb.rpc('apercu_purge', { s: selectedSociete });
+  if (error) return alert(error.message);
+  $('#purge-resultat').textContent = data.length ? `Délai légal dépassé — ${resumePurge(data)}.` : 'Rien à purger : toutes les données sont encore dans leur délai légal.';
+  $('#purge-lancer').classList.toggle('hidden', !data.length);
+});
+
+$('#purge-lancer').addEventListener('click', async () => {
+  if (!doubleValidation('Purger définitivement les données dont le délai légal est dépassé ? Elles ne pourront PAS être récupérées.', 'PURGER')) return;
+  const { data, error } = await sb.rpc('purger_donnees', { s: selectedSociete, confirmation: 'PURGER' });
+  if (error) return alert(error.message);
+  // Les fichiers suivent (la base n'autorise que ceux dont la ligne vient d'être purgée).
+  const seaux = { photos_apk: 'photos', amendes: 'scans' };
+  const echecs = [];
+  for (const l of data) {
+    if (!seaux[l.table_nom] || !l.fichiers.length) continue;
+    const { error: e } = await sb.storage.from(seaux[l.table_nom]).remove(l.fichiers);
+    if (e) echecs.push(e.message);
+  }
+  $('#purge-resultat').textContent = (data.length ? `Purgé — ${resumePurge(data)}.` : 'Rien n\'a été purgé.')
+    + (echecs.length ? ` Fichiers non supprimés : ${echecs.join(', ')}` : '');
+  $('#purge-lancer').classList.add('hidden');
+});
+
+// Double validation : une confirmation, puis le mot à taper (évite les clics par erreur).
+function doubleValidation(question, mot) {
+  return confirm(question) && (prompt(`Pour confirmer, tapez ${mot} :`) || '').trim().toUpperCase() === mot;
+}
+
+$('#tech-filtre').addEventListener('change', () => renderTechniciens(techniciens));
+pilulesDepuisSelect($('#tech-filtre'), 'Techniciens affichés');
+
+function renderTechniciens(list) {
+  const archives = $('#tech-filtre').value === 'archives';
+  const tbody = $('#techniciens-table tbody');
+  tbody.replaceChildren(...list.filter((t) => !!t.archive_le === archives).map(t => {
+    const tr = ligne([t.nom, archives ? `Archivé le ${formaterDate(t.archive_le)}` : t.actif ? 'Oui' : 'Non']);
+    tr.cells[0].prepend(avatar(t.nom));
+    tr.classList.add('ligne-cliquable');
+    tr.addEventListener('click', () => ouvrirFicheTechnicien(t));
+    const td = tr.appendChild(document.createElement('td'));
+    const b = td.appendChild(document.createElement('button'));
+    if (archives) {
+      b.className = 'secondary';
+      b.textContent = 'Restaurer';
+      b.addEventListener('click', (e) => { e.stopPropagation(); archiverTechnicien(t, false); });
+    } else {
+      b.className = t.actif ? 'danger' : 'secondary';
+      b.textContent = t.actif ? 'Désactiver' : 'Activer';
+      b.addEventListener('click', (e) => { e.stopPropagation(); toggleTechnicien(t.id, t.actif); });
+      const a = td.appendChild(document.createElement('button'));
+      a.className = 'danger';
+      a.textContent = 'Archiver';
+      a.addEventListener('click', (e) => { e.stopPropagation(); archiverTechnicien(t, true); });
+    }
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
+    return tr;
+  }));
+}
+
+// Archiver = « supprimer » de l'appli : sort des actifs, toutes ses données restent.
+async function archiverTechnicien(t, archiver) {
+  if (archiver && !doubleValidation(`Archiver ${t.nom} ? Il n'apparaîtra plus dans les actifs (paie, listes, tableau de bord). Ses données sont conservées et il peut être restauré.`, 'ARCHIVER')) return;
+  const { error } = await sb.from('techniciens').update({ archive_le: archiver ? new Date().toISOString().slice(0, 10) : null }).eq('id', t.id);
+  if (error) { alert(error.message); return; }
+  await loadTechniciens(selectedSociete);
+}
+
+async function toggleTechnicien(id, actif) {
+  try {
+    const { error } = await sb.from('techniciens').update({ actif: !actif }).eq('id', id);
+    if (error) throw error;
+    await loadTechniciens(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la mise à jour');
+  }
+}
+
+function ouvrirFicheTechnicien(t) {
+  ficheTechnicien = t;
+  fermerPanneauVehicule();
+  $('#tech-liste').classList.add('hidden');
+  $('#tech-fiche').classList.remove('hidden');
+  const titre = $('#tech-fiche-titre');
+  titre.replaceChildren(avatar(t.nom));
+  titre.querySelector('.avatar').classList.add('grand');
+  titre.appendChild(document.createTextNode(t.nom));
+  initialiserSousOnglets($('#tech-fiche'));
+  mettreAJourFil();
+  // Charger les données de la fiche
+  chargerFicheTechnicien(t);
+}
+
+// === VÉHICULES ===
+async function loadVehicules(societeId) {
+  try {
+    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, carburant, motorisation, mise_en_circulation').eq('societe_id', societeId).order('plaque');
+    if (error) throw error;
+    listeVehicules = vehicules;
+    // Charger les affectations de cette société
+    const { data: affectations, error: affectErr } = await sb.from('affectations').select('vehicule_id, technicien_id, debut, fin').eq('societe_id', societeId).order('debut', { ascending: false });
+    if (affectErr) throw affectErr;
+    renderVehicules(vehicules, affectations);
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des véhicules');
+  }
+}
+
+function renderVehicules(list, affectations) {
+  const tbody = $('#vehicules-table tbody');
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  tbody.replaceChildren(...list.map(v => {
+    const affectationsV = affectations.filter(a => a.vehicule_id === v.id);
+    const techId = conducteurA(affectationsV, aujourdhui);
+    const tech = techniciens.find(t => t.id === techId);
+    const nomTech = tech ? tech.nom : '—';
+    const debut = affectationsV.find(a => a.debut <= aujourdhui && (!a.fin || a.fin >= aujourdhui))?.debut || '—';
+    const tr = ligne(['', v.libelle || '', '', debut]);
+    const plaque = tr.children[0].appendChild(document.createElement('span'));
+    plaque.className = 'plaque';
+    plaque.textContent = v.plaque;
+    const conducteur = tr.children[2];
+    if (tech) conducteur.append(avatar(nomTech), document.createTextNode(nomTech));
+    else conducteur.textContent = nomTech;
+    tr.classList.add('ligne-cliquable');
+    tr.addEventListener('click', () => ouvrirVehicule(v));
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
+    return tr;
+  }));
+}
+
+async function ouvrirVehicule(v) {
+  vehiculeActif = v;
+  fermerFicheTechnicien();
+  $('#vehicules-liste').classList.add('hidden');
+  $('#vehicule-detail').classList.remove('hidden');
+  const titre = $('#vehicule-detail-title');
+  titre.replaceChildren();
+  const plaque = titre.appendChild(document.createElement('span'));
+  plaque.className = 'plaque';
+  plaque.textContent = v.plaque;
+  initialiserSousOnglets($('#vehicule-detail'));
+  mettreAJourFil();
+  await Promise.all([
+    loadAffectations(v.id),
+    loadRelevesAndKm(v.id),
+    loadEntretiens(v.id),
+    loadPhotosCompteur(v.id),
+    loadAmendes(v.id)
+  ]);
+}
+
+// 1. Affectations
+async function loadAffectations(vehiculeId) {
+  try {
+    const { data, error } = await sb.from('affectations').select('id, debut, fin, techniciens(nom)').eq('vehicule_id', vehiculeId).order('debut', { ascending: false });
+    if (error) throw error;
+    renderAffectations(data);
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des affectations');
+  }
+}
+
+function renderAffectations(list) {
+  const tbody = $('#affectations-table tbody');
+  tbody.replaceChildren(...list.map(a => {
+    const t = a.techniciens;
+    const nomTech = Array.isArray(t) ? (t[0]?.nom || '—') : (t?.nom || '—');
+    const tr = ligne([nomTech || '—', a.debut, a.fin || 'en cours']);
+    if (!a.fin) {
+      const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+      b.className = 'danger';
+      b.textContent = 'Terminer';
+      b.addEventListener('click', () => terminerAffectation(a.id));
+    } else {
+      tr.appendChild(document.createElement('td'));
+    }
+    return tr;
+  }));
+}
+
+async function terminerAffectation(id) {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  try {
+    const { error } = await sb.from('affectations').update({ fin: aujourdhui }).eq('id', id);
+    if (error) throw error;
+    await loadAffectations(vehiculeActif.id);
+    await loadVehicules(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la fin d\'affectation');
+  }
+}
+
+// 2. Kilométrage
+async function loadReleves(vehiculeId) {
+  try {
+    const { data, error } = await sb.from('releves_km').select('id, date, km, source, valide_par').eq('vehicule_id', vehiculeId).order('date');
+    if (error) throw error;
+    renderReleves(data);
+    const valides = data.filter(r => r.valide_par);   // triés par date
+    kmActuelGlobal = valides.length ? valides[valides.length - 1].km : null;
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des relevés');
+  }
+}
+
+function renderReleves(list) {
+  const tbody = $('#releves-table tbody');
+  tbody.replaceChildren(...list.map(r => {
+    const tr = ligne([r.date, String(r.km), r.source || '—', r.valide_par ? 'Oui' : 'Non']);
+    if (!r.valide_par) {
+      const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+      b.className = 'secondary';
+      b.textContent = 'Valider';
+      b.addEventListener('click', () => validerReleve(r.id));
+    } else {
+      tr.appendChild(document.createElement('td'));
+    }
+    return tr;
+  }));
+  const moy = kmMoyenParMois(list);
+  const el = $('#km-moyen');
+  if (moy !== null) {
+    el.textContent = `Moyenne : ${moy} km/mois (relevés validés)`;
+  } else {
+    el.textContent = 'Moyenne : pas assez de relevés validés';
+  }
+  renderKmMois(list);
+}
+
+function renderKmMois(list) {
+  const tbody = $('#km-mois-table tbody');
+  const data = kmParMois(list);
+  tbody.replaceChildren(...data.map(row => {
+    const [y, m] = row.mois.split('-');
+    const mois = `${m}/${y}`;
+    const kmFin = row.kmFin != null ? Number(row.kmFin).toLocaleString('fr-FR') : '—';
+    const parcourus = row.parcourus != null ? Number(row.parcourus).toLocaleString('fr-FR') : '—';
+    return ligne([mois, kmFin, parcourus]);
+  }));
+}
+
+async function validerReleve(id) {
+  try {
+    const { error } = await sb.from('releves_km').update({ valide_par: session.user.id, valide_le: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    await loadRelevesAndKm(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la validation');
+  }
+}
+
+// 3. Échéances
+let kmActuelGlobal = null;
+
+async function loadEcheances(vehiculeId) {
+  try {
+    const { data, error } = await sb.from('echeances').select('id, type, date, km, fait_le, fait_km').eq('vehicule_id', vehiculeId).order('date');
+    if (error) throw error;
+    renderEcheances(data.filter((e) => !e.fait_le));
+    // Historique : échéances faites, la plus récente d'abord.
+    $('#echeances-historique tbody').replaceChildren(...data.filter((e) => e.fait_le)
+      .sort((a, b) => (a.fait_le < b.fait_le ? 1 : -1))
+      .map((e) => ligne([e.type, e.date ? formaterDate(e.date) : '—', formaterDate(e.fait_le), e.fait_km ?? '—'])));
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des échéances');
+  }
+}
+
+function renderEcheances(list) {
+  const tbody = $('#echeances-table tbody');
+  tbody.replaceChildren(...list.map(e => {
+    const al = alertes([e], { aujourdhui: new Date().toISOString().slice(0, 10), kmActuel: kmActuelGlobal, joursAvant: 30, kmAvant: 1000 });
+    const niveau = al[0]?.niveau;
+    let label = 'À jour';
+    let classe = '';
+    if (niveau === 'depassee') { label = 'Dépassée'; classe = 'alerte-depassee'; }
+    else if (niveau === 'proche') { label = 'Proche'; classe = 'alerte-proche'; }
+    else if (niveau === 'km_inconnu') { label = 'Km inconnu'; }
+    const tr = ligne([e.type, e.date ? formaterDate(e.date) : '—', e.km != null ? String(e.km) : '—', '']);
+    const alertTd = tr.children[3];
+    if (classe) alertTd.classList.add(classe);
+    alertTd.appendChild(pastille(label, classe === 'alerte-depassee' ? 'danger' : classe === 'alerte-proche' || niveau === 'km_inconnu' ? 'alerte' : 'ok'));
+    const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
+    b.className = 'danger';
+    b.textContent = 'Supprimer';
+    b.addEventListener('click', () => deleteEcheance(e.id));
+    const f = b.parentElement.insertBefore(document.createElement('button'), b);
+    f.textContent = 'Fait';
+    f.addEventListener('click', () => ouvrirFait(e));
+    return tr;
+  }));
+  marquer(sousOnglet('vehicule-section-echeances'), !!document.querySelector('#echeances-table .alerte-depassee, #echeances-table .alerte-proche'));
+  majPoints();
+  // Aide CT
+  const aide = $('#ct-aide');
+  aide.replaceChildren();
+  const span = document.createElement('span');
+  span.textContent = 'Contrôle technique : tous les 2 ans après un contrôle favorable. ';
+  aide.appendChild(span);
+  const a = document.createElement('a');
+  a.href = CT_VOITURE.source;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = 'service-public.fr';
+  a.className = 'link';
+  aide.appendChild(a);
+}
+
+// « Fait » : on note la réalisation et on propose la suivante. Contrôle technique : 2 ans
+// après (CT_VOITURE, service-public.fr). Autres types : aucun intervalle inventé, à saisir.
+let echeanceFaite = null;
+function ouvrirFait(e) {
+  echeanceFaite = e;
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  $('#fait-le').value = aujourdhui;
+  $('#fait-km').value = kmActuelGlobal ?? '';
+  const ct = e.type === 'CT';
+  $('#fait-aide').textContent = ct
+    ? 'Contrôle technique : prochain dans 2 ans (si le contrôle est favorable).'
+    : 'Indiquez la prochaine échéance si elle est connue (sinon laissez vide).';
+  $('#prochaine-date').value = ct ? prochaineEcheance(CT_VOITURE, { date: aujourdhui, km: 0 }).date : '';
+  $('#prochaine-km').value = '';
+  $('#dialog-fait').showModal();
+}
+$('#fait-le').addEventListener('change', () => {
+  if (echeanceFaite?.type === 'CT' && $('#fait-le').value) $('#prochaine-date').value = prochaineEcheance(CT_VOITURE, { date: $('#fait-le').value, km: 0 }).date;
+});
+$('#fait-annuler').addEventListener('click', () => $('#dialog-fait').close());
+$('#fait-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const e = echeanceFaite, km = $('#fait-km').value, pDate = $('#prochaine-date').value, pKm = $('#prochaine-km').value;
+  const { error } = await sb.from('echeances').update({ fait_le: $('#fait-le').value, fait_km: km ? Number(km) : null }).eq('id', e.id);
+  if (error) { alert(error.message); return; }
+  if (pDate || pKm) {
+    const { error: e2 } = await sb.from('echeances').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id,
+      type: e.type, date: pDate || null, km: pKm ? Number(pKm) : null });
+    if (e2) alert(e2.message);
+  }
+  $('#dialog-fait').close();
+  await loadEcheances(vehiculeActif.id);
+});
+
+async function deleteEcheance(id) {
+  try {
+    const { error } = await sb.from('echeances').delete().eq('id', id);
+    if (error) throw error;
+    await loadEcheances(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la suppression');
+  }
+}
+
+// 4. Entretiens
+async function loadEntretiens(vehiculeId) {
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [data, regles, releves] = await Promise.all([
+      lire(sb.from('entretiens').select('id, date, type, km, garage, cout').eq('vehicule_id', vehiculeId).order('date', { ascending: false })),
+      lire(sb.from('entretien_regles').select('id, type, tous_les_km, tous_les_mois, source').eq('vehicule_id', vehiculeId).order('type')),
+      lire(sb.from('releves_km').select('date, km, valide_par').eq('vehicule_id', vehiculeId).order('date')),
+    ]);
+    renderEntretiens(data);
+    afficherPlan(data, regles, releves);
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des entretiens');
+  }
+}
+
+function renderEntretiens(list) {
+  const tbody = $('#entretiens-table tbody');
+  tbody.replaceChildren(...list.map(e => ligne([
+    formaterDate(e.date),
+    libEntretien(e.type),
+    e.km != null ? String(e.km) : '—',
+    e.garage || '—',
+    e.cout != null ? `${Number(e.cout).toFixed(2).replace('.', ',')} €` : '—'
+  ])));
+
+  // Dernière fois par type
+  const parType = {};
+  for (const e of list) {
+    if (!parType[e.type] || parType[e.type].date < e.date) parType[e.type] = e;
+  }
+  const lastUl = $('#entretiens-last');
+  lastUl.replaceChildren(...Object.values(parType).map(e => {
+    const li = document.createElement('li');
+    li.textContent = `${libEntretien(e.type)} : ${formaterDate(e.date)}${e.km != null ? ` (${Number(e.km).toLocaleString('fr-FR')} km)` : ''}`;
+    return li;
+  }));
+
+  // Coût total (non vide)
+  const total = list.filter(e => e.cout != null && e.cout !== '').reduce((s, e) => s + Number(e.cout), 0);
+  const totalEl = $('#entretiens-total');
+  let tuiles = $('#entretiens-tuiles');
+  if (!tuiles) {
+    tuiles = document.createElement('div');
+    tuiles.id = 'entretiens-tuiles';
+    tuiles.className = 'tuiles';
+    totalEl.parentElement.insertBefore(tuiles, totalEl);
+  }
+  tuiles.replaceChildren(
+    tuileChiffre('Entretiens', list.length, null, { ico: 'interventions', cle: 'veh-entretiens-nombre' }),
+    tuileChiffre('Coût total', `${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`, null, { ico: 'frais', cle: 'veh-entretiens-cout' })
+  );
+  totalEl.hidden = true;
+}
+
+const LIB_ENTRETIEN = {
+  DISTRIBUTION: 'Distribution', PNEUS: 'Pneus', FREINS: 'Freins', VIDANGE: 'Vidange', FILTRES: 'Filtres',
+  LIQUIDE_FREINS: 'Liquide de frein', REVISION: 'Révision', REPARATION: 'Réparation diverse', AUTRE: 'Autre'
+};
+
+// Plan d'entretien : préconisations du véhicule suivies au fil des km (core/vehicules.js : planEntretien).
+const ETATS_PLAN = { ok: ['À jour', ''], proche: ['Bientôt', 'alerte-proche'], depasse: ['À faire', 'alerte-depassee'], inconnu: ['Dernier entretien non saisi', 'alerte-proche'] };
+const nombreFr = (n) => Number(n).toLocaleString('fr-FR');
+let reglesVehicule = [];
+
+function afficherPlan(entretiensListe, regles, releves) {
+  reglesVehicule = regles;
+  const v = vehiculeActif;
+  const kmActuel = releves.length ? Math.max(...releves.map((r) => Number(r.km))) : null;
+  const kmMoyen = kmMoyenParMois(releves);
+  const plan = planEntretien({ regles: regles.map((r) => ({ type: r.type, tousLesKm: r.tous_les_km, tousLesMois: r.tous_les_mois })),
+    entretiens: entretiensListe, kmActuel, kmMoyenMois: kmMoyen, aujourdhui: iso(new Date()) });
+  const identite = [v.marque, v.modele, v.motorisation].filter(Boolean).join(' ');
+  $('#plan-resume').textContent = (identite ? `${identite} — ` : 'Modèle non renseigné (Identité du véhicule) — ')
+    + `${kmActuel != null ? nombreFr(kmActuel) + ' km' : 'km inconnu'}` + (kmMoyen ? ` — ${nombreFr(kmMoyen)} km par mois en moyenne` : '')
+    + (regles.length ? '' : ' — aucune préconisation : ajoutez celles du constructeur.');
+  $('#plan-table tbody').replaceChildren(...plan.map((l, i) => {
+    const pre = [l.tousLesKm && `${nombreFr(l.tousLesKm)} km`, l.tousLesMois && `${l.tousLesMois} mois`].filter(Boolean).join(' ou ');
+    const dernier = l.dernier ? `${formaterDate(l.dernier.date)}${l.dernier.km != null ? ' — ' + nombreFr(l.dernier.km) + ' km' : ''}` : '—';
+    const prochain = l.prochain ? [l.prochain.km != null && `${nombreFr(l.prochain.km)} km`, l.prochain.date && formaterDate(l.prochain.date)].filter(Boolean).join(' ou le ') : '—';
+    const [etat, classe] = ETATS_PLAN[l.etat];
+    const tr = ligne([libEntretien(l.type), `Tous les ${pre}`, dernier, prochain, l.estimation ? `vers le ${formaterDate(l.estimation)}` : '—', '', regles[i].source || '—']);
+    const etatTd = tr.children[5];
+    etatTd.className = classe;
+    etatTd.appendChild(pastille(etat, classe === 'alerte-depassee' ? 'danger' : classe === 'alerte-proche' ? 'alerte' : 'ok'));
+    const td = tr.appendChild(document.createElement('td'));
+    const b = td.appendChild(document.createElement('button'));
+    b.type = 'button'; b.className = 'danger'; b.textContent = 'Supprimer';
+    b.addEventListener('click', async () => {
+      if (!confirm(`Supprimer la préconisation « ${libEntretien(l.type)} » ?`)) return;
+      const { error } = await sb.from('entretien_regles').delete().eq('id', regles[i].id);
+      if (error) { alert(error.message); return; }
+      await loadEntretiens(v.id);
+    });
+    return tr;
+  }));
+  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-carburant', 'carburant'], ['#vi-motorisation', 'motorisation'], ['#vi-mec', 'mise_en_circulation']]) $(id).value = v[champ] || '';
+  $('#vi-lire').hidden = !window.google?.script?.run;
+}
+
+$('#regle-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const km = Number($('#regle-km').value) || null, mois = Number($('#regle-mois').value) || null;
+  if (!km && !mois) { alert('Indiquez un intervalle en km, en mois, ou les deux.'); return; }
+  const { error } = await sb.from('entretien_regles').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id, type: $('#regle-type').value,
+    tous_les_km: km, tous_les_mois: mois, source: $('#regle-source').value.trim() });
+  if (error) { alert(error.message); return; }
+  $('#regle-form').reset();
+  await loadEntretiens(vehiculeActif.id);
+});
+
+$('#vehicule-identite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champs = { marque: $('#vi-marque').value.trim(), modele: $('#vi-modele').value.trim(), carburant: $('#vi-carburant').value.trim(),
+    motorisation: $('#vi-motorisation').value.trim(), mise_en_circulation: $('#vi-mec').value || null };
+  const { error } = await sb.from('vehicules').update(champs).eq('id', vehiculeActif.id);
+  if (error) { alert(error.message); return; }
+  majIdentite(champs);
+});
+
+function majIdentite(champs) {
+  Object.assign(vehiculeActif, champs);
+  const dansListe = listeVehicules.find((x) => x.id === vehiculeActif.id);
+  if (dansListe) Object.assign(dansListe, champs);
+  for (const [id, champ] of [['#vi-marque', 'marque'], ['#vi-modele', 'modele'], ['#vi-carburant', 'carburant'], ['#vi-motorisation', 'motorisation']]) $(id).value = vehiculeActif[champ] || '';
+  return loadEntretiens(vehiculeActif.id);
+}
+
+$('#vi-lire').addEventListener('click', async () => {
+  const b = $('#vi-lire');
+  b.disabled = true; b.textContent = 'Lecture…';
+  const champs = await identiteDepuisPlaque(vehiculeActif.id, vehiculeActif.plaque);
+  b.disabled = false; b.textContent = 'Lire la plaque';
+  if (!champs) { alert('Plaque introuvable sur la fiche publique : remplissez l\'identité à la main.'); return; }
+  await majIdentite(champs);
+});
+
+// Même modèle = même marque, modèle et motorisation : le plan est copié là où le type manque.
+$('#plan-copier').addEventListener('click', async () => {
+  const v = vehiculeActif;
+  if (!v.marque || !v.modele || !v.motorisation) { alert("Renseignez d'abord la marque, le modèle et la motorisation (Identité du véhicule)."); return; }
+  if (!reglesVehicule.length) { alert('Ce véhicule n\'a pas encore de préconisation à copier.'); return; }
+  const memes = listeVehicules.filter((x) => x.id !== v.id && x.marque === v.marque && x.modele === v.modele && x.motorisation === v.motorisation);
+  if (!memes.length) { alert('Aucun autre véhicule de ce modèle.'); return; }
+  const { data: existantes, error: e1 } = await sb.from('entretien_regles').select('vehicule_id, type').in('vehicule_id', memes.map((x) => x.id));
+  if (e1) { alert(e1.message); return; }
+  const lignes = memes.flatMap((x) => reglesVehicule.filter((r) => !existantes.some((ex) => ex.vehicule_id === x.id && ex.type === r.type))
+    .map((r) => ({ societe_id: selectedSociete, vehicule_id: x.id, type: r.type, tous_les_km: r.tous_les_km, tous_les_mois: r.tous_les_mois, source: r.source })));
+  if (!lignes.length) { alert('Les véhicules de ce modèle ont déjà ces préconisations.'); return; }
+  if (!confirm(`Copier ${lignes.length} préconisation(s) sur ${memes.length} véhicule(s) du même modèle ?`)) return;
+  const { error } = await sb.from('entretien_regles').insert(lignes);
+  if (error) { alert(error.message); return; }
+  alert(`${lignes.length} préconisation(s) copiée(s).`);
+});
+function libEntretien(type) { return LIB_ENTRETIEN[type] || type; }
+
+function formaterDate(date) {
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// Les alertes d'échéance dépendent du dernier km validé : relevés d'abord.
+async function loadRelevesAndKm(vehiculeId) {
+  await loadReleves(vehiculeId);
+  await loadEcheances(vehiculeId);
+}
+
+async function loadPhotosCompteur(vehiculeId) {
+  try {
+    const { data: photos, error } = await sb.from('vehicules_photos')
+      .select('periode, emplacement')
+      .eq('vehicule_id', vehiculeId)
+      .eq('type', 'compteur')
+      .order('periode', { ascending: false });
+    if (error) throw error;
+    // Emplacement de chaque photo de compteur dans le stockage privé (copiée par le pont).
+    const noms = photos.map((p) => (p.emplacement || '').replace(/^drive:/, ''));
+    const { data: copies, error: e2 } = noms.length
+      ? await sb.from('photos_apk').select('nom_drive, stockage').eq('societe_id', selectedSociete).in('nom_drive', noms)
+      : { data: [] };
+    if (e2) throw e2;
+    renderPhotosCompteur(photos, new Map(copies.map((c) => [c.nom_drive, c.stockage])));
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const moisCourant = aujourdhui.slice(0, 7);
+    const moisPrecedent = moisPrecedentDe(moisCourant);
+    const statutPrecedent = statutPhoto(moisPrecedent, photos, aujourdhui, 10);
+    const statutCourant = statutPhoto(moisCourant, photos, aujourdhui, 10);
+    const p = $('#photo-statut');
+    p.textContent = `Mois précédent : ${libelleStatut(statutPrecedent)} — Mois courant : ${libelleStatut(statutCourant)}`;
+    p.classList.toggle('alerte-depassee', statutPrecedent === 'en_retard' || statutCourant === 'en_retard');
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des photos');
+  }
+}
+
+function moisPrecedentDe(periode) {
+  let [y, m] = periode.split('-').map(Number);
+  m -= 1;
+  if (m === 0) { m = 12; y -= 1; }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function libelleStatut(s) {
+  return s === 'recue' ? 'reçue' : s === 'manquante' ? 'manquante' : 'en retard';
+}
+
+function renderPhotosCompteur(photos, stockages) {
+  const tbody = $('#photos-compteur-table tbody');
+  tbody.replaceChildren(...photos.map(p => {
+    const [y, m] = p.periode.split('-');
+    const fichier = (p.emplacement || '').replace(/^drive:/, '');
+    const tr = ligne([`${m}/${y}`, fichier]);
+    tr.appendChild(boutonPhoto(stockages.get(fichier)));
+    return tr;
+  }));
+}
+
+async function loadAmendes(vehiculeId) {
+  try {
+    const { data, error } = await sb.from('amendes')
+      .select('id, numero_avis, date_avis, date_infraction, heure_infraction, lieu, motif, montant, statut, technicien_id, scan')
+      .eq('vehicule_id', vehiculeId)
+      .order('date_avis', { ascending: false });
+    if (error) throw error;
+    renderAmendes(data);
+    renderLiensANTAI();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des amendes');
+  }
+}
+
+function renderLiensANTAI() {
+  const container = $('#amendes-liens');
+  container.replaceChildren();
+  const a1 = document.createElement('a');
+  a1.href = ANTAI.designation;
+  a1.target = '_blank';
+  a1.rel = 'noopener';
+  a1.className = 'link';
+  a1.textContent = "Désigner le conducteur sur le site de l'État (ANTAI)";
+  const a2 = document.createElement('a');
+  a2.href = ANTAI.contestation;
+  a2.target = '_blank';
+  a2.rel = 'noopener';
+  a2.className = 'link';
+  a2.textContent = "Contester sur le site de l'État (ANTAI)";
+  container.append(a1, a2);
+}
+
+function renderAmendes(list) {
+  const tbody = $('#amendes-table tbody');
+  tbody.replaceChildren(...list.map(a => {
+    const tech = techniciens.find(t => t.id === a.technicien_id);
+    const nomTech = tech ? tech.nom : '—';
+    const limite = a.date_avis ? limiteDesignation(a.date_avis) : '';
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const limiteLabel = limite ? formaterDate(limite) : '—';
+    let classeLimite = '';
+    if (a.statut === 'a_traiter' && limite) {
+      if (limite < aujourdhui) classeLimite = 'alerte-depassee';
+      else {
+        const diff = (Date.parse(limite + 'T00:00:00Z') - Date.parse(aujourdhui + 'T00:00:00Z')) / 86400000;
+        if (diff <= 7) classeLimite = 'alerte-proche';
+      }
+    }
+    const tr = ligne([
+      a.numero_avis || '—',
+      a.date_avis ? formaterDate(a.date_avis) : '—',
+      (a.date_infraction ? formaterDate(a.date_infraction) : '—') + (a.heure_infraction ? ` ${a.heure_infraction}` : ''),
+      a.lieu || '—',
+      a.montant != null ? `${Number(a.montant).toFixed(2).replace('.', ',')} €` : '—',
+      nomTech,
+      '',
+      '',
+      ''
+    ]);
+    const limiteTd = tr.children[6];
+    if (classeLimite) limiteTd.classList.add(classeLimite);
+    if (limite) limiteTd.appendChild(pastille(limiteLabel, classeLimite === 'alerte-depassee' ? 'danger' : classeLimite === 'alerte-proche' ? 'alerte' : 'ok'));
+    else limiteTd.textContent = limiteLabel;
+    const statutTd = tr.children[7];
+    if (peutEcrire()) {
+      const sel = document.createElement('select');
+      const options = [
+        ['a_traiter', 'À traiter'],
+        ['designee', 'Conducteur désigné'],
+        ['contestee', 'Contestée'],
+        ['payee', 'Payée']
+      ];
+      for (const [val, label] of options) {
+        const o = document.createElement('option');
+        o.value = val;
+        o.textContent = label;
+        if (a.statut === val) o.selected = true;
+        sel.appendChild(o);
+      }
+      statutTd.appendChild(sel);
+      sel.addEventListener('change', async () => {
+        const newStatut = sel.value;
+        const updates = { statut: newStatut };
+        if (newStatut === 'designee') updates.designe_le = new Date().toISOString().slice(0, 10);
+        const { error } = await sb.from('amendes').update(updates).eq('id', a.id);
+        if (error) { alert(error.message); return; }
+        await loadAmendes(vehiculeActif.id);
+      });
+    } else {
+      const labels = { a_traiter: 'À traiter', designee: 'Conducteur désigné', contestee: 'Contestée', payee: 'Payée' };
+      statutTd.textContent = labels[a.statut] || a.statut || '—';
+    }
+    const scanTd = tr.children[8];
+    if (a.scan) {
+      const btn = document.createElement('button');
+      btn.className = 'secondary voir';   // reste visible en lecture seule
+      btn.textContent = 'Voir';
+      btn.addEventListener('click', async () => {
+        const { data, error } = await sb.storage.from('scans').createSignedUrl(a.scan, 300);
+        if (error) { alert(error.message); return; }
+        window.open(data.signedUrl, '_blank', 'noopener');
+      });
+      scanTd.appendChild(btn);
+    } else if (peutEcrire()) {
+      // Amende sans scan (oubli ou envoi raté) : on peut l'ajouter ensuite.
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*,application/pdf';
+      input.hidden = true;
+      input.addEventListener('change', async () => {
+        const f = input.files[0];
+        if (!f) return;
+        if (!extensionScan(f)) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
+        await envoyerScan(a.id, f);
+        await loadAmendes(vehiculeActif.id);
+      });
+      const btn = document.createElement('button');
+      btn.className = 'secondary';
+      btn.textContent = 'Ajouter le scan';
+      btn.addEventListener('click', () => input.click());
+      scanTd.append(btn, input);
+    } else {
+      scanTd.textContent = '—';
+    }
+    return tr;
+  }));
+  marquer(sousOnglet('vehicule-section-amendes'), !!document.querySelector('#amendes-table .alerte-depassee, #amendes-table .alerte-proche'));
+  majPoints();
+}
+
+async function createSociete(nom, emailAdmin) {
+  try {
+    const { error } = await sb.rpc('creer_societe', { nom, email_admin: emailAdmin });
+    if (error) throw error;
+    alert(`Société créée. Invitation enregistrée pour ${emailAdmin} : prévenez la personne de créer son compte avec cet email (aucun email n'est encore envoyé automatiquement).`, 'success');
+    $('#creer-societe-form').reset();
+    await loadSocietes();
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la création');
+  }
+}
+
+async function inviteMember(email, role) {
+  try {
+    const { error } = await sb.from('invitations').insert({ societe_id: selectedSociete, email, role });
+    if (error) throw error;
+    $('#inviter-form').reset();
+    await loadInvitations(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'invitation');
+  }
+}
+
+// Événements
+$('#login-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearAlert();
+  const email = $('#email').value;
+  const password = $('#password').value;
+  login(email, password);
+});
+
+$('#signup-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearAlert();
+  const email = $('#signup-email').value;
+  const password = $('#signup-password').value;
+  signup(email, password);
+});
+
+$('#signup-link').addEventListener('click', () => showScreen('signup-screen'));
+$('#login-link').addEventListener('click', () => showScreen('login-screen'));
+$('#logout-btn').addEventListener('click', logout);
+$('#nav-deconnexion').addEventListener('click', logout);   // même action, en bas du menu de la société
+
+$('#creer-societe-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearAlert();
+  const nom = $('#societe-nom').value;
+  const emailAdmin = $('#societe-email').value;
+  createSociete(nom, emailAdmin);
+});
+
+$('#inviter-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  clearAlert();
+  const email = $('#invite-email').value;
+  const role = $('#invite-role').value;
+  inviteMember(email, role);
+});
+
+// Événements des onglets
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    switchOnglet(`panel-${tab.dataset.tab}`);
+  });
+});
+
+$$('.sous-onglets button').forEach(button => {
+  button.addEventListener('click', () => afficherSousOnglet(button.closest('#vehicule-detail, #tech-fiche'), button.dataset.cible));
+});
+
+$('#retour-societes').addEventListener('click', retournerSocietes);
+
+// Formulaires Techniciens
+$('#technicien-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire()) return;
+  const nom = $('#tech-nom').value.trim();
+  if (!nom) return;
+  try {
+    const { error } = await sb.from('techniciens').insert({ societe_id: selectedSociete, nom });
+    if (error) throw error;
+    $('#technicien-form').reset();
+    await loadTechniciens(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Identité lue depuis la plaque (page en ligne seulement, via l'Apps Script). La base reprend
+// ensuite toute seule le plan d'entretien d'un véhicule identique (migration plan_auto).
+function lirePlaque(plaque) {
+  return new Promise((ok) => {
+    if (!window.google?.script?.run) { ok(null); return; }
+    sb.auth.getSession().then(({ data }) => google.script.run.withSuccessHandler(ok).withFailureHandler(() => ok(null))
+      .ficheVehicule(plaque, data.session?.access_token || ''));
+  });
+}
+async function identiteDepuisPlaque(id, plaque) {
+  const f = await lirePlaque(plaque);
+  if (!f) return null;
+  const champs = { marque: f.marque, modele: f.modele, carburant: f.carburant,
+    motorisation: [f.carburant, f.boite && `boîte ${f.boite.toLowerCase()}`, f.annee && `modèle ${f.annee}`].filter(Boolean).join(', ') };
+  const { error } = await sb.from('vehicules').update(champs).eq('id', id);
+  return error ? null : champs;
+}
+
+// Formulaire Véhicules
+$('#vehicule-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire()) return;
+  const plaque = $('#veh-plaque').value.trim().toUpperCase();
+  const libelle = $('#veh-libelle').value.trim();
+  if (!plaque) return;
+  try {
+    const { data: cree, error } = await sb.from('vehicules').insert({ societe_id: selectedSociete, plaque, libelle }).select('id').single();
+    if (error) throw error;
+    $('#vehicule-form').reset();
+    await identiteDepuisPlaque(cree.id, plaque);
+    await loadVehicules(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Fermeture panneau véhicule
+$('#vehicule-detail-close').addEventListener('click', fermerPanneauVehicule);
+
+// Fermeture fiche technicien
+$('#tech-fiche-close').addEventListener('click', fermerFicheTechnicien);
+
+const euros = (n) => `${Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+// Lignes de la base -> format des règles testées (core/heures.js, core/frais.js).
+const versHeures = (e) => ({ date: e.date, typeMission: e.type_mission, slotMidi: e.slot_midi, observationType: e.observation_type });
+const versFrais = (f) => ({ categorie: f.categorie, montantEur: Number(f.montant_eur), sansTva: f.sans_tva });
+const versCompta = (f) => ({ ...versFrais(f), id: f.id, date: f.date, fichier: f.fichier, statut: f.statut, tvaRecuperable: f.tva_recuperable });
+const STATUTS_FRAIS = { a_traiter: 'À traiter', valide: 'Validé', refuse: 'Refusé' };
+let fiche = null;   // données du tech ouvert, chargées une fois : { t, interventions, frais, photos, regles, validations }
+
+async function chargerFicheTechnicien(t) {
+  try {
+    $('#tech-info').textContent = "Données envoyées par l'APK, mises à jour automatiquement toutes les heures.";
+    const lire = async (requete) => { const { data, error, count } = await requete; if (error) throw error; return count ?? data; };
+    const [aff, interventions, frais, photos, regles, validations, listePhotos, gestes, periodesPaie, tarifs] = await Promise.all([
+      lire(sb.from('affectations').select('debut, vehicules(plaque)').eq('technicien_id', t.id).is('fin', null).order('debut', { ascending: false }).limit(1)),
+      toutLire(sb.from('temps').select('date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin').eq('technicien_id', t.id).order('date')),
+      toutLire(sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, observations, fichier, statut, tva_recuperable, motif_refus').eq('technicien_id', t.id).order('date')),
+      lire(sb.from('photos_apk').select('id', { count: 'exact', head: true }).eq('technicien_id', t.id)),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+      toutLire(sb.from('heures_sup').select('semaine, valide, refusee').eq('technicien_id', t.id)),
+      toutLire(sb.from('photos_apk').select('nom_local, nom_drive, stockage').eq('technicien_id', t.id)),
+      toutLire(sb.from('gestes_co').select('date, installes').eq('technicien_id', t.id)),
+      lire(sb.from('periodes_paie').select('fin, statut').eq('societe_id', selectedSociete)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('technicien_id', t.id)),
+    ]);
+    const v = aff[0];
+    const plaque = v && (Array.isArray(v.vehicules) ? v.vehicules[0]?.plaque : v.vehicules?.plaque);
+    $('#tech-vehicule').textContent = plaque ? `Véhicule : ${plaque} depuis le ${formaterDate(v.debut)}` : 'Véhicule : aucun';
+    fiche = { t, interventions, frais, photos: photos || 0, regles: reglesDe(regles[0] || {}),
+      validations: new Map(validations.map((x) => [x.semaine, x.valide ? 'validee' : x.refusee ? 'refusee' : 'a_traiter'])),
+      photosParNom: new Map(listePhotos.map((p) => [p.nom_local, p])), listePhotos, gestes, periodesPaie, baremes: baremes(tarifs) };
+    const mois = [...new Set([...interventions, ...frais].map((e) => e.date.slice(0, 7)))].sort().reverse();
+    $('#tech-mois').replaceChildren(...mois.map((m) => {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = `${m.slice(5)}/${m.slice(0, 4)}`;
+      return o;
+    }));
+    afficherMoisFiche();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement de la fiche');
+  }
+}
+
+$('#tech-mois').addEventListener('change', afficherMoisFiche);
+
+function afficherMoisFiche() {
+  if (!fiche) return;
+  const m = $('#tech-mois').value;
+  const duMois = fiche.interventions.filter((e) => e.date.startsWith(m));
+  const fraisMois = fiche.frais.filter((f) => f.date.startsWith(m));
+
+  // Heures par jour : règle de l'APK (heuresJour), jour par jour.
+  const dates = [...new Set(duMois.map((e) => e.date))];
+  const jours = dates.map((d) => [d, heuresJour(duMois.filter((e) => e.date === d).map(versHeures))]);
+  const totalHeures = jours.reduce((s, [, h]) => s + h, 0);
+  const totaux = totauxFrais(fraisMois.map(versFrais));
+  const valides = totauxFrais(fraisMois.filter((f) => f.statut === 'valide').map(versFrais));
+  const nr = duMois.filter((e) => /^NR/.test(e.observation_type)).length;   // une annulation n'est pas un NR
+  const primes = primesDuMois(fiche.gestes, fiche.interventions.map(versHeures), fiche.baremes, m);
+  afficherPrimes(primes, m);
+  const resume = $('#tech-resume');
+  resume.replaceChildren();
+  const resumeTuiles = document.createElement('div');
+  resumeTuiles.className = 'tuiles';
+  resumeTuiles.append(
+    tuileChiffre('Prime', euros(primes.total), null, { ico: 'primes', cle: 'fiche-prime' }),
+    tuileChiffre('Interventions', duMois.length, null, { ico: 'interventions', cle: 'fiche-interventions' }),
+    tuileChiffre('OK', duMois.filter((e) => !e.observation_type).length, null, { cle: 'fiche-ok' }),
+    tuileChiffre('NR', nr, null, { ico: 'nr', cle: 'fiche-nr' }),
+    tuileChiffre('Heures', `${totalHeures} h`, null, { ico: 'heures', cle: 'fiche-heures' }),
+    tuileChiffre('Frais validés', euros(valides.remboursable), null, { ico: 'frais', cle: 'fiche-frais-valides' }),
+    tuileChiffre('Photos (total)', fiche.photos, null, { cle: 'fiche-photos' })
+  );
+  resume.appendChild(resumeTuiles);
+
+  const creneau = { MATIN: 'Matin', APREM: 'Après-midi' };
+  $('#tech-interventions-table tbody').replaceChildren(...duMois.map((e) => ligne([formaterDate(e.date),
+    creneau[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—',
+    e.numero_intervention || '—', libelleResultat(e.observation_type), e.heure_debut || '—', e.heure_fin || '—'])));
+  $('#tech-jours-table tbody').replaceChildren(...jours.map(([d, h]) => ligne([formaterDate(d), `${h} h`])));
+  $('#tech-jours-total').textContent = `Total du mois : ${totalHeures} h`;
+
+  // Heures par semaine (toutes les données, pour des semaines complètes) ; case « Validées ».
+  const r = fiche.regles.heures;
+  const th = $$('#tech-semaines-table thead th');
+  th[4].textContent = `Sup. 1re tranche (+${Math.round(r.taux1 * 100)} %)`;
+  th[5].textContent = `Sup. 2e tranche (+${Math.round(r.taux2 * 100)} %)`;
+  const semainesDuMois = new Set(dates.map(semaineIso));
+  const semaines = cumulSemaines(fiche.interventions.map(versHeures), r).filter((s) => semainesDuMois.has(s.semaine));
+  $('#tech-semaines-table tbody').replaceChildren(...semaines.map((s) => {
+    const tr = ligne([s.semaine, s.travaillees, s.absences, s.normales, s.sup1, s.sup2]);
+    const td = tr.appendChild(document.createElement('td'));
+    if (s.sup1 + s.sup2 === 0) { td.textContent = '—'; return tr; }
+    const statutSemaine = fiche.validations.get(s.semaine) || 'a_traiter';
+    const libelleStatut = statutSemaine === 'validee' ? 'Validées' : statutSemaine === 'refusee' ? 'Refusées' : 'À traiter';
+    td.appendChild(pastille(libelleStatut, statutSemaine === 'validee' ? 'ok' : statutSemaine === 'refusee' ? 'danger' : 'alerte'));
+    if (!peutEcrire()) return tr;
+    const c = td.appendChild(document.createElement('select'));
+    for (const [v, l] of [['a_traiter', 'À traiter'], ['validee', 'Validées'], ['refusee', 'Refusées']]) {
+      const o = c.appendChild(document.createElement('option'));
+      o.value = v;
+      o.textContent = l;
+    }
+    c.value = statutSemaine;
+    c.disabled = !peutEcrire();
+    c.setAttribute('aria-label', `Heures sup, semaine ${s.semaine}`);
+    c.addEventListener('change', () => validerHeuresSup(s, c));
+    return tr;
+  }));
+  pointHeures();
+
+  const justifs = new Set(fiche.listePhotos.filter((p) => p.stockage).map((p) => p.nom_local));
+  const ctrl = controles(fiche.frais.map(versCompta), justifs);
+  $('#tech-frais-table tbody').replaceChildren(...fraisMois.map((f) => {
+    const l = ligneFrais(versFrais(f));
+    const tr = ligne([formaterDate(f.date), f.categorie || '—', euros(l.ttc), euros(l.ht), euros(l.tva),
+      euros(l.remboursable), f.sans_tva ? 'Oui' : 'Non', f.observations || '—']);
+    tr.appendChild(boutonPhoto(fiche.photosParNom.get(f.fichier)?.stockage));
+    const alertesFrais = ctrl.get(f.id).filter((a) => a !== 'à valider' && a !== 'refusé');
+    const td = tr.appendChild(document.createElement('td'));
+    td.textContent = [...alertesFrais, f.statut === 'refuse' && `refusé : ${f.motif_refus}`].filter(Boolean).join(', ') || '—';
+    if (alertesFrais.length) td.className = 'alerte-proche';
+    const etat = tr.appendChild(document.createElement('td')).appendChild(document.createElement('select'));
+    etat.append(...Object.entries(STATUTS_FRAIS).map(([v, libelle]) => new Option(libelle, v, false, v === f.statut)));
+    etat.disabled = !peutEcrire();
+    etat.setAttribute('aria-label', `État du frais du ${formaterDate(f.date)}`);
+    etat.addEventListener('change', () => changerFrais(f, { statut: etat.value }));
+    const tva = tr.appendChild(document.createElement('td')).appendChild(document.createElement('input'));
+    tva.type = 'checkbox';
+    tva.checked = f.tva_recuperable;
+    tva.disabled = !peutEcrire() || f.statut !== 'valide' || f.sans_tva;
+    tva.setAttribute('aria-label', `TVA récupérable, frais du ${formaterDate(f.date)}`);
+    tva.addEventListener('change', () => changerFrais(f, { tva_recuperable: tva.checked }));
+    return tr;
+  }));
+  marquer(sousOnglet('tech-section-frais'), fiche.frais.some((f) => f.statut === 'a_traiter'));
+  afficherGalerie(m);
+  $('#tech-camemberts').replaceChildren(
+    barres('Types de mission', repartition(duMois.map((e) => e.type_mission || '—')), false),
+    barres('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type))), false));
+  const fraisTuiles = document.createElement('div');
+  fraisTuiles.className = 'tuiles';
+  fraisTuiles.append(
+    tuileChiffre('TTC', euros(totaux.ttc), null, { ico: 'frais', cle: 'fiche-frais-ttc' }),
+    tuileChiffre('HT', euros(totaux.ht), null, { cle: 'fiche-frais-ht' }),
+    tuileChiffre('TVA', euros(totaux.tva), null, { cle: 'fiche-frais-tva' }),
+    tuileChiffre('Remboursable', euros(totaux.remboursable), null, { cle: 'fiche-frais-remboursable' }),
+    tuileChiffre('Validé (remboursé)', euros(valides.remboursable), null, { cle: 'fiche-frais-valide' })
+  );
+  $('#tech-frais-totaux').replaceChildren(fraisTuiles);
+}
+
+// Photo du stockage privé : lien signé valable 10 minutes, ouvert dans un nouvel onglet.
+async function ouvrirPhoto(chemin) {
+  const { data, error } = await sb.storage.from('photos').createSignedUrl(chemin, 600);
+  if (error) { alert(error.message); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+// Cellule « Voir » (visible aussi en lecture seule) ou « — » si la photo n'est pas encore copiée.
+function boutonPhoto(chemin) {
+  const td = document.createElement('td');
+  if (!chemin) { td.textContent = '—'; return td; }
+  const b = td.appendChild(document.createElement('button'));
+  b.className = 'secondary voir';
+  b.textContent = 'Voir';
+  b.addEventListener('click', () => ouvrirPhoto(chemin));
+  return td;
+}
+
+// Galerie du mois : photos copiées dont le dossier de cycle est ce mois (…/<AAAA-MM>/<nom>).
+async function afficherGalerie(m) {
+  const copiees = fiche.listePhotos.filter((p) => p.stockage && p.stockage.split('/').at(-2) === m);
+  const enAttente = fiche.listePhotos.filter((p) => !p.stockage).length;
+  $('#tech-photos-info').textContent = `${copiees.length} photo(s) ce mois-ci.` +
+    (enAttente ? ` ${enAttente} photo(s) en cours de copie depuis l'APK (toutes les heures).` : '');
+  const galerie = $('#tech-photos');
+  galerie.replaceChildren();
+  if (!copiees.length) return;
+  const { data, error } = await sb.storage.from('photos').createSignedUrls(copiees.map((p) => p.stockage), 600);
+  if (error) { alert(error.message); return; }
+  if ($('#tech-mois').value !== m) return;   // mois changé pendant le chargement
+  galerie.replaceChildren(...data.map((d, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', `Ouvrir la photo ${copiees[i].nom_drive}`);
+    const fig = b.appendChild(document.createElement('figure'));
+    fig.style.margin = '0';
+    if (/\.pdf$/i.test(copiees[i].stockage)) {   // justificatif PDF : vignette texte, ouvert d'un clic
+      fig.appendChild(document.createElement('div')).className = 'vignette-pdf';
+      fig.firstChild.textContent = 'PDF';
+    } else {
+      const img = fig.appendChild(document.createElement('img'));
+      img.src = d.signedUrl;
+      img.alt = copiees[i].nom_drive;
+      img.loading = 'lazy';
+    }
+    fig.appendChild(document.createElement('figcaption')).textContent = copiees[i].nom_drive;
+    b.addEventListener('click', () => window.open(d.signedUrl, '_blank', 'noopener'));
+    return b;
+  }));
+}
+
+// ===== Paie : tous les techniciens d'une période (cycle du 21 au 20) =====
+const iso = (d) => d.toISOString().slice(0, 10);
+const decaler = (date, jours) => iso(new Date(Date.parse(`${date}T00:00:00Z`) + jours * 86400000));
+
+const STATUT_PERIODE = { brouillon: 'En cours', validee: 'Validé', exportee: 'Clôturé' };
+let periodes = [];
+const periodeChoisie = () => periodes.find((p) => p.id === $('#paie-periode').value);
+const peutPayer = () => superAdmin || ['admin', 'gestion', 'comptable'].includes(monRole);
+
+$('#paie-periode').addEventListener('change', chargerPaie);
+let lignesPaie = [];
+
+// Mois de paie de la société (periodes_paie) : un cycle qui se clôture en fin de semaine.
+async function chargerPaie() {
+  const { data, error } = await sb.from('periodes_paie').select('id, debut, fin, statut, exporte_le')
+    .eq('societe_id', selectedSociete).order('debut', { ascending: false });
+  if (error) { alert(error.message); return; }
+  periodes = data;
+  const sel = $('#paie-periode'), avant = sel.value;
+  sel.replaceChildren(...periodes.map((p) => {
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = `${formaterDate(p.debut)} → ${formaterDate(p.fin)} — ${STATUT_PERIODE[p.statut]}`;
+    return o;
+  }));
+  if (periodes.some((p) => p.id === avant)) sel.value = avant;
+  // Nouveau mois : lendemain de la dernière clôture, fin = samedi le plus proche du 20.
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const debut = periodes[0] ? lendemain(periodes[0].fin) : lendemain(finProposee(plusMois(aujourdhui.slice(0, 7), -1) + '-01'));
+  $('#periode-debut').value = debut;
+  $('#periode-fin').value = finProposee(debut > aujourdhui ? debut : aujourdhui);
+  $('#periode-form').closest('details').classList.toggle('hidden', !peutPayer());
+  const p = periodeChoisie();
+  afficherEtatPeriode(p);
+  // Aucun mois encore : pas de liste vide, le formulaire de création est ouvert.
+  sel.closest('.field').classList.toggle('hidden', !periodes.length);
+  $('#paie-table').closest('.table-wrapper').classList.toggle('hidden', !p);
+  if (!periodes.length) $('#periode-form').closest('details').open = true;
+  majPoints();
+  if (!p) {
+    lignesPaie = [];
+    $('#paie-table tbody').replaceChildren();
+    $('#paie-resume').textContent = 'Aucun mois de paie : créez le premier avec « Nouveau mois de paie ».';
+    $('#paie-totaux').textContent = '';
+    return;
+  }
+  await calculerPaie(p.debut, p.fin);
+}
+
+function afficherEtatPeriode(p) {
+  const valider = $('#periode-valider'), exporter = $('#paie-export');
+  valider.classList.toggle('hidden', !p || p.statut !== 'brouillon' || !peutPayer());
+  exporter.classList.toggle('hidden', !p || p.statut === 'brouillon' || !peutPayer());
+  exporter.textContent = p?.statut === 'exportee' ? 'Télécharger à nouveau' : 'Exporter et clôturer';
+  $('#paie-statut').textContent = !p ? '' : {
+    brouillon: 'Mois en cours : vérifiez et traitez les heures sup et les congés, puis « Valider le mois ».',
+    validee: 'Mois validé : « Exporter et clôturer » télécharge le fichier de paie et verrouille le mois.',
+    exportee: `Mois clôturé le ${formaterDate(String(p.exporte_le).slice(0, 10))} : heures, frais et validations sont verrouillés.`,
+  }[p.statut];
+}
+
+$('#periode-valider').addEventListener('click', async () => {
+  const p = periodeChoisie();
+  if (lignesPaie.some((l) => l.v.semainesATraiter || l.conges)
+    && !confirm('Des éléments ne sont pas traités : les heures sup non validées ne seront pas payées. Valider le mois quand même ?')) return;
+  const { error } = await sb.from('periodes_paie').update({ statut: 'validee' }).eq('id', p.id);
+  if (error) { alert(error.message); return; }
+  await chargerPaie();
+});
+
+$('#periode-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  const debut = $('#periode-debut').value, fin = $('#periode-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const { error } = await sb.from('periodes_paie').insert({ societe_id: selectedSociete, debut, fin });
+  if (error) { alert(error.message); return; }
+  $('#paie-periode').replaceChildren();   // le nouveau mois (le plus récent) sera choisi
+  await chargerPaie();
+});
+
+async function calculerPaie(debut, fin) {
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    // ±6 jours : les semaines à cheval sur la période sont complètes (rattachées par leur samedi).
+    const [temps, frais, validations, conges, regles] = await Promise.all([
+      toutLire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      toutLire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva, statut').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      lire(sb.from('conges').select('technicien_id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+    ]);
+    const r = reglesDe(regles[0] || {});
+    const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
+    // Primes versées avec cette paie : celles du mois - 2 (règle de l'APK).
+    const mp = moisDesPrimes(fin), finMp = decaler(plusMois(mp, 1) + '-01', -1);
+    const [gestes, tarifs, jours] = await Promise.all([
+      toutLire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
+      toutLire(sb.from('temps').select('technicien_id, date, type_mission').eq('societe_id', selectedSociete).gte('date', mp + '-01').lte('date', finMp)),
+    ]);
+    $('#paie-primes-info').textContent = `Primes : celles de ${libelleMois(mp)}, versées avec cette paie.`;
+    lignesPaie = techniciens.filter((t) => t.actif).map((t) => ({ t,
+      v: variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures),
+        frais: de(frais, t).filter((f) => f.statut === 'valide').map((f) => ({ date: f.date, ...versFrais(f) })),
+        primes: primesDuMois(de(gestes, t), de(jours, t).map(versHeures), baremes(de(tarifs, t)), mp).total, regles: r, validations: de(validations, t) }),
+      conges: de(conges, t).length, fraisATraiter: de(frais, t).filter((f) => f.statut === 'a_traiter').length }));
+    afficherPaie();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du calcul de la paie');
+  }
+}
+
+function afficherPaie() {
+  const h = (n) => `${Math.round(n * 100) / 100} h`;
+  let aTraiter = 0;
+  $('#paie-table tbody').replaceChildren(...lignesPaie.map(({ t, v, conges, fraisATraiter }) => {
+    const reste = [v.semainesATraiter && `${v.semainesATraiter} semaine(s) d'heures sup`, conges && `${conges} congé(s) en attente`,
+      fraisATraiter && `${fraisATraiter} frais à valider`].filter(Boolean);
+    if (reste.length) aTraiter++;
+    const tr = ligne([t.nom, h(v.heuresNormales), h(v.sup1), h(v.sup2), h(v.absences), euros(v.fraisRemboursables), euros(v.primes),
+      h(v.supRefusees), reste.join(', ') || '—', reste.length ? 'À traiter' : 'Prêt']);
+    tr.children[9].className = reste.length ? 'alerte-proche' : 'etat-pret';
+    tr.children[0].prepend(avatar(t.nom));
+    tr.children[9].replaceChildren(pastille(reste.length ? 'À traiter' : 'Prêt', reste.length ? 'alerte' : 'ok'));
+    tr.classList.add('ligne-cliquable');
+    const fleche = tr.appendChild(document.createElement('td'));
+    fleche.className = 'fleche';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.textContent = '›';
+    tr.addEventListener('click', () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(t); });
+    return tr;
+  }));
+  const somme = (k) => lignesPaie.reduce((s, l) => s + l.v[k], 0);
+  const sup1 = somme('sup1'), sup2 = somme('sup2');
+  $('#paie-resume').replaceChildren(
+    tuileChiffre('Techniciens', lignesPaie.length, `${lignesPaie.length - aTraiter} prêt(s)`, { ico: 'interventions', cle: 'paie-techniciens' }),
+    tuileChiffre('À traiter', aTraiter, null, { cle: 'paie-a-traiter' }),
+    tuileChiffre('Heures normales', h(somme('heuresNormales')), null, { ico: 'heures', cle: 'paie-heures' }),
+    tuileChiffre('Heures supplémentaires', h(sup1 + sup2), `validées : ${h(sup1)} + ${h(sup2)}`, { ico: 'heures', cle: 'paie-heures-sup' }),
+    tuileChiffre('Frais remboursables', euros(somme('fraisRemboursables')), null, { ico: 'frais', cle: 'paie-frais' }),
+    tuileChiffre('Primes', euros(somme('primes')), null, { ico: 'primes', cle: 'paie-primes' }),
+  );
+  $('#paie-totaux').textContent = '';
+}
+
+$('#paie-export').addEventListener('click', async () => {
+  const p = periodeChoisie();
+  if (!p || !lignesPaie.length) return;
+  if (p.statut === 'validee' && !confirm('Exporter et clôturer : après la clôture, plus aucune modification des heures, frais et validations de ce mois. Continuer ?')) return;
+  const csv = versCsv(lignesPaie.map(({ v }) => {
+    const { supRefusees, semainesATraiter, ...exportees } = v;
+    return exportees;
+  }));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `paie-${p.debut}-au-${p.fin}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  if (p.statut !== 'validee') return;
+  const { error } = await sb.from('periodes_paie').update({ statut: 'exportee' }).eq('id', p.id);
+  if (error) { alert(error.message); return; }
+  await chargerPaie();
+});
+
+// ===== Congés : demandes à valider (saisies au bureau ; l'APK plus tard) =====
+const TYPES_CONGE = { CP: 'Congés payés', RTT: 'RTT', SANS_SOLDE: 'Sans solde', AUTRE: 'Autre' };
+const STATUTS_CONGE = { demandee: 'À valider', validee: 'Validé', refusee: 'Refusé' };
+
+async function compterCongesAValider() {
+  const { count, error } = await sb.from('conges').select('id', { count: 'exact', head: true })
+    .eq('societe_id', selectedSociete).eq('statut', 'demandee');
+  $('#onglet-conges').textContent = !error && count ? `Congés (${count})` : 'Congés';
+  majPoints();
+}
+
+$('#conges-filtre').addEventListener('change', chargerConges);
+pilulesDepuisSelect($('#conges-filtre'), 'Demandes affichées');
+
+async function chargerConges() {
+  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut').eq('societe_id', selectedSociete).order('debut');
+  if ($('#conges-filtre').value) q = q.eq('statut', $('#conges-filtre').value);
+  const { data, error } = await q;
+  if (error) { alert(error.message); return; }
+  const nom = (id) => techniciens.find((t) => t.id === id)?.nom || '—';
+  $('#conges-table tbody').replaceChildren(...data.map((c) => {
+    const jours = (Date.parse(c.fin) - Date.parse(c.debut)) / 86400000 + 1;
+    const tr = ligne([nom(c.technicien_id), formaterDate(c.debut), formaterDate(c.fin), jours,
+      TYPES_CONGE[c.type] || c.type, c.motif || '—', '']);
+    const statut = STATUTS_CONGE[c.statut] || c.statut;
+    tr.children[6].replaceChildren(pastille(statut, c.statut === 'demandee' ? 'alerte' : c.statut === 'validee' ? 'ok' : c.statut === 'refusee' ? 'danger' : 'neutre'));
+    const td = tr.appendChild(document.createElement('td'));
+    if (c.statut !== 'demandee' || !peutEcrire()) { td.textContent = '—'; return tr; }
+    for (const [statut, libelle, classe] of [['validee', 'Valider', ''], ['refusee', 'Refuser', 'danger']]) {
+      const b = td.appendChild(document.createElement('button'));
+      b.textContent = libelle;
+      if (classe) b.className = classe;
+      b.addEventListener('click', async () => {
+        const { error: e } = await sb.from('conges').update({ statut }).eq('id', c.id);
+        if (e) { alert(e.message); return; }
+        await chargerConges();
+        compterCongesAValider();
+      });
+    }
+    return tr;
+  }));
+}
+
+$('#conge-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  const debut = $('#conge-debut').value, fin = $('#conge-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const { error } = await sb.from('conges').insert({ societe_id: selectedSociete, technicien_id: $('#conge-tech').value,
+    debut, fin, type: $('#conge-type').value, motif: $('#conge-motif').value.trim() });
+  if (error) { alert(error.message); return; }
+  $('#conge-form').reset();
+  await chargerConges();
+  compterCongesAValider();
+});
+
+// Point sur « Heures » tant qu'une semaine d'heures sup du mois est « À traiter ».
+function pointHeures() {
+  marquer(sousOnglet('tech-section-heures'), [...document.querySelectorAll('#tech-semaines-table select')].some((c) => c.value === 'a_traiter'));
+}
+
+// Barèmes des réglages APK (lignes primes_tarifs) -> même forme que reglages.json.
+function baremes(lignes) {
+  return { prices: lignes.find((l) => l.mois === 'courant')?.prix,
+    primeTarifsParMois: Object.fromEntries(lignes.filter((l) => l.mois !== 'courant').map((l) => [l.mois, l.prix])) };
+}
+const libelleMois = (m) => `${m.slice(5)}/${m.slice(0, 4)}`;
+const plusMois = (m, n) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 7);
+
+function afficherPrimes(primes, m) {
+  const payee = primePayee(m, fiche.periodesPaie);
+  $('#tech-primes-info').textContent = `Prime de ${libelleMois(m)} : ${euros(primes.total)} — ${payee ? 'payée' : 'à payer'} sur le salaire de ${libelleMois(plusMois(m, 2))}${payee ? ' (paie clôturée)' : ''}.`;
+  $('#tech-primes-table tbody').replaceChildren(...primes.detail.map((d) => ligne([d.type, d.qte, euros(d.montant)])));
+}
+
+// ===== Tableau de bord de la société : chiffres du mois et tâches à faire =====
+$('#bord-mois').addEventListener('change', chargerBord);
+
+// Rendu « doux » (RENDU.md) : forme 3D, pastille du menu, recherche ⌘K, bouton du bandeau.
+$('#forme-connexion').src = OBJETS_3D.noeud;
+installerPastille($('.tabs'));
+$('#bord-voir-interventions').addEventListener('click', () => switchOnglet('panel-interventions'));
+const SECTIONS = [['bord', 'Tableau de bord'], ['techniciens', 'Techniciens'], ['interventions', 'Interventions'], ['conges', 'Congés'],
+  ['messages', 'Messages'], ['vehicules', 'Véhicules'], ['paie', 'Paie'], ['compta', 'Compta'], ['facturation', 'Facturation'], ['membres', 'Membres']];
+function ouvrirRecherche() {
+  if (!selectedSociete || $('#societe-detail').classList.contains('hidden')) return;
+  const elements = [
+    ...SECTIONS.filter(([t]) => !$(`.tab[data-tab="${t}"]`)?.classList.contains('hidden'))
+      .map(([t, nom]) => ({ titre: nom, sousTitre: 'Aller à la section', motsCles: t, action: () => switchOnglet(`panel-${t}`) })),
+    ...techniciens.map((t) => ({ titre: t.nom, sousTitre: t.actif === false ? 'Technicien archivé' : 'Technicien', motsCles: t.nom_apk || '',
+      action: () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(t); } })),
+    ...listeVehicules.map((v) => ({ titre: v.plaque, sousTitre: ['Véhicule', v.marque, v.modele].filter(Boolean).join(' · '), motsCles: v.libelle || '',
+      action: () => { switchOnglet('panel-vehicules'); ouvrirVehicule(v); } })),
+  ];
+  ouvrirPalette({ elements, onChoisir: (e) => e.action() });
+}
+installerRaccourci(ouvrirRecherche);
+$('#ouvrir-recherche').addEventListener('click', ouvrirRecherche);
+// Le raccourci affiché suit la machine : ⌘K sur Mac, Ctrl K ailleurs (les deux marchent partout).
+$('#ouvrir-recherche kbd').textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
+let entreeFaite = false;              // arrivée des cartes : une seule fois par ouverture de la page
+const derniersChiffres = new Map();   // un chiffre ne redéfile que s'il a changé
+let activite = null;                  // { mois12, parMois } : interventions des 12 derniers mois (courbe)
+
+// ---- Synchro des téléphones : petit bouton du menu et voyant vérifié en continu (pont Apps Script) ----
+// Le pont vérifie le jeton et le rôle ; il renvoie seulement des compteurs et des erreurs.
+const PONT = { url: typeof URL_PONT === 'string' ? URL_PONT : '', societe: typeof SOCIETE_PONT === 'string' ? SOCIETE_PONT : '' };
+const estSocietePont = () => Boolean(PONT.url) && selectedSociete === PONT.societe;
+const boutonSynchro = $('#synchro-forcee');
+let dernierBilan = null, erreurEtat = '';   // dernier import connu (horaire ou forcé), tel que le pont l'a gardé
+async function appelPont(action, corps = {}) {
+  const { data } = await sb.auth.getSession();
+  // Corps en texte brut : requête « simple », sans pré-vérification CORS ; le pont suit la double redirection.
+  const r = await fetch(PONT.url, { method: 'POST', body: JSON.stringify({ jeton: data.session?.access_token || '', action, ...corps }) });
+  // Une page d'erreur Google (quota, panne) n'est pas du JSON : message clair plutôt qu'une erreur technique.
+  const res = await r.json().catch(() => { throw new Error('le pont ne répond pas normalement, réessayez plus tard'); });
+  if (res.erreur) throw new Error(res.erreur);
+  return res;
+}
+const synchroVisible = () => Boolean(PONT.url && session) && selectedSociete === PONT.societe && peutEcrire();
+const resumeBilan = (b) => `${b.fichiers} fichier(s), ${b.photos} photo(s)` + (b.erreurs?.length ? ` — ${b.erreurs.length} alerte(s)` : ' — sans erreur');
+// Voyant : vert = import de moins de 75 min sans erreur ; orange = alertes ; rouge = plus d'import depuis 75 min
+// (le pont passe toutes les heures : au-delà, il est en panne, comme les 18 et 19/11/2026).
+function etatSynchro(b) {
+  if (!b) return { etat: 'inconnu', court: '—', long: erreurEtat ? `État de la synchro indisponible : ${erreurEtat}` : 'Aucune synchro enregistrée pour l\'instant.' };
+  const min = Math.max(0, Math.round((Date.now() - Date.parse(b.le)) / 60000));
+  const court = min < 1 ? 'à l\'instant' : min < 60 ? `${min} min` : `${Math.floor(min / 60)} h`;
+  const long = `Dernière synchro ${min < 1 ? 'à l\'instant' : `il y a ${court}`} : ${resumeBilan(b)}.`;
+  if (min > 75) return { etat: 'retard', court: 'en retard', long: `${long} L'import automatique (toutes les heures) ne passe plus.` };
+  if (b.erreurs?.length) return { etat: 'alerte', court: 'alerte', long: `${long} ${b.erreurs.join(' ; ')}` };
+  return { etat: 'ok', court, long };
+}
+function peindreSynchro() {
+  boutonSynchro.classList.toggle('hidden', !synchroVisible());
+  if (boutonSynchro.getAttribute('aria-busy') === 'true') return;
+  const e = etatSynchro(dernierBilan);
+  boutonSynchro.dataset.etat = e.etat;
+  boutonSynchro.title = e.long;
+  boutonSynchro.querySelector('.temps').textContent = e.court;
+  $('#synchro-etat').textContent = e.long;
+}
+// Demande au pont l'état du dernier import. Un nouvel import (horaire, ou lancé par un collègue) met à jour
+// le tableau de bord tout seul ; les autres écrans ne bougent pas sous les yeux de l'utilisateur.
+async function verifierSynchro({ rafraichir = true } = {}) {
+  if (!synchroVisible()) { peindreSynchro(); return; }
+  const avant = dernierBilan?.le;
+  try {
+    dernierBilan = (await appelPont('etat')).dernier;
+    erreurEtat = '';
+  } catch (err) {
+    dernierBilan = null;
+    erreurEtat = err.message;
+  }
+  peindreSynchro();
+  if (rafraichir && avant && dernierBilan?.le && dernierBilan.le !== avant && $('.tab.active')?.dataset.tab === 'bord') chargerBord();
+}
+setInterval(peindreSynchro, 30 * 1000);   // « 4 min » avance sans appel réseau
+setInterval(() => { if (document.visibilityState === 'visible') verifierSynchro(); }, 2 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifierSynchro(); });
+boutonSynchro.addEventListener('click', async () => {
+  if (boutonSynchro.getAttribute('aria-busy') === 'true') return;
+  boutonSynchro.setAttribute('aria-busy', 'true');
+  boutonSynchro.querySelector('.libelle').textContent = 'Synchronisation…';
+  boutonSynchro.querySelector('.temps').textContent = '';
+  try {
+    const { bilan } = await appelPont('synchroniser');
+    dernierBilan = { ...bilan, le: new Date().toISOString() };
+    const ouvert = $('.tab.active')?.dataset.tab;
+    await loadSocieteDetail(selectedSociete);   // données à jour à l'écran
+    if (ouvert && ouvert !== 'bord') switchOnglet(`panel-${ouvert}`);   // on reste sur l'écran ouvert
+    $('#synchro-annonce').textContent = `Synchronisation terminée : ${resumeBilan(bilan)}.`;
+  } catch (err) {
+    $('#synchro-annonce').textContent = `Échec de la synchro : ${err.message}`;
+    alert(`Échec de la synchro : ${err.message}`);
+  } finally {
+    boutonSynchro.removeAttribute('aria-busy');
+    boutonSynchro.querySelector('.libelle').textContent = 'Synchroniser';
+    peindreSynchro();
+  }
+});
+
+// Tuile chiffrée (tableau de bord et autres écrans) : icône, évolution, valeur qui défile, note, mini-courbe.
+// `cle` distingue deux tuiles de même libellé sur deux écrans (le chiffre ne redéfile que s'il a changé).
+function tuileChiffre(libelle, valeur, note, { ico, delta, serie, forte, cle = libelle } = {}) {
+  const d = document.createElement('div');
+  d.className = forte ? 'tuile forte' : 'tuile';
+  const entete = d.appendChild(document.createElement('div'));
+  entete.className = 'entete';
+  const icone = entete.appendChild(document.createElement('span'));
+  icone.className = 'icone';
+  icone.dataset.ico = ico || '';
+  icone.setAttribute('aria-hidden', 'true');
+  if (delta) {
+    const b = entete.appendChild(document.createElement('span'));
+    b.className = `delta ${delta.sens}`;
+    b.textContent = delta.texte;
+    b.title = 'Par rapport au mois précédent';
+  }
+  d.appendChild(document.createElement('span')).className = 'libelle';
+  d.lastChild.textContent = libelle;
+  const v = d.appendChild(document.createElement('span'));
+  v.className = 'valeur';
+  const texte = String(valeur);
+  compteur(v, texte, derniersChiffres.get(cle) !== texte);   // ne redéfile que si la valeur change
+  derniersChiffres.set(cle, texte);
+  if (note) { d.appendChild(document.createElement('span')).className = 'note'; d.lastChild.textContent = note; }
+  if (serie) d.appendChild(miniCourbe(serie));
+  return d;
+}
+
+async function chargerBord() {
+  const sel = $('#bord-mois');
+  if (!sel.options.length) {
+    const m0 = new Date().toISOString().slice(0, 7);
+    sel.replaceChildren(...Array.from({ length: 12 }, (_, i) => plusMois(m0, -i)).map((m) => {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = libelleMois(m);
+      return o;
+    }));
+  }
+  const m = sel.value, debut = m + '-01', fin = decaler(plusMois(m, 1) + '-01', -1);
+  $('#bord-surtitre').textContent = `${$('#societe-detail-title').textContent} · ${libelleMois(m)}`;
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [temps, frais, gestes, tarifs, validations, regles, echeances, amendes, conges, aCloturer] = await Promise.all([
+      toutLire(sb.from('temps').select('technicien_id, date, slot_midi, type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', decaler(debut, -6)).lte('date', decaler(fin, 6))),
+      toutLire(sb.from('frais').select('technicien_id, date, categorie, montant_eur, sans_tva').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('gestes_co').select('technicien_id, date, installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      lire(sb.from('primes_tarifs').select('technicien_id, mois, prix').eq('societe_id', selectedSociete)),
+      toutLire(sb.from('heures_sup').select('technicien_id, semaine, valide, refusee').eq('societe_id', selectedSociete)),
+      lire(sb.from('regles_societe').select('regles, valide_par, valide_le').eq('societe_id', selectedSociete).order('version', { ascending: false }).limit(1)),
+      lire(sb.from('echeances').select('type, date, vehicules(id, plaque)').eq('societe_id', selectedSociete).is('fait_le', null).not('date', 'is', null).lte('date', dansJours(30)).order('date')),
+      lire(sb.from('amendes').select('numero_avis, date_avis, vehicules(id, plaque)').eq('societe_id', selectedSociete).eq('statut', 'a_traiter')),
+      lire(sb.from('conges').select('id').eq('societe_id', selectedSociete).eq('statut', 'demandee')),
+      lire(sb.from('periodes_paie').select('debut, fin').eq('societe_id', selectedSociete).neq('statut', 'exportee').lt('fin', dansJours(0))),
+    ]);
+    const r = reglesDe(regles[0] || {});
+    const mois12 = Array.from({ length: 12 }, (_, i) => plusMois(m, i - 11));
+    const parMois = await Promise.all(mois12.map(async (mm) => {
+      const { count, error } = await sb.from('temps').select('id', { count: 'exact', head: true }).eq('societe_id', selectedSociete)
+        .gte('date', mm + '-01').lte('date', decaler(plusMois(mm, 1) + '-01', -1));
+      if (error) throw error;
+      return count || 0;
+    }));
+    activite = { mois12, parMois };
+    const duMois = temps.filter((e) => e.date >= debut && e.date <= fin);
+    const de = (liste, t) => liste.filter((x) => x.technicien_id === t.id);
+    const heuresDe = (liste) => [...new Set(liste.map((e) => e.date))]
+      .reduce((h, d) => h + heuresJour(liste.filter((e) => e.date === d).map(versHeures)), 0);
+
+    // Par technicien (actifs, ou ayant travaillé ce mois-ci).
+    const lignes = techniciens.filter((t) => t.actif || de(duMois, t).length).map((t) => {
+      const ti = de(duMois, t);
+      const v = variablesPaie({ tech: t.nom, periode: { debut, fin }, temps: de(temps, t).map(versHeures), frais: [], regles: r, validations: de(validations, t) });
+      return { t, interventions: ti.length, nr: tauxNr(ti.map(versHeuresNr), m), heures: heuresDe(ti),
+        frais: totauxFrais(de(frais, t).map(versFrais)).remboursable,
+        primes: primesDuMois(de(gestes, t), de(temps, t).map(versHeures), baremes(de(tarifs, t)), m).total,
+        semainesATraiter: v.semainesATraiter };
+    });
+    const somme = (k) => lignes.reduce((x, l) => x + l[k], 0);
+    const nrSociete = tauxNr(duMois.map(versHeuresNr), m);
+
+    const pc = (x) => (x.pourcent == null ? '—' : `${x.pourcent.toFixed(1).replace('.', ',')} %`);
+    // Objectif NR : vert jusqu'à 8 %, rouge au-dessus (icône + texte, pas la couleur seule).
+    const tuileNr = () => {
+      const p = nrSociete.pourcent;
+      const t = tuileChiffre('Taux NR (installations)', pc(nrSociete),
+        p == null ? 'Aucune installation' : p <= 8 ? '✓ Objectif atteint (≤ 8 %)' : '⚠ Au-dessus de l\'objectif (8 %)', { ico: 'nr' });
+      if (p != null) {
+        t.classList.add(p <= 8 ? 'objectif-ok' : 'objectif-ko');
+        t.appendChild(anneau(1 - p / 100, derniersChiffres.get('anneau') !== String(p)));   // part d'installations réussies
+        derniersChiffres.set('anneau', String(p));
+      }
+      return t;
+    };
+    $('#bord-chiffres').replaceChildren(
+      tuileChiffre('Interventions', duMois.length, null,
+        { ico: 'interventions', forte: true, delta: variation(parMois[11], parMois[10]), serie: parMois.slice(-6) }),
+      tuileNr(),
+      tuileChiffre('Heures', `${somme('heures')} h`, null, { ico: 'heures' }),
+      tuileChiffre('Frais remboursables', euros(somme('frais')), null, { ico: 'frais' }),
+      tuileChiffre('Primes du mois', euros(somme('primes')), `versées sur le salaire de ${libelleMois(plusMois(m, 2))}`, { ico: 'primes' }));
+
+    // Bandeau : 3 chiffres clés et anneau des installations réussies, entouré des techniciens actifs.
+    const reussite = nrSociete.pourcent == null ? null : 100 - nrSociete.pourcent;
+    const actifs = lignes.filter((l) => l.interventions > 0);
+    $('#bord-chiffres-cles')?.replaceChildren(...[[duMois.length, 'interventions'], [actifs.length, 'techniciens actifs'],
+      [reussite == null ? '—' : `${Math.round(reussite)} %`, 'installations réussies']].map(([v, lib]) => {
+      const d = document.createElement('div');
+      d.appendChild(document.createElement('span')).className = 'valeur';
+      d.lastChild.textContent = v;
+      d.appendChild(document.createElement('span')).textContent = lib;
+      return d;
+    }));
+    if ($('#bord-orbite')) {
+      orbite($('#bord-orbite'), { part: reussite == null ? 0 : reussite / 100, valeur: reussite == null ? '—' : `${Math.round(reussite)} %`,
+        libelle: 'réussies', noms: actifs.map((l) => l.t.nom), animer: derniersChiffres.get('orbite') !== m });
+      derniersChiffres.set('orbite', m);
+    }
+
+    // À faire : chaque ligne mène à l'endroit où agir.
+    const plaque = (x) => (Array.isArray(x.vehicules) ? x.vehicules[0] : x.vehicules) || {};
+    const taches = [
+      ...(conges.length ? [[`${conges.length} demande(s) de congés à valider`, () => switchOnglet('panel-conges'), '#7048e8']] : []),
+      ...lignes.filter((l) => l.semainesATraiter).map((l) => [`${l.t.nom} : ${l.semainesATraiter} semaine(s) d'heures sup à traiter (${libelleMois(m)})`, () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); }, '#c77d00']),
+      ...echeances.map((e) => [`${plaque(e).plaque} — ${e.type} ${e.date < dansJours(0) ? 'dépassée depuis le' : 'prévue le'} ${formaterDate(e.date)}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(e)); }, '#1c7ed6']),
+      ...amendes.filter((a) => limiteDesignation(a.date_avis) <= dansJours(7)).map((a) => [`${plaque(a).plaque} — amende n° ${a.numero_avis} : désigner le conducteur avant le ${formaterDate(limiteDesignation(a.date_avis))}`, () => { switchOnglet('panel-vehicules'); ouvrirVehicule(plaque(a)); }, '#e6001c']),
+      ...aCloturer.map((p) => [`Mois de paie du ${formaterDate(p.debut)} au ${formaterDate(p.fin)} terminé : à valider et clôturer`, () => switchOnglet('panel-paie'), '#0c8a5f']),
+    ];
+    $('#bord-taches').replaceChildren(...(taches.length ? taches.map(([texte, aller, couleur]) => {
+      const li = document.createElement('li');
+      const b = li.appendChild(document.createElement('button'));
+      b.type = 'button';
+      const puce = b.appendChild(document.createElement('span'));
+      puce.className = 'puce';
+      puce.style.setProperty('--c', couleur);
+      b.appendChild(document.createElement('span')).textContent = texte;
+      b.appendChild(document.createElement('span')).className = 'ouvrir';
+      b.lastChild.textContent = 'Ouvrir';
+      b.addEventListener('click', aller);
+      return li;
+    }) : [Object.assign(document.createElement('li'), { className: 'vide', textContent: 'Rien à faire pour l\'instant.' })]));
+
+    const animerBarres = derniersChiffres.get('barres') !== m;
+    derniersChiffres.set('barres', m);
+    $('#bord-types').replaceChildren(barres('Types de mission', repartition(duMois.map((e) => e.type_mission || '—')), animerBarres));
+    $('#bord-resultats').replaceChildren(barres('Résultats', repartition(duMois.map((e) => libelleResultat(e.observation_type))), animerBarres));
+    dessinerCourbe();
+
+    $('#bord-techs tbody').replaceChildren(...lignes.map((l) => {
+      const tr = ligne([l.t.nom, l.interventions, pc(l.nr), `${l.heures} h`, euros(l.frais), euros(l.primes)]);
+      tr.cells[0].prepend(avatar(l.t.nom));
+      tr.classList.add('ligne-cliquable');
+      const fl = tr.appendChild(document.createElement('td'));
+      fl.className = 'fleche';
+      fl.setAttribute('aria-hidden', 'true');
+      fl.textContent = '›';
+      tr.addEventListener('click', () => { switchOnglet('panel-techniciens'); ouvrirFicheTechnicien(l.t); });
+      return tr;
+    }));
+    if (!entreeFaite) {   // arrivée des cartes en cascade : une seule fois par ouverture de la page
+      entreeFaite = true;
+      entree([...$$('#panel-bord .bandeau, #panel-bord .tuile, #panel-bord .carte')]);
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement du tableau de bord');
+  }
+}
+const versHeuresNr = (e) => ({ date: e.date, typeMission: e.type_mission, observationType: e.observation_type });
+
+function dessinerCourbe() {
+  const zone = $('#bord-courbe');
+  if (!zone || !activite) return;
+  const n = Number($('#bord-periodes button.active')?.dataset.mois || 6);
+  const etiquettes = activite.mois12.slice(-n).map((mm) => `${mm.slice(5)}/${mm.slice(2, 4)}`);
+  const series = [{ nom: 'Interventions', valeurs: activite.parMois.slice(-n), classe: 'principale' }];
+  const fig = zone.querySelector('figure.courbe');
+  // Même nombre de mois (autre mois choisi, autre société) : le tracé se transforme (transition CSS sur « d »).
+  if (fig && fig.querySelectorAll('text.etiquette').length === n) { majCourbe(fig, series, etiquettes); return; }
+  // Sinon on redessine, à la largeur réelle de la carte : 1 unité = 1 pixel, textes à leur vraie taille.
+  zone.replaceChildren(courbe({ titre: 'Interventions par mois', etiquettes, series, largeur: Math.round(zone.clientWidth) || 640 }));
+}
+$('#bord-periodes')?.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-mois]');
+  if (!b) return;
+  $$('#bord-periodes button').forEach((x) => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+  dessinerCourbe();
+});
+
+// ===== Facturation : récap des quantités pour le donneur d'ordre (EPS...) =====
+let recap = null;
+$('#fact-form').addEventListener('submit', (e) => { e.preventDefault(); chargerFacturation(); });
+
+async function chargerFacturation() {
+  if (!$('#fact-debut').value) {   // par défaut : le mois civil en cours
+    const m = new Date().toISOString().slice(0, 7);
+    $('#fact-debut').value = m + '-01';
+    $('#fact-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  const debut = $('#fact-debut').value, fin = $('#fact-fin').value;
+  if (fin < debut) { alert('La date de fin est avant la date de début.'); return; }
+  const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+  try {
+    const [temps, gestes] = await Promise.all([
+      toutLire(sb.from('temps').select('type_mission, observation_type').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+      toutLire(sb.from('gestes_co').select('installes').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+    ]);
+    recap = { debut, fin, ...recapFacturation(temps.map((e) => ({ typeMission: e.type_mission, observationType: e.observation_type })), gestes) };
+    const total = recap.interventions.reduce((t, l) => ({ ok: t.ok + l.ok, nrClient: t.nrClient + l.nrClient, nrTechnique: t.nrTechnique + l.nrTechnique, nrAutres: t.nrAutres + l.nrAutres, total: t.total + l.total }),
+      { ok: 0, nrClient: 0, nrTechnique: 0, nrAutres: 0, total: 0 });
+    $('#fact-interventions tbody').replaceChildren(...[...recap.interventions, { type: 'TOTAL', ...total }]
+      .map((l) => ligne([l.type, l.ok, l.nrClient, l.nrTechnique, l.nrAutres, l.total])));
+    $('#fact-interventions tbody').lastChild.style.fontWeight = '700';
+    $('#fact-equipements tbody').replaceChildren(...(recap.equipements.length
+      ? recap.equipements.map((e) => ligne([e.type, e.qte])) : [ligne(['Aucun équipement installé sur la période', ''])]));
+    $('#fact-resume').replaceChildren(
+      tuileChiffre('Lignes d’intervention', recap.interventions.length, null, { ico: 'interventions', cle: 'fact-interventions' }),
+      tuileChiffre('Lignes d’équipement', recap.equipements.length, null, { cle: 'fact-equipements' }),
+    );
+    await chargerTarifs();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du récapitulatif');
+  }
+}
+
+// Grille de tarifs du client : lignes réutilisables, prix HT remplis plus tard.
+let tarifs = [], facture = null;
+const BASES = { ok: 'OK seulement', ok_nrclient: 'OK + NR client', total: 'Toutes' };
+
+async function chargerTarifs() {
+  const { data, error } = await sb.from('tarifs_facturation').select('id, categorie, code, libelle, base, prix_ht')
+    .eq('societe_id', selectedSociete).eq('client', $('#fact-client').value.trim()).order('categorie').order('code');
+  if (error) { alert(error.message); return; }
+  tarifs = data;
+  facture = montantsFacture(recap, tarifs);
+  $('#fact-montants tbody').replaceChildren(...facture.lignes.map((l) => ligne([l.libelle, l.qte,
+    l.prix_ht == null ? 'à renseigner' : euros(l.prix_ht), l.montant_ht == null ? '—' : euros(l.montant_ht)])));
+  $('#fact-montants-info').textContent = `Total HT : ${euros(facture.totalHt)}` +
+    (facture.sansPrix ? ` — ${facture.sansPrix} ligne(s) sans prix (à renseigner dans la grille de tarifs).` : '') +
+    (lignesManquantes(recap, tarifs).length ? ' Des types de la période n\'ont pas encore de ligne de tarif.' : '');
+  const modifiable = peutPayer();
+  $('#tarifs-creer').classList.toggle('hidden', !modifiable);
+  $('#tarifs-table tbody').replaceChildren(...tarifs.map((t) => {
+    const tr = document.createElement('tr');
+    const champ = (el) => { tr.appendChild(document.createElement('td')).appendChild(el); el.disabled = !modifiable; return el; };
+    const lib = champ(Object.assign(document.createElement('input'), { value: t.libelle }));
+    lib.setAttribute('aria-label', `Libellé ${t.code}`);
+    tr.appendChild(document.createElement('td')).textContent = t.categorie === 'intervention' ? 'Intervention' : 'Équipement';
+    tr.appendChild(document.createElement('td')).textContent = t.code;
+    let base = null;
+    if (t.categorie === 'intervention') {
+      base = champ(document.createElement('select'));
+      base.setAttribute('aria-label', `Base ${t.code}`);
+      for (const [v, l] of Object.entries(BASES)) base.appendChild(Object.assign(document.createElement('option'), { value: v, textContent: l }));
+      base.value = t.base;
+    } else tr.appendChild(document.createElement('td')).textContent = '—';
+    const prix = champ(Object.assign(document.createElement('input'), { type: 'number', min: '0', step: '0.01', value: t.prix_ht ?? '' }));
+    if (t.prix_ht == null) prix.parentElement.classList.add('prix-vide');
+    prix.setAttribute('aria-label', `Prix HT ${t.code}`);
+    prix.placeholder = 'à renseigner';
+    const td = tr.appendChild(document.createElement('td'));
+    if (modifiable) {
+      const b = td.appendChild(document.createElement('button'));
+      b.textContent = 'Enregistrer';
+      b.addEventListener('click', async () => {
+        const { error: e } = await sb.from('tarifs_facturation').update({ libelle: lib.value.trim() || t.code,
+          base: base ? base.value : 'ok', prix_ht: prix.value === '' ? null : Number(prix.value) }).eq('id', t.id);
+        if (e) { alert(e.message); return; }
+        await chargerTarifs();
+      });
+    } else td.textContent = '—';
+    return tr;
+  }));
+}
+
+$('#tarifs-creer').addEventListener('click', async () => {
+  if (!recap) return;
+  const nouvelles = lignesManquantes(recap, tarifs).map((t) => ({ ...t, societe_id: selectedSociete, client: $('#fact-client').value.trim() }));
+  if (!nouvelles.length) { alert('Toutes les lignes existent déjà.'); return; }
+  const { error } = await sb.from('tarifs_facturation').insert(nouvelles);
+  if (error) { alert(error.message); return; }
+  await chargerTarifs();
+});
+
+$('#fact-export').addEventListener('click', () => {
+  if (!recap) return;
+  const csv = `Client;${texteCsv($('#fact-client').value.trim())}\nPériode;${recap.debut};${recap.fin}\n\n` + versCsv(recap.interventions) + '\n' + versCsv(recap.equipements)
+    + (facture?.lignes.length ? '\n' + versCsv(facture.lignes) + `Total HT;${String(facture.totalHt).replace('.', ',')}\n` : '');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `facturation-${recap.debut}-au-${recap.fin}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ===== Interventions : toutes celles de la société sur une période (ancien tableau de bord : clôtures) =====
+let listeInterventions = [];
+const CRENEAUX = { MATIN: 'Matin', APREM: 'Après-midi' };
+const nomTech = (id) => techniciens.find((t) => t.id === id)?.nom || '—';
+
+function options(select, valeurs, tous) {
+  const avant = select.value;
+  select.replaceChildren(new Option(tous, ''), ...valeurs.map(([v, libelle]) => new Option(libelle, v)));
+  select.value = valeurs.some(([v]) => v === avant) ? avant : '';
+}
+
+async function chargerInterventions() {
+  if (!$('#int-debut').value) {   // par défaut : le mois en cours
+    const m = iso(new Date()).slice(0, 7);
+    $('#int-debut').value = m + '-01';
+    $('#int-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  try {
+    listeInterventions = await toutLire(sb.from('temps').select('id, technicien_id, date, slot_midi, type_mission, observation_type, ville, departement, numero_intervention, heure_debut, heure_fin')
+      .eq('societe_id', selectedSociete).gte('date', $('#int-debut').value).lte('date', $('#int-fin').value).order('date', { ascending: false }));
+    const distincts = (cle) => [...new Set(listeInterventions.map(cle))].sort().map((v) => [v, v]);
+    options($('#int-tech'), techniciens.filter((t) => listeInterventions.some((e) => e.technicien_id === t.id)).map((t) => [t.id, t.nom]), 'Tous');
+    options($('#int-type'), distincts((e) => e.type_mission || '—'), 'Tous');
+    options($('#int-resultat'), [...new Set(listeInterventions.map((e) => e.observation_type || 'OK'))].sort().map((c) => [c, libelleResultat(c === 'OK' ? '' : c)]), 'Tous');
+    afficherInterventions();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement des interventions');
+  }
+}
+
+const interventionsFiltrees = () => filtrer(listeInterventions, { tech: $('#int-tech').value, type: $('#int-type').value,
+  resultat: $('#int-resultat').value, texte: $('#int-texte').value });
+
+function afficherInterventions() {
+  const l = interventionsFiltrees();
+  const nr = l.filter((e) => /^NR/.test(e.observation_type)).length;
+  const ok = l.filter((e) => !e.observation_type).length;
+  const resume = $('#int-resume');
+  resume.replaceChildren(
+    tuileChiffre('Interventions', l.length, l.length > 300 ? '300 affichées, toutes dans l’export' : null, { ico: 'interventions', cle: 'int-total' }),
+    tuileChiffre('OK', ok, null, { ico: 'interventions', cle: 'int-ok' }),
+    tuileChiffre('NR', nr, null, { ico: 'nr', cle: 'int-nr' }));
+  resume.className = 'tuiles';
+  $('#int-table tbody').replaceChildren(...l.slice(0, 300).map((e) => {
+    const tr = ligne([formaterDate(e.date), nomTech(e.technicien_id),
+      CRENEAUX[e.slot_midi] || '—', e.type_mission || '—', e.ville || '—', e.departement || '—', e.numero_intervention || '—',
+      '', e.heure_debut || '—', e.heure_fin || '—', texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) || '—']);
+    const ton = !e.observation_type ? 'ok' : /^NR/.test(e.observation_type) ? 'danger' : 'neutre';
+    tr.children[7].replaceChildren(pastille(libelleResultat(e.observation_type), ton));
+    return tr;
+  }));
+}
+
+$('#int-form').addEventListener('submit', (e) => { e.preventDefault(); chargerInterventions(); });
+for (const id of ['#int-tech', '#int-type', '#int-resultat']) $(id).addEventListener('change', afficherInterventions);
+$('#int-texte').addEventListener('input', afficherInterventions);
+$('#int-export').addEventListener('click', () => {
+  const l = interventionsFiltrees();
+  if (!l.length) { alert('Aucune intervention à exporter.'); return; }
+  telecharger(`interventions-${$('#int-debut').value}-au-${$('#int-fin').value}.csv`, versCsv(l.map((e) => ({
+    Date: formaterDate(e.date), Technicien: nomTech(e.technicien_id), Créneau: CRENEAUX[e.slot_midi] || '', Type: e.type_mission,
+    Ville: e.ville, Département: e.departement, 'N° intervention': e.numero_intervention, Résultat: libelleResultat(e.observation_type),
+    Arrivée: e.heure_debut, Fin: e.heure_fin, Durée: texteDuree(dureeMinutes(e.heure_debut, e.heure_fin)) }))));
+});
+
+// ZIP de la période (ancien tableau de bord : makeZip) : photos copiées des techniciens actifs
+// (ou du technicien choisi), rangées <technicien>/<AAAA-MM>/, plus le relevé des frais de chacun.
+$('#int-zip').addEventListener('click', async () => {
+  const debut = $('#int-debut').value, fin = $('#int-fin').value, choisi = $('#int-tech').value;
+  const techs = techniciens.filter((t) => (choisi ? t.id === choisi : t.actif));
+  const bouton = $('#int-zip');
+  try {
+    const [photos, frais] = await Promise.all([
+      toutLire(sb.from('photos_apk').select('id, technicien_id, nom_drive, stockage').eq('societe_id', selectedSociete).not('stockage', 'is', null)),
+      toutLire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable')
+        .eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin)),
+    ]);
+    const duMois = (p) => { const m = p.stockage.split('/').at(-2); return m >= debut.slice(0, 7) && m <= fin.slice(0, 7); };
+    const choix = photos.filter((p) => techs.some((t) => t.id === p.technicien_id) && duMois(p));
+    if (!choix.length && !frais.length) { alert('Aucune photo ni aucun frais sur la période.'); return; }
+    if (!confirm(`Préparer un ZIP de ${choix.length} photo(s) et des relevés de frais ? Cela peut prendre un moment.`)) return;
+    bouton.disabled = true;
+    const fichiers = [], pris = new Set();
+    for (let i = 0; i < choix.length; i += 100) {   // liens signés par paquets de 100, valables 10 minutes
+      bouton.textContent = `Photos ${i}/${choix.length}…`;
+      const paquet = choix.slice(i, i + 100);
+      const { data, error } = await sb.storage.from('photos').createSignedUrls(paquet.map((p) => p.stockage), 600);
+      if (error) throw error;
+      for (const [k, p] of paquet.entries()) {
+        const rep = await fetch(data[k].signedUrl);
+        if (!rep.ok) throw new Error(`Photo ${p.nom_drive} : ${rep.status}`);
+        const base = `${nomTech(p.technicien_id)}/${p.stockage.split('/').at(-2)}/${p.nom_drive}`;
+        let nom = base;
+        for (let n = 2; pris.has(nom); n++) nom = base.replace(/(\.[^./]+)?$/, `-${n}$1`);
+        pris.add(nom);
+        fichiers.push({ nom, donnees: new Uint8Array(await rep.arrayBuffer()) });
+      }
+    }
+    const justifs = await justificatifsDe(frais);
+    for (const t of techs) {
+      const siens = frais.filter((f) => f.technicien_id === t.id).map(versCompta);
+      if (siens.length) fichiers.push({ nom: `${t.nom}/releve-frais-${debut}-au-${fin}.csv`,
+        donnees: new TextEncoder().encode('\uFEFF' + texteReleve(t, siens, justifs, debut, fin)) });
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zipStocke(fichiers)], { type: 'application/zip' }));
+    a.download = `photos-frais-${debut}-au-${fin}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert(err.message || 'Erreur pendant la préparation du ZIP');
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = 'Photos et frais (ZIP)';
+  }
+});
+
+// ===== Messages : chat bureau ↔ technicien (côté technicien branché plus tard) =====
+const nonLus = (id) => messages.filter((m) => m.technicien_id === id && m.de === 'technicien' && !m.lu_le).length;
+const heureMessage = (ts) => new Date(ts).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+// Feuille `_gsystem_chat` -> objet message au même format que la base `messages`
+// (l'id et la clé d'auteur de la feuille ne sont pas ceux de la base : on retrouve
+// le technicien par son nom_apk, et on repère le bureau par son adresse de session).
+function pontVersMessage(m) {
+  const t = techniciens.find((x) => x.nom_apk === m.tech);
+  return {
+    id: m.id,
+    technicien_id: t ? t.id : null,
+    de: m.from === 'tech' ? 'technicien' : 'bureau',
+    texte: m.text,
+    cree_le: new Date(m.ts).toISOString(),
+    lu_le: m.lu ? new Date(m.ts).toISOString() : null,
+    auteur: m.from === 'bureau' ? (session?.user?.id || null) : null,
+    ts: m.ts
+  };
+}
+
+async function compterMessagesNonLus() {
+  if (estSocietePont()) {
+    const n = messages.filter((m) => m.de === 'technicien' && !m.lu_le).length;
+    $('#onglet-messages').textContent = n ? `Messages (${n})` : 'Messages';
+    return;
+  }
+  const { count, error } = await sb.from('messages').select('id', { count: 'exact', head: true })
+    .eq('societe_id', selectedSociete).eq('de', 'technicien').is('lu_le', null);
+  $('#onglet-messages').textContent = !error && count ? `Messages (${count})` : 'Messages';
+}
+
+async function chargerMessages() {
+  try {
+    if (estSocietePont()) {
+      if (messages.some((m) => m.ts === undefined)) messages = [];   // messages d'une autre société (base) : on repart de zéro
+      const depuis = messages.length ? Math.max(...messages.map((m) => Number(m.ts))) : 0;
+      const res = await appelPont('chat_lire', { depuis });
+      const recus = (res.messages || []).map(pontVersMessage);
+      // dédup par id + de
+      const deja = new Set(messages.map((m) => `${m.id}|${m.de}`));
+      messages.push(...recus.filter((m) => !deja.has(`${m.id}|${m.de}`)));
+    } else {
+      messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, auteur, cree_le, lu_le, modifie_le').eq('societe_id', selectedSociete).order('cree_le'));
+    }
+    afficherChat();
+  } catch (err) {
+    clearInterval(relanceChat);
+    alert(err.message || 'Erreur lors du chargement des messages');
+  }
+}
+
+function afficherChat() {
+  $('#chat-alerte-apk').classList.toggle('hidden', estSocietePont());
+  const avecMessages = new Set(messages.map((m) => m.technicien_id));
+  $('#chat-liste').replaceChildren(...techniciens.filter((t) => t.actif || avecMessages.has(t.id)).map((t) => {
+    const li = document.createElement('li');
+    li.className = 'conversation';
+    li.classList.toggle('active', chatTech?.id === t.id);
+    li.appendChild(avatar(t.nom));
+    const b = li.appendChild(document.createElement('button'));
+    b.type = 'button';
+    b.className = 'secondary';
+    b.setAttribute('aria-current', String(chatTech?.id === t.id));
+    const n = nonLus(t.id);
+    b.append(t.nom, Object.assign(document.createElement('span'), { textContent: n ? `${n} non lu(s)` : '' }));
+    marquer(b, n > 0);
+    b.addEventListener('click', () => ouvrirConversation(t));
+    return li;
+  }));
+  const coches = new Set([...$$('#chat-destinataires input:checked')].map((c) => c.value));
+  $('#chat-destinataires').replaceChildren(Object.assign(document.createElement('legend'), { textContent: 'Destinataires' }),
+    ...techniciens.filter((t) => t.actif).map((t) => {
+      const l = document.createElement('label');
+      const c = l.appendChild(document.createElement('input'));
+      c.type = 'checkbox';
+      c.value = t.id;
+      c.checked = coches.has(t.id);   // la relance toutes les 30 s ne décoche rien
+      l.append(t.nom);
+      return l;
+    }));
+  if (chatTech) afficherFil();
+  compterMessagesNonLus();
+}
+
+function afficherFil() {
+  const zone = $('#chat-messages');
+  const enBas = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 40;
+  const fil = messages.filter((m) => m.technicien_id === chatTech.id);
+  zone.replaceChildren(...(fil.length ? fil.map((m) => {
+    const d = document.createElement('div');
+    d.className = `bulle ${m.de}`;
+    d.textContent = m.texte;
+    d.appendChild(document.createElement('small')).textContent = `${m.de === 'bureau' ? 'Bureau' : chatTech.nom} — ${heureMessage(m.cree_le)}`
+      + (m.modifie_le ? ' — modifié' : '') + (m.de === 'bureau' && m.lu_le ? ' — lu' : '');
+    if (m.de === 'bureau' && !estSocietePont() && (m.auteur === session.user.id || superAdmin)) {   // la base vérifie de toute façon ; via le pont, seul le bureau écrit (via chat_ecrire)
+      const actions = d.appendChild(document.createElement('div'));
+      actions.className = 'bulle-actions';
+      const bouton = (texte, action) => Object.assign(actions.appendChild(document.createElement('button')),
+        { type: 'button', className: 'secondary', textContent: texte, onclick: action });
+      bouton('Modifier', () => modifierMessage(m));
+      if (!m.lu_le) bouton('Supprimer', () => supprimerMessage(m));
+    }
+    return d;
+  }) : [Object.assign(document.createElement('p'), { textContent: 'Aucun message pour l’instant.' })]));
+  if (enBas) zone.scrollTop = zone.scrollHeight;
+}
+
+async function ouvrirConversation(t) {
+  chatTech = t;
+  $('#chat-titre').textContent = t.nom;
+  $('#chat-messages').classList.remove('hidden');
+  $('#chat-form').classList.remove('hidden');
+  afficherChat();
+  $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+  if (!estSocietePont() && nonLus(t.id)) {   // conversation ouverte = messages du technicien lus par le bureau
+    const { error } = await sb.from('messages').update({ lu_le: new Date().toISOString() })
+      .eq('technicien_id', t.id).eq('de', 'technicien').is('lu_le', null);
+    if (!error) await chargerMessages();
+  }
+}
+
+async function modifierMessage(m) {
+  const texte = (prompt('Corriger le message :', m.texte) || '').trim();
+  if (!texte || texte === m.texte) return;
+  const { data, error } = await sb.from('messages').update({ texte }).eq('id', m.id).select('id');
+  if (error || !data.length) { alert(error?.message || 'Modification refusée.'); return; }
+  await chargerMessages();
+}
+
+// Effaçable tant que le destinataire ne l'a pas lu (la base refuse sinon).
+async function supprimerMessage(m) {
+  if (!confirm('Supprimer ce message ? Il ne sera pas récupérable.')) return;
+  const { data, error } = await sb.from('messages').delete().eq('id', m.id).select('id');
+  if (error) { alert(error.message); return; }
+  if (!data.length) alert('Trop tard : le message a déjà été lu.');
+  await chargerMessages();
+}
+
+async function envoyerMessages(ids, texte) {
+  if (estSocietePont()) {
+    // La feuille garde le nom de l'APK du technicien (techniciens[].nom_apk).
+    try {
+      for (const id of ids) {
+        const t = techniciens.find((x) => x.id === id);
+        await appelPont('chat_ecrire', { technicien: t ? t.nom_apk : '', texte });
+      }
+    } catch (err) {
+      alert(err.message || 'Envoi impossible par le pont');
+      return false;
+    }
+    await chargerMessages();
+    return true;
+  }
+  const { error } = await sb.from('messages').insert(ids.map((technicien_id) => ({ societe_id: selectedSociete, technicien_id, de: 'bureau', texte })));
+  if (error) { alert(error.message); return false; }
+  await chargerMessages();
+  return true;
+}
+
+$('#chat-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const texte = $('#chat-texte').value.trim();
+  if (texte && chatTech && await envoyerMessages([chatTech.id], texte)) {
+    $('#chat-texte').value = '';
+    $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+  }
+});
+
+$('#chat-diffusion').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const ids = [...$$('#chat-destinataires input:checked')].map((c) => c.value);
+  const texte = $('#chat-diffusion-texte').value.trim();
+  if (!ids.length) { alert('Cochez au moins un technicien.'); return; }
+  if (texte && await envoyerMessages(ids, texte)) $('#chat-diffusion').reset();
+});
+
+// ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
+let compta = null;   // { params, frais, exportes, justifs, debut, fin }
+const versParams = (p) => p ? { journal: p.journal, journalLib: p.journal_lib, compteTva: p.compte_tva, compteSalarie: p.compte_salarie, comptes: p.comptes } : PARAMS_DEFAUT;
+const nomFichier = (t) => t.nom.normalize('NFD').replace(/[^\w-]+/g, '-');
+const deuxDecimales = (n) => n.toFixed(2).replace('.', ',');
+const jourParis = (horodatage) => new Date(horodatage).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });   // AAAA-MM-JJ
+
+// Le relevé s'ouvre dans Excel (BOM UTF-8) ; les écritures vont au logiciel comptable (sans BOM).
+function telecharger(nom, texte, bom = true) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([(bom ? '﻿' : '') + texte], { type: 'text/csv;charset=utf-8' }));
+  a.download = nom;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function justificatifsDe(frais) {
+  const noms = [...new Set(frais.map((f) => f.fichier).filter(Boolean))];
+  if (!noms.length) return new Set();
+  const { data, error } = await sb.from('photos_apk').select('nom_local').eq('societe_id', selectedSociete).in('nom_local', noms).not('stockage', 'is', null);
+  if (error) throw error;
+  return new Set(data.map((p) => p.nom_local));
+}
+
+async function chargerCompta() {
+  if (!$('#compta-debut').value) {   // par défaut : le mois précédent
+    const m = plusMois(iso(new Date()).slice(0, 7), -1);
+    $('#compta-debut').value = m + '-01';
+    $('#compta-fin').value = decaler(plusMois(m, 1) + '-01', -1);
+  }
+  const debut = $('#compta-debut').value, fin = $('#compta-fin').value;
+  try {
+    const lire = async (q) => { const { data, error } = await q; if (error) throw error; return data; };
+    const [params, frais, exports] = await Promise.all([
+      lire(sb.from('parametres_compta').select('*').eq('societe_id', selectedSociete).maybeSingle()),
+      toutLire(sb.from('frais').select('id, technicien_id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable, motif_refus').eq('societe_id', selectedSociete).gte('date', debut).lte('date', fin).order('date')),
+      lire(sb.from('exports_compta').select('id, technicien_id, debut, fin, frais_ids, parametres, le').eq('societe_id', selectedSociete).order('le', { ascending: false })),
+    ]);
+    compta = { params, frais, exports, exportes: new Set(exports.flatMap((e) => e.frais_ids)), justifs: await justificatifsDe(frais), debut, fin };
+    afficherCompta();
+  } catch (err) {
+    alert(err.message || 'Erreur lors du chargement de la comptabilité');
+  }
+}
+
+function afficherCompta() {
+  const { params, frais, exportes } = compta, p = versParams(params);
+  $('#compta-params-etat').textContent = !params ? 'Comptes proposés par défaut, pas encore validés par le comptable : export bloqué.'
+    : params.valide_le ? `Comptes validés par le comptable le ${formaterDate(jourParis(params.valide_le))}.`
+    : 'Comptes non validés par le comptable : export bloqué.';
+  $('#compta-params-etat').classList.toggle('alerte-proche', !params?.valide_le);
+  for (const [id, v] of [['#cp-journal', p.journal], ['#cp-journal-lib', p.journalLib], ['#cp-tva', p.compteTva], ['#cp-salarie', p.compteSalarie],
+    ['#cp-parking', p.comptes.PARKING], ['#cp-divers', p.comptes.DIVERS], ['#cp-mobile', p.comptes.MOBILE]]) {
+    $(id).value = v || '';
+    $(id).disabled = !peutCompta();
+  }
+  $$('#compta-params-form button').forEach((b) => b.classList.toggle('hidden', !peutCompta()));
+
+  const avecFrais = new Set(frais.map((f) => f.technicien_id));
+  $('#compta-table tbody').replaceChildren(...techniciens.filter((t) => t.actif || avecFrais.has(t.id)).map((t) => {
+    const siens = frais.filter((f) => f.technicien_id === t.id);
+    const n = (statut) => siens.filter((f) => f.statut === statut).length;
+    const aExporter = siens.filter((f) => f.statut === 'valide' && !exportes.has(f.id));
+    const total = aExporter.reduce((x, f) => x + releve(t, [versCompta(f)], compta.justifs).total.rembourse, 0);
+    const tr = ligne([t.nom]);
+    tr.children[0].prepend(avatar(t.nom));
+    const aux = tr.appendChild(document.createElement('td')).appendChild(document.createElement('input'));
+    aux.value = t.compte_auxiliaire || '';
+    aux.maxLength = 20;
+    aux.disabled = !peutEcrire();
+    aux.setAttribute('aria-label', `Compte auxiliaire de ${t.nom}`);
+    aux.addEventListener('change', async () => {
+      const { error } = await sb.from('techniciens').update({ compte_auxiliaire: aux.value.trim() }).eq('id', t.id);
+      if (error) { aux.value = t.compte_auxiliaire || ''; alert(error.message); } else t.compte_auxiliaire = aux.value.trim();
+    });
+    for (const v of [n('valide'), n('a_traiter'), n('refuse'), `${aExporter.length} (${euros(total)})`, siens.filter((f) => exportes.has(f.id)).length]) {
+      tr.appendChild(document.createElement('td')).textContent = v;
+    }
+    if (n('a_traiter')) {
+      tr.children[3].className = 'alerte-proche';
+      tr.children[3].replaceChildren(pastille(String(n('a_traiter')), 'alerte'));
+    }
+    const actions = tr.appendChild(document.createElement('td'));
+    const bouton = (texte, action) => { const b = actions.appendChild(document.createElement('button')); b.type = 'button';
+      b.className = 'secondary voir'; b.textContent = texte; b.addEventListener('click', action); return b; };
+    bouton('Relevé', () => telechargerReleve(t, siens, compta.debut, compta.fin));
+    if (peutEcrire() || peutCompta()) {
+      const b = bouton('Exporter', () => exporterCompta(t, aExporter.length));
+      b.disabled = !aExporter.length || n('a_traiter') > 0 || !params?.valide_le;
+      b.title = n('a_traiter') ? 'Des frais restent à valider (fiche technicien, onglet Frais)' : !params?.valide_le ? 'Comptes à faire valider par le comptable' : '';
+    }
+    return tr;
+  }));
+
+  $('#compta-exports tbody').replaceChildren(...compta.exports.map((e) => {
+    const t = techniciens.find((x) => x.id === e.technicien_id) || { nom: '—' };
+    const tr = ligne([formaterDate(jourParis(e.le)), t.nom, `${formaterDate(e.debut)} → ${formaterDate(e.fin)}`, String(e.frais_ids.length), '…']);
+    const td = tr.appendChild(document.createElement('td'));
+    for (const [texte, fichier] of [['Écritures', 'ecritures'], ['Relevé', 'releve']]) {
+      const b = td.appendChild(document.createElement('button'));
+      b.type = 'button'; b.className = 'secondary voir'; b.textContent = texte;
+      b.addEventListener('click', () => telechargerExport(e, fichier));
+    }
+    fraisDeLExport(e).then((liste) => { tr.children[4].textContent = euros(releve(t, liste, new Set()).total.rembourse); }).catch(() => {});
+    return tr;
+  }));
+}
+
+const ENTETES_RELEVE = { technicien: 'Technicien', date: 'Date', categorie: 'Catégorie', ttc: 'TTC', ht: 'HT', tva: 'TVA', rembourse: 'Remboursé',
+  tvaRecuperee: 'TVA récupérée', charge: 'Charge', sansTva: 'Sans TVA', justificatif: 'Justificatif', controles: 'Contrôles' };
+
+function texteReleve(t, liste, justifs, debut, fin) {
+  const r = releve(t, liste, justifs);
+  const enClair = r.lignes.map((l) => Object.fromEntries(Object.entries(l).map(([k, v]) =>
+    [ENTETES_RELEVE[k], typeof v === 'number' ? deuxDecimales(v) : v])));
+  const soc = societes.find((x) => x.id === selectedSociete) || {};
+  return `Société;${texteCsv(soc.nom)};${texteCsv((soc.adresse || '').replace(/\s*\n\s*/g, ', '))};SIRET ${soc.siret || 'non renseigné'}\nTechnicien;${texteCsv(t.nom)}\nPériode;${formaterDate(debut)};${formaterDate(fin)}\n\n` + versCsv(enClair)
+    + `Total;;;${deuxDecimales(r.total.ttc)};;;${deuxDecimales(r.total.rembourse)};${deuxDecimales(r.total.tvaRecuperee)};${deuxDecimales(r.total.charge)}\n`;
+}
+
+function telechargerReleve(t, siens, debut, fin) {
+  if (!siens.length) { alert('Aucun frais sur cette période.'); return; }
+  telecharger(`releve-frais-${nomFichier(t)}-${debut}-au-${fin}.csv`, texteReleve(t, siens.map(versCompta), compta.justifs, debut, fin));
+}
+
+async function fraisDeLExport(e) {
+  const { data, error } = await sb.from('frais').select('id, date, categorie, montant_eur, sans_tva, fichier, statut, tva_recuperable').in('id', e.frais_ids).order('date');
+  if (error) throw error;
+  return data.map(versCompta);
+}
+
+// Fichiers d'un export : refaits à l'identique (mêmes frais figés, comptes du jour de l'export).
+async function telechargerExport(e, quoi) {
+  try {
+    const t = techniciens.find((x) => x.id === e.technicien_id);
+    const liste = await fraisDeLExport(e);
+    const base = `${nomFichier(t)}-${e.debut}-au-${e.fin}.csv`;
+    if (quoi === 'releve') { telecharger(`releve-frais-${base}`, texteReleve(t, liste, await justificatifsDe(liste), e.debut, e.fin)); return; }
+    const lignes = ecritures({ tech: { nom: t.nom, compteAuxiliaire: t.compte_auxiliaire }, frais: liste, params: versParams(e.parametres), valideLe: jourParis(e.le) });
+    telecharger(`ecritures-${base}`, versCsvFec(lignes), false);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function exporterCompta(t, n) {
+  const { debut, fin } = compta;
+  const sansCompte = t.compte_auxiliaire ? '' : '\n\nAttention : pas de compte auxiliaire pour ce technicien (colonne vide dans les écritures).';
+  if (!confirm(`Exporter ${n} frais validé(s) de ${t.nom} du ${formaterDate(debut)} au ${formaterDate(fin)} ? Ils ne pourront plus être modifiés.${sansCompte}`)) return;
+  const { data, error } = await sb.rpc('exporter_compta', { s: selectedSociete, tech: t.id, du: debut, au: fin });
+  if (error) { alert(error.message); return; }
+  await chargerCompta();
+  const e = compta.exports.find((x) => x.id === data[0].export_id);
+  if (e) { await telechargerExport(e, 'ecritures'); await telechargerExport(e, 'releve'); }
+}
+
+$('#compta-form').addEventListener('submit', (e) => { e.preventDefault(); chargerCompta(); });
+
+async function enregistrerParams() {
+  const v = (id) => $(id).value.trim();
+  const { error } = await sb.from('parametres_compta').upsert({ societe_id: selectedSociete, journal: v('#cp-journal'), journal_lib: v('#cp-journal-lib'),
+    compte_tva: v('#cp-tva'), compte_salarie: v('#cp-salarie'), comptes: { PARKING: v('#cp-parking'), DIVERS: v('#cp-divers'), MOBILE: v('#cp-mobile') } });
+  if (error) throw error;
+}
+
+$('#compta-params-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try { await enregistrerParams(); await chargerCompta(); } catch (err) { alert(err.message); }
+});
+
+$('#cp-valider').addEventListener('click', async () => {
+  if (!$('#compta-params-form').reportValidity()) return;
+  if (!confirm('Valider ces comptes en tant que comptable ? Les exports utiliseront ces comptes.')) return;
+  try {
+    await enregistrerParams();
+    const { error } = await sb.from('parametres_compta').update({ valide_le: new Date().toISOString() }).eq('societe_id', selectedSociete);
+    if (error) throw error;
+    await chargerCompta();
+  } catch (err) { alert(err.message); }
+});
+
+// ===== Identité de la société : nom, adresse, logo (admin) =====
+let logoChoisi;   // undefined : inchangé ; null : retiré ; texte : nouvelle image
+
+function remplirIdentite(s) {
+  logoChoisi = undefined;
+  $('#identite-form').reset();
+  $('#id-nom').value = s?.nom || '';
+  $('#id-adresse').value = s?.adresse || '';
+  $('#id-siret').value = s?.siret || '';
+  apercuLogo(s?.logo);
+}
+
+function apercuLogo(logo) {
+  $('#id-logo-plaque').classList.toggle('hidden', !logo);
+  if (logo) $('#id-logo-apercu').src = logo;
+}
+
+// Réduit l'image (480 × 160 au plus) et la garde en PNG : petite, et la transparence reste.
+async function reduireLogo(fichier) {
+  const img = await createImageBitmap(fichier);
+  const r = Math.min(1, 480 / img.width, 160 / img.height);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * r));
+  c.height = Math.max(1, Math.round(img.height * r));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/png');
+}
+
+$('#id-logo').addEventListener('change', async () => {
+  const f = $('#id-logo').files[0];
+  if (!f) return;
+  try {
+    // Déjà assez léger : gardé tel quel (un WebP animé reste animé) ; sinon réduit en PNG fixe.
+    logoChoisi = f.size <= 220000 ? await new Promise((ok, ko) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = ko;
+      r.readAsDataURL(f);
+    }) : await reduireLogo(f);
+    if (logoChoisi.length > 300000) { logoChoisi = undefined; alert('Logo trop détaillé : essayez une image plus simple.'); return; }
+    apercuLogo(logoChoisi);
+  } catch {
+    alert("Image illisible : choisissez un fichier PNG, JPEG ou WebP.");
+  }
+});
+
+$('#id-logo-retirer').addEventListener('click', () => { logoChoisi = null; $('#id-logo').value = ''; apercuLogo(null); });
+
+$('#identite-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const siret = $('#id-siret').value.replace(/\s/g, '');
+  if (siret && !/^\d{14}$/.test(siret)) { alert('Le SIRET compte 14 chiffres.'); return; }
+  const champs = { nom: $('#id-nom').value.trim(), adresse: $('#id-adresse').value.trim(), siret: siret || null };
+  if (logoChoisi !== undefined) champs.logo = logoChoisi;
+  const { data, error } = await sb.from('societes').update(champs).eq('id', selectedSociete).select('id, nom, adresse, siret, logo');
+  if (error) { alert(error.message); return; }
+  if (!data.length) { alert("Modification refusée : réservée à l'admin de la société."); return; }
+  Object.assign(societes.find((x) => x.id === selectedSociete), data[0]);
+  remplirIdentite(data[0]);
+  $('#societe-detail-title').textContent = data[0].nom;
+  mettreAJourFil();
+  $('#identite').open = false;
+});
+
+// État d'un frais : la base signe, exige un motif de refus et fige un frais exporté.
+async function changerFrais(f, champs) {
+  if (champs.statut === 'refuse') {
+    const motif = (prompt('Motif du refus (visible du comptable) :') || '').trim();
+    if (!motif) { afficherMoisFiche(); return; }
+    champs.motif_refus = motif;
+  }
+  const { data, error } = await sb.from('frais').update(champs).eq('id', f.id).select('statut, tva_recuperable, motif_refus').single();
+  if (error) alert(error.message);
+  else Object.assign(f, data);
+  afficherMoisFiche();
+}
+
+// Case « Validées » : la base signe avec l'utilisateur connecté et refuse après export de la paie.
+async function validerHeuresSup(s, choix) {
+  const [annee, n] = s.semaine.split('-W').map(Number);
+  const j4 = Date.UTC(annee, 0, 4);
+  const lundi = new Date(j4 - ((new Date(j4).getUTCDay() + 6) % 7) * 86400000 + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
+  const { error } = await sb.from('heures_sup').upsert({ societe_id: selectedSociete, technicien_id: fiche.t.id,
+    semaine: s.semaine, date: lundi, sup1: s.sup1, sup2: s.sup2, valide: choix.value === 'validee', refusee: choix.value === 'refusee' },
+  { onConflict: 'societe_id,technicien_id,semaine' });
+  if (error) { choix.value = fiche.validations.get(s.semaine) || 'a_traiter'; alert(error.message); return; }
+  fiche.validations.set(s.semaine, choix.value);
+  pointHeures();
+}
+
+// Formulaire Affectation
+$('#affectation-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const technicien_id = $('#aff-tech').value;
+  const debut = $('#aff-debut').value;
+  if (!technicien_id || !debut) return;
+  try {
+    const { error } = await sb.from('affectations').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id, technicien_id, debut });
+    if (error) throw error;
+    $('#affectation-form').reset();
+    await loadAffectations(vehiculeActif.id);
+    await loadVehicules(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Formulaire Relevé km
+$('#releve-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const date = $('#rel-date').value;
+  const km = $('#rel-km').value;
+  if (!date || !km) return;
+  try {
+    const { error } = await sb.from('releves_km').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id, date, km: Number(km), source: 'saisie' });
+    if (error) throw error;
+    $('#releve-form').reset();
+    await loadRelevesAndKm(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Formulaire Échéance
+$('#echeance-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const type = $('#ech-type').value;
+  const date = $('#ech-date').value;
+  const km = $('#ech-km').value;
+  if (!date && !km) {
+    alert('Indiquez une date ou un kilométrage.');
+    return;
+  }
+  try {
+    const { error } = await sb.from('echeances').insert({ societe_id: selectedSociete, vehicule_id: vehiculeActif.id, type, date: date || null, km: km ? Number(km) : null });
+    if (error) throw error;
+    $('#echeance-form').reset();
+    await loadEcheances(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Formulaire Entretien
+$('#entretien-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const date = $('#ent-date').value;
+  // Un passage au garage = une ligne par type coché (révision + filtres le même jour…).
+  const types = [...document.querySelectorAll('input[name="ent-type"]:checked')].map((c) => c.value);
+  const km = $('#ent-km').value;
+  const garage = $('#ent-garage').value;
+  const cout = $('#ent-cout').value;
+  if (!date) return;
+  if (!types.length) { alert('Cochez au moins un entretien fait.'); return; }
+  try {
+    // Le coût est la facture du passage : posé une seule fois, sur la 1re ligne.
+    const { error } = await sb.from('entretiens').insert(types.map((type, i) => ({
+      societe_id: selectedSociete,
+      vehicule_id: vehiculeActif.id,
+      date,
+      type,
+      km: km ? Number(km) : null,
+      garage,
+      cout: cout && i === 0 ? Number(cout.replace(',', '.')) : null
+    })));
+    if (error) throw error;
+    $('#entretien-form').reset();
+    await loadEntretiens(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout');
+  }
+});
+
+// Formulaire Amende
+$('#amende-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAlert();
+  if (!peutEcrire() || !vehiculeActif) return;
+  const numeroAvis = $('#amende-numero').value.trim();
+  const dateAvis = $('#amende-date-avis').value;
+  const dateInfraction = $('#amende-date-infraction').value;
+  const heureInfraction = $('#amende-heure').value;
+  const lieu = $('#amende-lieu').value.trim();
+  const motif = $('#amende-motif').value.trim();
+  const montantInput = $('#amende-montant').value.replace(',', '.');
+  const montant = montantInput ? Number(montantInput) : null;
+  const technicienId = $('#amende-conducteur').value || null;
+  const fichier = $('#amende-scan').files[0];
+  if (!numeroAvis || !dateAvis) { alert('Numéro d\'avis et date de l\'avis requis.'); return; }
+  if (fichier && !extensionScan(fichier)) { alert('Scan accepté : photo JPEG ou PNG, ou PDF.'); return; }
+  try {
+    // L'amende d'abord (la base refuse tout scan qui n'est pas celui d'une amende existante).
+    const { data: cree, error } = await sb.from('amendes').insert({
+      societe_id: selectedSociete,
+      vehicule_id: vehiculeActif.id,
+      numero_avis: numeroAvis,
+      date_avis: dateAvis,
+      date_infraction: dateInfraction || null,
+      heure_infraction: heureInfraction || '',
+      lieu: lieu || '',
+      motif: motif || '',
+      montant: montant,
+      technicien_id: technicienId
+    }).select('id').single();
+    if (error) throw error;
+    $('#amende-form').reset();
+    if (fichier) await envoyerScan(cree.id, fichier);
+    await loadAmendes(vehiculeActif.id);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'ajout d\'amende');
+  }
+});
+
+const extensionScan = (f) => ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' })[f.type];
+
+// Scan d'une amende DÉJÀ enregistrée : <société>/amendes/<id de l'amende>.<ext>
+async function envoyerScan(amendeId, fichier) {
+  const chemin = `${selectedSociete}/amendes/${amendeId}.${extensionScan(fichier)}`;
+  const { error } = await sb.storage.from('scans').upload(chemin, fichier, { contentType: fichier.type });
+  if (error) { alert(`Amende enregistrée, mais le scan n'a pas été envoyé : ${error.message}. Utilisez « Ajouter le scan ».`); return; }
+  const { error: e2 } = await sb.from('amendes').update({ scan: chemin }).eq('id', amendeId);
+  if (e2) alert(e2.message);
+}
+
+// Mise à jour du conducteur suggéré selon la date d'infraction
+$('#amende-date-infraction').addEventListener('change', async () => {
+  if (!vehiculeActif) return;
+  const date = $('#amende-date-infraction').value;
+  if (!date) return;
+  const { data: affs, error } = await sb.from('affectations')
+    .select('technicien_id, debut, fin')
+    .eq('vehicule_id', vehiculeActif.id)
+    .eq('societe_id', selectedSociete);
+  if (error) { alert(error.message); return; }
+  const techId = conducteurA(affs, date);
+  if (techId) {
+    $('#amende-conducteur').value = techId;
+  }
+});
+
+// Remplir select techniciens actifs pour affectation
+function renderTechniciensActifs() {
+  const actifs = techniciens.filter(t => t.actif);
+  for (const id of ['#aff-tech', '#conge-tech']) {   // affectation et demande de congés
+    $(id).replaceChildren(...actifs.map(t => {
+      const o = document.createElement('option');
+      o.value = t.id;
+      o.textContent = t.nom;
+      return o;
+    }));
+  }
+}
+
+function renderTechniciensAmende() {
+  const select = $('#amende-conducteur');
+  select.replaceChildren();
+  const vide = document.createElement('option');
+  vide.value = '';
+  vide.textContent = '—';
+  select.appendChild(vide);
+  for (const t of techniciens) {
+    const o = document.createElement('option');
+    o.value = t.id;
+    o.textContent = t.nom;
+    select.appendChild(o);
+  }
+}
+
+// Init : vérifier si session existe déjà
+sb.auth.onAuthStateChange((event, newSession) => {
+  if (newSession) {
+    session = newSession;
+    if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
+    $('#user-email').textContent = session.user.email;
+    showScreen('main-screen');
+    setTimeout(init, 0);
+  } else {
+    session = null;
+    showScreen('login-screen');
+  }
+});
