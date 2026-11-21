@@ -16,13 +16,16 @@ export function texteDuree(m) {
   return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`;
 }
 
-// Filtres : technicien, type, résultat (vide = OK), texte cherché dans n°, ville, département.
+// Filtres : technicien, type, résultat (vide = OK), 2 chiffres = département exact, sinon texte cherché dans le n° et la ville. Pas les dates/heures.
 export function filtrer(liste, { tech, type, resultat, texte } = {}) {
   const t = String(texte || '').trim().toLowerCase();
+  const depExact = /^\d{2}$/.test(t);
   return liste.filter((e) => (!tech || e.technicien_id === tech)
     && (!type || e.type_mission === type)
     && (!resultat || (e.observation_type || 'OK') === resultat)
-    && (!t || [e.numero_intervention, e.ville, e.departement].join(' ').toLowerCase().includes(t)));
+    && (!t || (depExact
+      ? String(e.departement || '') === t   // « 66 » = le département, rien d'autre
+      : [e.numero_intervention, e.ville].some((v) => String(v || '').toLowerCase().includes(t)))));
 }
 
 // Code de résultat de l'APK -> libellé, comme l'APK (backup/StatsUploader.kt). Code inconnu : tel quel.

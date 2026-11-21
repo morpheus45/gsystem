@@ -30,7 +30,8 @@ let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
 let techniciens = [];     // cache de la société courante (pour les select)
 let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
 let messages = [], chatTech = null, relanceChat = null;
-let listeVehicules = [];   // véhicules de la société (plan d'entretien : même modèle)   // chat : messages de la société, conversation ouverte, relance
+let listeVehicules = [];   // véhicules de la société (plan d'entretien : même modèle)
+let listeAffectations = []; // affectations de la société courante
 
 // Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
 function peutEcrire() {
@@ -626,12 +627,13 @@ function ouvrirFicheTechnicien(t) {
 // === VÉHICULES ===
 async function loadVehicules(societeId) {
   try {
-    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, carburant, motorisation, mise_en_circulation').eq('societe_id', societeId).order('plaque');
+    const { data: vehicules, error } = await sb.from('vehicules').select('id, plaque, libelle, marque, modele, carburant, motorisation, mise_en_circulation, actif, archive_le, archive_par, motif_archive').eq('societe_id', societeId).order('plaque');
     if (error) throw error;
     listeVehicules = vehicules;
     // Charger les affectations de cette société
     const { data: affectations, error: affectErr } = await sb.from('affectations').select('vehicule_id, technicien_id, debut, fin').eq('societe_id', societeId).order('debut', { ascending: false });
     if (affectErr) throw affectErr;
+    listeAffectations = affectations;
     renderVehicules(vehicules, affectations);
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des véhicules');
@@ -640,8 +642,14 @@ async function loadVehicules(societeId) {
 
 function renderVehicules(list, affectations) {
   const tbody = $('#vehicules-table tbody');
+  const filtre = $('#veh-filtre').value;
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  tbody.replaceChildren(...list.map(v => {
+  const filtrees = list.filter(v => {
+    if (filtre === 'actuels') return v.actif !== false;
+    if (filtre === 'archives') return v.actif === false;
+    return true;
+  });
+  tbody.replaceChildren(...filtrees.map(v => {
     const affectationsV = affectations.filter(a => a.vehicule_id === v.id);
     const techId = conducteurA(affectationsV, aujourdhui);
     const tech = techniciens.find(t => t.id === techId);
@@ -674,6 +682,9 @@ async function ouvrirVehicule(v) {
   const plaque = titre.appendChild(document.createElement('span'));
   plaque.className = 'plaque';
   plaque.textContent = v.plaque;
+  const archive = v.actif === false;
+  $('#vehicule-archiver').classList.toggle('hidden', archive);
+  $('#vehicule-restaurer').classList.toggle('hidden', !archive);
   initialiserSousOnglets($('#vehicule-detail'));
   mettreAJourFil();
   await Promise.all([
@@ -1361,8 +1372,41 @@ $('#vehicule-form').addEventListener('submit', async (e) => {
   }
 });
 
+// Filtre véhicules
+$('#veh-filtre').addEventListener('change', () => {
+  renderVehicules(listeVehicules, listeAffectations);
+});
+
+// Gestionnaire pour archiver/restaurer un véhicule
+async function gererArchiveVehicule(archiver) {
+  if (!peutEcrire() || !vehiculeActif) return;
+  if (archiver) {
+    const dialog = $('#dialog-vehicule-archive');
+    $('#vehicule-archive-motif').value = '';
+    dialog.showModal();
+    const motif = await new Promise((resolve) => {
+      $('#vehicule-archive-form').onsubmit = (e) => {
+        e.preventDefault();
+        const m = $('#vehicule-archive-motif').value.trim();
+        dialog.close();
+        resolve(m);
+      };
+    });
+    if (!motif) return;
+    const { error } = await sb.from('vehicules').update({ archive_le: new Date().toISOString().slice(0, 10), motif_archive: motif }).eq('id', vehiculeActif.id);
+    if (error) { alert(error.message); return; }
+  } else {
+    const { error } = await sb.from('vehicules').update({ archive_le: null, motif_archive: '' }).eq('id', vehiculeActif.id);
+    if (error) { alert(error.message); return; }
+  }
+  await loadVehicules(selectedSociete);
+  fermerPanneauVehicule();
+}
+
 // Fermeture panneau véhicule
 $('#vehicule-detail-close').addEventListener('click', fermerPanneauVehicule);
+$('#vehicule-archiver').addEventListener('click', () => gererArchiveVehicule(true));
+$('#vehicule-restaurer').addEventListener('click', () => gererArchiveVehicule(false));
 
 // Fermeture fiche technicien
 $('#tech-fiche-close').addEventListener('click', fermerFicheTechnicien);
@@ -1502,7 +1546,7 @@ function afficherMoisFiche() {
     tva.addEventListener('change', () => changerFrais(f, { tva_recuperable: tva.checked }));
     return tr;
   }));
-  marquer(sousOnglet('tech-section-frais'), fiche.frais.some((f) => f.statut === 'a_traiter'));
+  marquer(sousOnglet('tech-section-frais'), fraisMois.some((f) => f.statut === 'a_traiter'));
   afficherGalerie(m);
   $('#tech-camemberts').replaceChildren(
     barres('Types de mission', repartition(duMois.map((e) => e.type_mission || '—')), false),
@@ -1750,28 +1794,61 @@ $('#conges-filtre').addEventListener('change', chargerConges);
 pilulesDepuisSelect($('#conges-filtre'), 'Demandes affichées');
 
 async function chargerConges() {
-  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut').eq('societe_id', selectedSociete).order('debut');
+  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut, demande_par, demande_le, modifie_par, modifie_le, motif_modification, annulee_par, annulee_le').eq('societe_id', selectedSociete).order('debut');
   if ($('#conges-filtre').value) q = q.eq('statut', $('#conges-filtre').value);
   const { data, error } = await q;
   if (error) { alert(error.message); return; }
   const nom = (id) => techniciens.find((t) => t.id === id)?.nom || '—';
+  const nomUtilisateur = (id) => id ? (techniciens.find((t) => t.id === id)?.nom || `Utilisateur ${id.slice(0, 8)}`) : '—';
   $('#conges-table tbody').replaceChildren(...data.map((c) => {
     const jours = (Date.parse(c.fin) - Date.parse(c.debut)) / 86400000 + 1;
     const tr = ligne([nom(c.technicien_id), formaterDate(c.debut), formaterDate(c.fin), jours,
       TYPES_CONGE[c.type] || c.type, c.motif || '—', '']);
     const statut = STATUTS_CONGE[c.statut] || c.statut;
-    tr.children[6].replaceChildren(pastille(statut, c.statut === 'demandee' ? 'alerte' : c.statut === 'validee' ? 'ok' : c.statut === 'refusee' ? 'danger' : 'neutre'));
+    let couleur = c.statut === 'demandee' ? 'alerte' : c.statut === 'validee' ? 'ok' : c.statut === 'refusee' ? 'danger' : c.statut === 'annulee' ? 'neutre' : 'neutre';
+    tr.children[6].replaceChildren(pastille(statut, couleur));
     const td = tr.appendChild(document.createElement('td'));
-    if (c.statut !== 'demandee' || !peutEcrire()) { td.textContent = '—'; return tr; }
-    for (const [statut, libelle, classe] of [['validee', 'Valider', ''], ['refusee', 'Refuser', 'danger']]) {
+    if (!peutEcrire()) { td.textContent = '—'; return tr; }
+    if (c.statut === 'demandee') {
+      for (const [s, libelle, classe] of [['validee', 'Valider', ''], ['refusee', 'Refuser', 'danger']]) {
+        const b = td.appendChild(document.createElement('button'));
+        b.textContent = libelle;
+        if (classe) b.className = classe;
+        b.addEventListener('click', async () => {
+          const { error: e } = await sb.from('conges').update({ statut: s }).eq('id', c.id);
+          if (e) { alert(e.message); return; }
+          await chargerConges();
+          compterCongesAValider();
+        });
+      }
+    } else if (c.statut === 'validee') {
       const b = td.appendChild(document.createElement('button'));
-      b.textContent = libelle;
-      if (classe) b.className = classe;
+      b.textContent = 'Annuler';
+      b.className = 'danger';
       b.addEventListener('click', async () => {
-        const { error: e } = await sb.from('conges').update({ statut }).eq('id', c.id);
-        if (e) { alert(e.message); return; }
-        await chargerConges();
-        compterCongesAValider();
+        const dialog = $('#dialog-conge-modif');
+        $('#conge-modif-motif').value = '';
+        dialog.showModal();
+        const formData = await new Promise((resolve) => {
+          $('#conge-modif-form').onsubmit = () => false;
+          $('#conge-modif-form').onchange = () => {};
+          const handler = (e) => {
+            e.preventDefault();
+            const action = e.submitter?.value;
+            $('#conge-modif-form').removeEventListener('submit', handler);
+            resolve({ action });
+          };
+          $('#conge-modif-form').addEventListener('submit', handler);
+        });
+        dialog.close();
+        if (formData.action === 'annuler') {
+          const motif = $('#conge-modif-motif').value.trim();
+          if (!motif) { alert('Motif obligatoire'); return; }
+          const { error: e } = await sb.from('conges').update({ statut: 'annulee', motif_modification: motif }).eq('id', c.id);
+          if (e) { alert(e.message); return; }
+          await chargerConges();
+          compterCongesAValider();
+        }
       });
     }
     return tr;

@@ -970,10 +970,12 @@
             </details>
             <div class="section">
               <h3>Véhicules</h3>
+              <div class="barre"><div class="field"><label for="veh-filtre">Afficher</label>
+                <select id="veh-filtre"><option value="actuels">Actuels</option><option value="archives">Archivés</option></select></div></div>
               <div class="table-wrapper">
                 <table id="vehicules-table">
                   <thead>
-                    <tr><th>Plaque</th><th>Libellé</th><th>Conducteur actuel</th><th>Depuis</th><th aria-hidden="true"></th></tr>
+                    <tr><th>Plaque</th><th>Libellé</th><th>Conducteur actuel</th><th>Depuis</th><th></th><th aria-hidden="true"></th></tr>
                   </thead>
                   <tbody></tbody>
                 </table>
@@ -983,7 +985,11 @@
 
           <!-- Fiche véhicule -->
           <div id="vehicule-detail" class="section hidden">
-            <button id="vehicule-detail-close" class="secondary">← Véhicules</button>
+            <div class="flex" style="gap:8px;margin-bottom:12px;">
+              <button id="vehicule-detail-close" class="secondary">← Véhicules</button>
+              <button id="vehicule-archiver" class="danger secondary" hidden>Archiver</button>
+              <button id="vehicule-restaurer" class="secondary" hidden>Restaurer</button>
+            </div>
             <h2 id="vehicule-detail-title" style="margin:12px 0 16px;">Véhicule</h2>
 
             <div class="sous-onglets" role="tablist">
@@ -1434,7 +1440,7 @@
           <div class="section">
              <div class="barre carte" id="conges-filtres">
               <div class="field"><label for="conges-filtre">Afficher</label>
-                <select id="conges-filtre"><option value="demandee">À valider</option><option value="validee">Validés</option><option value="refusee">Refusés</option><option value="">Tous</option></select>
+                <select id="conges-filtre"><option value="demandee">À valider</option><option value="validee">Validés</option><option value="refusee">Refusés</option><option value="annulee">Annulés</option><option value="">Tous</option></select>
               </div>
             </div>
             <details class="ajout"><summary>Saisir une demande</summary>
@@ -1463,6 +1469,27 @@
     </section>
   </div>
   <script type="module" src="app.js"></script>
+  <dialog id="dialog-conge-modif" aria-labelledby="dialog-conge-modif-titre">
+    <form id="conge-modif-form" method="dialog">
+      <h3 id="dialog-conge-modif-titre">Modifier congé</h3>
+      <div class="field"><label for="conge-modif-motif">Motif de modification</label><input id="conge-modif-motif" maxlength="200" required></div>
+      <div class="barre">
+        <button type="submit" name="action" value="modifier">Modifier</button>
+        <button type="submit" name="action" value="annuler" class="danger">Annuler le congé</button>
+        <button type="button" class="secondary" onclick="document.getElementById('dialog-conge-modif').close()">Fermer</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-vehicule-archive" aria-labelledby="dialog-vehicule-archive-titre">
+    <form id="vehicule-archive-form" method="dialog">
+      <h3 id="dialog-vehicule-archive-titre">Archiver véhicule</h3>
+      <div class="field"><label for="vehicule-archive-motif">Motif d'archivage</label><input id="vehicule-archive-motif" maxlength="200" required></div>
+      <div class="barre">
+        <button type="submit">Archiver</button>
+        <button type="button" class="secondary" onclick="document.getElementById('dialog-vehicule-archive').close()">Annuler</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="dialog-fait" aria-labelledby="dialog-fait-titre">
     <form id="fait-form" method="dialog">
       <h3 id="dialog-fait-titre">Échéance faite</h3>

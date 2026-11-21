@@ -48,3 +48,37 @@ test('lecture seule ne décide pas ; l\'autre société ne voit rien ; rien ne s
     await assert.rejects(db.query(`delete from conges`), /effacement interdit/);
   });
 });
+
+test('congé validé modifiable ou annulable avec motif obligatoire ; auteur et date initiaux préservés', async () => {
+  await db.comme(UG, async () => {
+    const id = (await db.query(demande(A, T, '2026-07-01', '2026-07-15'))).rows[0].id;
+    await db.query(`update conges set statut = 'validee' where id = '${id}'`);
+    const initiale = (await db.query(`select decide_par, decide_le from conges where id = '${id}'`)).rows[0];
+
+    // Modification sans motif : refusée
+    await assert.rejects(db.query(`update conges set fin = '2026-07-20' where id = '${id}'`), /motif obligatoire/);
+
+    // Modification avec motif : acceptée, initial préservé, modifie_par et modifie_le renseignés
+    await db.query(`update conges set fin = '2026-07-20', motif_modification = 'prolongation accordée' where id = '${id}'`);
+    const apresModif = (await db.query(`select statut, to_char(fin, 'YYYY-MM-DD') as fin, decide_par, decide_le, modifie_par, modifie_le is not null as modifie, motif_modification from conges where id = '${id}'`)).rows[0];
+    assert.equal(apresModif.statut, 'validee');
+    assert.equal(apresModif.fin, '2026-07-20');
+    assert.equal(apresModif.decide_par, initiale.decide_par);
+    assert.equal(apresModif.decide_le.getTime(), initiale.decide_le.getTime());
+    assert.equal(apresModif.modifie_par, UG);
+    assert.equal(apresModif.modifie, true);
+    assert.equal(apresModif.motif_modification, 'prolongation accordée');
+
+    // Annulation sans motif : refusée
+    await assert.rejects(db.query(`update conges set statut = 'annulee', motif_modification = '   ' where id = '${id}'`), /motif obligatoire/);
+
+    // Annulation avec motif : acceptée, décision initiale préservée
+    await db.query(`update conges set statut = 'annulee', motif_modification = 'changement de planning client' where id = '${id}'`);
+    const apresAnnule = (await db.query(`select statut, decide_par, decide_le, modifie_par, motif_modification from conges where id = '${id}'`)).rows[0];
+    assert.equal(apresAnnule.statut, 'annulee');
+    assert.equal(apresAnnule.decide_par, initiale.decide_par);
+    assert.equal(apresAnnule.decide_le.getTime(), initiale.decide_le.getTime());
+    assert.equal(apresAnnule.modifie_par, UG);
+    assert.equal(apresAnnule.motif_modification, 'changement de planning client');
+  });
+});

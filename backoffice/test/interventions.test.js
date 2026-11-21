@@ -19,14 +19,18 @@ test('durée affichée comme l’ancien tableau de bord : 1h35, 45 min, vide', (
 
 test('filtres : technicien, type, résultat (vide = OK), texte sur n°/ville/département', () => {
   const l = [
-    { technicien_id: 'a', type_mission: 'INST', observation_type: '', ville: 'Orléans', numero_intervention: '123', departement: '45' },
-    { technicien_id: 'b', type_mission: 'SAV', observation_type: 'NR client', ville: 'Blois', numero_intervention: '456', departement: '41' },
+    { technicien_id: 'a', type_mission: 'INST', observation_type: '', ville: 'Orléans', numero_intervention: '123', departement: '45', date: '2026-11-20', heure_debut: '08:30' },
+    { technicien_id: 'b', type_mission: 'SAV', observation_type: 'NR client', ville: 'Blois', numero_intervention: '456', departement: '41', date: '2026-11-21', heure_debut: '14:00' },
+    { technicien_id: 'dupont', type_mission: 'INST', observation_type: '', ville: 'Tours', numero_intervention: '789', departement: '145', date: '2026-11-22', heure_debut: '10:00' },
   ];
   assert.equal(filtrer(l, { tech: 'b' }).length, 1);
   assert.equal(filtrer(l, { resultat: 'OK' })[0].numero_intervention, '123');
   assert.equal(filtrer(l, { type: 'SAV', resultat: 'NR client' }).length, 1);
   assert.equal(filtrer(l, { texte: 'blo' })[0].numero_intervention, '456');
-  assert.equal(filtrer(l, { texte: '45' }).length, 2);   // département 45 et n° 456
+  assert.equal(filtrer(l, { texte: '45' }).length, 1);   // 2 chiffres = département 45 exact seulement (ni n° 456, ni département 145)
+  assert.equal(filtrer(l, { texte: '4' }).length, 1);    // 4 dans n° 456, ne matche PAS le département 45 ou 41 car pas 2 chiffres
+  assert.equal(filtrer(l, { texte: '08:30' }).length, 0); // heures non ciblées
+  assert.equal(filtrer(l, { texte: '2026-11' }).length, 0); // dates non ciblées
 });
 
 test('résultat lisible, comme l’APK (StatsUploader.kt) : codes -> libellés', async () => {
