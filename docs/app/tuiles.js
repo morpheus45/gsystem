@@ -117,13 +117,13 @@ export const TUILES = [
   },
   {
     "num": "09",
-    "nom": "DEMANDE CAMÉRA",
-    "sous": "Demande de rappel installation caméra(s)",
+    "nom": "DEMANDE BROUILLARD",
+    "sous": "Demande de rappel diffuseur de brouillard",
     "ic": "🎥",
     "debut": "#9168F0",
     "fin": "#8A5CF6",
     "groupe": "INTERV",
-    "ecran": "demandecam"
+    "ecran": "demande_brouillard"
   },
   {
     "num": "11",

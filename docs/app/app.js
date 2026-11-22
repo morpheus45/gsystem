@@ -62,7 +62,7 @@ let padTech = null;            // bulletin : signature du technicien
 let padClient = null;          // bulletin : signature du client
 let bulletin = null;           // bulletin en cours de saisie
 let pv = null;                 // PV cameras en cours
-let demandeCam = null;         // demande de rappel camera
+let demandeBrouillard = null;         // demande de rappel diffuseur de brouillard
 let padAb = null;              // PV : signature de l'abonne
 let padPvTech = null;          // PV : signature du technicien
 let envoi = null;              // envoi mensuel en preparation
@@ -407,6 +407,13 @@ function vueFormulaire() {
 
     <div class="champ"><label for="f_retard">Motif de retard</label>
       <select id="f_retard">${optionsHtml(MOTIFS_RETARD, e.motifRetard)}</select></div>
+
+    <div class="deux">
+      <div class="champ"><label for="f_heure_debut">Heure d'arrivée (HH:MM)</label>
+        <input id="f_heure_debut" type="time" value="${ech(e.heureDebut)}" /></div>
+      <div class="champ"><label for="f_heure_fin">Heure de départ (HH:MM)</label>
+        <input id="f_heure_fin" type="time" value="${ech(e.heureFin)}" /></div>
+    </div>
 
     <div class="note" id="apercu">Message : <b>${ech(messageCloture(e))}</b></div>
 
@@ -841,23 +848,23 @@ const EPS_TO = 'epsinfotechline@eps.e-i.com';
 const EPS_CC_JOHANNA = 'johanna@fggestion.fr';
 const EPS_CC_SECRETARIAT = 'secretariat.gsystems@outlook.fr';
 
-function vueDemandeCam() {
-  const d = demandeCam;
+function vueDemandeBrouillard() {
+  const d = demandeBrouillard;
   return `
   <div class="barre-titre" style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
     <button class="retour" data-va="accueil">\u2190</button>
-    <span class="t">DEMANDE CAM\u00c9RA</span>
+    <span class="t">DEMANDE BROUILLARD</span>
   </div>
   <div class="form">
-    <div class="note">Envoie \u00e0 EPS une demande de rappel pour installer des
-      cam\u00e9ras. Johanna, votre responsable et le secr\u00e9tariat sont mis en copie.</div>
-    <div class="champ requis"><label for="d_site">N\u00b0 de site</label>
-      <input id="d_site" inputmode="numeric" value="${ech(d.site)}" /></div>
-    <div class="champ requis"><label for="d_nb">Nombre de cam\u00e9ras souhait\u00e9es</label>
-      <input id="d_nb" inputmode="numeric" value="${ech(d.nb)}" /></div>
-    <div class="champ"><label for="d_prec">Pr\u00e9cisions</label>
-      <input id="d_prec" value="${ech(d.precisions)}" /></div>
-    <button class="btn" id="d_valider"
+    <div class="note">Envoie \u00e0 EPS une demande de rappel pour installer un
+      diffuseur de brouillard. Johanna, votre responsable et le secr\u00e9tariat sont mis en copie.</div>
+    <div class="champ requis"><label for="db_site">N\u00b0 de site</label>
+      <input id="db_site" inputmode="numeric" value="${ech(d.site)}" /></div>
+    <div class="champ requis"><label for="db_nb">Nombre de diffuseurs souhait\u00e9s</label>
+      <input id="db_nb" inputmode="numeric" value="${ech(d.nb)}" /></div>
+    <div class="champ"><label for="db_prec">Pr\u00e9cisions</label>
+      <input id="db_prec" value="${ech(d.precisions)}" /></div>
+    <button class="btn" id="db_valider"
             style="background:linear-gradient(135deg,#9168F0,#8A5CF6)">
       Ouvrir le mail</button>
   </div>`;
@@ -1142,7 +1149,7 @@ function rendre() {
     reglages: vueReglages, cloture: vueCloture, formulaire: vueFormulaire,
     frais: vueFrais, ticket: vueTicket, conge: vueConge,
     bulletin: vueBulletin, pv: vuePv,
-    demandecam: vueDemandeCam, recap: vueRecap, prime: vuePrime,
+    demandecam: vueDemandeBrouillard, recap: vueRecap, prime: vuePrime,
     diagnostic: vueDiagnostic,
     envoi: vueEnvoi,
   };
@@ -1176,9 +1183,9 @@ function aller(ou) {
       if (memeJour) brouillon.slotMidi = memeJour.slotMidi;
     }
     ecran = 'formulaire';
-  } else if (ou === 'demandecam') {
-    demandeCam = { site: '', nb: '', precisions: '' };
-    ecran = 'demandecam';
+  } else if (ou === 'demande_brouillard') {
+    demandeBrouillard = { site: '', nb: '', precisions: '' };
+    ecran = 'demande_brouillard';
   } else if (ou === 'envoi') {
     // Safari ne sait pas garder l'acces au FICHIER choisi, mais l'app en garde
     // le CONTENU : le classeur rempli au cycle precedent sert de base au
@@ -1357,7 +1364,7 @@ async function ouvrir(cible) {
   if (cible === 'conge') { aller('conge'); return; }
   if (cible === 'bulletin') { aller('bulletin'); return; }
   if (cible === 'pv') { aller('pv'); return; }
-  if (cible === 'demandecam') { aller('demandecam'); return; }
+  if (cible === 'demande_brouillard') { aller('demande_brouillard'); return; }
   if (cible === 'diagnostic') {
     toast('Diagnostic Sécurité indisponible (d\u00e9branch\u00e9 le 20/11/2026).');
     return;
@@ -1396,6 +1403,52 @@ async function ouvrir(cible) {
 }
 
 /** Enregistre l'intervention puis propose le message Viber. */
+/** Fenêtre de confirmation des heures avant enregistrement. */
+function confirmerHeures(entree) {
+  return new Promise((resolve) => {
+    const debut = entree.heureDebut || '—';
+    const fin = entree.heureFin || '—';
+    const html = `
+      <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);
+                  display:flex;align-items:center;justify-content:center;z-index:9999">
+        <div style="background:white;border-radius:12px;padding:24px;max-width:320px;text-align:center">
+          <h3 style="margin:0 0 16px;font-size:16px">Les heures sont-elles correctes ?</h3>
+          <div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:0 0 20px;text-align:left">
+            <div style="margin:0 0 8px;font-size:14px">
+              <span style="font-weight:bold">Arrivée :</span> ${ech(debut)}
+            </div>
+            <div style="font-size:14px">
+              <span style="font-weight:bold">Départ :</span> ${ech(fin)}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;
+                           background:white;cursor:pointer;font-size:14px"
+                    id="heures_modifier">Modifier</button>
+            <button style="padding:8px 16px;border:none;border-radius:6px;
+                           background:linear-gradient(135deg,#7C3AED,#1A0B36);color:white;
+                           cursor:pointer;font-size:14px"
+                    id="heures_ok">OK</button>
+          </div>
+        </div>
+      </div>`;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+    
+    const ok = div.querySelector('#heures_ok');
+    const modifier = div.querySelector('#heures_modifier');
+    ok.addEventListener('click', () => {
+      div.remove();
+      resolve(true);
+    });
+    modifier.addEventListener('click', () => {
+      div.remove();
+      resolve(false);
+    });
+  });
+}
+
 async function validerCloture() {
   lireFormulaire();
   const m = manques(brouillon);
@@ -1415,9 +1468,25 @@ async function validerCloture() {
     }
   }
 
-  brouillon.heureFin = heureDe(Date.now());
+  // Lire les heures modifiables du formulaire
+  const inDebut = $('#f_heure_debut');
+  const inFin = $('#f_heure_fin');
+  if (inDebut && inDebut.value) brouillon.heureDebut = inDebut.value;
+  if (inFin && inFin.value) brouillon.heureFin = inFin.value;
+  
+  // Si les heures n'ont pas été saisies, les remplir automatiquement
+  if (!brouillon.heureDebut) {
+    brouillon.heureDebut = heureDe(reglages.pendingArrivalMs || Date.now());
+  }
+  if (!brouillon.heureFin) {
+    brouillon.heureFin = heureDe(Date.now());
+  }
+
   const duJour = entrees.temps.filter((x) => x.date === brouillon.date).concat([brouillon]);
   brouillon.heures = heuresDuJour(duJour);
+
+  // Fenêtre de confirmation des heures
+  if (!await confirmerHeures(brouillon)) return;
 
   entrees.temps.push(brouillon);
   if (gesteVisible()) {
@@ -1701,19 +1770,18 @@ async function validerPv() {
 
 
 /** Ouvre l'app mail avec destinataires, sujet et corps deja remplis. */
-function envoyerDemandeCam() {
+function envoyerDemandeBrouillard() {
   const v = (id) => { const n = $(id); return n ? n.value.trim() : ''; };
-  demandeCam = { site: v('#d_site'), nb: v('#d_nb'), precisions: v('#d_prec') };
-  if (!demandeCam.site) { toast('Indiquez le n\u00b0 de site.'); return; }
-  if (!demandeCam.nb) { toast('Indiquez le nombre de cam\u00e9ras.'); return; }
+  demandeBrouillard = { site: v('#db_site'), nb: v('#db_nb'), precisions: v('#db_prec') };
+  if (!demandeBrouillard.site) { toast('Indiquez le n\u00b0 de site.'); return; }
+  if (!demandeBrouillard.nb) { toast('Indiquez le nombre de diffuseurs.'); return; }
 
-  // Sujet repris tel quel de l'Android : EPS trie ses demandes dessus.
-  const sujet = 'HD-100 - ' + (reglages.siteCodeFixe || '')
-              + ' - Site num\u00e9ro ' + demandeCam.site;
-  let corps = 'Bonjour,\n\nDEMANDE DE RAPPEL POUR INSTALLATION CAM\u00c9RA(S).\n\n'
-            + 'Site num\u00e9ro : ' + demandeCam.site + '\n'
-            + 'Nombre de cam\u00e9ras souhait\u00e9es : ' + demandeCam.nb + '\n';
-  if (demandeCam.precisions) corps += 'Pr\u00e9cisions : ' + demandeCam.precisions + '\n';
+  // Sujet exact : BROP-<site>-<codeTech>
+  const sujet = 'BROP-' + demandeBrouillard.site + '-' + (reglages.siteCodeFixe || '');
+  let corps = 'Bonjour,\n\nDEMANDE DE RAPPEL POUR DIFFUSEUR DE BROUILLARD.\n\n'
+            + 'Site num\u00e9ro : ' + demandeBrouillard.site + '\n'
+            + 'Nombre de diffuseurs souhait\u00e9s : ' + demandeBrouillard.nb + '\n';
+  if (demandeBrouillard.precisions) corps += 'Pr\u00e9cisions : ' + demandeBrouillard.precisions + '\n';
   corps += '\nCordialement,\n' + (reglages.nomUtilisateur || '');
 
   const cc = [EPS_CC_JOHANNA, reglages.emailEpsCc2, EPS_CC_SECRETARIAT]
@@ -1789,6 +1857,34 @@ async function partagerPieces(pieces, sujet, corps) {
     await new Promise((r) => setTimeout(r, 300));
   }
   return 'telecharge';
+}
+
+/** Fenêtre de succès après envoi du cycle. */
+function afficherEnvoiReussi() {
+  return new Promise((resolve) => {
+    const html = `
+      <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);
+                  display:flex;align-items:center;justify-content:center;z-index:9999">
+        <div style="background:white;border-radius:12px;padding:24px;max-width:320px;text-align:center">
+          <div style="font-size:48px;margin:0 0 16px">✓</div>
+          <h3 style="margin:0 0 8px;font-size:18px;color:#10b981">Envoi réussi</h3>
+          <p style="margin:0 0 20px;font-size:14px;color:#666">Le cycle a été transmis avec succès.</p>
+          <button style="width:100%;padding:10px;border:none;border-radius:6px;
+                         background:linear-gradient(135deg,#7C3AED,#1A0B36);color:white;
+                         cursor:pointer;font-size:14px;font-weight:bold"
+                  id="envoi_ok">Retourner à l'accueil</button>
+        </div>
+      </div>`;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+    
+    const ok = div.querySelector('#envoi_ok');
+    ok.addEventListener('click', () => {
+      div.remove();
+      resolve();
+    });
+  });
 }
 
 async function validerEnvoi() {
@@ -1925,6 +2021,14 @@ async function validerEnvoi() {
           }
         })
         .catch(() => {});
+      
+      // Afficher la fen\u00eatre de succ\u00e8s puis retourner \u00e0 l'accueil
+      v.occupe = false;
+      rendre();
+      setTimeout(async () => {
+        await afficherEnvoiReussi();
+        aller('accueil');
+      }, 800);
     }
   } catch (err) {
     v.erreur = 'Erreur : ' + ((err && err.message) ? err.message : String(err));
@@ -1974,7 +2078,7 @@ document.addEventListener('click', (e) => {
     if (c && c.contentWindow) c.contentWindow.print();
     return;
   }
-  if (e.target.closest('#d_valider')) { envoyerDemandeCam(); return; }
+  if (e.target.closest('#db_valider')) { envoyerDemandeBrouillard(); return; }
   if (e.target.closest('#p_eff_ab')) { if (padAb) padAb.effacer(); return; }
   if (e.target.closest('#p_eff_tech')) { if (padPvTech) padPvTech.effacer(); return; }
   if (e.target.closest('#p_valider')) { validerPv(); return; }

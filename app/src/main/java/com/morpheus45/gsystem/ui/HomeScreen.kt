@@ -162,6 +162,7 @@ fun HomeScreen(
     // Appui long sur une tuile 01/02 transformée : annuler / repointer l'arrivée.
     onArrivalCancel: () -> Unit = {},
     onDemandeCamera: () -> Unit,
+    onDemandeBrouillard: () -> Unit = {},
     onDiagnostic: () -> Unit,
     onPvCameras: () -> Unit,
     onGesteCoRecap: () -> Unit,
@@ -375,9 +376,9 @@ fun HomeScreen(
             HomeTile("08", "BULLETIN INTER", "Intervention sur site · signé client",
                 Icons.Outlined.Description, BulletinStart, BulletinEnd, BulletinAccent, HomeGroup.INTERV,
                 onClick = onBulletin),
-            HomeTile("09", "DEMANDE CAMÉRA", "Demande de rappel installation caméra(s)",
+            HomeTile("09", "DEMANDE BROUILLARD", "Demande de rappel diffuseur de brouillard",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
-                onClick = onDemandeCamera),
+                onClick = onDemandeBrouillard),
             // DIAGNOSTIC SÉCURITÉ débranché le 20/11/2026 (demande de Cédric) : l'écran reste dans le code.
             // Pour le rebrancher, remettre la tuile :
             // HomeTile("10", "DIAGNOSTIC SÉCURITÉ", "Fiche EPS · pro et particulier",

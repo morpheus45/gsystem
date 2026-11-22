@@ -56,6 +56,7 @@ import com.morpheus45.gsystem.ui.GPrimaryButton
 import com.morpheus45.gsystem.ui.GSecondaryButton
 import com.morpheus45.gsystem.ui.ChatScreen
 import com.morpheus45.gsystem.ui.DemandeCameraScreen
+import com.morpheus45.gsystem.ui.DemandeBrouillardScreen
 import com.morpheus45.gsystem.ui.DiagnosticScreen
 import com.morpheus45.gsystem.ui.CongeScreen
 import com.morpheus45.gsystem.ui.PrimeAVenirScreen
@@ -470,6 +471,7 @@ fun AppNav() {
                 onNewIntervention = { navController.navigate("temps_new") },
                 onArrivalCancel = { showArrivalDialog = true },
                 onDemandeCamera = { navController.navigate("demande_camera") },
+                onDemandeBrouillard = { navController.navigate("demande_brouillard") },
                 onDiagnostic = { navController.navigate("diagnostic") },
                 onPvCameras = { navController.navigate("pv_cameras") },
                 onGesteCoRecap = { navController.navigate("gesteco_recap") },
@@ -627,6 +629,12 @@ fun AppNav() {
         }
         composable("demande_camera") {
             DemandeCameraScreen(
+                settings = settings,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable("demande_brouillard") {
+            DemandeBrouillardScreen(
                 settings = settings,
                 onBack = { navController.popBackStack() }
             )
