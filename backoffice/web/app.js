@@ -1895,7 +1895,7 @@ $('#conges-filtre').addEventListener('change', chargerConges);
 pilulesDepuisSelect($('#conges-filtre'), 'Demandes affichées');
 
 async function chargerConges() {
-  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut, demande_par, demande_le, modifie_par, modifie_le, motif_modification, annulee_par, annulee_le').eq('societe_id', selectedSociete).order('debut');
+  let q = sb.from('conges').select('id, technicien_id, debut, fin, type, motif, statut, decide_par, decide_le, modifie_par, modifie_le, motif_modification').eq('societe_id', selectedSociete).order('debut');
   if ($('#conges-filtre').value) q = q.eq('statut', $('#conges-filtre').value);
   const { data, error } = await q;
   if (error) { alert(error.message); return; }
