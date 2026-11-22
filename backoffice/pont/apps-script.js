@@ -351,3 +351,9 @@ function installer() {
   ScriptApp.newTrigger('importer').timeBased().everyHours(1).create();
   return importer();
 }
+
+// À lancer une fois depuis l'éditeur (menu des fonctions) : ouvre la feuille de chat, ce qui fait
+// demander par Google l'autorisation « Google Sheets » dont les actions chat_lire / chat_ecrire ont besoin.
+function autoriserChat() {
+  console.log('Feuille de chat : ' + getChatSheet_().getParent().getName());
+}
