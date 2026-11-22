@@ -210,6 +210,7 @@ function retournerSocietes() {
 
 // Basculer d'onglet
 function switchOnglet(tabId, calculer = true) {
+  cacherApercu();   // une bulle photo ne survit jamais à un changement d'écran
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
     b.classList.toggle('active', actif);
@@ -789,7 +790,6 @@ function renderReleves(list) {
       const note = actions.appendChild(document.createElement('small'));
       note.textContent = `Corrigé le ${formaterDate(r.correction.cree_le.slice(0, 10))} : ${r.correction.motif}`;
     }
-    if (r.stockage) tr.addEventListener('mouseenter', (ev) => montrerApercu(ev, r.stockage));
     return tr;
   }));
   const moy = kmMoyenParMois(list);
@@ -1177,8 +1177,12 @@ function renderPhotosCompteur(photos, stockages, doublons = new Set()) {
     const [y, m] = p.periode.split('-');
     const fichier = (p.emplacement || '').replace(/^drive:/, '');
     const tr = ligne([`${m}/${y}`, fichier]);
-    tr.appendChild(boutonPhoto(stockages.get(fichier)));
-    if (stockages.get(fichier)) tr.addEventListener('mouseenter', (ev) => montrerApercu(ev, stockages.get(fichier)));   // bulle au survol
+    const tdPhoto = tr.appendChild(boutonPhoto(stockages.get(fichier)));
+    const voir = tdPhoto.querySelector('button');
+    if (voir) {   // bulle au survol du bouton « Voir » (souris seulement), retirée dès que la souris le quitte
+      voir.addEventListener('mouseenter', (ev) => montrerApercu(ev, stockages.get(fichier)));
+      voir.addEventListener('mouseleave', cacherApercu);
+    }
     if (superAdmin && doublons.has(p.id)) {
       const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
       b.className = 'danger';
@@ -3141,62 +3145,31 @@ function renderTechniciensAmende() {
 }
 
 // Aperçu des photos de compteur au survol (non tactile)
-let apercu = null;
+let apercu = null, apercuJeton = 0;
+// Bulle d'aperçu de la photo du compteur : photo entière (km lisible en bas), une seule à la fois.
 async function montrerApercu(ev, stockage) {
-  if (ev.pointerType === 'touch') return;   // Rien au toucher
-  
-  const tr = ev.currentTarget;
-  if (apercu?.tr === tr) return;   // Déjà affiché pour cette ligne
-  
-  if (apercu?.el) apercu.el.remove();
-  
-  try {
-    const { data, error } = await sb.storage.from('photos').createSignedUrl(stockage, 600);
-    if (error) return;
-    
-    const el = document.createElement('div');
-    el.className = 'apercu-compteur';
-    
-    const img = el.appendChild(document.createElement('img'));
-    img.src = data.signedUrl;
-    img.alt = 'Aperçu de la photo';
-    img.loading = 'lazy';
-    
-    document.body.appendChild(el);
-    
-    const positionner = () => {
-      const rect = tr.getBoundingClientRect();
-      const x = ev.clientX + 12;
-      const y = ev.clientY + 12;
-      el.style.left = Math.max(8, Math.min(x, window.innerWidth - 260 - 8)) + 'px';
-      el.style.top = Math.max(8, Math.min(y, window.innerHeight - 200 - 8)) + 'px';
-    };
-    positionner();
-    
-    apercu = { el, tr, unsub: () => {} };
-    
-    const onMouseMove = (e) => {
-      if (e.target.closest('tr') !== tr) {   // la souris a quitté la ligne (relevé ou photo)
-        cacherApercu();
-      } else {
-        el.style.left = Math.max(8, Math.min(e.clientX + 12, window.innerWidth - 260 - 8)) + 'px';
-        el.style.top = Math.max(8, Math.min(e.clientY + 12, window.innerHeight - 200 - 8)) + 'px';
-      }
-    };
-    document.addEventListener('mousemove', onMouseMove);
-    apercu.unsub = () => document.removeEventListener('mousemove', onMouseMove);
-    
-  } catch (err) {
-    // Silencieusement échouer si la photo n'existe pas
-  }
+  if (ev.pointerType === 'touch' || !matchMedia('(hover: hover)').matches) return;   // rien au toucher
+  cacherApercu();
+  const jeton = ++apercuJeton;
+  const bouton = ev.currentTarget;
+  const { data, error } = await sb.storage.from('photos').createSignedUrl(stockage, 600);
+  // La souris est partie pendant le chargement, ou un autre aperçu a été demandé : on n'affiche rien.
+  if (error || jeton !== apercuJeton || !bouton.matches(':hover')) return;
+  const el = document.body.appendChild(document.createElement('div'));
+  el.className = 'apercu-compteur';
+  const img = el.appendChild(document.createElement('img'));
+  img.alt = 'Aperçu de la photo du compteur';
+  img.src = data.signedUrl;
+  const r = bouton.getBoundingClientRect();
+  el.style.right = `${Math.max(8, window.innerWidth - r.left + 12)}px`;   // à gauche du bouton
+  el.style.top = `${Math.max(8, Math.min(r.top - 120, window.innerHeight - 420))}px`;
+  apercu = { el };
 }
 
 function cacherApercu() {
-  if (apercu) {
-    apercu.el?.remove();
-    apercu.unsub?.();
-    apercu = null;
-  }
+  apercuJeton++;
+  document.querySelectorAll('.apercu-compteur').forEach((e) => e.remove());
+  apercu = null;
 }
 
 // Init : vérifier si session existe déjà
