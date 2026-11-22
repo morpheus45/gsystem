@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Send
@@ -224,6 +225,7 @@ fun EnvoiMensuelScreen(
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    var showEnvoiReussi by remember { mutableStateOf(false) }
 
     // File picker pour le fichier Excel personnel
     val pickExcel = rememberLauncherForActivityResult(
@@ -626,9 +628,9 @@ fun EnvoiMensuelScreen(
                             status = null
                         }
                         working = false
-                        // Envoi préparé avec succès : on revient sur l'accueil pour
-                        // éviter un second appui sur « Envoyer » (double envoi).
-                        if (sendResult.isSuccess) onSent()
+                        // Envoi préparé avec succès : on confirme à l'écran puis on
+                        // revient sur l'accueil (évite un second appui sur « Envoyer »).
+                        if (sendResult.isSuccess) showEnvoiReussi = true
                     }
                 }
             )
@@ -643,6 +645,35 @@ fun EnvoiMensuelScreen(
             errorMsg?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+            }
+            if (showEnvoiReussi) {
+                GDialog(
+                    title = "Envoi réussi",
+                    accent = EnvoiColor,
+                    onDismiss = { showEnvoiReussi = false; onSent() },
+                    confirmLabel = "Retourner à l'accueil",
+                    confirmIcon = Icons.Filled.Check,
+                    dismissLabel = null,
+                    onConfirm = { showEnvoiReussi = false; onSent() }
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = EnvoiColor,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Le cycle a été transmis avec succès.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(24.dp))

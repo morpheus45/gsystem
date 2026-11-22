@@ -467,6 +467,12 @@ private fun AddTempsDialog(
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
+    // Confirmation des heures avant enregistrement (portage de confirmerHeures d'iOS).
+    var showHeureConfirm by remember { mutableStateOf(false) }
+    var pendingEntries by remember { mutableStateOf<List<TempsEntry>?>(null) }
+    var pendingGeste by remember { mutableStateOf<GesteCoEntry?>(null) }
+    var pendingViber by remember { mutableStateOf(false) }
+
     // Clôture d'une INSTALLATION (nouvelle saisie) : sections GESTE CO + GSM inline.
     var siteNumber by remember {
         mutableStateOf(existingGeste?.siteNumber ?: prefill?.site ?: "")
@@ -907,15 +913,14 @@ private fun AddTempsDialog(
                             onClick = {
                                 tried = true
                                 if (!allOk) return@GSecondaryButton
-                                val e0 = buildEntry()
-                                onSave(
-                                    listOf(e0),
-                                    if (showGeste) extras.buildGeste(
-                                        date, siteNumber, nom, obs, e0.id,
-                                        savMode = isSavGeste, id = existingGeste?.id
-                                    ) else null,
-                                    false
-                                )
+                                val e0 = buildEntry()   // une seule fois : le geste doit pointer sur CET identifiant
+                                pendingEntries = listOf(e0)
+                                pendingGeste = if (showGeste) extras.buildGeste(
+                                    date, siteNumber, nom, obs, e0.id,
+                                    savMode = isSavGeste, id = existingGeste?.id
+                                ) else null
+                                pendingViber = false
+                                showHeureConfirm = true
                             }
                         )
                         Spacer(Modifier.height(6.dp))
@@ -927,15 +932,44 @@ private fun AddTempsDialog(
                         onClick = {
                             tried = true
                             if (!allOk) return@GPrimaryButton
-                            val entries = buildAll()
-                            val geste = if (showGeste)
+                            val entries = buildAll()   // une seule fois, même raison
+                            pendingEntries = entries
+                            pendingGeste = if (showGeste)
                                 extras.buildGeste(date, siteNumber, nom, obs, entries.first().id,
                                     savMode = isSavGeste, id = existingGeste?.id)
                             else null
-                            onSave(entries, geste, true)
+                            pendingViber = true
+                            showHeureConfirm = true
                         }
                     )
                     }
                 )
+            
+            // Confirmation des heures avant enregistrement
+            if (showHeureConfirm) {
+                GDialog(
+                    title = "LES HEURES SONT-ELLES CORRECTES ?",
+                    accent = ColorTemps,
+                    onDismiss = { showHeureConfirm = false },
+                    confirmLabel = "OK",
+                    confirmIcon = Icons.Filled.Check,
+                    confirmEnabled = true,
+                    onConfirm = {
+                        showHeureConfirm = false
+                        onSave(pendingEntries ?: emptyList(), pendingGeste, pendingViber)
+                    },
+                    dismissLabel = "Modifier",
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text("Arrivée : ${pendingEntries?.firstOrNull()?.heureDebut ?: "—"}",
+                            fontSize = 12.sp, color = ColorTemps)
+                        Text("Départ : ${pendingEntries?.firstOrNull()?.heureFin ?: "—"}",
+                            fontSize = 12.sp, color = ColorTemps)
+                        Spacer(Modifier.height(16.dp))
+                        Text("Modifiez les heures si nécessaire avant de confirmer.", 
+                            fontSize = 11.sp, color = ColorTemps.copy(alpha = 0.7f))
+                    }
+                }
+            }
     }
 }
