@@ -125,11 +125,15 @@ export function detecterDoublonsCompteur(photos) {
     if (!p.periode) continue;
     compte.set(p.periode, (compte.get(p.periode) || 0) + 1);
   }
+  // Dans chaque mois en double, on garde la photo au nom le plus court (FS-687-VT-08-2026.jpg avant ses -2, -3…).
+  const gardee = new Map();
+  for (const p of [...photos].sort((x, y) => String(x.emplacement || '').length - String(y.emplacement || '').length
+    || String(x.emplacement || '').localeCompare(String(y.emplacement || '')))) {
+    if (p.periode && !gardee.has(p.periode)) gardee.set(p.periode, p);
+  }
   const doublons = new Set();
   for (const p of photos) {
-    if (p.periode && compte.get(p.periode) > 1) {
-      doublons.add(p.id ?? p);
-    }
+    if (p.periode && compte.get(p.periode) > 1 && gardee.get(p.periode) !== p) doublons.add(p.id ?? p);
   }
   return doublons;
 }

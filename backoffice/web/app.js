@@ -742,10 +742,9 @@ async function loadReleves(vehiculeId) {
   try {
     const { data, error } = await sb.from('releves_km').select('id, date, km, source, valide_par, photo_id').eq('vehicule_id', vehiculeId).order('date');
     if (error) throw error;
-    const ids = data.filter((r) => r.photo_id).map((r) => r.photo_id);
-    const { data: photos, error: e2 } = ids.length
-      ? await sb.from('vehicules_photos').select('id, emplacement').in('id', ids)
-      : { data: [] };
+    // Toutes les photos du compteur du véhicule : un relevé sans photo liée montre celle de son mois.
+    const { data: photos, error: e2 } = await sb.from('vehicules_photos').select('id, emplacement, periode')
+      .eq('vehicule_id', vehiculeId).eq('type', 'compteur').order('emplacement');
     if (e2) throw e2;
     const noms = (photos || []).map((p) => (p.emplacement || '').replace(/^drive:/, ''));
     const { data: copies, error: e3 } = noms.length
@@ -758,7 +757,10 @@ async function loadReleves(vehiculeId) {
     if (e4) throw e4;
     const corrigeParReleve = new Map();
     for (const c of corrections || []) corrigeParReleve.set(c.releve_id, c);
-    const enrichis = data.map((r) => ({ ...r, stockage: stockageParPhoto.get(r.photo_id) || null, correction: corrigeParReleve.get(r.id) || null }));
+    const photoDuMois = new Map();
+    for (const p of photos || []) if (!photoDuMois.has(p.periode) && stockageParPhoto.get(p.id)) photoDuMois.set(p.periode, stockageParPhoto.get(p.id));
+    const enrichis = data.map((r) => ({ ...r, stockage: stockageParPhoto.get(r.photo_id) || photoDuMois.get(String(r.date).slice(0, 7)) || null,
+      correction: corrigeParReleve.get(r.id) || null }));
     renderReleves(enrichis);
     const valides = enrichis.filter(r => r.valide_par);   // triés par date
     kmActuelGlobal = valides.length ? valides[valides.length - 1].km : null;
@@ -1176,6 +1178,7 @@ function renderPhotosCompteur(photos, stockages, doublons = new Set()) {
     const fichier = (p.emplacement || '').replace(/^drive:/, '');
     const tr = ligne([`${m}/${y}`, fichier]);
     tr.appendChild(boutonPhoto(stockages.get(fichier)));
+    if (stockages.get(fichier)) tr.addEventListener('mouseenter', (ev) => montrerApercu(ev, stockages.get(fichier)));   // bulle au survol
     if (superAdmin && doublons.has(p.id)) {
       const b = tr.appendChild(document.createElement('td')).appendChild(document.createElement('button'));
       b.className = 'danger';
@@ -3173,7 +3176,7 @@ async function montrerApercu(ev, stockage) {
     apercu = { el, tr, unsub: () => {} };
     
     const onMouseMove = (e) => {
-      if (e.target.closest('#releves-table tbody tr') !== tr) {
+      if (e.target.closest('tr') !== tr) {   // la souris a quitté la ligne (relevé ou photo)
         cacherApercu();
       } else {
         el.style.left = Math.max(8, Math.min(e.clientX + 12, window.innerWidth - 260 - 8)) + 'px';
