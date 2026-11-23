@@ -25,6 +25,12 @@ export const REGLAGES_DEFAUT = {
   // clotures, pour ne pas re-ranger l'ancien selon une fenetre theorique.
   lastEnvoiDateIso: '',
   envoiHistoryIso: [],
+  // Dernier envoi mensuel : c'est lui qui fait demarrer le cycle suivant, le
+  // lendemain. L'historique (24 envois) garde la trace des cycles reellement
+  // clotures, pour ne pas re-ranger l'ancien selon une fenetre theorique.
+  lastEnvoiDateIso: '',
+  // Dernier id de message chat marqué lu (côté tech). 0 = aucun.
+  chatLastReadId: 0,
   // Pointage d'arrivee en cours (0 = aucun), et son origine.
   pendingArrivalMs: 0,
   pendingArrivalSource: '',

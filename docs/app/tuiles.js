@@ -86,6 +86,16 @@ export const TUILES = [
     "ecran": "courrier"
   },
   {
+    "num": "10",
+    "nom": "MESSAGES",
+    "sous": "Chat avec le bureau",
+    "ic": "💬",
+    "debut": "#3B82F6",
+    "fin": "#06B6D4",
+    "groupe": "SITE",
+    "ecran": "chat"
+  },
+  {
     "num": "06",
     "nom": "CLÔTURE",
     "sous": "Clôture d'intervention",

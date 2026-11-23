@@ -28,6 +28,7 @@ import {
   lireClasseur, memoriserClasseur, oublierClasseur,
 } from './classeur.js';
 import { deposerEnvoi } from './backup.js';
+import { envoyerMessage, chargerMessages, marquerLus } from './chat.js';
 import {
   TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
   raisonInvalide, construireGeste, totalInstalle, totalOffert, totalCadeau,
@@ -69,6 +70,12 @@ let envoi = null;              // envoi mensuel en preparation
 let geste = null;              // GESTE CO de la cloture en cours
 let missionChoix = null;       // mission touchee : choix Arrivee / Attente
 let missionEnCours = null;     // n° de la mission dont la cloture est ouverte
+let chatMessages = [];          // fil tech ↔ bureau, comme ChatStore
+let chatTech = (reglages.nomUtilisateur || '').trim();
+let chatEnvoi = false;          // envoi en cours (pas de double envoi)
+let chatDraft = '';              // texte en cours de saisie
+let chatTimer = null;           // intervalle de rafraîchissement (12 s)
+let chatDernierFond = 0;        // dernier fetch de badge en arrière-plan (ms)
 
 const ech = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -171,6 +178,10 @@ function vueAccueil() {
       <label class="reglage-btn" title="Importer un ordre de mission (PDF)">\u{1F4C4}
         <input type="file" id="om_pdf" accept="application/pdf,.pdf" hidden /></label>
       <button class="reglage-btn" data-va="reglages" title="R\u00e9glages">\u2699</button>
+      <button class="chat-btn" id="chat_icone" title="Messages"
+              style="background:var(--lift2);border:1px solid var(--line);color:var(--mid);border-radius:50%;width:34px;height:34px;font-size:15px;cursor:pointer;">
+        \u{1F4AC}
+      </button>
     </div>
   </header>
   ${bandeau}
@@ -1143,6 +1154,109 @@ function vueDiagnostic() {
   </iframe>`;
 }
 
+// ================================================================ CHAT
+/**
+ * Le fil tech ↔ bureau, comme ChatScreen.kt. Le technicien est à droite (bulle
+ * bleue), le bureau à gauche (bulle sombre). Aucune donnée n'est insérée via
+ * innerHTML : le texte est échappé puis posé par innerHTML uniquement pour le
+ * squelette, le contenu vient de textContent.
+ */
+function vueChat() {
+  const messages = chatMessages;
+  const bulles = messages.map((m) => {
+    const mine = m.from === 'tech';
+    const texte = document.createElement('span');
+    // On échappe puis on insère par innerHTML : le texte n'est JAMAIS une donnée.
+    texte.textContent = m.text;
+    return `<div class="chat-ligne ${mine ? 'moi' : 'bureau'}">
+      <div class="chat-bulle">
+        <span class="chat-texte">${ech(texte.textContent)}</span>
+        <span class="chat-heure">${ech(heureDe(m.ts))}</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="barre-titre" style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">
+    <button class="retour" data-va="accueil">\u2190</button>
+    <span class="t">MESSAGES</span>
+  </div>
+  <div class="chat-corps" id="chat_corps">${bulles || '<div class="vide">Aucun message pour le moment.<br />\u00c9crivez au bureau, il vous r\u00e9pond ici.</div>'}</div>
+  <div class="chat-barre">
+    <input id="chat_saisie" type="text" placeholder="\u00c9crire un message\u2026"
+           value="${ech(chatDraft)}" ${chatEnvoi ? 'disabled' : ''} />
+    <button id="chat_envoyer" ${chatEnvoi ? 'disabled' : ''}>${chatEnvoi ? '…' : 'Envoyer'}</button>
+  </div>`;
+}
+
+/** Recharge le fil ; si marquer=true et qu'il y a de nouveaux messages,
+ *  met à jour chatLastReadId puis appelle markRead (fetch d'abord). */
+async function rafraichirChat(tech, marquer) {
+  const liste = await chargerMessages(tech);
+  // On n'écrase pas un fil non vide par une réponse vide (échec réseau).
+  if (liste.length || !chatMessages.length) {
+    chatMessages = liste.sort((a, b) => a.id - b.id);
+  }
+  if (marquer && chatMessages.length) {
+    const latestId = chatMessages[chatMessages.length - 1].id;
+    const lastRead = Number(reglages.chatLastReadId) || 0;
+    if (latestId > lastRead) {
+      reglages.chatLastReadId = latestId;
+      ecrireReglages(reglages);
+      await marquerLus(tech, latestId);
+    }
+  }
+  return chatMessages;
+}
+
+/** Compte les messages bureau non lus (id > chatLastReadId). */
+function chatNonLus() {
+  const lastRead = Number(reglages.chatLastReadId) || 0;
+  return chatMessages.filter((m) => m.from === 'bureau' && m.id > lastRead).length;
+}
+
+/** Met à jour le badge non lu sur l'icône header + la tuile MESSAGES. */
+function majChatBadge() {
+  const n = chatNonLus();
+  const ic = $('#chat_icone');
+  if (ic) {
+    let badge = ic.querySelector('.chat-unread');
+    if (n > 0) {
+      if (!badge) { badge = document.createElement('span'); badge.className = 'chat-unread'; ic.appendChild(badge); }
+      badge.textContent = n > 99 ? '99+' : String(n);
+    } else if (badge) badge.remove();
+  }
+  const tuile = document.querySelector('.tuile[data-ecran="chat"]');
+  if (tuile) {
+    let badge = tuile.querySelector('.chat-unread');
+    if (n > 0) {
+      if (!badge) { badge = document.createElement('span'); badge.className = 'chat-unread'; tuile.appendChild(badge); }
+      badge.textContent = n > 99 ? '99+' : String(n);
+    } else if (badge) badge.remove();
+  }
+}
+
+/** Un envoi : bloque pendant la requête pour empêcher le double envoi. */
+async function envoyerChat() {
+  const v = $('#chat_saisie');
+  const texte = (v ? v.value : chatDraft).trim();
+  if (!texte || chatEnvoi) return;
+  chatEnvoi = true;
+  chatDraft = texte;
+  rendre();
+  const ok = await envoyerMessage(chatTech, texte);
+  chatEnvoi = false;
+  if (ok) {
+    chatDraft = '';
+    await rafraichirChat(chatTech, false);
+    rendre();
+    const corps = $('#chat_corps');
+    if (corps) corps.scrollTop = corps.scrollHeight;
+  } else {
+    rendre();
+    toast('Message non envoy\u00e9. R\u00e9essayez.');
+  }
+}
+
 // ============================================================== RENDU
 function rendre() {
   const vues = {
@@ -1152,6 +1266,7 @@ function rendre() {
     demandecam: vueDemandeBrouillard, recap: vueRecap, prime: vuePrime,
     diagnostic: vueDiagnostic,
     envoi: vueEnvoi,
+    chat: vueChat,
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
@@ -1166,9 +1281,38 @@ function rendre() {
   const pT = $('#p_pad_tech');
   padAb = pA ? creerPad(pA) : null;
   padPvTech = pT ? creerPad(pT) : null;
+  // Gestion du polling chat : rafraîchir toutes les 12 s quand l'écran chat est ouvert
+  if (ecran === 'chat') {
+    window.clearInterval(chatTimer);
+    chatTimer = window.setInterval(async () => {
+      const before = chatMessages.length;
+      await rafraichirChat(chatTech, true);
+      majChatBadge();
+      if (chatMessages.length !== before) {
+        rendre();
+      }
+    }, 12_000);
+    // Au rendu, mettre à jour le badge accueil (throttlé à 15 s minimum)
+    const now = Date.now();
+    if (now - chatDernierFond > 15_000) {
+      chatDernierFond = now;
+      rafraichirChat(chatTech, false).then(() => majChatBadge());
+    }
+  } else {
+    window.clearInterval(chatTimer);
+    chatTimer = null;
+  }
+  // Sur l'accueil, le badge non-lu est mis à jour (throttlé) à chaque rendu.
+  if (ecran === 'accueil') {
+    const now = Date.now();
+    if (now - chatDernierFond > 15_000) {
+      chatDernierFond = now;
+      rafraichirChat(chatTech, false).then(() => majChatBadge());
+    }
+  }
 }
 
-function aller(ou) {
+async function aller(ou) {
   if (ou === 'nouvelle') {
     missionEnCours = null;
     brouillon = entreeVide(reglages);
@@ -1214,6 +1358,15 @@ function aller(ou) {
       nomTech: (reglages.nomUtilisateur || '').toUpperCase(),
     };
     ecran = 'pv';
+  } else if (ou === 'chat') {
+    chatTech = (reglages.nomUtilisateur || '').trim();
+    ecran = 'chat';
+    // Charge le fil puis marque tout le bureau comme lu (fetch -> markRead).
+    await rafraichirChat(chatTech, true);
+    rendre();
+    const corps = $('#chat_corps');
+    if (corps) corps.scrollTop = corps.scrollHeight;
+    return;
   } else if (ou === 'bulletin') {
     bulletin = {
       date: aujourdhuiIso(), numMission: '', lieuProtege: '',
@@ -1372,6 +1525,7 @@ async function ouvrir(cible) {
   if (cible === 'recap') { aller('recap'); return; }
   if (cible === 'prime') { aller('prime'); return; }
   if (cible === 'envoi') { aller('envoi'); return; }
+  if (cible === 'chat') { aller('chat'); return; }
 
   if (cible === 'arrivee') {
     const pointe = pointerArrivee('arrivee');
@@ -2070,6 +2224,19 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (e.target.closest('#e_envoyer')) { validerEnvoi(); return; }
+  if (e.target.closest('#chat_icone')) {
+    aller('chat');
+    return;
+  }
+  if (e.target.closest('#chat_envoyer')) {
+    envoyerChat();
+    return;
+  }
+  if (e.target.closest('#chat_saisie')) {
+    chatDraft = e.target.value;
+    rendre();
+    return;
+  }
 
   if (e.target.closest('#diag_imprimer')) {
     // L'impression doit partir du CADRE, sinon c'est la coquille de
@@ -2285,7 +2452,13 @@ document.addEventListener('input', (e) => {
     if (e.target.matches('#p_ext, #p_int, #p_torus')) { lirePv(); rendre(); }
     return;
   }
-  if (ecran !== 'formulaire') return;
+  if (ecran !== 'formulaire') {
+    if (ecran === 'chat' && e.target.matches('#chat_saisie')) {
+      chatDraft = e.target.value;
+      return;
+    }
+    return;
+  }
   lireFormulaire();
   const a = $('#apercu');
   if (a) a.innerHTML = 'Message : <b>' + ech(messageCloture(brouillon)) + '</b>';
