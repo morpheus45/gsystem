@@ -671,6 +671,47 @@
                 </div>
                 <button type="submit">Créer la société</button>
               </form>
+              <div id="holdings-admin" class="section hidden">
+                <h3>Gestion des holdings</h3>
+                <div class="ajout">
+                  <summary>Nouvelle holding</summary>
+                  <form id="holdings-create-form">
+                    <div class="field">
+                      <label for="holding-nom">Nom de la holding</label>
+                      <input type="text" id="holding-nom" name="nom" required maxlength="120">
+                    </div>
+                    <button type="submit">Créer la holding</button>
+                  </form>
+                </div>
+                <div class="ajout">
+                  <summary>Rattacher une société à une holding</summary>
+                  <form id="holdings-attach-form">
+                    <div class="field">
+                      <label for="holding-societe">Société</label>
+                      <select id="holding-societe" name="societe_id" required></select>
+                    </div>
+                    <div class="field">
+                      <label for="holding-target">Holding</label>
+                      <select id="holding-target" name="holding_id" required></select>
+                    </div>
+                    <button type="submit">Rattacher</button>
+                  </form>
+                </div>
+                <div class="ajout">
+                  <summary>Nommer un admin de holding</summary>
+                  <form id="holdings-admin-form">
+                    <div class="field">
+                      <label for="holding-admin-email">Email</label>
+                      <input type="email" id="holding-admin-email" name="email" required>
+                    </div>
+                    <div class="field">
+                      <label for="holding-admin-holding">Holding</label>
+                      <select id="holding-admin-holding" name="holding_id" required></select>
+                    </div>
+                    <button type="submit">Nommer l'admin</button>
+                  </form>
+                </div>
+              </div>
             </details>
           </div>
           <ul id="societes-list" class="societe-list"></ul>

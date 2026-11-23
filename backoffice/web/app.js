@@ -23,6 +23,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 
 let session = null;
 let societes = [];
+let holdings = [];
 let selectedSociete = null;
 let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
@@ -322,10 +323,16 @@ async function checkOperator() {
 
 async function loadSocietes() {
   try {
-    const { data, error } = await sb.from('societes').select('id, nom, adresse, siret, logo').order('nom');
-    if (error) throw error;
-    societes = data;
+    const [socData, holdData] = await Promise.all([
+      sb.from('societes').select('id, nom, adresse, siret, logo, holding_id').order('nom'),
+      sb.from('holdings').select('id, nom').order('nom'),
+    ]);
+    if (socData.error) throw socData.error;
+    if (holdData.error) throw holdData.error;
+    societes = socData.data;
+    holdings = holdData.data;
     renderSocietes();
+    renderHoldingsAdmin();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des sociétés');
   }
@@ -341,28 +348,131 @@ function renderSocietes() {
     li.textContent = superAdmin ? "Aucune société pour l'instant." : "Vous n'êtes membre d'aucune société pour l'instant.";
     return;
   }
-  societes.forEach(s => {
-    const li = document.createElement('li');
-    li.className = 'societe-item';
-    li.setAttribute('tabindex', '0');
-    li.setAttribute('role', 'button');
-    if (selectedSociete === s.id) li.classList.add('selected');
-    if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));   // le nom suit : alt vide pour ne pas le lire deux fois
-    else li.prepend(avatar(s.nom));   // pas de logo : avatar d'initiales à gauche du nom
-    const nom = li.appendChild(document.createElement('div'));
-    nom.textContent = s.nom;
-    nom.className = 'societe-name';
-    const ouvrir = () => selectSociete(s.id);
-    li.addEventListener('click', ouvrir);
-    li.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Enter' || ev.key === ' ') {
-        ev.preventDefault();
-        ouvrir();
+  const sansHolding = [];
+  for (const s of societes) {
+    if (s.holding_id) {
+      let group = ul.querySelector(`[data-holding-id="${s.holding_id}"]`);
+      if (!group) {
+        const h = holdings.find((x) => x.id === s.holding_id);
+        group = document.createElement('li');
+        group.className = 'holding-group';
+        group.dataset.holdingId = s.holding_id;
+        const titre = group.appendChild(document.createElement('h4'));
+        titre.className = 'holding-titre';
+        titre.textContent = h ? `Holding ${h.nom}` : 'Holding';
+        ul.appendChild(group);
       }
-    });
-    ul.appendChild(li);
-    tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
+      appendSocieteItem(group, s);
+    } else {
+      sansHolding.push(s);
+    }
+  }
+  for (const s of sansHolding) appendSocieteItem(ul, s);
+}
+
+function appendSocieteItem(container, s) {
+  const li = document.createElement('li');
+  li.className = 'societe-item';
+  li.setAttribute('tabindex', '0');
+  li.setAttribute('role', 'button');
+  if (selectedSociete === s.id) li.classList.add('selected');
+  if (s.logo) li.appendChild(plaqueLogo(s.logo, ''));
+  else li.prepend(avatar(s.nom));
+  const nom = li.appendChild(document.createElement('div'));
+  nom.textContent = s.nom;
+  nom.className = 'societe-name';
+  const ouvrir = () => selectSociete(s.id);
+  li.addEventListener('click', ouvrir);
+  li.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      ouvrir();
+    }
   });
+  container.appendChild(li);
+  tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
+}
+
+async function renderHoldingsAdmin() {
+  const container = $('#holdings-admin');
+  if (!superAdmin || !container) return;
+  container.classList.remove('hidden');
+
+  // Remplir les selects
+  const selS = $('#holding-societe');
+  const selH1 = $('#holding-target');
+  const selH2 = $('#holding-admin-holding');
+  selS.replaceChildren(...societes.map((s) => {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = s.nom;
+    return o;
+  }));
+  selH1.replaceChildren(...holdings.map((h) => {
+    const o = document.createElement('option');
+    o.value = h.id;
+    o.textContent = h.nom;
+    return o;
+  }));
+  selH2.replaceChildren(...holdings.map((h) => {
+    const o = document.createElement('option');
+    o.value = h.id;
+    o.textContent = h.nom;
+    return o;
+  }));
+
+  // Créer une holding
+  $('#holdings-create-form').onsubmit = async (e) => {
+    e.preventDefault();
+    clearAlert();
+    const input = $('#holding-nom');
+    const nom = input.value.trim();
+    if (!nom) return;
+    try {
+      const { error } = await sb.from('holdings').insert({ nom });
+      if (error) throw error;
+      input.value = '';
+      await loadSocietes();
+    } catch (err) {
+      alert(err.message || 'Erreur lors de la création de la holding');
+    }
+  };
+
+  // Rattacher une société à une holding
+  $('#holdings-attach-form').onsubmit = async (e) => {
+    e.preventDefault();
+    clearAlert();
+    const sid = selS.value;
+    const hid = selH1.value;
+    if (!sid || !hid) return;
+    try {
+      const { error } = await sb.from('societes').update({ holding_id: hid }).eq('id', sid);
+      if (error) throw error;
+      await loadSocietes();
+    } catch (err) {
+      alert(err.message || 'Erreur lors du rattachement');
+    }
+  };
+
+  // Nommer un admin de holding
+  $('#holdings-admin-form').onsubmit = async (e) => {
+    e.preventDefault();
+    clearAlert();
+    const email = $('#holding-admin-email').value.trim().toLowerCase();
+    const hid = selH2.value;
+    if (!email || !hid) return;
+    try {
+      const { data: user, error: userErr } = await sb.from('auth.users').select('id').eq('email', email).single();
+      if (userErr) throw userErr;
+      if (!user) { alert("Aucun compte trouvé avec cet email. La personne doit d'abord créer son compte."); return; }
+      const { error } = await sb.from('membres_holding').insert({ holding_id: hid, user_id: user.id, role: 'admin' });
+      if (error) throw error;
+      $('#holding-admin-email').value = '';
+      await loadSocietes();
+    } catch (err) {
+      alert(err.message || "Erreur lors de la nomination de l'admin");
+    }
+  };
 }
 
 async function selectSociete(id) {
