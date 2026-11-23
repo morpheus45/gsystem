@@ -27,6 +27,12 @@ let holdings = [];
 let selectedSociete = null;
 let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
+let modulesActifs = null; // modules actifs de la société sélectionnée (absence d'un module = actif)
+const MODULES_LISTE = ['interventions','heures','frais','vehicules','conges','paie','compta','facturation','messages','documents'];
+const LIBELLE_MODULE = {
+  interventions: 'Interventions', heures: 'Heures', frais: 'Frais', vehicules: 'Véhicules',
+  conges: 'Congés', paie: 'Paie', compta: 'Compta', facturation: 'Facturation', messages: 'Messages', documents: 'Documents'
+};
 let vehiculeActif = null; // véhicule ouvert dans le panneau de détail
 let techniciens = [];     // cache de la société courante (pour les select)
 let ficheTechnicien = null; // technicien ouvert dans la fiche (null = fermée)
@@ -209,13 +215,26 @@ function retournerSocietes() {
   mettreAJourFil();
 }
 
+// Onglets liés à un module de la société (les autres — tableau de bord, techniciens, membres… — restent visibles).
+const ONGLETS_MODULES = ['interventions', 'conges', 'messages', 'vehicules', 'paie', 'compta', 'facturation'];
+
 // Basculer d'onglet
 function switchOnglet(tabId, calculer = true) {
   cacherApercu();   // une bulle photo ne survit jamais à un changement d'écran
+
+  // Module désactivé pour la société : on ne l'ouvre pas, on repart au tableau de bord.
+  const onglet = tabId.replace('panel-', '');
+  if (modulesActifs && ONGLETS_MODULES.includes(onglet) && !modulesActifs.has(onglet)) {
+    tabId = 'panel-bord';
+  }
+
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
-    b.classList.toggle('active', actif);
-    if (actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
+    // Onglet d'un module désactivé : masqué (le module ne se charge pas)
+    const masque = modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab);
+    b.classList.toggle('hidden', !!masque);
+    b.classList.toggle('active', actif && !masque);
+    if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
   for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
@@ -491,6 +510,12 @@ async function loadSocieteDetail(societeId) {
   try {
     const { data: members, error } = await sb.rpc('membres_de', { s: societeId });
     if (error) throw error;
+    // Modules de la société : absence d'une ligne = module actif (caché si désactivé).
+    const { data: mods, error: modsErr } = await sb.rpc('modules_actifs', { s: societeId });
+    // En cas d'erreur (base pas encore à jour…), on n'éteint rien : tous les onglets restent visibles.
+    modulesActifs = modsErr ? null : new Set(mods || []);
+    if (modsErr) console.error(modsErr);
+
     const societe = societes.find(s => s.id === societeId);
     $('#societe-detail-title').textContent = societe?.nom || 'Société';
     $('.nav-nom').textContent = societe?.nom || 'Société';
@@ -577,6 +602,56 @@ function renderMembers(members) {
     });
     return tr;
   }));
+
+  // Carte « Modules » (super admin seulement) : un interrupteur par module, confirmation avant désactivation.
+  if (superAdmin) {
+    $('#carte-modules')?.remove();   // une seule carte, même après plusieurs ouvertures
+    const card = document.createElement('section');
+    card.className = 'carte';
+    card.id = 'carte-modules';
+    const h3 = card.appendChild(document.createElement('h3'));
+    h3.textContent = 'Modules';
+    const p = card.appendChild(document.createElement('p'));
+    p.textContent = 'Un module désactivé n\'apparaît plus dans le menu (son onglet est caché) ; ses données restent en base. Les modules non mentionnés sont actifs.';
+    const grid = card.appendChild(document.createElement('div'));
+    grid.className = 'modules-liste';
+    for (const mod of MODULES_LISTE) {
+      const actif = !modulesActifs || modulesActifs.has(mod);
+      const ligne = grid.appendChild(document.createElement('label'));
+      ligne.className = 'module-ligne';
+      const input = ligne.appendChild(document.createElement('input'));
+      input.type = 'checkbox';
+      input.checked = actif;
+      input.disabled = true;
+      const span = ligne.appendChild(document.createElement('span'));
+      span.textContent = LIBELLE_MODULE[mod] || mod;
+      if (!actif) {
+        const bouton = ligne.appendChild(document.createElement('button'));
+        bouton.className = 'secondary';
+        bouton.textContent = 'Réactiver';
+        bouton.addEventListener('click', () => changerModule(mod, true));
+      } else {
+        const bouton = ligne.appendChild(document.createElement('button'));
+        bouton.className = 'danger';
+        bouton.textContent = 'Désactiver';
+        bouton.addEventListener('click', () => {
+          if (!doubleValidation(`Désactiver le module « ${LIBELLE_MODULE[mod] || mod} » pour ${societes.find(s => s.id === selectedSociete)?.nom || 'la société'} ? L'onglet disparaîtra du menu.`, 'DÉSACTIVER')) return;
+          changerModule(mod, false);
+        });
+      }
+    }
+    $('#membres-table').closest('.section').appendChild(card);
+  }
+}
+
+async function changerModule(mod, actif) {
+  try {
+    const { error } = await sb.rpc('activer_module', { s: selectedSociete, mod, actif });
+    if (error) throw error;
+    await loadSocieteDetail(selectedSociete);
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la modification du module');
+  }
 }
 
 async function loadInvitations(societeId) {
