@@ -13,6 +13,7 @@ import { finProposee, lendemain } from '../core/periodes.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
 import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
+import { regrouper, proposerLots } from '../core/signalements.js';
 import { OBJETS_3D } from './objets3d.js';
 import { compteur, anneau, barres, avatar, entree, installerPastille, placerPastille, orbite, variation, miniCourbe, pastille, pilulesDepuisSelect } from './rendu.js';
 import { courbe, majCourbe } from './courbe.js';
@@ -3495,6 +3496,52 @@ async function envoyerSignalement() {
   }
 }
 
+// Tri automatique des signalements : proposition de lots par écran, triés par gravité.
+function afficherPropositionTri(data) {
+  const lots = proposerLots(regrouper(data));
+  if (lots.length === 0) return;
+  const conteneur = $('#signalements-liste');
+  const section = document.createElement('div');
+  section.className = 'signalements-tri';
+  const titre = document.createElement('h3');
+  titre.textContent = 'Proposition de tri';
+  section.appendChild(titre);
+  for (const lot of lots) {
+    const bloc = document.createElement('div');
+    bloc.className = 'signalement-tri-lot';
+    const libelle = document.createElement('h4');
+    const nSignalements = lot.groupes.reduce((n, g) => n + g.nombre, 0);
+    libelle.textContent = `${lot.ecran} — ${lot.gravité.replace('_', ' ')} (${nSignalements} signalement${nSignalements > 1 ? 's' : ''})`;
+    bloc.appendChild(libelle);
+    for (const g of lot.groupes) {
+      const ligne = document.createElement('div');
+      ligne.className = 'signalement-tri-groupe';
+      const texte = document.createElement('span');
+      const explication = g.exemple.explication;
+      texte.textContent = `${g.nombre} signalement${g.nombre > 1 ? 's' : ''} : ${explication.substring(0, 60)}${explication.length > 60 ? '…' : ''}`;
+      ligne.appendChild(texte);
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.textContent = 'Marquer les autres comme doublons';
+      bouton.addEventListener('click', async () => {
+        const autres = g.ids.filter((id) => id !== g.exemple.id);
+        if (autres.length === 0) return;
+        if (!confirm(`Marquer ${autres.length} autre(s) signalement comme doublon de « ${g.exemple.ecran} » ?`)) return;
+        for (const id of autres) {
+          const { error } = await sb.from('signalements').update({ doublon_de: g.exemple.id, statut: 'doublon' }).eq('id', id);
+          if (error) { afficherAlerte('Erreur : ' + error.message, 'error'); return; }
+        }
+        afficherAlerte(`${autres.length} signalement${autres.length > 1 ? 's' : ''} marqué${autres.length > 1 ? 's' : ''} comme doublon(s)`, 'success');
+        chargerSignalements();
+      });
+      ligne.appendChild(bouton);
+      bloc.appendChild(ligne);
+    }
+    section.appendChild(bloc);
+  }
+  conteneur.insertBefore(section, conteneur.firstChild);
+}
+
 async function chargerSignalements() {
   if (!superAdmin) return;
   const gravite = $('#signalements-gravite').value;
@@ -3509,6 +3556,7 @@ async function chargerSignalements() {
 
   const liste = $('#signalements-liste');
   liste.innerHTML = '';
+  afficherPropositionTri(data);
   for (const sig of data) {
     const carte = document.createElement('div');
     carte.className = 'signalement-carte';
