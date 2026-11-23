@@ -2782,6 +2782,7 @@ function afficherChat() {
       c.type = 'checkbox';
       c.value = t.id;
       c.checked = coches.has(t.id);   // la relance toutes les 30 s ne décoche rien
+      c.setAttribute('aria-label', `Écrire à ${t.nom}`);
       l.append(t.nom);
       return l;
     }));

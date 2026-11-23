@@ -84,3 +84,9 @@
     height: 36px;
   }
 }
+
+/* Téléphone : les titres du tableau de paie passent à la ligne au lieu d'élargir la page. */
+@media (max-width: 900px) {
+  #paie-table th, #paie-table td { white-space: normal; overflow-wrap: anywhere; }
+  #paie-table { max-width: 100%; }
+}

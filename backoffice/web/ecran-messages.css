@@ -99,3 +99,6 @@
   border-color: #ffaaa0;
   color: #fff;
 }
+/* Destinataires d'un message groupé : cases assez grandes pour le doigt, nom cliquable. */
+#chat-destinataires label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-right: 16px; cursor: pointer; }
+#chat-destinataires input[type="checkbox"] { width: 22px; height: 22px; margin: 0; accent-color: #c4001a; }
