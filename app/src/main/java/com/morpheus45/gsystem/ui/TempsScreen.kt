@@ -1024,7 +1024,8 @@ private fun AddTempsDialog(
                 val initialTime = DateUtil.parseHm(currentTime) ?: LocalTime.now()
                 val timePickerState = rememberTimePickerState(
                     initialHour = initialTime.hour,
-                    initialMinute = initialTime.minute
+                    initialMinute = initialTime.minute,
+                    is24Hour = true
                 )
                 GDialog(
                     title = if (isDebut) "HEURE D'ARRIVÉE" else "HEURE DE DÉPART",
@@ -1039,12 +1040,11 @@ private fun AddTempsDialog(
                     },
                     dismissLabel = "Annuler"
                 ) {
-                    TimePicker(
-                        state = timePickerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
+                    // Cadran entier (plus de hauteur imposée qui le coupait) : on touche l'heure,
+                    // puis le cadran passe tout seul aux minutes.
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        TimePicker(state = timePickerState)
+                    }
                 }
             }
     }
