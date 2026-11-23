@@ -27,6 +27,9 @@ object DateUtil {
             .atZone(java.time.ZoneId.systemDefault()).format(HM)
     /** Heure locale "HH:mm" de maintenant. */
     fun nowHm(): String = java.time.LocalTime.now().format(HM)
+    /** Parse "HH:mm" → LocalTime (null si invalide). Utilisé par le TimePicker. */
+    fun parseHm(s: String): java.time.LocalTime? =
+        runCatching { java.time.LocalTime.parse(s, HM) }.getOrNull()
 
     /**
      * Calcule la période du cycle mensuel courant.

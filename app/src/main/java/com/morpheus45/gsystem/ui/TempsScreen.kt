@@ -59,6 +59,7 @@ import com.morpheus45.gsystem.util.HoursCalculator
 import com.morpheus45.gsystem.viber.ViberSender
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 
 private val MISSION_TYPES = listOf("INST", "REPA", "RESI", "PILE", "SAV", "DECL", "AJOU",
     "FINS", "INTE", "VISI", "MIGR",
@@ -467,6 +468,14 @@ private fun AddTempsDialog(
     var slot by remember { mutableStateOf(defaultSlot) }
     var slotExpanded by remember { mutableStateOf(false) }
 
+    // Heures d'arrivée / de départ — modifiables en RÉOUVERTURE d'une
+    // intervention clôturée (portage iOS : sélecteur d'heure). Initialisées
+    // sur les valeurs enregistrées ; sans effet sur une nouvelle saisie.
+    var heureDebut by remember { mutableStateOf(existing?.heureDebut ?: "") }
+    var heureFin by remember { mutableStateOf(existing?.heureFin ?: "") }
+    // Champ dont le sélecteur d'heure est ouvert : "debut" | "fin" | null.
+    var pickerFor by remember { mutableStateOf<String?>(null) }
+
     // Confirmation des heures avant enregistrement (portage de confirmerHeures d'iOS).
     var showHeureConfirm by remember { mutableStateOf(false) }
     var pendingEntries by remember { mutableStateOf<List<TempsEntry>?>(null) }
@@ -786,6 +795,39 @@ private fun AddTempsDialog(
                                 }
                             }
                         }
+                        // Réouverture d'une intervention clôturée : correction des
+                        // heures d'arrivée / de départ (portage iOS — sélecteur d'heure).
+                        if (isEditing) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = heureDebut,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Heure d'arrivée") },
+                                    placeholder = { Text("HH:mm", color = TextLow) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { pickerFor = "debut" }) {
+                                            Icon(Icons.Filled.Edit, "Choisir l'heure d'arrivée")
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = heureFin,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Heure de départ") },
+                                    placeholder = { Text("HH:mm", color = TextLow) },
+                                    trailingIcon = {
+                                        IconButton(onClick = { pickerFor = "fin" }) {
+                                            Icon(Icons.Filled.Edit, "Choisir l'heure de départ")
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     } else {
                         // VACANCES / FORMATION : période (du → au). Une ligne est créée
                         // pour chaque jour travaillé (samedis et dimanches exclus).
@@ -890,10 +932,13 @@ private fun AddTempsDialog(
                     slotMidi = slot,
                     heures = 0.0,
                     // Nouvelle clôture : début = arrivée pointée (si présente), fin = maintenant.
-                    // En édition : on conserve les heures existantes.
-                    heureDebut = existing?.heureDebut
+                    // En édition (réouverture) : on reprend les heures éditées dans le formulaire
+                    // (sélecteur d'heure), sans retomber sur les valeurs enregistrées.
+                    heureDebut = if (isEditing) heureDebut
+                        else existing?.heureDebut
                         ?: (if (settings.pendingArrivalMs > 0L) DateUtil.hm(settings.pendingArrivalMs) else ""),
-                    heureFin = existing?.heureFin ?: DateUtil.nowHm()
+                    heureFin = if (isEditing) heureFin
+                        else existing?.heureFin ?: DateUtil.nowHm()
                 )
                 fun buildEntry() = buildEntryFor(date, existing?.id ?: EntriesRepository.newId())
                 /** Période de congés -> une entrée par jour ouvré ; sinon l'entrée seule. */
@@ -969,6 +1014,37 @@ private fun AddTempsDialog(
                         Text("Modifiez les heures si nécessaire avant de confirmer.", 
                             fontSize = 11.sp, color = ColorTemps.copy(alpha = 0.7f))
                     }
+                }
+            }
+            
+            // Sélecteur d'heure (réouverture d'une intervention clôturée)
+            if (pickerFor != null) {
+                val isDebut = pickerFor == "debut"
+                val currentTime = if (isDebut) heureDebut else heureFin
+                val initialTime = DateUtil.parseHm(currentTime) ?: LocalTime.now()
+                val timePickerState = rememberTimePickerState(
+                    initialHour = initialTime.hour,
+                    initialMinute = initialTime.minute
+                )
+                GDialog(
+                    title = if (isDebut) "HEURE D'ARRIVÉE" else "HEURE DE DÉPART",
+                    accent = ColorTemps,
+                    onDismiss = { pickerFor = null },
+                    confirmLabel = "OK",
+                    confirmIcon = Icons.Filled.Check,
+                    onConfirm = {
+                        val formatted = "${timePickerState.hour.toString().padStart(2, '0')}:${timePickerState.minute.toString().padStart(2, '0')}"
+                        if (isDebut) heureDebut = formatted else heureFin = formatted
+                        pickerFor = null
+                    },
+                    dismissLabel = "Annuler"
+                ) {
+                    TimePicker(
+                        state = timePickerState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    )
                 }
             }
     }
