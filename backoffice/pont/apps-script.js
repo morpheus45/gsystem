@@ -106,6 +106,24 @@ function doPost(e) {
       return repondre({ erreur: err.message });
     }
   }
+  if (corps.action === 'chat_lu') {
+    try {   // le bureau a ouvert la conversation : messages du technicien marqués lus (comme l'ancien chatMarkRead_)
+      const tech = String(corps.technicien || '').replace(/[\/\\:*?"<>|]/g, '_').trim().slice(0, 80);
+      const jusqua = Number(corps.jusqua) || Date.now();
+      const sh = getChatSheet_(), n = sh.getLastRow();
+      if (tech && n > 1) {
+        const rows = sh.getRange(2, 1, n - 1, 7).getValues();
+        for (let i = 0; i < rows.length; i++) {
+          if (String(rows[i][1]) === tech && String(rows[i][2]) === 'tech' && Number(rows[i][0]) <= jusqua && rows[i][6] !== true) {
+            sh.getRange(i + 2, 7).setValue(true);
+          }
+        }
+      }
+      return repondre({ ok: true });
+    } catch (err) {
+      return repondre({ erreur: err.message });
+    }
+  }
   if (corps.action === 'chat_ecrire') {
     try {
       const id = chatEcrire_(String(corps.technicien || ''), String(corps.texte || ''));

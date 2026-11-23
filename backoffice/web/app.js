@@ -2663,6 +2663,13 @@ async function chargerMessages() {
       // dédup par id + de
       const deja = new Set(messages.map((m) => `${m.id}|${m.de}`));
       messages.push(...recus.filter((m) => !deja.has(`${m.id}|${m.de}`)));
+      // Conversation ouverte : un message du technicien arrivé pendant qu'on la lit est lu aussitôt.
+      if (chatTech && nonLus(chatTech.id) && !$('#chat-messages').classList.contains('hidden')) {
+        const t = chatTech, jusqua = Math.max(...messages.filter((m) => m.technicien_id === t.id).map((m) => Number(m.id) || 0));
+        appelPont('chat_lu', { technicien: t.nom_apk, jusqua }).catch((e) => console.error(e));
+        messages.forEach((m) => { if (m.technicien_id === t.id && m.de === 'technicien') m.lu_le = new Date().toISOString(); });
+        compterMessagesNonLus();
+      }
     } else {
       messages = await toutLire(sb.from('messages').select('id, technicien_id, de, texte, auteur, cree_le, lu_le, modifie_le').eq('societe_id', selectedSociete).order('cree_le'));
     }
@@ -2736,6 +2743,14 @@ async function ouvrirConversation(t) {
   $('#chat-form').classList.remove('hidden');
   afficherChat();
   $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+  if (estSocietePont() && nonLus(t.id)) {   // même règle via le pont : la feuille de chat garde « lu par le bureau »
+    const jusqua = Math.max(...messages.filter((m) => m.technicien_id === t.id).map((m) => Number(m.id) || 0));
+    try {
+      await appelPont('chat_lu', { technicien: t.nom_apk, jusqua });
+      messages.forEach((m) => { if (m.technicien_id === t.id && m.de === 'technicien') m.lu_le = new Date().toISOString(); });
+      afficherChat(); compterMessagesNonLus();
+    } catch (err) { console.error(err); }
+  }
   if (!estSocietePont() && nonLus(t.id)) {   // conversation ouverte = messages du technicien lus par le bureau
     const { error } = await sb.from('messages').update({ lu_le: new Date().toISOString() })
       .eq('technicien_id', t.id).eq('de', 'technicien').is('lu_le', null);
