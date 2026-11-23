@@ -514,7 +514,7 @@ async function loadSocieteDetail(societeId) {
     // Modules de la société : absence d'une ligne = module actif (caché si désactivé).
     const { data: mods, error: modsErr } = await sb.rpc('modules_actifs', { s: societeId });
     // En cas d'erreur (base pas encore à jour…), on n'éteint rien : tous les onglets restent visibles.
-    modulesActifs = modsErr ? null : new Set(mods || []);
+    modulesActifs = modsErr ? null : new Set((mods || []).map((m) => (typeof m === 'string' ? m : m.module)));   // la base renvoie [{ module }]
     if (modsErr) console.error(modsErr);
 
     const societe = societes.find(s => s.id === societeId);
