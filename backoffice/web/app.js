@@ -2798,11 +2798,17 @@ async function envoyerMessages(ids, texte) {
 
 $('#chat-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const bouton = $('#chat-form button[type="submit"]');
+  if (bouton.disabled) return;   // l'envoi par le pont prend quelques secondes : un 2e appui n'envoie pas deux fois
   const texte = $('#chat-texte').value.trim();
-  if (texte && chatTech && await envoyerMessages([chatTech.id], texte)) {
-    $('#chat-texte').value = '';
-    $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-  }
+  if (!texte || !chatTech) return;
+  const libelle = bouton.textContent;
+  bouton.disabled = true; bouton.textContent = 'Envoi…';
+  $('#chat-texte').value = '';
+  try {
+    if (await envoyerMessages([chatTech.id], texte)) $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+    else $('#chat-texte').value = texte;   // échec : le texte revient pour réessayer
+  } finally { bouton.disabled = false; bouton.textContent = libelle; }
 });
 
 $('#chat-diffusion').addEventListener('submit', async (e) => {
@@ -2810,7 +2816,10 @@ $('#chat-diffusion').addEventListener('submit', async (e) => {
   const ids = [...$$('#chat-destinataires input:checked')].map((c) => c.value);
   const texte = $('#chat-diffusion-texte').value.trim();
   if (!ids.length) { alert('Cochez au moins un technicien.'); return; }
-  if (texte && await envoyerMessages(ids, texte)) $('#chat-diffusion').reset();
+  const bouton = $('#chat-diffusion button[type="submit"]');
+  if (!texte || bouton.disabled) return;
+  bouton.disabled = true;
+  try { if (await envoyerMessages(ids, texte)) $('#chat-diffusion').reset(); } finally { bouton.disabled = false; }
 });
 
 // ===== Compta : extrait des notes de frais par technicien (core/compta.js) =====
