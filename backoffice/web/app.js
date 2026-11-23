@@ -238,7 +238,7 @@ function switchOnglet(tabId, calculer = true) {
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-signalements']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -249,6 +249,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-facturation') chargerFacturation();
   if (tabId === 'panel-compta') chargerCompta();
   if (tabId === 'panel-interventions') chargerInterventions();
+  if (tabId === 'panel-signalements') chargerSignalements();
   clearInterval(relanceChat);
   if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
 }
@@ -3488,10 +3489,10 @@ async function envoyerSignalement() {
       }
     }
 
-    afficherAlerte('Signalement envoyé avec succès', 'success');
+    alert('Signalement envoyé avec succès', 'success');
     fermerDialogSignaler();
   } catch (err) {
-    afficherAlerte('Erreur : ' + (err?.message || 'inconnue'), 'error');
+    alert('Erreur : ' + (err?.message || 'inconnue'), 'error');
   } finally {
     $('#signaler-envoyer').disabled = false;
   }
@@ -3521,6 +3522,7 @@ function afficherPropositionTri(data) {
       const explication = g.exemple.explication;
       texte.textContent = `${g.nombre} signalement${g.nombre > 1 ? 's' : ''} : ${explication.substring(0, 60)}${explication.length > 60 ? '…' : ''}`;
       ligne.appendChild(texte);
+      if (g.nombre < 2) { bloc.appendChild(ligne); continue; }   // rien à fusionner
       const bouton = document.createElement('button');
       bouton.type = 'button';
       bouton.textContent = 'Marquer les autres comme doublons';
@@ -3530,9 +3532,9 @@ function afficherPropositionTri(data) {
         if (!confirm(`Marquer ${autres.length} autre(s) signalement comme doublon de « ${g.exemple.ecran} » ?`)) return;
         for (const id of autres) {
           const { error } = await sb.from('signalements').update({ doublon_de: g.exemple.id, statut: 'doublon' }).eq('id', id);
-          if (error) { afficherAlerte('Erreur : ' + error.message, 'error'); return; }
+          if (error) { alert('Erreur : ' + error.message, 'error'); return; }
         }
-        afficherAlerte(`${autres.length} signalement${autres.length > 1 ? 's' : ''} marqué${autres.length > 1 ? 's' : ''} comme doublon(s)`, 'success');
+        alert(`${autres.length} signalement${autres.length > 1 ? 's' : ''} marqué${autres.length > 1 ? 's' : ''} comme doublon(s)`, 'success');
         chargerSignalements();
       });
       ligne.appendChild(bouton);
@@ -3543,143 +3545,76 @@ function afficherPropositionTri(data) {
   conteneur.insertBefore(section, conteneur.firstChild);
 }
 
+const LIB_GRAVITE = { critique: 'Critique', urgent: 'Urgent', non_urgent: 'Non urgent' };
+const LIB_STATUT_SIG = { nouveau: 'Nouveau', a_valider: 'À valider', planifie: 'Planifié', en_cours: 'En cours', corrige: 'Corrigé', refuse: 'Refusé', doublon: 'Doublon' };
+const elt = (tag, classe, texte) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texte != null) e.textContent = texte; return e; };
+
+// Liste des signalements (super admin) : textes des utilisateurs toujours posés par textContent.
 async function chargerSignalements() {
   if (!superAdmin) return;
   const gravite = $('#signalements-gravite').value;
   const statut = $('#signalements-statut').value;
-
-  let q = sb.from('signalements').order('cree_le', { ascending: false });
+  let q = sb.from('signalements').select('id, societe_id, auteur, cree_le, ecran, version, gravite, explication, statut, planifie_le, doublon_de, decision')
+    .order('cree_le', { ascending: false });
   if (gravite) q = q.eq('gravite', gravite);
   if (statut) q = q.eq('statut', statut);
-
   const { data, error } = await q;
-  if (error) { afficherAlerte('Erreur : ' + error.message, 'error'); return; }
-
-  const liste = $('#signalements-liste');
-  liste.innerHTML = '';
-  afficherPropositionTri(data);
-  for (const sig of data) {
-    const carte = document.createElement('div');
-    carte.className = 'signalement-carte';
-    carte.innerHTML = `
-      <div class="signalement-entete">
-        <h4 class="signalement-titre">${sig.ecran} (v${sig.version})</h4>
-        <span class="signalement-gravite ${sig.gravite}">${sig.gravite.replace('_', ' ')}</span>
-      </div>
-      <div class="signalement-meta">
-        <div class="signalement-meta-item"><strong>${sig.explication.substring(0, 60)}${sig.explication.length > 60 ? '…' : ''}</strong></div>
-        <div class="signalement-meta-item">
-          <span class="signalement-statut ${sig.statut}">${sig.statut.replace(/_/g, ' ')}</span>
-        </div>
-        <div class="signalement-meta-item">${new Date(sig.cree_le).toLocaleDateString('fr-FR')}</div>
-      </div>
-    `;
-    carte.onclick = () => afficherDetailSignalement(sig, data);
-    liste.appendChild(carte);
-  }
+  if (error) { alert(`Signalements : ${error.message}`); return; }
+  $('#signalements-liste').replaceChildren(...data.map((sig) => {
+    const carte = elt('button', 'signalement-carte');
+    carte.type = 'button';
+    const entete = carte.appendChild(elt('div', 'signalement-entete'));
+    entete.append(elt('h4', 'signalement-titre', `${sig.ecran} (v${sig.version})`),
+      pastille(LIB_GRAVITE[sig.gravite] || sig.gravite, sig.gravite === 'critique' ? 'danger' : sig.gravite === 'urgent' ? 'alerte' : 'neutre'));
+    const meta = carte.appendChild(elt('div', 'signalement-meta'));
+    meta.append(elt('strong', 'signalement-meta-item', sig.explication.length > 80 ? `${sig.explication.slice(0, 80)}…` : sig.explication),
+      pastille(LIB_STATUT_SIG[sig.statut] || sig.statut, sig.statut === 'corrige' ? 'ok' : sig.statut === 'refuse' || sig.statut === 'doublon' ? 'neutre' : 'info'),
+      elt('span', 'signalement-meta-item', formaterDate(String(sig.cree_le).slice(0, 10))));
+    carte.addEventListener('click', () => afficherDetailSignalement(sig, data));
+    return carte;
+  }));
+  afficherPropositionTri(data);   // en tête de la liste, après son remplissage
 }
 
 async function afficherDetailSignalement(sig, tous) {
   const detail = $('#signalements-detail');
   detail.classList.remove('hidden');
-
-  const { data: captures } = await sb.from('signalements_captures').select('*').eq('signalement_id', sig.id);
-
-  let capturesHtml = '';
-  if (captures && captures.length > 0) {
-    for (const cap of captures) {
-      const { data: urlSigned } = await sb.storage.from('signalements').createSignedUrl(cap.chemin, 3600);
-      capturesHtml += `<div class="signalement-capture"><img class="signalement-capture-image" src="${urlSigned?.signedUrl}" alt="Capture"></div>`;
+  const section = elt('div', 'signalement-detail-section');
+  section.append(elt('h3', 'signalement-detail-titre', `${sig.ecran} — version ${sig.version}`),
+    elt('p', 'signalement-meta', `Signalé le ${formaterDate(String(sig.cree_le).slice(0, 10))} · ${LIB_GRAVITE[sig.gravite] || sig.gravite} · ${LIB_STATUT_SIG[sig.statut] || sig.statut}`),
+    elt('h4', 'signalement-detail-titre', 'Explication'), elt('p', 'signalement-explication', sig.explication));
+  const { data: captures } = await sb.from('signalements_captures').select('chemin').eq('signalement_id', sig.id);
+  if (captures?.length) {
+    section.append(elt('h4', 'signalement-detail-titre', 'Captures'));
+    const zone = section.appendChild(elt('div', 'signalement-captures'));
+    for (const c of captures) {
+      const { data: url } = await sb.storage.from('signalements').createSignedUrl(c.chemin, 3600);
+      if (!url?.signedUrl) continue;
+      const img = zone.appendChild(elt('img', 'signalement-capture-image'));
+      img.src = url.signedUrl; img.alt = 'Capture d\'écran jointe';
     }
   }
-
-  let decisionHtml = '';
-  if (superAdmin) {
-    const dupliquats = tous.filter((s) => s.doublon_de === sig.id).map((s) => s.id);
-    decisionHtml = `
-      <div class="signalement-decision">
-        <h4 class="signalement-detail-titre">Décision (super admin)</h4>
-        <div class="signalement-decision-champs">
-          <div class="field">
-            <label for="detail-statut">Statut</label>
-            <select id="detail-statut">
-              <option value="nouveau" ${sig.statut === 'nouveau' ? 'selected' : ''}>Nouveau</option>
-              <option value="a_valider" ${sig.statut === 'a_valider' ? 'selected' : ''}>À valider</option>
-              <option value="planifie" ${sig.statut === 'planifie' ? 'selected' : ''}>Planifié</option>
-              <option value="en_cours" ${sig.statut === 'en_cours' ? 'selected' : ''}>En cours</option>
-              <option value="corrige" ${sig.statut === 'corrige' ? 'selected' : ''}>Corrigé</option>
-              <option value="refuse" ${sig.statut === 'refuse' ? 'selected' : ''}>Refusé</option>
-              <option value="doublon" ${sig.statut === 'doublon' ? 'selected' : ''}>Doublon</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="detail-planifie">Planifié le (si applicable)</label>
-            <input type="date" id="detail-planifie" value="${sig.planifie_le || ''}">
-          </div>
-          <div class="field">
-            <label for="detail-doublon">Doublon de (si applicable)</label>
-            <select id="detail-doublon">
-              <option value="">Aucun</option>
-              ${tous.filter((s) => s.id !== sig.id).map((s) => `<option value="${s.id}" ${sig.doublon_de === s.id ? 'selected' : ''}>${s.ecran} - ${s.statut}</option>`).join('')}
-            </select>
-          </div>
-          <div class="field">
-            <label for="detail-decision">Décision</label>
-            <textarea id="detail-decision" maxlength="2000">${sig.decision || ''}</textarea>
-          </div>
-        </div>
-        <div class="signalement-decision-actions">
-          <button type="button" id="detail-enregistrer">Enregistrer</button>
-          ${dupliquats.length > 0 ? `<span style="font-size:0.9rem;color:var(--muted);">${dupliquats.length} autre(s) est/sont doublon(s)</span>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  detail.innerHTML = `
-    <div class="signalement-detail-section">
-      <h3 class="signalement-detail-titre">${sig.ecran}</h3>
-      <div class="signalement-meta">
-        <div class="signalement-meta-item">Version : ${sig.version}</div>
-        <div class="signalement-meta-item">Créé : ${new Date(sig.cree_le).toLocaleDateString('fr-FR')}</div>
-        <div class="signalement-meta-item">
-          <span class="signalement-statut ${sig.statut}">${sig.statut.replace(/_/g, ' ')}</span>
-        </div>
-        <div class="signalement-meta-item">
-          <span class="signalement-gravite ${sig.gravite}">${sig.gravite.replace('_', ' ')}</span>
-        </div>
-      </div>
-      <div class="signalement-detail-section">
-        <h4 class="signalement-detail-titre">Explication</h4>
-        <div class="signalement-explication">${sig.explication}</div>
-      </div>
-      ${capturesHtml ? `<div class="signalement-detail-section"><h4 class="signalement-detail-titre">Captures</h4><div class="signalement-captures">${capturesHtml}</div></div>` : ''}
-      ${sig.decision ? `<div class="signalement-detail-section"><h4 class="signalement-detail-titre">Décision</h4><p>${sig.decision}</p></div>` : ''}
-      ${decisionHtml}
-    </div>
-  `;
-
-  if (superAdmin && sig.statut) {
-    $('#detail-enregistrer').onclick = async () => {
-      const statut = $('#detail-statut').value;
-      const planifie_le = $('#detail-planifie').value || null;
-      const doublon_de = $('#detail-doublon').value || null;
-      const decision = $('#detail-decision').value || null;
-
-      const { error } = await sb.from('signalements').update({
-        statut,
-        planifie_le,
-        doublon_de,
-        decision,
-      }).eq('id', sig.id);
-
-      if (error) afficherAlerte('Erreur : ' + error.message, 'error');
-      else {
-        afficherAlerte('Signalement mis à jour', 'success');
-        chargerSignalements();
-      }
-    };
-  }
+  // Décision (super admin seulement)
+  const decision = section.appendChild(elt('div', 'signalement-decision'));
+  decision.append(elt('h4', 'signalement-detail-titre', 'Décision'));
+  const champ = (libelle, controle) => { const f = elt('div', 'field'); const l = elt('label', '', libelle); controle.id = `detail-${libelle.toLowerCase().replace(/[^a-z]/g, '')}`; l.htmlFor = controle.id; f.append(l, controle); decision.append(f); return controle; };
+  const selStatut = champ('Statut', elt('select'));
+  for (const [v, l] of Object.entries(LIB_STATUT_SIG)) { const o = selStatut.appendChild(elt('option', '', l)); o.value = v; }
+  selStatut.value = sig.statut;
+  const datePlan = champ('Planifié le', elt('input')); datePlan.type = 'date'; datePlan.value = sig.planifie_le || '';
+  const selDoublon = champ('Doublon de', elt('select'));
+  selDoublon.appendChild(elt('option', '', 'Aucun')).value = '';
+  for (const s of tous.filter((x) => x.id !== sig.id)) { const o = selDoublon.appendChild(elt('option', '', `${s.ecran} — ${s.explication.slice(0, 50)}`)); o.value = s.id; }
+  selDoublon.value = sig.doublon_de || '';
+  const texte = champ('Décision', elt('textarea')); texte.maxLength = 2000; texte.value = sig.decision || '';
+  const bouton = decision.appendChild(elt('button', '', 'Enregistrer'));
+  bouton.type = 'button';
+  bouton.addEventListener('click', async () => {
+    const { error } = await sb.from('signalements').update({ statut: selStatut.value, planifie_le: datePlan.value || null,
+      doublon_de: selDoublon.value || null, decision: texte.value || null }).eq('id', sig.id);
+    if (error) alert(`Signalement : ${error.message}`); else { alert('Signalement mis à jour', 'success'); chargerSignalements(); }
+  });
+  detail.replaceChildren(section);
 }
 
 $('#signaler-bug').addEventListener('click', ouvrirDialogSignaler);

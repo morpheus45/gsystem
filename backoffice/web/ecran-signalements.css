@@ -381,3 +381,16 @@
     background: color-mix(in srgb, var(--surface-2) 80%, var(--text));
   }
 }
+
+/* Fiches de la liste (boutons) : texte à gauche, méta sur une ligne qui passe à la ligne. */
+#signalements-liste .signalement-carte { display: grid; gap: 6px; width: 100%; text-align: left; padding: 14px 16px; margin: 0 0 10px; border-radius: 14px;
+  background: var(--card); color: var(--text); border: 1px solid var(--border); box-shadow: none; font-weight: 400; }
+#signalements-liste .signalement-entete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+#signalements-liste .signalement-titre { margin: 0; font-size: 1rem; }
+#signalements-liste .signalement-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: .875rem; }
+#signalements-liste .signalement-meta strong { color: var(--text); font-weight: 500; flex: 1 1 320px; }
+.signalements-tri { margin: 0 0 18px; padding: 16px; border-radius: 16px; background: color-mix(in srgb, var(--marque) 6%, transparent); border: 1px solid color-mix(in srgb, var(--marque) 20%, transparent); }
+.signalements-tri h3 { margin: 0 0 10px; }
+#signalements-detail .field { margin: 10px 0; }
+.signalement-capture-image { max-width: 100%; border-radius: 10px; margin: 6px 0; }
+#signalements-liste .pastille { flex: none; white-space: nowrap; }
