@@ -214,8 +214,15 @@ function baremesDuTech(cle, reglages, technicienId) {
 // Ajout seul, par paquets : un doublon (même clé unique) est ignoré.
 function ajouter(cle, table, lignes, unique) {
   for (let i = 0; i < lignes.length; i += 500) {
-    appel(cle, 'post', table + '?on_conflict=' + (unique || 'societe_id,cle_source'), lignes.slice(i, i + 500),
-      'resolution=ignore-duplicates,return=minimal');
+    const chemin = table + '?on_conflict=' + (unique || 'societe_id,cle_source'), lot = lignes.slice(i, i + 500);
+    if (table === 'temps') {
+      // Heures corrigées sur le téléphone (arrivée, départ, résultat…) : la ligne déjà importée est mise à jour.
+      // Si une ligne du lot est dans une période de paie verrouillée, la base refuse tout le lot : on retombe
+      // alors sur l'ajout simple, pour que les nouvelles interventions arrivent quand même.
+      try { appel(cle, 'post', chemin, lot, 'resolution=merge-duplicates,return=minimal'); continue; }
+      catch (e) { console.log('temps : mise à jour refusée (' + e.message + '), ajout simple'); }
+    }
+    appel(cle, 'post', chemin, lot, 'resolution=ignore-duplicates,return=minimal');
   }
 }
 
