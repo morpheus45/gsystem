@@ -316,6 +316,7 @@ async function checkOperator() {
     if (error) throw error;
     superAdmin = data.length > 0;
     $('#operator-section').classList.toggle('hidden', !superAdmin);
+    mettreAJourVisibiliteSignalements();
   } catch (err) {
     console.error(err);
   }
@@ -3281,6 +3282,278 @@ function cacherApercu() {
   document.querySelectorAll('.apercu-compteur').forEach((e) => e.remove());
   apercu = null;
 }
+
+// --- SIGNALEMENTS ---
+
+let capturePourSignalement = [];
+
+function obtenirEcranCourant() {
+  for (const tab of $$('.tab')) {
+    if (tab.classList.contains('active')) {
+      const libelle = tab.textContent.trim();
+      return libelle || 'Inconnu';
+    }
+  }
+  return 'Accueil';
+}
+
+function obtenirVersion() {
+  return '1.0.0'; // À adapter à la vraie version
+}
+
+function ouvrirDialogSignaler() {
+  $('#signaler-ecran').value = obtenirEcranCourant();
+  $('#signaler-version').value = obtenirVersion();
+  capturePourSignalement = [];
+  afficherCapturesPourSignalement();
+  $('#dialog-signaler').classList.add('show');
+  $('#signaler-explication').focus();
+}
+
+function fermerDialogSignaler() {
+  $('#dialog-signaler').classList.remove('show');
+  $('#signaler-gravite').value = '';
+  $('#signaler-explication').value = '';
+  capturePourSignalement = [];
+}
+
+function afficherCapturesPourSignalement() {
+  const liste = $('#captures-liste');
+  liste.innerHTML = '';
+  for (let i = 0; i < capturePourSignalement.length; i++) {
+    const item = document.createElement('div');
+    item.className = 'capture-item';
+    const nom = document.createElement('span');
+    nom.textContent = `Capture ${i + 1}`;
+    item.appendChild(nom);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'capture-supprimer';
+    btn.textContent = '×';
+    btn.onclick = () => {
+      capturePourSignalement.splice(i, 1);
+      afficherCapturesPourSignalement();
+    };
+    item.appendChild(btn);
+    liste.appendChild(item);
+  }
+}
+
+function ajouterCaptureSignalement() {
+  if (capturePourSignalement.length >= 5) {
+    alert('Maximum 5 captures');
+    return;
+  }
+  $('#signaler-captures-input').click();
+}
+
+$('#signaler-captures-input').addEventListener('change', async (e) => {
+  for (const file of e.target.files) {
+    if (capturePourSignalement.length >= 5) break;
+    const data = await file.arrayBuffer();
+    capturePourSignalement.push({ nom: file.name, donnees: new Uint8Array(data) });
+  }
+  afficherCapturesPourSignalement();
+});
+
+async function envoyerSignalement() {
+  const gravite = $('#signaler-gravite').value;
+  const explication = $('#signaler-explication').value.trim();
+  if (!gravite) { alert('Choisir une gravité'); return; }
+  if (!explication) { alert('Écrire une explication'); return; }
+
+  $('#signaler-envoyer').disabled = true;
+  try {
+    // Créer le signalement
+    const { data: sig, error: err1 } = await sb.from('signalements').insert({
+      societe_id: selectedSociete || null,
+      ecran: $('#signaler-ecran').value,
+      version: $('#signaler-version').value,
+      gravite,
+      explication,
+    }).select().single();
+    if (err1) throw err1;
+
+    // Uploader les captures
+    for (const capture of capturePourSignalement) {
+      const chemin = `${sig.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+      const { error: err2 } = await sb.storage.from('signalements').upload(chemin, capture.donnees, {
+        contentType: 'image/jpeg',
+        cacheControl: '0',
+      });
+      if (err2) console.error('Erreur upload capture:', err2);
+      else {
+        await sb.from('signalements_captures').insert({ signalement_id: sig.id, chemin });
+      }
+    }
+
+    afficherAlerte('Signalement envoyé avec succès', 'success');
+    fermerDialogSignaler();
+  } catch (err) {
+    afficherAlerte('Erreur : ' + (err?.message || 'inconnue'), 'error');
+  } finally {
+    $('#signaler-envoyer').disabled = false;
+  }
+}
+
+async function chargerSignalements() {
+  if (!superAdmin) return;
+  const gravite = $('#signalements-gravite').value;
+  const statut = $('#signalements-statut').value;
+
+  let q = sb.from('signalements').order('cree_le', { ascending: false });
+  if (gravite) q = q.eq('gravite', gravite);
+  if (statut) q = q.eq('statut', statut);
+
+  const { data, error } = await q;
+  if (error) { afficherAlerte('Erreur : ' + error.message, 'error'); return; }
+
+  const liste = $('#signalements-liste');
+  liste.innerHTML = '';
+  for (const sig of data) {
+    const carte = document.createElement('div');
+    carte.className = 'signalement-carte';
+    carte.innerHTML = `
+      <div class="signalement-entete">
+        <h4 class="signalement-titre">${sig.ecran} (v${sig.version})</h4>
+        <span class="signalement-gravite ${sig.gravite}">${sig.gravite.replace('_', ' ')}</span>
+      </div>
+      <div class="signalement-meta">
+        <div class="signalement-meta-item"><strong>${sig.explication.substring(0, 60)}${sig.explication.length > 60 ? '…' : ''}</strong></div>
+        <div class="signalement-meta-item">
+          <span class="signalement-statut ${sig.statut}">${sig.statut.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="signalement-meta-item">${new Date(sig.cree_le).toLocaleDateString('fr-FR')}</div>
+      </div>
+    `;
+    carte.onclick = () => afficherDetailSignalement(sig, data);
+    liste.appendChild(carte);
+  }
+}
+
+async function afficherDetailSignalement(sig, tous) {
+  const detail = $('#signalements-detail');
+  detail.classList.remove('hidden');
+
+  const { data: captures } = await sb.from('signalements_captures').select('*').eq('signalement_id', sig.id);
+
+  let capturesHtml = '';
+  if (captures && captures.length > 0) {
+    for (const cap of captures) {
+      const { data: urlSigned } = await sb.storage.from('signalements').createSignedUrl(cap.chemin, 3600);
+      capturesHtml += `<div class="signalement-capture"><img class="signalement-capture-image" src="${urlSigned?.signedUrl}" alt="Capture"></div>`;
+    }
+  }
+
+  let decisionHtml = '';
+  if (superAdmin) {
+    const dupliquats = tous.filter((s) => s.doublon_de === sig.id).map((s) => s.id);
+    decisionHtml = `
+      <div class="signalement-decision">
+        <h4 class="signalement-detail-titre">Décision (super admin)</h4>
+        <div class="signalement-decision-champs">
+          <div class="field">
+            <label for="detail-statut">Statut</label>
+            <select id="detail-statut">
+              <option value="nouveau" ${sig.statut === 'nouveau' ? 'selected' : ''}>Nouveau</option>
+              <option value="a_valider" ${sig.statut === 'a_valider' ? 'selected' : ''}>À valider</option>
+              <option value="planifie" ${sig.statut === 'planifie' ? 'selected' : ''}>Planifié</option>
+              <option value="en_cours" ${sig.statut === 'en_cours' ? 'selected' : ''}>En cours</option>
+              <option value="corrige" ${sig.statut === 'corrige' ? 'selected' : ''}>Corrigé</option>
+              <option value="refuse" ${sig.statut === 'refuse' ? 'selected' : ''}>Refusé</option>
+              <option value="doublon" ${sig.statut === 'doublon' ? 'selected' : ''}>Doublon</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="detail-planifie">Planifié le (si applicable)</label>
+            <input type="date" id="detail-planifie" value="${sig.planifie_le || ''}">
+          </div>
+          <div class="field">
+            <label for="detail-doublon">Doublon de (si applicable)</label>
+            <select id="detail-doublon">
+              <option value="">Aucun</option>
+              ${tous.filter((s) => s.id !== sig.id).map((s) => `<option value="${s.id}" ${sig.doublon_de === s.id ? 'selected' : ''}>${s.ecran} - ${s.statut}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label for="detail-decision">Décision</label>
+            <textarea id="detail-decision" maxlength="2000">${sig.decision || ''}</textarea>
+          </div>
+        </div>
+        <div class="signalement-decision-actions">
+          <button type="button" id="detail-enregistrer">Enregistrer</button>
+          ${dupliquats.length > 0 ? `<span style="font-size:0.9rem;color:var(--muted);">${dupliquats.length} autre(s) est/sont doublon(s)</span>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  detail.innerHTML = `
+    <div class="signalement-detail-section">
+      <h3 class="signalement-detail-titre">${sig.ecran}</h3>
+      <div class="signalement-meta">
+        <div class="signalement-meta-item">Version : ${sig.version}</div>
+        <div class="signalement-meta-item">Créé : ${new Date(sig.cree_le).toLocaleDateString('fr-FR')}</div>
+        <div class="signalement-meta-item">
+          <span class="signalement-statut ${sig.statut}">${sig.statut.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="signalement-meta-item">
+          <span class="signalement-gravite ${sig.gravite}">${sig.gravite.replace('_', ' ')}</span>
+        </div>
+      </div>
+      <div class="signalement-detail-section">
+        <h4 class="signalement-detail-titre">Explication</h4>
+        <div class="signalement-explication">${sig.explication}</div>
+      </div>
+      ${capturesHtml ? `<div class="signalement-detail-section"><h4 class="signalement-detail-titre">Captures</h4><div class="signalement-captures">${capturesHtml}</div></div>` : ''}
+      ${sig.decision ? `<div class="signalement-detail-section"><h4 class="signalement-detail-titre">Décision</h4><p>${sig.decision}</p></div>` : ''}
+      ${decisionHtml}
+    </div>
+  `;
+
+  if (superAdmin && sig.statut) {
+    $('#detail-enregistrer').onclick = async () => {
+      const statut = $('#detail-statut').value;
+      const planifie_le = $('#detail-planifie').value || null;
+      const doublon_de = $('#detail-doublon').value || null;
+      const decision = $('#detail-decision').value || null;
+
+      const { error } = await sb.from('signalements').update({
+        statut,
+        planifie_le,
+        doublon_de,
+        decision,
+      }).eq('id', sig.id);
+
+      if (error) afficherAlerte('Erreur : ' + error.message, 'error');
+      else {
+        afficherAlerte('Signalement mis à jour', 'success');
+        chargerSignalements();
+      }
+    };
+  }
+}
+
+$('#signaler-bug').addEventListener('click', ouvrirDialogSignaler);
+$('#signaler-fermer').addEventListener('click', fermerDialogSignaler);
+$('#signaler-annuler').addEventListener('click', fermerDialogSignaler);
+$('#signaler-envoyer').addEventListener('click', envoyerSignalement);
+$('#signaler-ajouter-capture').addEventListener('click', ajouterCaptureSignalement);
+$('#signalements-gravite').addEventListener('change', chargerSignalements);
+$('#signalements-statut').addEventListener('change', chargerSignalements);
+
+// Afficher/masquer l'onglet Signalements si super admin
+function mettreAJourVisibiliteSignalements() {
+  const onglet = $('#onglet-signalements');
+  if (onglet) onglet.classList.toggle('hidden', !superAdmin);
+}
+
+// Charger les signalements quand on accède à l'onglet
+document.addEventListener('click', (e) => {
+  if (e.target.dataset?.tab === 'signalements') {
+    setTimeout(() => chargerSignalements(), 0);
+  }
+});
 
 // Init : vérifier si session existe déjà
 sb.auth.onAuthStateChange((event, newSession) => {

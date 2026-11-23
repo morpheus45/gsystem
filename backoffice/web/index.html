@@ -598,6 +598,7 @@
   <link rel="stylesheet" href="ecran-interventions.css">
   <link rel="stylesheet" href="ecran-messages.css">
   <link rel="stylesheet" href="ecran-gestion.css">
+  <link rel="stylesheet" href="ecran-signalements.css">
 </head>
 <body>
   <div class="banner">Base locale de développement — données fictives</div>
@@ -749,8 +750,10 @@
             <button class="tab" data-tab="facturation">Facturation</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
+            <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
           </nav>
           <div class="nav-utilisateur" id="nav-utilisateur"><span class="avatar" id="nav-avatar" aria-hidden="true"></span><span class="nav-email" id="nav-email"></span></div>
+          <button type="button" id="signaler-bug">Signaler un problème</button>
           <button type="button" class="nav-deconnexion" id="nav-deconnexion">Se déconnecter</button>
         </aside>
         <div class="contenu">
@@ -871,6 +874,37 @@
             <button type="button" id="purge-apercu" class="secondary">Voir ce qui peut être purgé</button>
             <p id="purge-resultat"></p>
             <button type="button" id="purge-lancer" class="danger hidden">Purger définitivement</button>
+          </div>
+        </div>
+
+        <!-- Panneau Signalements (super admin) -->
+        <div id="panel-signalements" class="tab-panel hidden">
+          <div class="section">
+            <h3>Signalements de bugs</h3>
+            <div class="signalements-filtres">
+              <label for="signalements-gravite" style="margin:0;">Gravité</label>
+              <select id="signalements-gravite">
+                <option value="">Toutes</option>
+                <option value="non_urgent">Non urgent</option>
+                <option value="urgent">Urgent</option>
+                <option value="critique">Critique</option>
+              </select>
+              <label for="signalements-statut" style="margin:0;">Statut</label>
+              <select id="signalements-statut">
+                <option value="">Tous</option>
+                <option value="nouveau">Nouveau</option>
+                <option value="a_valider">À valider</option>
+                <option value="planifie">Planifié</option>
+                <option value="en_cours">En cours</option>
+                <option value="corrige">Corrigé</option>
+                <option value="refuse">Refusé</option>
+                <option value="doublon">Doublon</option>
+              </select>
+            </div>
+            <div class="signalements-conteneur">
+              <div class="signalements-liste" id="signalements-liste"></div>
+              <div id="signalements-detail" class="signalement-detail hidden"></div>
+            </div>
           </div>
         </div>
 
@@ -1567,6 +1601,52 @@
       </div>
     </form>
   </dialog>
+
+  <!-- Boîte de dialogue : Signaler un problème -->
+  <div id="dialog-signaler">
+    <div class="dialog-contenu">
+      <div class="dialog-entete">
+        <h2 class="dialog-titre">Signaler un problème</h2>
+        <button type="button" class="dialog-fermer" id="signaler-fermer" aria-label="Fermer">×</button>
+      </div>
+      <div class="dialog-corps">
+        <div class="dialog-champs">
+          <div class="field">
+            <label for="signaler-gravite">Gravité</label>
+            <select id="signaler-gravite" required>
+              <option value="">Sélectionner…</option>
+              <option value="non_urgent">Non urgent</option>
+              <option value="urgent">Urgent</option>
+              <option value="critique">Critique</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="signaler-explication">Explication (obligatoire)</label>
+            <textarea id="signaler-explication" required maxlength="4000" rows="5" placeholder="Décrivez le problème…"></textarea>
+          </div>
+          <div class="field">
+            <label for="signaler-ecran">Écran</label>
+            <input type="text" id="signaler-ecran" readonly>
+          </div>
+          <div class="field">
+            <label for="signaler-version">Version</label>
+            <input type="text" id="signaler-version" readonly>
+          </div>
+        </div>
+        <div class="dialog-captures">
+          <label>Captures d'écran (jusqu'à 5)</label>
+          <div class="captures-liste" id="captures-liste"></div>
+          <button type="button" class="signaler-ajouter-capture" id="signaler-ajouter-capture">+ Ajouter une capture</button>
+          <input type="file" id="signaler-captures-input" accept="image/jpeg,image/png,image/webp" multiple>
+        </div>
+      </div>
+      <div class="dialog-pied">
+        <button type="button" class="secondary" id="signaler-annuler">Annuler</button>
+        <button type="submit" id="signaler-envoyer">Signaler</button>
+      </div>
+    </div>
+  </div>
+
   <footer class="mention-propriete">© 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Toute reproduction, copie ou adaptation, même partielle, est interdite sans autorisation écrite de l'auteur.</footer>
 </body>
 </html>
