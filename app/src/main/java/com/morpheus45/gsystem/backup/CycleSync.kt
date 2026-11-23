@@ -36,6 +36,21 @@ object CycleSync {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    /**
+     * Vérifie si le store contient des entrées dans le cycle PRÉCÉDENT immédiat
+     * (celui qui se termine la veille du début du cycle courant `cs`).
+     * Utilisé par la synchro temps réel pour décider de repousser le cycle
+     * précédent quand une saisie/modification y a eu lieu après l'envoi mensuel.
+     */
+    fun hasEntriesInPreviousCycle(store: EntriesStore, cs: LocalDate): Boolean {
+        val prevStart = cs.minusMonths(1)
+        val prevEnd = cs.minusDays(1)
+        val allDates = (store.temps.map { it.date } + store.frais.map { it.date } +
+            store.gesteCo.map { it.date } + store.compteur.map { it.date })
+            .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+        return allDates.any { it in prevStart..prevEnd }
+    }
+
     private fun mimeFor(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
         "pdf" -> "application/pdf"
         "png" -> "image/png"
