@@ -29,7 +29,7 @@ export function filtrer(liste, { tech, type, resultat, texte } = {}) {
 }
 
 // Code de résultat de l'APK -> libellé, comme l'APK (backup/StatsUploader.kt). Code inconnu : tel quel.
-const LIBELLES_RESULTAT = { NR_CLIENT: 'NR client', NR_TECHNIQUE: 'NR technique', NR_CLIENT_ABS: 'NR client absent', NR_AUTRES: 'NR autres', ANNULE: 'Annulé', ANNULE_ROUTE: 'Annulé en route', ANNULE_SITE: 'Annulé sur site' };
+const LIBELLES_RESULTAT = { NR_CLIENT: 'NR client', NR_TECHNIQUE: 'NR technique', NR_CLIENT_ABS: 'NR client absent', NR_AUTRES: 'NR autres', ANNULE: 'Annulé' };
 export function libelleResultat(code) {
   return code ? LIBELLES_RESULTAT[code] || code : 'OK';
 }
