@@ -33,6 +33,9 @@ object ModulesDepot {
     private val _saisies = MutableStateFlow<List<SaisieModule>>(emptyList())
     val saisies: StateFlow<List<SaisieModule>> = _saisies.asStateFlow()
 
+    private val _cachees = MutableStateFlow<Set<String>>(emptySet())
+    val tuilesCachees: StateFlow<Set<String>> = _cachees.asStateFlow()
+
     @Volatile private var fichiers: ModulesFichiers? = null
     private val unSeulEnvoi = Mutex()
 
@@ -44,6 +47,7 @@ object ModulesDepot {
         val f = ouvrir(context)
         _modules.value = f.modules()
         _saisies.value = f.saisies()
+        _cachees.value = f.tuilesCachees()
     }
 
     /** Identifiant d'une nouvelle saisie (UUID en minuscules). */
@@ -75,7 +79,11 @@ object ModulesDepot {
     private suspend fun envoyer(context: Context) = unSeulEnvoi.withLock {
         val f = ouvrir(context)
         Passerelle.post(JSONObject().put("action", "modules_liste"), 20_000, 60_000)
-            ?.takeIf { it.optBoolean("ok") }?.optJSONArray("modules")?.let { f.remplacerModules(it.toString()) }
+            ?.takeIf { it.optBoolean("ok") }?.let { r ->
+                r.optJSONArray("modules")?.let { f.remplacerModules(it.toString()) }
+                r.optJSONArray("cachees")?.let { a -> f.cacherTuiles((0 until a.length()).map { a.optString(it) }) }
+                recharger(context)
+            }
         for (s in f.saisies().filterNot { it.envoyee }) {
             if (!envoyerUne(f, s)) break                // réseau : on reprendra au prochain passage
         }

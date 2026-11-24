@@ -66,12 +66,12 @@ private fun etatSaisie(s: SaisieModule) = when {
 
 /** Modules créés par le bureau. Rien ne s'y modifie ni ne s'y supprime après l'enregistrement. */
 @Composable
-fun ModulesScreen(onBack: () -> Unit) {
+fun ModulesScreen(idDirect: String, onBack: () -> Unit) {
     val modules by ModulesDepot.modules.collectAsState()
     // La définition ouverte est gardée entière : le module peut changer pendant la saisie.
-    var ouvert by rememberSaveable { mutableStateOf("") }
+    var ouvert by rememberSaveable { mutableStateOf(modules.find { it.id == idDirect }?.let { Json.encodeToString(ModulePerso.serializer(), it) }.orEmpty()) }
     val module = remember(ouvert) { ouvert.takeIf { it.isNotBlank() }?.let { runCatching { Json.decodeFromString(ModulePerso.serializer(), it) }.getOrNull() } }
-    if (module != null) key(module.id) { FormulaireModule(module) { ouvert = "" } }
+    if (module != null) key(module.id) { FormulaireModule(module) { if (idDirect.isBlank()) ouvert = "" else onBack() } }
     else ListeModules(modules, { ouvert = Json.encodeToString(ModulePerso.serializer(), it) }, onBack)
 }
 

@@ -10,6 +10,7 @@
 package com.morpheus45.gsystem.modules
 
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -41,6 +42,16 @@ class ModulesFichiers(val racine: File) {
         val l = runCatching { json.decodeFromString(ListSerializer(ModulePerso.serializer()), texte) }.getOrNull() ?: return false
         return ecrire(liste, json.encodeToString(ListSerializer(ModulePerso.serializer()), l))
     }
+
+    private val cachees get() = File(racine, "cachees.json")
+
+    /** Tuiles d'origine cachées par le bureau ; illisible ou absent = rien de caché. */
+    @Synchronized fun tuilesCachees(): Set<String> = runCatching {
+        json.decodeFromString(ListSerializer(String.serializer()), cachees.readText()).toSet() intersect MASQUABLES
+    }.getOrDefault(emptySet())
+
+    @Synchronized fun cacherTuiles(l: List<String>): Boolean =
+        ecrire(cachees, json.encodeToString(ListSerializer(String.serializer()), l.filter { it in MASQUABLES }))
 
     private fun fichierSaisie(id: String) = File(dossierSaisies, "$id.json")
 
@@ -102,6 +113,9 @@ class ModulesFichiers(val racine: File) {
     }
 
     companion object {
+        /** Clôture et envoi mensuel n'y sont pas : jamais cachés (feuille de temps). */
+        val MASQUABLES = setOf("arrivee", "attente", "techline", "logistique", "courrier", "pv_cameras", "bulletin",
+            "brouillard", "recap", "frais", "prime", "conge")
         val ID = Regex("^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
         val NOM = Regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
     }

@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.FactCheck
 import androidx.compose.material.icons.outlined.PinDrop
 import androidx.compose.material.icons.outlined.BarChart
@@ -174,7 +177,7 @@ fun HomeScreen(
     onPrimeAVenir: () -> Unit = {},
     onBulletin: () -> Unit = {},
     onConge: () -> Unit = {},
-    onModules: () -> Unit = {},
+    onModules: (String) -> Unit = {},
     onSettings: () -> Unit
 ) {
     val today = LocalDate.now()
@@ -337,12 +340,18 @@ fun HomeScreen(
         val modules by com.morpheus45.gsystem.modules.ModulesDepot.modules.collectAsState()
         val saisies by com.morpheus45.gsystem.modules.ModulesDepot.saisies.collectAsState()
         val enAttente = saisies.count { !it.envoyee }
-        val modulesTile = if (!com.morpheus45.gsystem.backup.Passerelle.disponible || (modules.isEmpty() && saisies.isEmpty())) emptyList()
-        else listOf(HomeTile("16", "MODULES", "Formulaires du bureau",
-            Icons.Outlined.FactCheck, RecapStart, RecapEnd, RecapAccent, HomeGroup.INTERV,
-            liveValue = if (enAttente > 0) enAttente.toString() else null,
-            liveLabel = if (enAttente > 0) "en attente" else null,
-            onClick = onModules))
+        val modulesTiles = if (!com.morpheus45.gsystem.backup.Passerelle.disponible) emptyList() else
+            modules.mapIndexed { i, m ->
+                val (debut, fin) = couleursModule(m)
+                HomeTile((16 + i).toString(), m.nom.uppercase(), m.finalite, iconeModule(m.icone), debut, fin, Color(0xFFF1F1F4),
+                    HomeGroup.INTERV, onClick = { onModules(m.id) })
+            } + listOfNotNull(if (saisies.isEmpty()) null else
+                HomeTile((16 + modules.size).toString(), "MES SAISIES", "Formulaires remplis",
+                    Icons.Outlined.FactCheck, RecapStart, RecapEnd, RecapAccent, HomeGroup.INTERV,
+                    liveValue = if (enAttente > 0) enAttente.toString() else null,
+                    liveLabel = if (enAttente > 0) "en attente" else null,
+                    onClick = { onModules("") }))
+        val cachees by com.morpheus45.gsystem.modules.ModulesDepot.tuilesCachees.collectAsState()
         val baseTiles = listOf(
             HomeTile("01",
                 if (cloture01) "CLÔTURER" else "ARRIVÉE SUR SITE",
@@ -355,6 +364,7 @@ fun HomeScreen(
                 liveValue = if (cloture01) arrHm else null,
                 liveLabel = if (cloture01) "arrivée" else null,
                 longPress = if (cloture01) onArrivalCancel else null,
+                cle = if (cloture01) null else "arrivee",
                 onClick = if (cloture01) onNewIntervention else onArrivee),
             HomeTile("02",
                 if (cloture02) "CLÔTURER" else "ATTENTE CLIENT",
@@ -367,16 +377,17 @@ fun HomeScreen(
                 liveValue = if (cloture02) arrHm else null,
                 liveLabel = if (cloture02) "arrivée" else null,
                 longPress = if (cloture02) onArrivalCancel else null,
+                cle = if (cloture02) null else "attente",
                 onClick = if (cloture02) onNewIntervention else onAttenteClient),
             HomeTile("03", "APPEL TECHLINE", "Appel direct de la techline",
                 Icons.Outlined.Call, TechlineStart, TechlineEnd, TechlineAccent, HomeGroup.SITE,
-                onClick = onAppelTechline),
+                cle = "techline", onClick = onAppelTechline),
             HomeTile("04", "PROBLÈME LOGISTIQUE", "Appel direct du service logistique",
                 Icons.Outlined.LocalShipping, LogistiqueStart, LogistiqueEnd,
-                LogistiqueAccent, HomeGroup.SITE, onClick = onProblemeLogistique),
+                LogistiqueAccent, HomeGroup.SITE, cle = "logistique", onClick = onProblemeLogistique),
             HomeTile("05", "COURRIER", "Viber « courrier ok »",
                 Icons.Outlined.Email, CourrierStart, CourrierEnd, CourrierAccent, HomeGroup.SITE,
-                onClick = onCourrier),
+                cle = "courrier", onClick = onCourrier),
             HomeTile("06", "CLÔTURE", "Clôture d'intervention",
                 Icons.Outlined.Assignment, TempsStart, TempsEnd, TempsAccent, HomeGroup.INTERV,
                 liveValue = if (countTemps > 0) countTemps.toString() else null,
@@ -384,13 +395,13 @@ fun HomeScreen(
                 onClick = onTemps),
             HomeTile("07", "PV CAMÉRAS", "Procès-verbal signé + envoi client",
                 Icons.Outlined.FactCheck, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
-                onClick = onPvCameras),
+                cle = "pv_cameras", onClick = onPvCameras),
             HomeTile("08", "BULLETIN INTER", "Intervention sur site · signé client",
                 Icons.Outlined.Description, BulletinStart, BulletinEnd, BulletinAccent, HomeGroup.INTERV,
-                onClick = onBulletin),
+                cle = "bulletin", onClick = onBulletin),
             HomeTile("09", "DEMANDE BROUILLARD", "Demande de rappel diffuseur de brouillard",
                 Icons.Outlined.Videocam, CameraStart, CameraEnd, CameraAccent, HomeGroup.INTERV,
-                onClick = onDemandeBrouillard),
+                cle = "brouillard", onClick = onDemandeBrouillard),
             // DIAGNOSTIC SÉCURITÉ débranché le 20/11/2026 (demande de Cédric) : l'écran reste dans le code.
             // Pour le rebrancher, remettre la tuile :
             // HomeTile("10", "DIAGNOSTIC SÉCURITÉ", "Fiche EPS · pro et particulier",
@@ -398,23 +409,23 @@ fun HomeScreen(
             //     onClick = onDiagnostic),
             HomeTile("11", "RÉCAP", "Cumul du cycle · total euros",
                 Icons.Outlined.BarChart, RecapStart, RecapEnd, RecapAccent, HomeGroup.FIN,
-                onClick = onGesteCoRecap),
+                cle = "recap", onClick = onGesteCoRecap),
             HomeTile("12", "FRAIS", fraisSub,
                 Icons.Outlined.Receipt, FraisStart, FraisEnd, FraisAccent, HomeGroup.FIN,
                 liveValue = if (countFrais > 0) countFrais.toString() else null,
                 liveLabel = if (countFrais > 0) "tickets" else null,
-                onClick = onFrais),
+                cle = "frais", onClick = onFrais),
             HomeTile("13", "ENVOI MENSUEL", "Excel + tickets + compteur",
                 Icons.Outlined.Outbox, EnvoiStart, EnvoiEnd, EnvoiAccent, HomeGroup.FIN,
                 pulse = endOfCycleApproaching,
                 onClick = onEnvoiMensuel),
             HomeTile("14", "PRIME À VENIR", "Historique · versement à +2 mois",
                 Icons.Outlined.Savings, GesteStart, GesteEnd, GesteAccent, HomeGroup.FIN,
-                onClick = onPrimeAVenir),
+                cle = "prime", onClick = onPrimeAVenir),
             HomeTile("15", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
-                onClick = onConge)
-        ) + modulesTile
+                cle = "conge", onClick = onConge)
+        ).filter { it.cle == null || it.cle !in cachees } + modulesTiles
 
         // -------- Tournée du jour : 1 tuile par mission (PDF ordre de mission).
         // Si des missions sont chargées, elles REMPLACENT 01 ARRIVÉE / 02 ATTENTE
@@ -614,6 +625,21 @@ private fun ChoiceButton(label: String, start: Color, end: Color, onClick: () ->
     ) { Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold) }
 }
 
+/** Couleur choisie par le bureau, assombrie vers le bas comme les autres tuiles. */
+private fun couleursModule(m: com.morpheus45.gsystem.modules.ModulePerso): Pair<Color, Color> {
+    val c = runCatching { Color(android.graphics.Color.parseColor(m.couleur)) }.getOrDefault(Color(0xFF5B6472))
+    return c to Color(c.red * 0.55f, c.green * 0.55f, c.blue * 0.55f)
+}
+
+private fun iconeModule(nom: String): ImageVector = when (nom) {
+    "outil" -> Icons.Outlined.Build
+    "photo" -> Icons.Outlined.PhotoCamera
+    "vehicule" -> Icons.Outlined.LocalShipping
+    "alerte" -> Icons.Outlined.Warning
+    "document" -> Icons.Outlined.Description
+    else -> Icons.Outlined.List
+}
+
 private data class HomeTile(
     val number: String,
     val label: String,
@@ -629,6 +655,8 @@ private data class HomeTile(
     val longPress: (() -> Unit)? = null,
     val onIconClick: (() -> Unit)? = null,
     val subLines: Int = 1,
+    /** Nom de la tuile pour le bureau ; null = jamais cachée. */
+    val cle: String? = null,
     val onClick: () -> Unit
 )
 

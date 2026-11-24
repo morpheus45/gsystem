@@ -517,7 +517,7 @@ fun AppNav() {
                 onPrimeAVenir = { navController.navigate("prime_a_venir") },
                 onBulletin = { navController.navigate("bulletin") },
                 onConge = { navController.navigate("conge") },
-                onModules = { navController.navigate("modules") },
+                onModules = { id -> navController.navigate(if (id.isBlank()) "modules" else "modules?id=$id") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -710,8 +710,8 @@ fun AppNav() {
                 mission = Preremplissage.surPlace(missions)
             )
         }
-        composable("modules") {
-            com.morpheus45.gsystem.ui.ModulesScreen(onBack = { navController.popBackStack() })
+        composable("modules?id={id}") {
+            com.morpheus45.gsystem.ui.ModulesScreen(it.arguments?.getString("id").orEmpty(), onBack = { navController.popBackStack() })
         }
         composable("conge") {
             CongeScreen(

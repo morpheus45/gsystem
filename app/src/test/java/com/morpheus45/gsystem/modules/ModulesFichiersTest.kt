@@ -110,4 +110,12 @@ class ModulesFichiersTest {
         f.garderBrouillon(brouillon()); File(f.racine, "brouillons/$mod.json").writeText("{"); assertNull(f.brouillon(mod))
         assertFalse(f.garderBrouillon(brouillon().let { it.copy(module = it.module.copy(id = "../x")) }))
     }
+
+    @Test fun tuilesCachees() {
+        assertTrue(f.tuilesCachees().isEmpty())
+        assertTrue(f.cacherTuiles(listOf("frais", "cloture", "envoi_mensuel", "inconnue")))
+        assertEquals(setOf("frais"), ModulesFichiers(f.racine).tuilesCachees())
+        File(f.racine, "cachees.json").writeText("[\"cloture\",\"conge\"]"); assertEquals(setOf("conge"), f.tuilesCachees())
+        File(f.racine, "cachees.json").writeText("<html>"); assertTrue(f.tuilesCachees().isEmpty())
+    }
 }
