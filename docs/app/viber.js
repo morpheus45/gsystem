@@ -19,6 +19,7 @@ export function messageCloture(e) {
   const suffixes = {
     NR_CLIENT: 'NR CLIENT', NR_TECHNIQUE: 'NR TECHNIQUE',
     NR_CLIENT_ABS: 'NR CLIENT ABS', NR_AUTRES: 'NR AUTRES', ANNULE: 'ANNULE',
+    ANNULE_ROUTE: 'ANNULE EN ROUTE', ANNULE_SITE: 'ANNULE SUR SITE',
   };
   const suffixe = suffixes[e.observationType] || 'ok';
   const note = (e.observations || '').trim().toLowerCase();

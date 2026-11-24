@@ -29,7 +29,7 @@ data class TempsEntry(
     /** Numéro de l'intervention (ex : 43001714). Garde le nom JSON historique. */
     @kotlinx.serialization.SerialName("numeroClient")
     val numeroIntervention: String = "",
-    /** "" | "NR_CLIENT" | "NR_TECHNIQUE" | "NR_CLIENT_ABS" | "NR_AUTRES". Vide = "ok" en Viber. */
+    /** "" | "NR_CLIENT" | "NR_TECHNIQUE" | "NR_CLIENT_ABS" | "NR_AUTRES" | "ANNULE_ROUTE" | "ANNULE_SITE" (et "ANNULE", ancien). Vide = "ok" en Viber. */
     val observationType: String = "",
     val observations: String = "",
     /** Cause d'un retard sur la 1ère intervention du jour : "" | "ADRESSE" | "ATTENTE" | "AUTRE". */

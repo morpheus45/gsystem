@@ -19,6 +19,15 @@ export function estPlanningVide(e) {
   return (e.typeMission || '').toUpperCase() === 'PLANNING VIDE';
 }
 
+/**
+ * Realisee pour les heures : OK, ou annulee en route / sur site pour tout type SAUF INST.
+ * Pour les INST et pour les NR, la regle d'avant ne change pas.
+ */
+export function okPourHeures(e) {
+  return !e.observationType || ((e.observationType === 'ANNULE_ROUTE' || e.observationType === 'ANNULE_SITE')
+    && String(e.typeMission || '').trim().toUpperCase() !== 'INST');
+}
+
 /** Un creneau vide compte comme MATIN (entrees anciennes sans creneau). */
 function dansCreneau(e, creneau) {
   if (creneau === 'MATIN') return e.slotMidi === 'MATIN' || !e.slotMidi;
@@ -33,8 +42,8 @@ export function heuresDuJour(entrees) {
 
   const matinOccupe = entrees.some((e) => dansCreneau(e, 'MATIN'));
   const apremOccupe = entrees.some((e) => dansCreneau(e, 'APREM'));
-  const matinOk = entrees.some((e) => dansCreneau(e, 'MATIN') && !e.observationType);
-  const apremOk = entrees.some((e) => dansCreneau(e, 'APREM') && !e.observationType);
+  const matinOk = entrees.some((e) => dansCreneau(e, 'MATIN') && okPourHeures(e));
+  const apremOk = entrees.some((e) => dansCreneau(e, 'APREM') && okPourHeures(e));
 
   const occupes = (matinOccupe ? 1 : 0) + (apremOccupe ? 1 : 0);
   const realises = (matinOk ? 1 : 0) + (apremOk ? 1 : 0);
