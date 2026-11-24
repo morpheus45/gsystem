@@ -57,28 +57,13 @@ object BackupUploader {
     ): Boolean {
         return runCatching {
             val payload = JSONObject().apply {
-                put("token", BackupConfig.TOKEN)
                 put("user", user.ifBlank { "Inconnu" })
                 put("month", month)
                 put("fileName", fileName)
                 put("mimeType", mimeType)
                 put("dataBase64", Base64.encodeToString(bytes, Base64.NO_WRAP))
-            }.toString()
-
-            val conn = (URL(BackupConfig.ENDPOINT).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                instanceFollowRedirects = true   // Apps Script /exec renvoie un 302
-                connectTimeout = 30_000
-                readTimeout = 120_000
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
             }
-            conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-            val code = conn.responseCode
-            val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            conn.disconnect()
-            code in 200..299 && resp.contains("\"ok\":true")
+            Passerelle.post(payload)?.optBoolean("ok") == true
         }.getOrDefault(false)
     }
 }

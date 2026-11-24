@@ -52,7 +52,7 @@ object SyncMoteur {
                 while (true) {
                     val fini = CycleSync.synchroniser(d.context, d.settings, d.store) >= 0
                     if (enAttente()) break                       // des données plus récentes attendent
-                    if (fini) { _ok.value = true; break }
+                    if (fini) { _ok.value = true; Passerelle.envoiComplet(); break }
                     if (++essais >= 30) break
                     delay(60_000L)
                 }

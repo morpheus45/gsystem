@@ -47,19 +47,7 @@ object DriveSync {
     var restoreInProgress: Boolean = false
         private set
 
-    private fun postJson(payload: JSONObject): JSONObject? = runCatching {
-        val conn = (URL(BackupConfig.ENDPOINT).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"; doOutput = true; instanceFollowRedirects = true
-            connectTimeout = 30_000; readTimeout = 120_000
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-        }
-        conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
-        val code = conn.responseCode
-        val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
-            ?.bufferedReader()?.use { it.readText() }.orEmpty()
-        conn.disconnect()
-        if (code in 200..299) JSONObject(resp) else null
-    }.getOrNull()
+    private fun postJson(payload: JSONObject): JSONObject? = Passerelle.post(payload)
 
     /** Synchronisation local -> Drive : régénère tous les cycles. Statut. */
     suspend fun sync(
@@ -83,7 +71,7 @@ object DriveSync {
     /** donnees.json de chaque cycle du Drive (mois -> texte), null si le Drive est illisible. */
     fun lireCycles(user: String): Map<String, String>? {
         val rep = postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
+            put("action", "restore_list"); put("user", user)
         }) ?: return null
         if (!rep.optBoolean("ok")) return null
         val cycles = rep.optJSONArray("cycles") ?: return null
@@ -95,7 +83,7 @@ object DriveSync {
     /** Appelé par [CycleSync] : supprime les fichiers obsolètes d'un dossier de cycle. */
     fun cyclePrune(user: String, month: String, keep: List<String>) {
         postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "cycle_prune")
+            put("action", "cycle_prune")
             put("user", user); put("month", month); put("keep", JSONArray(keep))
         })
     }
@@ -111,13 +99,14 @@ object DriveSync {
         repo: EntriesRepository,
         applyDriveSettings: suspend (AppSettings) -> Unit
     ): String = withContext(Dispatchers.IO) {
-        if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
+        // Connecté : le dossier vient du jeton, le nom revient avec les réglages du Drive.
+        if (!BackupConfig.isConfigured || (settings.nomUtilisateur.isBlank() && Passerelle.etat.value != Passerelle.Etat.CONNECTE))
             return@withContext "Renseigne d'abord ton nom (identique à l'ancienne install) dans les réglages."
         restoreInProgress = true
         try {
         val user = settings.nomUtilisateur
         val list = postJson(JSONObject().apply {
-            put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
+            put("action", "restore_list"); put("user", user)
         }) ?: return@withContext "Drive injoignable. Réessaie plus tard."
         if (!list.optBoolean("ok")) return@withContext "Drive injoignable. Réessaie plus tard."
 
@@ -148,7 +137,7 @@ object DriveSync {
                 if (localName in localNames) continue
                 val driveName = photos.optString(localName)
                 val o = postJson(JSONObject().apply {
-                    put("token", BackupConfig.TOKEN); put("action", "photo_pull")
+                    put("action", "photo_pull")
                     put("user", user); put("month", month); put("fileName", driveName)
                 })
                 val b64 = o?.optString("dataBase64", "").orEmpty()

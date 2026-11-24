@@ -98,6 +98,7 @@ class MainActivity : ComponentActivity() {
         // Désactivée sur le canal Play : Google re-signe l'app (Play App Signing),
         // donc la signature ne correspond JAMAIS au certificat figé -> sinon tous
         // les utilisateurs Play seraient bloqués par erreur.
+        com.morpheus45.gsystem.backup.Passerelle.init(this)
         if (!BuildConfig.PLAY_BUILD && !IntegrityGuard.isGenuine(this)) {
             setContent { GSystemTheme { TamperBlockScreen() } }
             return
@@ -571,6 +572,10 @@ fun AppNav() {
                         context, settings, repo.store.value,
                         Json.encodeToString(AppSettings.serializer(), settings), tout = true
                     )
+                },
+                onAjouterZip = { uri -> com.morpheus45.gsystem.backup.BackupImporter.ajouter(context, uri, repo) },
+                onConnecte = {
+                    com.morpheus45.gsystem.backup.SyncMoteur.demander(context, settings, repo.store.value)
                 },
                 onRestore = {
                     if (!BackupConfig.isConfigured) "Sauvegarde Drive non configurée"
