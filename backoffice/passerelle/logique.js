@@ -38,7 +38,7 @@ export function traiter(p, env) {
   if (p.action === 'chat_fetch') return env.relais({ action: 'chat_fetch', tech: droit.dossier });
   if (p.action === 'chat_markRead') return env.relais({ action: 'chat_markRead', tech: droit.dossier, upTo: Number(p.upTo) || 0 });
   if (p.action === 'envoi_complet') return { ok: true };
-  if (p.action === 'modules_liste') return { ok: true, modules: env.base.modules(p.jeton) };
+  if (p.action === 'modules_liste') return { ok: true, modules: env.base.modules(p.jeton, p.support === 'iphone' ? 'iphone' : 'apk') };
   if (p.action === 'module_saisie') return saisirModule(p, env);
 
   const racine = env.drive(droit.dossier);

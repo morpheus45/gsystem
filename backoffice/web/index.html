@@ -1564,8 +1564,18 @@
 
         <div id="panel-saisies" class="tab-panel hidden" role="tabpanel">
           <div class="section">
-            <h3>Saisies des modules</h3>
-            <p class="aide">Ce que les techniciens remplissent sur leur téléphone. Lecture seule : une saisie reçue ne se modifie pas et ne s'efface pas.</p>
+            <div class="module-entete"><h3>Saisies des modules</h3><button type="button" id="saisie-nouvelle" class="hidden">Nouvelle saisie</button></div>
+            <p class="aide">Ce que les techniciens et le bureau remplissent. Une saisie enregistrée ne se modifie pas et ne s'efface pas.</p>
+            <form id="saisie-form" class="saisie-form hidden" novalidate>
+              <div class="barre saisies-filtres">
+                <div class="field"><label for="saisie-module">Module</label><select id="saisie-module"></select></div>
+                <div class="field"><label for="saisie-tech">Technicien</label><select id="saisie-tech"></select></div>
+                <div class="field"><label for="saisie-date">Date</label><input type="date" id="saisie-date"></div>
+              </div>
+              <div id="saisie-champs" class="saisie-champs"></div>
+              <p id="saisie-erreur" class="saisie-erreur" role="alert"></p>
+              <div class="module-actions"><button type="submit" id="saisie-enregistrer">Enregistrer</button><button type="button" id="saisie-annuler" class="secondary">Annuler</button></div>
+            </form>
             <div class="barre saisies-filtres">
               <div class="field"><label for="saisies-module">Module</label><select id="saisies-module"></select></div>
               <div class="field"><label for="saisies-tech">Technicien</label><select id="saisies-tech"></select></div>

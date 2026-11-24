@@ -33,7 +33,7 @@ function environnement_() {
       verifier: (j, complet) => rpc_('telephone_verifier', { p_jeton: j, p_envoi_complet: complet })[0] || null,
       demanderCode: (m) => rpc_('telephone_demander_code', { p_mail: m })[0] || null,
       connecter: (m, c, a, ok) => rpc_('telephone_connecter', { p_mail: m, p_code: c, p_appareil: a, confirme: ok })[0] || null,
-      modules: (j) => rpc_('telephone_modules', { p_jeton: j }),
+      modules: (j, support) => rpc_('telephone_modules', { p_jeton: j, p_support: support }),
       saisie: (x) => rpc_('telephone_saisie', x),
     },
     relais: (p) => {

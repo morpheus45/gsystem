@@ -17,3 +17,9 @@
 .saisie-recu { margin: 0; font-size: 0.8rem; color: var(--muted); }
 #saisies-plus { margin-top: 16px; min-height: 44px; }
 @media (max-width: 1023px) { #panel-saisies > .section { padding: 16px; } }
+.saisie-form { max-width: none; margin: 12px 0 24px; padding: 16px; border: 1px solid var(--border); border-radius: var(--rayon-sm); }
+.saisie-form .saisies-filtres { margin: 0 0 12px; }
+.saisie-form input, .saisie-form select, .saisie-form textarea { width: 100%; box-sizing: border-box; min-height: 44px; font: inherit; }
+.saisie-form textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+.saisie-champs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; align-items: start; }
+.saisie-erreur { margin: 8px 0 0; color: var(--danger, #b42318); min-height: 1.4em; }

@@ -3,7 +3,7 @@
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { ouvrirBase } from './base.js';
-import { texteReponse, reponses } from '../core/saisies.js';
+import { texteReponse, reponses, lireSaisie } from '../core/saisies.js';
 
 const A = '10000000-0000-0000-0000-00000000000a', B = '10000000-0000-0000-0000-00000000000b';
 const u = (n) => `00000000-0000-0000-0000-0000000000${n}`;
@@ -51,4 +51,14 @@ test('réponses en clair : zéro et Non ne sont pas des vides ; rien ne se cache
   for (const v of [undefined, null, '']) assert.equal(texteReponse({ type: 'texte' }, v), null);
   assert.deepEqual(reponses(V2, { km: 12.5, inconnu: 'x' }), [{ libelle: 'État', texte: null }, { libelle: 'Km', texte: '12,5' }, { libelle: 'inconnu', texte: 'x' }]);
   assert.deepEqual(reponses(undefined, { etat: 'Bon' }), [{ libelle: 'etat', texte: 'Bon' }]);
+});
+
+test('formulaire du bureau : mêmes règles que la base', () => {
+  const c = (type, obligatoire = false) => [{ cle: 'x', libelle: 'X', type, obligatoire, choix: ['Bon'] }];
+  for (const [t, v] of [['12,5', 12.5], ['1 234', 1234], ['0', 0], ['-3', -3]]) assert.deepEqual(lireSaisie(c('nombre'), { x: t }), { valeurs: { x: v } });
+  for (const t of ['abc', '1,2,3', 'NaN', '1e5']) assert.match(lireSaisie(c('nombre'), { x: t }).defaut, /nombre invalide/);
+  assert.deepEqual(lireSaisie(c('case', true), { x: 'non' }), { valeurs: { x: false } });
+  assert.match(lireSaisie(c('texte', true), { x: '  ' }).defaut, /à remplir/);
+  assert.deepEqual(lireSaisie(c('photo', true), { x: 'a.jpg' }), { valeurs: {} });
+  assert.deepEqual(lireSaisie(c('texte'), {}), { valeurs: {} });
 });

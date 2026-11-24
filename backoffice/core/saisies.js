@@ -21,3 +21,23 @@ export function reponses(champs, valeurs) {
     .map((k) => ({ libelle: k, texte: texteReponse({ type: 'texte' }, valeurs[k]) }));
   return [...connus, ...reste];
 }
+
+// Formulaire du bureau : textes tapés -> valeurs de la base, ou le premier défaut en clair.
+export function lireSaisie(champs, textes) {
+  const valeurs = {};
+  for (const c of champs) {
+    if (c.type === 'photo' || c.type === 'signature') continue;
+    const t = String(textes[c.cle] ?? '').trim();
+    if (!t) {
+      if (c.obligatoire) return { defaut: `« ${c.libelle} » est à remplir.` };
+      continue;
+    }
+    if (c.type === 'nombre') {
+      const n = t.replace(/\s/g, '').replace(',', '.');
+      if (!/^-?\d{1,12}(\.\d{1,6})?$/.test(n)) return { defaut: `« ${c.libelle} » : nombre invalide.` };
+      valeurs[c.cle] = Number(n);
+    } else if (c.type === 'case') valeurs[c.cle] = t === 'oui';
+    else valeurs[c.cle] = t;
+  }
+  return { valeurs };
+}

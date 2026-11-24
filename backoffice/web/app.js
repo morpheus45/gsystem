@@ -11,7 +11,7 @@ import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/inte
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
-import { reponses } from '../core/saisies.js';
+import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
@@ -3775,18 +3775,85 @@ async function chargerModulesSaisis(s) {
   modulesSaisis = error ? [] : data;
 }
 
-function chargerSaisies() {
+async function chargerSaisies() {
+  fermerSaisieBureau();
   options($('#saisies-module'), modulesSaisis.map((m) => [m.id, m.nom]), 'Tous');
   options($('#saisies-tech'), techniciens.map((t) => [t.id, t.nom]), 'Tous');
   lirePageSaisies(true);
+  const { data, error } = await sb.rpc('modules_bureau', { s: selectedSociete });
+  modulesBureau = error ? [] : data;
+  options($('#saisie-module'), modulesBureau.map((m) => [m.id, m.nom]), 'Choisir…');
+  options($('#saisie-tech'), techniciens.filter((t) => t.actif).map((t) => [t.id, t.nom]), 'Choisir…');
+  $('#saisie-nouvelle').classList.toggle('hidden', !modulesBureau.length);
 }
+
+// --- Saisie faite au bureau pour un technicien (modules réglés sur « Back-office ») ---
+let modulesBureau = [], saisieId = null;
+
+function fermerSaisieBureau() {
+  $('#saisie-form').classList.add('hidden');
+  $('#saisie-form').reset();
+  $('#saisie-champs').replaceChildren();
+  $('#saisie-erreur').textContent = '';
+  saisieId = null;
+}
+
+function ouvrirSaisieBureau() {
+  fermerSaisieBureau();
+  saisieId = crypto.randomUUID();   // le même à chaque essai : jamais deux saisies pour un formulaire
+  $('#saisie-date').value = iso(new Date());
+  $('#saisie-form').classList.remove('hidden');
+  $('#saisie-module').focus();
+}
+
+function champsSaisieBureau() {
+  const m = modulesBureau.find((x) => x.id === $('#saisie-module').value);
+  $('#saisie-champs').replaceChildren(...(m?.champs || []).map((c) => {
+    if (['photo', 'signature'].includes(c.type)) return elt('p', 'aide', `${c.libelle} : au téléphone seulement.`);
+    const f = elt('div', 'field'), l = elt('label', null, c.libelle + (c.obligatoire ? ' *' : ''));
+    const e = elt(c.type === 'texte' ? 'textarea' : ['liste', 'case'].includes(c.type) ? 'select' : 'input');
+    e.id = `saisie-champ-${c.cle}`;
+    l.htmlFor = e.id;
+    if (c.type === 'texte') { e.rows = 2; e.maxLength = 2000; }
+    if (c.type === 'nombre') e.inputMode = 'decimal';
+    if (c.type === 'date') e.type = 'date';
+    if (c.type === 'liste') options(e, c.choix.map((x) => [x, x]), '—');
+    if (c.type === 'case') options(e, [['oui', 'Oui'], ['non', 'Non']], '—');
+    f.append(l, e);
+    return f;
+  }));
+}
+
+$('#saisie-nouvelle').addEventListener('click', ouvrirSaisieBureau);
+$('#saisie-annuler').addEventListener('click', fermerSaisieBureau);
+$('#saisie-module').addEventListener('change', champsSaisieBureau);
+$('#saisie-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const m = modulesBureau.find((x) => x.id === $('#saisie-module').value), tech = $('#saisie-tech').value;
+  const erreur = $('#saisie-erreur'), bouton = $('#saisie-enregistrer');
+  if (!m || !tech || !$('#saisie-date').value) { erreur.textContent = 'Choisissez le module, le technicien et la date.'; return; }
+  const textes = Object.fromEntries(m.champs.map((c) => [c.cle, $(`#saisie-champ-${c.cle}`)?.value ?? '']));
+  const { defaut, valeurs } = lireSaisie(m.champs, textes);
+  erreur.textContent = defaut || '';
+  if (defaut) return;
+  bouton.disabled = true;
+  const { data, error } = await sb.rpc('saisir_module_bureau', { p_id: saisieId, s: selectedSociete, tech, p_module: m.id,
+    p_version: m.version, p_date: $('#saisie-date').value, p_valeurs: valeurs });
+  bouton.disabled = false;
+  if (error || !['ok', 'deja'].includes(data)) {
+    erreur.textContent = error ? `Enregistrement impossible : ${error.message}` : data === 'module' ? 'Ce module n’est plus en service ici. Rechargez la page.'
+      : 'La base a refusé cette saisie. Vérifiez la date et les champs.';
+    return;
+  }
+  chargerSaisies();
+});
 
 async function lirePageSaisies(debut) {
   const tour = ++lectureSaisies, s = selectedSociete;   // une réponse dépassée (filtre, société changés) est ignorée
   if (debut) saisiesLues = 0;
   $('#saisies-etat').textContent = 'Chargement…';
   $('#saisies-plus').disabled = true;
-  let q = sb.from('saisies_modules').select('id, technicien_id, module_id, version, date, valeurs, recu_le', { count: 'exact' }).eq('societe_id', s);
+  let q = sb.from('saisies_modules').select('id, technicien_id, module_id, version, date, valeurs, recu_le, saisie_par', { count: 'exact' }).eq('societe_id', s);
   if ($('#saisies-module').value) q = q.eq('module_id', $('#saisies-module').value);
   if ($('#saisies-tech').value) q = q.eq('technicien_id', $('#saisies-tech').value);
   const { data, error, count } = await q.order('date', { ascending: false }).order('recu_le', { ascending: false }).order('id')
@@ -3813,7 +3880,7 @@ function carteSaisie(x) {
     bloc.append(elt('dt', null, r.libelle), elt('dd', r.texte === null ? 'vide' : null, r.texte ?? 'Non rempli'));
     dl.append(bloc);
   }
-  carte.append(tete, dl, elt('p', 'saisie-recu', `Reçue le ${new Date(x.recu_le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`));
+  carte.append(tete, dl, elt('p', 'saisie-recu', `${x.saisie_par ? 'Saisie au bureau le' : 'Reçue le'} ${new Date(x.recu_le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`));
   return carte;
 }
 
@@ -3867,7 +3934,7 @@ async function chargerModules() {
   const [m, v, p] = await Promise.all([
     sb.from('modules_perso').select('id, nom, icone, couleur, finalite, conservation_mois, version, actif').order('nom'),
     sb.from('modules_perso_versions').select('module_id, version, champs'),
-    sb.from('modules_perso_portee').select('module_id, holding_id, societe_id, actif'),
+    sb.from('modules_perso_portee').select('module_id, holding_id, societe_id, actif, supports'),
   ]);
   const erreur = m.error || v.error || p.error;
   if (erreur) return alert(erreur.message);
@@ -3933,15 +4000,37 @@ function porteeModule(m, siennes) {
     l.append(elt('span', null, nom), sel);
     return l;
   };
+  // Où le module sert : seulement quand la ligne est activée.
+  const supports = (p, holding, societe, titre) => {
+    const f = elt('fieldset', 'module-supports');
+    f.setAttribute('aria-label', `Où sert ce module : ${titre}`);
+    for (const [cle, nom] of SUPPORTS) {
+      const l = elt('label'), c = elt('input');
+      c.type = 'checkbox';
+      c.checked = p.supports.includes(cle);
+      c.addEventListener('change', () => {
+        const choisis = [...f.querySelectorAll('input')].flatMap((x, i) => (x.checked ? [SUPPORTS[i][0]] : []));
+        if (!choisis.length) { c.checked = true; return alert('Gardez au moins un endroit, ou coupez le module.'); }
+        attribuerModule(m, holding, societe, true, choisis);
+      });
+      l.append(c, document.createTextNode(nom));
+      f.append(l);
+    }
+    boite.append(f);
+  };
   const lire = (p) => (p ? (p.actif ? 'oui' : 'non') : '');
   const groupe = (titre, liste, holdingId) => {
     if (titre) boite.append(choix(titre, [['', 'Non attribué'], ['oui', 'Toute la holding']],
       siennes.some((p) => p.holding_id === holdingId && p.actif) ? 'oui' : '', (actif) => attribuerModule(m, holdingId, null, actif)));
+    const deHolding = titre && siennes.find((p) => p.holding_id === holdingId && p.actif);
+    if (deHolding) supports(deHolding, holdingId, null, titre);
     for (const s of liste) {
       const l = choix(s.nom, [['', titre ? 'Comme la holding' : 'Non attribué'], ['oui', 'Activé'], ...(titre ? [['non', 'Coupé']] : [])],
         lire(siennes.find((p) => p.societe_id === s.id && (titre || p.actif))), (actif) => attribuerModule(m, null, s.id, actif));
       if (titre) l.classList.add('sous-holding');
       boite.append(l);
+      const sienne = siennes.find((p) => p.societe_id === s.id && p.actif);
+      if (sienne) supports(sienne, null, s.id, s.nom);
     }
   };
   for (const h of holdings) groupe(`${h.nom} (holding)`, societes.filter((s) => s.holding_id === h.id), h.id);
@@ -3949,8 +4038,10 @@ function porteeModule(m, siennes) {
   return boite;
 }
 
-async function attribuerModule(m, holding, societe, actif) {
-  const { error } = await sb.rpc('attribuer_module_perso', { id_module: m.id, p_holding: holding, p_societe: societe, p_actif: actif });
+const SUPPORTS = [['apk', 'APK Android'], ['iphone', 'iPhone'], ['bureau', 'Back-office']];
+
+async function attribuerModule(m, holding, societe, actif, supports = null) {
+  const { error } = await sb.rpc('attribuer_module_perso', { id_module: m.id, p_holding: holding, p_societe: societe, p_actif: actif, p_supports: supports });
   if (error) alert(error.message);
   await chargerModules();
 }

@@ -56,3 +56,6 @@
   .module-editeur-grille aside { position: static; max-width: 300px; }
 }
 @media (max-width: 480px) { .module-champ { grid-template-columns: minmax(0, 1fr); } }
+.module-supports { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; padding: 0 0 8px 24px; border: 0; border-bottom: 1px solid var(--border); }
+.module-supports label { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; }
+.module-supports input { width: 20px; height: 20px; margin: 0; }
