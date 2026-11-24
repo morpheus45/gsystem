@@ -10,6 +10,7 @@ import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
 import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/interventions.js';
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
+import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
 import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
@@ -729,7 +730,7 @@ $('#purge-lancer').addEventListener('click', async () => {
   const { data, error } = await sb.rpc('purger_donnees', { s: selectedSociete, confirmation: 'PURGER' });
   if (error) return alert(error.message);
   // Les fichiers suivent (la base n'autorise que ceux dont la ligne vient d'être purgée).
-  const seaux = { photos_apk: 'photos', amendes: 'scans' };
+  const seaux = { photos_apk: 'photos', amendes: 'scans', permis_conduire: 'identite' };
   const echecs = [];
   for (const l of data) {
     if (!seaux[l.table_nom] || !l.fichiers.length) continue;
@@ -811,6 +812,7 @@ function ouvrirFicheTechnicien(t) {
   mettreAJourFil();
   // Charger les données de la fiche
   chargerFicheTechnicien(t);
+  chargerPapiers(t);
 }
 
 // === VÉHICULES ===
@@ -1414,6 +1416,13 @@ async function loadAmendes(vehiculeId) {
       .eq('vehicule_id', vehiculeId)
       .order('date_avis', { ascending: false });
     if (error) throw error;
+    permisConducteurs = new Map();
+    const conducteurs = [...new Set(data.map((a) => a.technicien_id).filter(Boolean))];
+    if (voitPermis() && conducteurs.length) {
+      const { data: permis, error: e } = await sb.from('permis_conduire').select('technicien_id, numero').in('technicien_id', conducteurs);
+      if (e) throw e;
+      permisConducteurs = new Map(permis.map((p) => [p.technicien_id, p.numero]));
+    }
     renderAmendes(data);
     renderLiensANTAI();
   } catch (err) {
@@ -1466,6 +1475,13 @@ function renderAmendes(list) {
       '',
       ''
     ]);
+    if (a.technicien_id && voitPermis()) {
+      const numero = permisConducteurs.get(a.technicien_id);
+      const b = boutonCopier(numero || '', 'Copier n° permis');
+      b.title = numero ? 'N° de permis du conducteur, à coller sur le site de l\'ANTAI' : 'Aucun permis enregistré dans la fiche du technicien (onglet Papiers)';
+      if (!numero) b.addEventListener('click', () => alert('Aucun permis enregistré : ajoutez-le dans la fiche du technicien, onglet Papiers.'), { capture: true });
+      tr.children[5].append(' ', b);
+    }
     const limiteTd = tr.children[6];
     if (classeLimite) limiteTd.classList.add(classeLimite);
     if (limite) limiteTd.appendChild(pastille(limiteLabel, classeLimite === 'alerte-depassee' ? 'danger' : classeLimite === 'alerte-proche' ? 'alerte' : 'ok'));
@@ -3548,6 +3564,152 @@ function afficherPropositionTri(data) {
 const LIB_GRAVITE = { critique: 'Critique', urgent: 'Urgent', non_urgent: 'Non urgent' };
 const LIB_STATUT_SIG = { nouveau: 'Nouveau', a_valider: 'À valider', planifie: 'Planifié', en_cours: 'En cours', corrige: 'Corrigé', refuse: 'Refusé', doublon: 'Doublon' };
 const elt = (tag, classe, texte) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texte != null) e.textContent = texte; return e; };
+
+// === PAPIERS DU TECHNICIEN : permis de conduire, n° de sécurité sociale ===
+// Permis : admin et gestion (désigner un conducteur). NIR : en plus le comptable (paie).
+// La base applique les mêmes droits ; ici on n'affiche que ce que le rôle peut lire.
+const voitPermis = () => superAdmin || ['admin', 'gestion'].includes(monRole);
+const voitSecu = () => voitPermis() || monRole === 'comptable';
+let permisActuel = null, permisConducteurs = new Map();
+
+// Copie au presse-papiers ; repli pour la page Apps Script, dont le cadre peut bloquer l'API.
+function copierTexte(texte) {
+  const zone = document.body.appendChild(document.createElement('textarea'));
+  zone.value = texte;
+  zone.setAttribute('readonly', '');
+  zone.style.position = 'absolute';
+  zone.style.left = '-9999px';
+  zone.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  zone.remove();
+  if (!ok && navigator.clipboard) return navigator.clipboard.writeText(texte).then(() => true, () => false);
+  return Promise.resolve(ok);
+}
+
+function boutonCopier(texte, libelle = 'Copier') {
+  const b = elt('button', 'secondary', libelle);
+  b.type = 'button';
+  b.addEventListener('click', async () => {
+    if (!texte) return;
+    if (await copierTexte(texte)) {
+      b.textContent = 'Copié';
+      setTimeout(() => { b.textContent = libelle; }, 1500);
+    } else alert('Copie impossible ici : affichez le numéro et recopiez-le.');
+  });
+  return b;
+}
+
+// Numéro masqué (4 derniers caractères), « Afficher » le montre en entier, « Copier » le copie.
+function numeroMasque(numero, lisible) {
+  const span = elt('span', 'numero', masquer(numero));
+  const voir = elt('button', 'secondary', 'Afficher');
+  voir.type = 'button';
+  voir.addEventListener('click', () => {
+    const montrer = voir.textContent === 'Afficher';
+    span.textContent = montrer ? lisible : masquer(numero);
+    voir.textContent = montrer ? 'Masquer' : 'Afficher';
+  });
+  return [span, voir, boutonCopier(numero)];
+}
+
+function valeurPapier(dl, titre, contenu) {
+  dl.append(elt('dt', null, titre));
+  dl.appendChild(elt('dd')).append(...contenu);
+}
+
+async function chargerPapiers(t) {
+  $('#tech-onglet-papiers').classList.toggle('hidden', !voitSecu());
+  $('#papiers-permis').classList.toggle('hidden', !voitPermis());
+  $('#permis-form').classList.toggle('hidden', !peutEcrire());
+  $('#secu-form').classList.toggle('hidden', !peutEcrire());
+  permisActuel = null;
+  $('#permis-valeurs').replaceChildren();
+  $('#secu-valeurs').replaceChildren();
+  if (!voitSecu()) return;
+  const [permis, secu] = await Promise.all([
+    voitPermis() ? sb.from('permis_conduire').select('numero, categories, delivre_le, scan, modifie_le').eq('technicien_id', t.id).maybeSingle() : { data: null },
+    sb.from('secu_sociale').select('nir, modifie_le').eq('technicien_id', t.id).maybeSingle(),
+  ]);
+  if (permis.error || secu.error) return alert((permis.error || secu.error).message);
+  if (ficheTechnicien !== t) return;   // une autre fiche a été ouverte entre-temps
+  afficherPermis(permis.data);
+  afficherSecu(secu.data);
+}
+
+function afficherPermis(p) {
+  permisActuel = p;
+  const dl = $('#permis-valeurs');
+  dl.replaceChildren();
+  $('#permis-numero').value = '';
+  $('#permis-numero').placeholder = p ? 'Inchangé si vide' : '120675200123';
+  if (!p) return valeurPapier(dl, 'Permis', [document.createTextNode('non enregistré')]);
+  valeurPapier(dl, 'Numéro', numeroMasque(p.numero, p.numero));
+  valeurPapier(dl, 'Catégories', [document.createTextNode(p.categories.replace(/,/g, ', '))]);
+  valeurPapier(dl, 'Délivré le', [document.createTextNode(p.delivre_le ? formaterDate(p.delivre_le) : '—')]);
+  if (p.scan) {
+    const voir = elt('button', 'secondary voir', 'Ouvrir la copie');
+    voir.type = 'button';
+    voir.addEventListener('click', async () => {
+      const { data, error } = await sb.storage.from('identite').createSignedUrl(p.scan, 120);
+      if (error) return alert(error.message);
+      window.open(data.signedUrl, '_blank', 'noopener');
+    });
+    valeurPapier(dl, 'Copie', [voir]);
+  } else valeurPapier(dl, 'Copie', [document.createTextNode('aucune')]);
+  valeurPapier(dl, 'Mis à jour le', [document.createTextNode(formaterDate(p.modifie_le.slice(0, 10)))]);
+  $('#permis-categories').value = p.categories;
+  $('#permis-delivre').value = p.delivre_le || '';
+}
+
+function afficherSecu(s) {
+  const dl = $('#secu-valeurs');
+  dl.replaceChildren();
+  $('#secu-nir').value = '';
+  if (!s) return valeurPapier(dl, 'N°', [document.createTextNode('non enregistré')]);
+  valeurPapier(dl, 'N°', numeroMasque(s.nir, grouperNir(s.nir)));
+  valeurPapier(dl, 'Mis à jour le', [document.createTextNode(formaterDate(s.modifie_le.slice(0, 10)))]);
+}
+
+$('#permis-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const t = ficheTechnicien;
+  if (!t) return;
+  const saisi = $('#permis-numero').value.trim();
+  const numero = saisi ? normaliserPermis(saisi) : permisActuel?.numero;
+  if (!numero) return alert(saisi ? 'N° de permis illisible : 6 à 20 lettres ou chiffres.' : 'Saisissez le n° de permis.');
+  const fichier = $('#permis-fichier').files[0];
+  if (fichier && !extensionScan(fichier)) return alert('Copie acceptée : PDF, JPEG ou PNG.');
+  const { error } = await sb.from('permis_conduire').upsert({
+    societe_id: selectedSociete, technicien_id: t.id, numero,
+    categories: $('#permis-categories').value.trim() || 'B', delivre_le: $('#permis-delivre').value || null,
+  }, { onConflict: 'societe_id,technicien_id' });
+  if (error) return alert(error.message);
+  if (fichier) {
+    // Nouveau fichier à chaque envoi : l'ancienne copie n'est plus liée et part à la purge.
+    const chemin = `${selectedSociete}/permis/${t.id}_${Date.now()}.${extensionScan(fichier)}`;
+    const { error: e1 } = await sb.storage.from('identite').upload(chemin, fichier, { contentType: fichier.type });
+    if (e1) alert(`Permis enregistré, mais la copie n'a pas été envoyée : ${e1.message}`);
+    else {
+      const { error: e2 } = await sb.from('permis_conduire').update({ scan: chemin }).eq('societe_id', selectedSociete).eq('technicien_id', t.id);
+      if (e2) alert(e2.message);
+    }
+  }
+  $('#permis-fichier').value = '';
+  await chargerPapiers(t);
+});
+
+$('#secu-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const t = ficheTechnicien;
+  if (!t) return;
+  const nir = normaliserNir($('#secu-nir').value);
+  if (!nir) return alert('N° de sécurité sociale invalide : 15 caractères, et la clé (2 derniers chiffres) doit correspondre.');
+  const { error } = await sb.from('secu_sociale').upsert({ societe_id: selectedSociete, technicien_id: t.id, nir },
+    { onConflict: 'societe_id,technicien_id' });
+  if (error) return alert(error.message);
+  await chargerPapiers(t);
+});
 
 // Liste des signalements (super admin) : textes des utilisateurs toujours posés par textContent.
 async function chargerSignalements() {

@@ -212,6 +212,11 @@
     .flex > .field { flex: 1 1 11rem; min-width: 0; }
     .field input, .field select { min-width: 0; }
     .field input, .field select { width: 100%; box-sizing: border-box; }
+    .papiers-bloc { margin-bottom: 24px; }
+    .papiers-valeurs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 12px; align-items: center; }
+    .papiers-valeurs dt { color: var(--muted); font-size: 0.9rem; }
+    .papiers-valeurs dd { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .papiers-valeurs .numero { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
     .flex-center { justify-content: center; }
     .link { color: var(--accent); text-decoration: none; cursor: pointer; }
     @media (hover: hover) and (pointer: fine) {
@@ -960,6 +965,7 @@
               <button data-cible="tech-section-frais">Frais</button>
               <button data-cible="tech-section-photos">Photos</button>
               <button data-cible="tech-section-primes">Primes</button>
+              <button data-cible="tech-section-papiers" id="tech-onglet-papiers" class="hidden">Papiers</button>
             </div>
 
             <div id="tech-section-interventions" class="section sous-section">
@@ -1022,6 +1028,29 @@
                 <table id="tech-primes-table"><thead><tr><th>Équipement installé</th><th>Quantité</th><th>Montant</th></tr></thead><tbody></tbody></table>
               </div>
               <p class="aide">Règle de l'APK : équipements installés × barème du mois ; une caméra ne compte que les jours avec une installation (INST).</p>
+            </div>
+
+            <div id="tech-section-papiers" class="section sous-section hidden">
+              <div id="papiers-permis" class="papiers-bloc">
+                <h4>Permis de conduire</h4>
+                <dl class="papiers-valeurs" id="permis-valeurs"></dl>
+                <form id="permis-form" class="flex">
+                  <div class="field"><label for="permis-numero">N° de permis</label><input id="permis-numero" autocomplete="off" placeholder="120675200123"></div>
+                  <div class="field"><label for="permis-categories">Catégories</label><input id="permis-categories" autocomplete="off" value="B" placeholder="B,BE"></div>
+                  <div class="field"><label for="permis-delivre">Délivré le</label><input id="permis-delivre" type="date"></div>
+                  <div class="field"><label for="permis-fichier">Copie du permis (PDF, JPG, PNG)</label><input id="permis-fichier" type="file" accept="application/pdf,image/jpeg,image/png"></div>
+                  <button type="submit">Enregistrer le permis</button>
+                </form>
+              </div>
+              <div id="papiers-secu" class="papiers-bloc">
+                <h4>N° de sécurité sociale</h4>
+                <dl class="papiers-valeurs" id="secu-valeurs"></dl>
+                <form id="secu-form" class="flex">
+                  <div class="field"><label for="secu-nir">N° de sécurité sociale (15 chiffres, clé comprise)</label><input id="secu-nir" autocomplete="off" required inputmode="text" placeholder="1 85 05 78 006 084 91"></div>
+                  <button type="submit">Enregistrer le n°</button>
+                </form>
+              </div>
+              <p class="aide">Données personnelles réservées à leur usage : le permis sert à désigner le conducteur d'une amende (admin et gestion) ; le n° de sécurité sociale sert à la paie et aux déclarations sociales (admin, gestion et comptable). Numéros masqués à l'écran, jamais effacés à la main, purgés après le départ du technicien ; le journal note qui les modifie, sans les numéros.</p>
             </div>
           </div>
         </div>

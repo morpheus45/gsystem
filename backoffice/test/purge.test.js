@@ -40,7 +40,7 @@ test('les délais légaux sont lisibles avec leur source', async () => {
   const r = (await db.query(`select table_nom, annees from durees_conservation order by table_nom`)).rows;
   const d = Object.fromEntries(r.map((x) => [x.table_nom, x.annees]));
   assert.deepEqual(d, { amendes: 10, conges: 5, frais: 10, gestes_co: 5, heures_sup: 5, photos_apk: 10,
-    primes_tarifs: 5, techniciens: 5, temps: 5 });
+    permis_conduire: 1, primes_tarifs: 5, secu_sociale: 5, techniciens: 5, temps: 5 });
 });
 
 test('aperçu et purge réservés au super admin', async () => {
