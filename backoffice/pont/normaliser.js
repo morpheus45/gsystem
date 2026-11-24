@@ -148,3 +148,7 @@ export function relevesKmDepuisCompteurs(compteurs, photosCompteur, societeId, t
   
   return releves;
 }
+
+// Les lignes qu'une correction de km a le droit de toucher : jamais un relevé validé, ni saisi par le bureau.
+export const filtreCorrectionKm = (r) => 'releves_km?societe_id=eq.' + r.societe_id + '&vehicule_id=eq.' + r.vehicule_id
+  + '&date=eq.' + r.date + '&source=eq.saisie&photo_id=eq.' + r.photo_id + '&valide_par=is.null&km=neq.' + r.km;

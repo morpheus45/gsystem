@@ -106,7 +106,7 @@ test('gesteCo : équipements installés regroupés, nom du client jamais import�
     date: '2026-10-22', numero_site: '10000001', installes: { gsm: 1 } }]);
 });
 
-import { relevesKmDepuisCompteurs } from '../pont/normaliser.js';
+import { relevesKmDepuisCompteurs, filtreCorrectionKm } from '../pont/normaliser.js';
 
 test('relevés km : km > 0, date valide, photo existante du compteur du même mois', () => {
   const compteurs = [
@@ -161,4 +161,9 @@ test('relevés km : societeId ou technicienId manquants', () => {
   const photos = [{ id: 'photo-1', vehicule_id: 'v1', periode: '2026-11' }];
   assert.throws(() => relevesKmDepuisCompteurs(compteurs, photos, null, 'tech-1'), /obligatoires/);
   assert.throws(() => relevesKmDepuisCompteurs(compteurs, photos, 'soc-A', null), /obligatoires/);
+});
+
+test('km corrigé : ne vise que le relevé de cette photo, non validé', () => {
+  const f = filtreCorrectionKm({ societe_id: 's', vehicule_id: 'v', date: '2026-11-20', km: 1200, photo_id: 'p' });
+  for (const x of ['societe_id=eq.s', 'vehicule_id=eq.v', 'date=eq.2026-11-20', 'source=eq.saisie', 'photo_id=eq.p', 'valide_par=is.null', 'km=neq.1200']) assert.ok(f.includes(x), x);
 });

@@ -5,7 +5,7 @@
 // importée (même cle_source) est ignorée, rien n'est écrasé ni effacé.
 // Exceptions : le logo de la société, posé s'il est déposé dans le Drive (logoDuDrive),
 // et l'identité VIDE d'un véhicule, lue depuis sa plaque (identiteDuVehicule).
-// normaliser(), TABLES_PONT et relevesKmDepuisCompteurs sont ajoutés à la construction (pont/normaliser.js),
+// normaliser(), TABLES_PONT, relevesKmDepuisCompteurs et filtreCorrectionKm sont ajoutés à la construction (pont/normaliser.js),
 // normaliserPlaque() et lireFicheImmat() aussi (core/plaque.js).
 // Réglages : constantes posées à la construction ; la clé serveur (secrète)
 // est dans les Propriétés du script, jamais dans le code.
@@ -276,6 +276,8 @@ function relevesKmDuTech(cle, compteurs, technicienId, photos) {
   
   const releves = relevesKmDepuisCompteurs(compteurs, photosCompteur, SOCIETE_ID, technicienId);
   if (releves.length) ajouter(cle, 'releves_km', releves, 'vehicule_id,date,source');
+  // Km corrigé sur le téléphone : seulement un relevé venu de cette photo et PAS ENCORE validé par le bureau.
+  for (const r of releves) appel(cle, 'patch', filtreCorrectionKm(r), { km: r.km }, 'return=minimal');
 }
 
 // Identité d'un véhicule sans marque, lue sur la fiche publique de sa plaque (core/plaque.js).
