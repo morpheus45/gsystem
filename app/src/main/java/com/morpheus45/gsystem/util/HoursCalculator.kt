@@ -31,6 +31,8 @@ import com.morpheus45.gsystem.data.TempsEntry
  *    NR+OK = 6     NR+NR = 6     NR+— = 4
  *    —+OK = 4      —+NR = 4      —+— = 0
  *
+ * Une annulation en route ou sur site compte comme OK ([Resultat.okPourHeures]).
+ *
  * Le slot est `slotMidi` ∈ {"MATIN", "APREM"}. Les entrées historiques sans
  * slot ("") sont rattachées au MATIN par défaut.
  */
@@ -46,8 +48,8 @@ object HoursCalculator {
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
         val apremActive = entries.any { isInSlot(it, "APREM") }
-        val matinHasOk = entries.any { isInSlot(it, "MATIN") && it.observationType.isBlank() }
-        val apremHasOk = entries.any { isInSlot(it, "APREM") && it.observationType.isBlank() }
+        val matinHasOk = entries.any { isInSlot(it, "MATIN") && Resultat.okPourHeures(it.observationType) }
+        val apremHasOk = entries.any { isInSlot(it, "APREM") && Resultat.okPourHeures(it.observationType) }
 
         val nActive = (if (matinActive) 1 else 0) + (if (apremActive) 1 else 0)
         val nOk = (if (matinHasOk) 1 else 0) + (if (apremHasOk) 1 else 0)
@@ -85,10 +87,10 @@ object HoursCalculator {
         val whole = entries.firstOrNull { isWholeDayType(it) }
         if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"
 
-        val matinOk = entries.count { isInSlot(it, "MATIN") && it.observationType.isBlank() }
-        val matinNr = entries.count { isInSlot(it, "MATIN") && it.observationType.isNotBlank() }
-        val apremOk = entries.count { isInSlot(it, "APREM") && it.observationType.isBlank() }
-        val apremNr = entries.count { isInSlot(it, "APREM") && it.observationType.isNotBlank() }
+        val matinOk = entries.count { isInSlot(it, "MATIN") && Resultat.okPourHeures(it.observationType) }
+        val matinNr = entries.count { isInSlot(it, "MATIN") && !Resultat.okPourHeures(it.observationType) }
+        val apremOk = entries.count { isInSlot(it, "APREM") && Resultat.okPourHeures(it.observationType) }
+        val apremNr = entries.count { isInSlot(it, "APREM") && !Resultat.okPourHeures(it.observationType) }
         val total = computeForDay(entries).toInt()
         val matinTag = describeSlot(matinOk, matinNr)
         val apremTag = describeSlot(apremOk, apremNr)

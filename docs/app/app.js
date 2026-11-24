@@ -12,7 +12,7 @@ import {
 import { messageCloture, messageAttente, RAPPEL_ATTENTE, partager } from './viber.js';
 import { heuresDuJour, expliquerHeures } from './heures.js';
 import {
-  TYPES, TYPES_JOURNEE, OBSERVATIONS, MOTIFS_RETARD, entreeVide, manques,
+  TYPES, TYPES_JOURNEE, OBSERVATIONS, choixObservations, MOTIFS_RETARD, entreeVide, manques,
 } from './cloture.js';
 import {
   CATEGORIES, htDepuisTtc, tvaDepuisTtc, remboursable, eur,
@@ -259,6 +259,8 @@ function vueReglages() {
 function etiquette(e) {
   if (!e.observationType) return '<span class="etiquette ok">OK</span>';
   if (e.observationType === 'ANNULE') return '<span class="etiquette an">ANNUL\u00c9</span>';
+  if (e.observationType === 'ANNULE_ROUTE') return '<span class="etiquette an">ANNUL\u00c9 EN ROUTE</span>';
+  if (e.observationType === 'ANNULE_SITE') return '<span class="etiquette an">ANNUL\u00c9 SUR SITE</span>';
   const o = OBSERVATIONS.find((x) => x[0] === e.observationType);
   return '<span class="etiquette nr">' + ech(o ? o[1] : 'NR') + '</span>';
 }
@@ -415,7 +417,7 @@ function vueFormulaire() {
     ${sectionGeste()}
 
     <div class="champ"><label for="f_obs">Observation</label>
-      <select id="f_obs">${optionsHtml(OBSERVATIONS, e.observationType)}</select></div>
+      <select id="f_obs">${optionsHtml(choixObservations(e.observationType), e.observationType)}</select></div>
 
     <div class="champ"><label for="f_note">Note (jointe au message si NR)</label>
       <input id="f_note" value="${ech(e.observations)}" /></div>

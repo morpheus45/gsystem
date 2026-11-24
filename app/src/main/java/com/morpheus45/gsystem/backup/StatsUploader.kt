@@ -76,6 +76,8 @@ object StatsUploader {
                     "NR_CLIENT_ABS" -> "NR client absent"
                     "NR_AUTRES" -> "NR autres"
                     "ANNULE" -> "Annulé"
+                    "ANNULE_ROUTE" -> "Annulé en route"
+                    "ANNULE_SITE" -> "Annulé sur site"
                     else -> "OK"
                 }
                 val motif = when (t.motifRetard) {

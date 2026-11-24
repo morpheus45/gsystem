@@ -60,13 +60,7 @@ object CsvExporter {
         sb.appendLine(row("Date", "Département", "Type", "Client", "Ville",
             "N° intervention", "Heures auto", "Observation", "Note"))
         for (e in filtered) {
-            val obsLabel = when (e.observationType) {
-                "NR_CLIENT" -> "NR CLIENT"
-                "NR_TECHNIQUE" -> "NR TECHNIQUE"
-                "NR_CLIENT_ABS" -> "NR CLIENT ABS"
-                "NR_AUTRES" -> "NR AUTRES"
-                else -> ""
-            }
+            val obsLabel = com.morpheus45.gsystem.util.Resultat.majuscules(e.observationType)
             // Heures auto seulement sur la 1ère ligne du jour
             val hoursCell = if (seenDates.add(e.date))
                 hoursPerDay[e.date]?.toInt()?.toString() ?: ""
