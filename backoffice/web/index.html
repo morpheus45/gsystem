@@ -213,6 +213,9 @@
     .field input, .field select { min-width: 0; }
     .field input, .field select { width: 100%; box-sizing: border-box; }
     .papiers-bloc { margin-bottom: 24px; }
+    .papiers-bloc form { max-width: 760px; align-items: end; }
+    .papiers-bloc input { max-width: 100%; min-height: 44px; }
+    .papiers-bloc input[type="date"] { -webkit-appearance: none; appearance: none; }   /* Safari iPad : la date débordait du champ */
     .papiers-valeurs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 12px; align-items: center; }
     .papiers-valeurs dt { color: var(--muted); font-size: 0.9rem; }
     .papiers-valeurs dd { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -946,6 +949,15 @@
             <button id="tech-fiche-close" class="secondary">← Techniciens</button>
             <h2 id="tech-fiche-titre" style="margin:12px 0 16px;">Fiche technicien</h2>
 
+            <div class="sous-onglets" role="tablist">
+              <button data-cible="tech-section-interventions" class="active">Interventions</button>
+              <button data-cible="tech-section-heures">Heures</button>
+              <button data-cible="tech-section-frais">Frais</button>
+              <button data-cible="tech-section-photos">Photos</button>
+              <button data-cible="tech-section-primes">Primes</button>
+              <button data-cible="tech-section-papiers" id="tech-onglet-papiers" class="hidden">Papiers</button>
+            </div>
+
             <div class="tech-barre">
               <p id="tech-info" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
               <p id="tech-vehicule" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
@@ -957,15 +969,6 @@
             <div class="tech-resume-carte">
               <p id="tech-resume" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
               <div id="tech-camemberts" class="camemberts"></div>
-            </div>
-
-            <div class="sous-onglets" role="tablist">
-              <button data-cible="tech-section-interventions" class="active">Interventions</button>
-              <button data-cible="tech-section-heures">Heures</button>
-              <button data-cible="tech-section-frais">Frais</button>
-              <button data-cible="tech-section-photos">Photos</button>
-              <button data-cible="tech-section-primes">Primes</button>
-              <button data-cible="tech-section-papiers" id="tech-onglet-papiers" class="hidden">Papiers</button>
             </div>
 
             <div id="tech-section-interventions" class="section sous-section">

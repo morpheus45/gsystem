@@ -125,6 +125,9 @@ function afficherSousOnglet(conteneur, cible) {
   if (!section || !conteneur.contains(section)) return;
   [...conteneur.querySelectorAll(':scope > .sous-section')].forEach(s => s.classList.toggle('hidden', s !== section));
   conteneur.querySelectorAll(':scope > .sous-onglets button').forEach(b => b.classList.toggle('active', b.dataset.cible === cible));
+  // Fiche technicien : le contenu suit les onglets ; résumé avec les interventions, pas de mois pour les papiers.
+  conteneur.querySelector(':scope > .tech-resume-carte')?.classList.toggle('hidden', cible !== 'tech-section-interventions');
+  conteneur.querySelector(':scope > .tech-barre')?.classList.toggle('hidden', cible === 'tech-section-papiers');
 }
 
 function initialiserSousOnglets(conteneur) {
