@@ -14,18 +14,17 @@ object Resultat {
     const val ANNULE_ROUTE = "ANNULE_ROUTE"
     const val ANNULE_SITE = "ANNULE_SITE"
 
-    /** Ancien code, sans motif, plus proposé : ses heures ne changent pas. */
+    /** Ancien code, sans motif, plus proposé. */
     const val ANNULE = "ANNULE"
 
     fun estAnnule(code: String): Boolean = code.startsWith(ANNULE)
 
     /**
-     * Compte comme réalisée pour les HEURES : OK, ou annulée en route / sur site pour
-     * tout type SAUF INST. Pour les INST et pour les NR, la règle d'avant ne change pas.
+     * Compte comme réalisée pour les HEURES : OK, ou tout type SAUF INST, même NR ou
+     * annulé. Pour les INST, la règle d'avant ne change pas.
      */
-    fun okPourHeures(e: com.morpheus45.gsystem.data.TempsEntry): Boolean = e.observationType.isBlank() ||
-        ((e.observationType == ANNULE_ROUTE || e.observationType == ANNULE_SITE) &&
-            !e.typeMission.trim().equals("INST", ignoreCase = true))
+    fun okPourHeures(e: com.morpheus45.gsystem.data.TempsEntry): Boolean =
+        e.observationType.isBlank() || !e.typeMission.trim().equals("INST", ignoreCase = true)
 
     /** Libellé en majuscules (feuille de temps, CSV, liste) ; vide = OK. */
     fun majuscules(code: String): String = when (code) {

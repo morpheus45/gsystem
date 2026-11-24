@@ -31,7 +31,7 @@ import com.morpheus45.gsystem.data.TempsEntry
  *    NR+OK = 6     NR+NR = 6     NR+— = 4
  *    —+OK = 4      —+NR = 4      —+— = 0
  *
- * Une annulation en route ou sur site compte comme OK, sauf INST ([Resultat.okPourHeures]).
+ * Hors INST, une NR ou une annulation compte comme OK ([Resultat.okPourHeures]).
  *
  * Le slot est `slotMidi` ∈ {"MATIN", "APREM"}. Les entrées historiques sans
  * slot ("") sont rattachées au MATIN par défaut.
@@ -87,10 +87,10 @@ object HoursCalculator {
         val whole = entries.firstOrNull { isWholeDayType(it) }
         if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"
 
-        val matinOk = entries.count { isInSlot(it, "MATIN") && Resultat.okPourHeures(it) }
-        val matinNr = entries.count { isInSlot(it, "MATIN") && !Resultat.okPourHeures(it) }
-        val apremOk = entries.count { isInSlot(it, "APREM") && Resultat.okPourHeures(it) }
-        val apremNr = entries.count { isInSlot(it, "APREM") && !Resultat.okPourHeures(it) }
+        val matinOk = entries.count { isInSlot(it, "MATIN") && it.observationType.isBlank() }
+        val matinNr = entries.count { isInSlot(it, "MATIN") && it.observationType.isNotBlank() }
+        val apremOk = entries.count { isInSlot(it, "APREM") && it.observationType.isBlank() }
+        val apremNr = entries.count { isInSlot(it, "APREM") && it.observationType.isNotBlank() }
         val total = computeForDay(entries).toInt()
         val matinTag = describeSlot(matinOk, matinNr)
         val apremTag = describeSlot(apremOk, apremNr)
@@ -99,7 +99,7 @@ object HoursCalculator {
 
     private fun describeSlot(ok: Int, nr: Int): String = when {
         ok == 0 && nr == 0 -> "vide"
-        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR" else ""
-        else -> "$nr NR"
+        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR/annulée" else ""
+        else -> "$nr NR/annulée"
     }
 }

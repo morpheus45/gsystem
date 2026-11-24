@@ -20,12 +20,11 @@ export function estPlanningVide(e) {
 }
 
 /**
- * Realisee pour les heures : OK, ou annulee en route / sur site pour tout type SAUF INST.
- * Pour les INST et pour les NR, la regle d'avant ne change pas.
+ * Realisee pour les heures : OK, ou tout type SAUF INST, meme NR ou annule.
+ * Pour les INST, la regle d'avant ne change pas.
  */
 export function okPourHeures(e) {
-  return !e.observationType || ((e.observationType === 'ANNULE_ROUTE' || e.observationType === 'ANNULE_SITE')
-    && String(e.typeMission || '').trim().toUpperCase() !== 'INST');
+  return !e.observationType || String(e.typeMission || '').trim().toUpperCase() !== 'INST';
 }
 
 /** Un creneau vide compte comme MATIN (entrees anciennes sans creneau). */
@@ -59,7 +58,7 @@ export function expliquerHeures(entrees) {
   if (entrees.some(estJourneeEntiere)) return 'Journ\u00e9e enti\u00e8re \u2192 7h';
   const h = heuresDuJour(entrees);
   if (h === 8) return 'Matin et apr\u00e8s-midi r\u00e9alis\u00e9s \u2192 8h';
-  if (h === 6) return 'Matin et apr\u00e8s-midi, au moins une NR \u2192 6h';
+  if (h === 6) return 'Matin et apr\u00e8s-midi, au moins une INST NR \u2192 6h';
   if (h === 4) return 'Une seule demi-journ\u00e9e \u2192 4h';
   return '0h';
 }

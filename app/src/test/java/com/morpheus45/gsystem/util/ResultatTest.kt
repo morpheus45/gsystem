@@ -20,33 +20,27 @@ class ResultatTest {
     private fun e(slot: String, code: String, type: String = "INST") = TempsEntry(id = slot + code + type, date = "2026-11-24", departement = "34",
         typeMission = type, nomClient = "X", ville = "SETE", numeroIntervention = "1", observationType = code, slotMidi = slot)
     private fun h(vararg l: TempsEntry) = HoursCalculator.computeForDay(l.toList()).toInt()
-    private val nouveaux = listOf("ANNULE_ROUTE", "ANNULE_SITE")
-    private val avant = listOf("NR_CLIENT", "NR_TECHNIQUE", "NR_CLIENT_ABS", "NR_AUTRES", "ANNULE")
+    private val nonRealises = listOf("NR_CLIENT", "NR_TECHNIQUE", "NR_CLIENT_ABS", "NR_AUTRES", "ANNULE", "ANNULE_ROUTE", "ANNULE_SITE")
 
     @Test
-    fun `annulée en route ou sur site = 4h pour tout sauf INST`() {
-        for (c in nouveaux) for (t in listOf("SAV", "INTE", "PILE", "REPA", "sav")) {
+    fun `hors INST, 4h la demi-journée même en NR ou annulé`() {
+        for (c in nonRealises) for (t in listOf("SAV", "INTE", "DECL", "PILE", "REPA", "sav")) {
             assertEquals(4, h(e("APREM", c, t)))
             assertEquals(8, h(e("MATIN", ""), e("APREM", c, t)))
             assertEquals(8, h(e("MATIN", c, t), e("APREM", c, t)))
-            assertEquals(6, h(e("MATIN", c, t), e("APREM", "NR_CLIENT", t)))
+            assertEquals(6, h(e("MATIN", c, t), e("APREM", "NR_CLIENT")))
             assertEquals(8, h(e("MATIN", "NR_CLIENT"), e("MATIN", c, t), e("APREM", "")))
         }
     }
 
     @Test
-    fun `INST annulée = exactement comme une INST NR aujourd'hui`() {
-        for (c in nouveaux) for (t in listOf("INST", "inst", " INST ")) {
-            assertEquals(h(e("MATIN", "NR_CLIENT", t)), h(e("MATIN", c, t)))
-            assertEquals(6, h(e("MATIN", ""), e("APREM", c, t)))
-            assertEquals(6, h(e("MATIN", c, t), e("APREM", c, t)))
-            assertEquals(4, h(e("MATIN", c, t)))
-        }
+    fun `16-11 - INTE et DECL OK le matin, DECL NR l'après-midi = 8h`() {
+        assertEquals(8, h(e("MATIN", "", "INTE"), e("MATIN", "", "DECL"), e("APREM", "NR_CLIENT", "DECL")))
     }
 
     @Test
-    fun `NR et ancien Annulé inchangés, tous types`() {
-        for (c in avant) for (t in listOf("INST", "SAV", "INTE")) {
+    fun `INST - règle d'avant, annulée comme NR`() {
+        for (c in nonRealises) for (t in listOf("INST", "inst", " INST ")) {
             assertEquals(4, h(e("MATIN", c, t)))
             assertEquals(6, h(e("MATIN", ""), e("APREM", c, t)))
             assertEquals(6, h(e("MATIN", c, t), e("APREM", c, t)))
