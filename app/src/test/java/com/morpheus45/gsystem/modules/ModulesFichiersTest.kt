@@ -83,4 +83,31 @@ class ModulesFichiersTest {
         assertEquals(listOf(saisie()), f.saisies())
         assertEquals(listOf("MOD_1.jpg"), f.piecesDe(saisie()))
     }
+
+    private val mod = "30000000-0000-4000-8000-000000000001"
+    private fun brouillon(photo: String = "") = BrouillonModule(ModulePerso(mod, "Outillage", version = 1, champs = champs), id,
+        mapOf("etat" to "Bon"), if (photo.isBlank()) "" else "ph", photo)
+
+    @Test fun brouillonGardePuisEfface() {
+        assertNull(f.brouillon(mod)); assertTrue(f.garderBrouillon(brouillon()))
+        assertEquals(brouillon(), ModulesFichiers(f.racine).brouillon(mod))
+        f.effacerBrouillon(mod); assertNull(f.brouillon(mod))
+    }
+
+    @Test fun photoArriveeApresLaMortDeLAppliEstReprise() {
+        f.garderBrouillon(brouillon("MOD_9.jpg"))
+        assertNull(f.brouillon(mod)!!.textes["ph"])
+        File(f.dossierFichiers, "MOD_9.jpg").writeBytes(ByteArray(3))
+        assertEquals("MOD_9.jpg", f.brouillon(mod)!!.textes["ph"]); assertEquals("", f.brouillon(mod)!!.photoNom)
+    }
+
+    @Test fun brouillonDejaEnregistreNeDonnePasDeuxSaisies() {
+        f.garderBrouillon(brouillon()); f.ajouter(saisie())
+        assertNull(f.brouillon(mod)); assertFalse(f.garderBrouillon(brouillon())); assertEquals(1, f.saisies().size)
+    }
+
+    @Test fun brouillonIllisible() {
+        f.garderBrouillon(brouillon()); File(f.racine, "brouillons/$mod.json").writeText("{"); assertNull(f.brouillon(mod))
+        assertFalse(f.garderBrouillon(brouillon().let { it.copy(module = it.module.copy(id = "../x")) }))
+    }
 }

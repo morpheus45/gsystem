@@ -70,6 +70,25 @@ class ModulesFichiers(val racine: File) {
         return ecrire(fichierSaisie(id), json.encodeToString(SaisieModule.serializer(), s.copy(envoyee = envoyee, refus = refus)))
     }
 
+    private fun fichierBrouillon(module: String) = File(File(racine, "brouillons"), "$module.json")
+
+    /** Appli tuée pendant la prise de photo : la photo arrivée est reprise. */
+    @Synchronized fun brouillon(module: String): BrouillonModule? {
+        if (!ID.matches(module)) return null
+        val b = fichierBrouillon(module).readTextOuNull()
+            ?.let { runCatching { json.decodeFromString(BrouillonModule.serializer(), it) }.getOrNull() } ?: return null
+        // Déjà enregistré (appli tuée juste après) : ce brouillon ne doit pas donner une seconde saisie.
+        if (fichierSaisie(b.id).exists()) { fichierBrouillon(module).delete(); return null }
+        val photo = fichier(b.photoNom)
+        return if (b.photoCle.isNotBlank() && photo != null && photo.length() > 0)
+            b.copy(textes = b.textes + (b.photoCle to b.photoNom), photoCle = "", photoNom = "") else b
+    }
+
+    @Synchronized fun garderBrouillon(b: BrouillonModule): Boolean = ID.matches(b.module.id) && !fichierSaisie(b.id).exists() &&
+        ecrire(fichierBrouillon(b.module.id), json.encodeToString(BrouillonModule.serializer(), b))
+
+    @Synchronized fun effacerBrouillon(module: String) { if (ID.matches(module)) fichierBrouillon(module).delete() }
+
     /** Photos et signatures de la saisie. */
     fun piecesDe(s: SaisieModule): List<String> = s.champs.filter { it.type == "photo" || it.type == "signature" }
         .mapNotNull { c -> (s.valeurs[c.cle] as? kotlinx.serialization.json.JsonPrimitive)?.content }.filter { it.isNotBlank() }

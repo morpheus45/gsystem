@@ -35,6 +35,16 @@ data class ModulePerso(
     val champs: List<ChampModule>
 )
 
+/** Formulaire commencé, gardé sur le téléphone jusqu'à l'enregistrement. [id] sera celui de la saisie. */
+@Serializable
+data class BrouillonModule(
+    val module: ModulePerso,
+    val id: String,
+    val textes: Map<String, String> = emptyMap(),
+    val photoCle: String = "",     // photo en cours de prise
+    val photoNom: String = ""
+)
+
 /** Une saisie. Une fois enregistrée, elle ne change plus : seuls [envoyee] et [refus] évoluent. */
 @Serializable
 data class SaisieModule(

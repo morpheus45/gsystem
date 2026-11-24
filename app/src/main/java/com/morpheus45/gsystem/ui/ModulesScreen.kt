@@ -49,14 +49,10 @@ import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-
-private val MotCle = MapSerializer(String.serializer(), String.serializer())
 
 private fun couleurModule(m: ModulePerso) =
     runCatching { Color(android.graphics.Color.parseColor(m.couleur)) }.getOrDefault(Color(0xFF5B6472))
@@ -75,7 +71,7 @@ fun ModulesScreen(onBack: () -> Unit) {
     // La définition ouverte est gardée entière : le module peut changer pendant la saisie.
     var ouvert by rememberSaveable { mutableStateOf("") }
     val module = remember(ouvert) { ouvert.takeIf { it.isNotBlank() }?.let { runCatching { Json.decodeFromString(ModulePerso.serializer(), it) }.getOrNull() } }
-    if (module != null) FormulaireModule(module) { ouvert = "" }
+    if (module != null) key(module.id) { FormulaireModule(module) { ouvert = "" } }
     else ListeModules(modules, { ouvert = Json.encodeToString(ModulePerso.serializer(), it) }, onBack)
 }
 
@@ -128,43 +124,52 @@ private fun ListeModules(modules: List<ModulePerso>, onOuvrir: (ModulePerso) -> 
 }
 
 @Composable
-private fun FormulaireModule(m: ModulePerso, onFini: () -> Unit) {
+private fun FormulaireModule(demande: ModulePerso, onFini: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val depot = remember { ModulesDepot.ouvrir(context) }
+    // Brouillon sur le téléphone : l'appareil photo peut faire tuer l'appli, rien ne doit être perdu.
+    var b by remember { mutableStateOf(depot.brouillon(demande.id) ?: BrouillonModule(demande, ModulesDepot.nouvelId())) }
+    val m = b.module
+    val textes = b.textes
     val accent = couleurModule(m)
-    // Gardé même si Android recrée l'écran pendant la prise de photo.
-    var brut by rememberSaveable { mutableStateOf("{}") }
-    val textes = remember(brut) { Json.decodeFromString(MotCle, brut) }
-    fun poser(cle: String, t: String) { brut = Json.encodeToString(MotCle, Json.decodeFromString(MotCle, brut) + (cle to t)) }
-    // Même identifiant à chaque essai : jamais deux saisies pour un seul formulaire.
-    val id = rememberSaveable { ModulesDepot.nouvelId() }
-    var photoCle by rememberSaveable { mutableStateOf("") }
-    var photoNom by rememberSaveable { mutableStateOf("") }
+    fun poser(cle: String, t: String) { b = b.copy(textes = b.textes + (cle to t)) }
+    LaunchedEffect(b) {
+        kotlinx.coroutines.delay(300)
+        if (b.textes.values.any { it.isNotBlank() }) withContext(Dispatchers.IO) { depot.garderBrouillon(b) }
+    }
+    var permissionPour by remember { mutableStateOf("") }
     var erreur by remember { mutableStateOf("") }
     var occupe by remember { mutableStateOf(false) }
+    var vider by remember { mutableStateOf(false) }
     var quitter by remember { mutableStateOf(false) }
     val signatures = remember { m.champs.filter { it.type == "signature" }.associate { it.cle to SignatureController() } }
 
     val photo = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val f = photoNom.takeIf { it.isNotBlank() }?.let { ModulesDepot.fichier(context, it) }
-        if (ok && f != null && f.length() > 0) poser(photoCle, f.name)
-        photoNom = ""
+        val f = b.photoNom.takeIf { it.isNotBlank() }?.let { ModulesDepot.fichier(context, it) }
+        if (ok && f != null && f.length() > 0) poser(b.photoCle, f.name)
+        b = b.copy(photoCle = "", photoNom = "")
     }
     fun prendre(cle: String) {
         val champ = m.champs.first { it.cle == cle }
         val f = ModulesDepot.nouveauFichier(context, champ)
-        photoCle = cle; photoNom = f.name
+        b = b.copy(photoCle = cle, photoNom = f.name)
+        depot.garderBrouillon(b)                        // avant de quitter l'appli
         runCatching { photo.launch(PhotoStorage.uriFor(context, f)) }.onFailure { erreur = "Appareil photo indisponible." }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok && photoCle.isNotBlank()) prendre(photoCle) else erreur = "Autorise l'appareil photo pour ce champ."
+        if (ok && permissionPour.isNotBlank()) prendre(permissionPour) else erreur = "Autorise l'appareil photo pour ce champ."
     }
     fun demanderPhoto(cle: String) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) prendre(cle)
-        else { photoCle = cle; permission.launch(Manifest.permission.CAMERA) }
+        else { permissionPour = cle; permission.launch(Manifest.permission.CAMERA) }
     }
     val commence = textes.values.any { it.isNotBlank() } || signatures.values.any { !it.isEmpty }
-    fun retour() { if (occupe) return; if (commence) quitter = true else onFini() }
+    fun retour() {
+        if (occupe) return
+        if (signatures.values.any { !it.isEmpty }) quitter = true
+        else { if (commence) depot.garderBrouillon(b); onFini() }
+    }
     BackHandler { retour() }
 
     fun enregistrer() {
@@ -183,8 +188,9 @@ private fun FormulaireModule(m: ModulePerso, onFini: () -> Unit) {
                     tous[cle] = f.name
                 }
                 withContext(Dispatchers.IO) {
-                    ModulesDepot.enregistrer(context, SaisieModule(id, m.id, m.version, DateUtil.today().toString(),
+                    ModulesDepot.enregistrer(context, SaisieModule(b.id, m.id, m.version, DateUtil.today().toString(),
                         valeursSaisie(m.champs, tous), m.nom, m.champs, System.currentTimeMillis()))
+                        .also { if (it) depot.effacerBrouillon(m.id) }
                 }
             }.getOrDefault(false)
             occupe = false
@@ -230,12 +236,17 @@ private fun FormulaireModule(m: ModulePerso, onFini: () -> Unit) {
             Text("Ces données servent à : ${m.finalite}. Conservées ${m.conservation_mois} mois.", fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             if (erreur.isNotBlank()) Text(erreur, color = MaterialTheme.colorScheme.error)
+            if (vider) Text("Tout vider ? Appuie encore une fois pour confirmer.", color = MaterialTheme.colorScheme.error)
             GPrimaryButton(if (occupe) "Enregistrement…" else "Enregistrer", accent, ::enregistrer, enabled = !occupe)
+            if (commence) TextButton(enabled = !occupe, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), onClick = {
+                if (!vider) vider = true
+                else { vider = false; erreur = ""; signatures.values.forEach { it.clear() }; depot.effacerBrouillon(m.id); b = BrouillonModule(demande, ModulesDepot.nouvelId()) }
+            }) { Text(if (vider) "Confirmer : tout vider" else "Vider le formulaire") }
         }
     }
     if (quitter) AlertDialog(onDismissRequest = { quitter = false }, title = { Text("Quitter sans enregistrer ?") },
-        text = { Text("Ce que tu as rempli ici ne sera pas gardé.") },
-        confirmButton = { TextButton(onClick = { quitter = false; onFini() }) { Text("Quitter") } },
+        text = { Text("Le brouillon est gardé, sauf la signature : elle sera à refaire.") },
+        confirmButton = { TextButton(onClick = { quitter = false; depot.garderBrouillon(b); onFini() }) { Text("Quitter") } },
         dismissButton = { TextButton(onClick = { quitter = false }) { Text("Continuer la saisie") } })
 }
 
