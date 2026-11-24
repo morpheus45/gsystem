@@ -215,7 +215,7 @@ fun HomeScreen(
     val nrTechPct: Double? = if (instTot > 0)
         instReal.count { it.observationType == "NR_CLIENT" || it.observationType == "NR_TECHNIQUE" } * 100.0 / instTot
     else null
-    val monthTented = monthInst.filter { it.observationType != "ANNULE" }
+    val monthTented = monthInst.filter { !com.morpheus45.gsystem.util.Resultat.estAnnule(it.observationType) }
     val nrBrutPct: Double = if (monthTented.isNotEmpty())
         monthTented.count { it.observationType.isNotBlank() } * 100.0 / monthTented.size else 0.0
 

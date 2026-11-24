@@ -31,6 +31,8 @@ import com.morpheus45.gsystem.data.TempsEntry
  *    NR+OK = 6     NR+NR = 6     NR+— = 4
  *    —+OK = 4      —+NR = 4      —+— = 0
  *
+ * Hors INST, une NR ou une annulation compte comme OK ([Resultat.okPourHeures]).
+ *
  * Le slot est `slotMidi` ∈ {"MATIN", "APREM"}. Les entrées historiques sans
  * slot ("") sont rattachées au MATIN par défaut.
  */
@@ -46,8 +48,8 @@ object HoursCalculator {
 
         val matinActive = entries.any { isInSlot(it, "MATIN") }
         val apremActive = entries.any { isInSlot(it, "APREM") }
-        val matinHasOk = entries.any { isInSlot(it, "MATIN") && it.observationType.isBlank() }
-        val apremHasOk = entries.any { isInSlot(it, "APREM") && it.observationType.isBlank() }
+        val matinHasOk = entries.any { isInSlot(it, "MATIN") && Resultat.okPourHeures(it) }
+        val apremHasOk = entries.any { isInSlot(it, "APREM") && Resultat.okPourHeures(it) }
 
         val nActive = (if (matinActive) 1 else 0) + (if (apremActive) 1 else 0)
         val nOk = (if (matinHasOk) 1 else 0) + (if (apremHasOk) 1 else 0)
@@ -97,7 +99,7 @@ object HoursCalculator {
 
     private fun describeSlot(ok: Int, nr: Int): String = when {
         ok == 0 && nr == 0 -> "vide"
-        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR" else ""
-        else -> "$nr NR"
+        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR/annulée" else ""
+        else -> "$nr NR/annulée"
     }
 }
