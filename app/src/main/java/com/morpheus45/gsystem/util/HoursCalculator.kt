@@ -18,11 +18,20 @@ import com.morpheus45.gsystem.data.TempsEntry
  *   - Si la journée contient une entrée VACANCES, FORMATION ou FERIE → 7h (journée entière)
  *   - Si la journée contient une entrée PLANNING VIDE (journée sans mission) → 0h
  *
- * Règle (Cédric, 24/11/2026), par DEMI-JOURNÉE :
- *   - aucune intervention                                   → 0h
- *   - seulement des INST non réalisées (NR ou annulées)     → 2h
- *   - tout le reste (INST OK, SAV, INTE… même NR ou annulé) → 4h
- * La journée est la somme du matin et de l'après-midi.
+ * Règle générale (confirmée par l'utilisateur — table à 9 cas) :
+ *   - 0 slot actif (rien du tout)            → 0h
+ *   - 1 slot actif (OK ou NR uniquement)     → 4h
+ *   - 2 slots actifs, les DEUX avec un OK    → 8h
+ *   - 2 slots actifs, sinon (mix ou 2 NR)    → 6h
+ *
+ * « slot actif » = au moins une intervention (OK ou NR) dans ce slot.
+ *
+ * Table de correspondance (matin × aprem) :
+ *    OK+OK = 8     OK+NR = 6     OK+— = 4
+ *    NR+OK = 6     NR+NR = 6     NR+— = 4
+ *    —+OK = 4      —+NR = 4      —+— = 0
+ *
+ * Une annulation en route ou sur site compte comme OK ([Resultat.okPourHeures]).
  *
  * Le slot est `slotMidi` ∈ {"MATIN", "APREM"}. Les entrées historiques sans
  * slot ("") sont rattachées au MATIN par défaut.
@@ -37,20 +46,21 @@ object HoursCalculator {
         // Cas special : si une entree VACANCES, FORMATION ou FERIE existe, journee = 7h
         if (entries.any { isWholeDayType(it) }) return 7.0
 
-        return slotHours(entries, "MATIN") + slotHours(entries, "APREM")
-    }
+        val matinActive = entries.any { isInSlot(it, "MATIN") }
+        val apremActive = entries.any { isInSlot(it, "APREM") }
+        val matinHasOk = entries.any { isInSlot(it, "MATIN") && Resultat.okPourHeures(it.observationType) }
+        val apremHasOk = entries.any { isInSlot(it, "APREM") && Resultat.okPourHeures(it.observationType) }
 
-    private fun slotHours(entries: List<TempsEntry>, slot: String): Double {
-        val l = entries.filter { isInSlot(it, slot) }
+        val nActive = (if (matinActive) 1 else 0) + (if (apremActive) 1 else 0)
+        val nOk = (if (matinHasOk) 1 else 0) + (if (apremHasOk) 1 else 0)
+
         return when {
-            l.isEmpty() -> 0.0
-            l.all { isInstNonRealisee(it) } -> 2.0
-            else -> 4.0
+            nActive == 0 -> 0.0
+            nActive == 1 -> 4.0
+            nOk == 2 -> 8.0
+            else -> 6.0
         }
     }
-
-    private fun isInstNonRealisee(e: TempsEntry): Boolean =
-        e.typeMission.trim().equals("INST", ignoreCase = true) && e.observationType.isNotBlank()
 
     /** Types « journée entière » → 7h fixe (mêmes que WHOLE_DAY_TYPES côté UI). */
     private fun isWholeDayType(e: TempsEntry): Boolean =
@@ -77,18 +87,19 @@ object HoursCalculator {
         val whole = entries.firstOrNull { isWholeDayType(it) }
         if (whole != null) return "${whole.typeMission.uppercase()} → 7h (journée entière)"
 
+        val matinOk = entries.count { isInSlot(it, "MATIN") && Resultat.okPourHeures(it.observationType) }
+        val matinNr = entries.count { isInSlot(it, "MATIN") && !Resultat.okPourHeures(it.observationType) }
+        val apremOk = entries.count { isInSlot(it, "APREM") && Resultat.okPourHeures(it.observationType) }
+        val apremNr = entries.count { isInSlot(it, "APREM") && !Resultat.okPourHeures(it.observationType) }
         val total = computeForDay(entries).toInt()
-        return "Matin: ${describeSlot(entries, "MATIN")}  ·  Aprem: ${describeSlot(entries, "APREM")}  →  ${total}h"
+        val matinTag = describeSlot(matinOk, matinNr)
+        val apremTag = describeSlot(apremOk, apremNr)
+        return "Matin: $matinTag  ·  Aprem: $apremTag  →  ${total}h"
     }
 
-    private fun describeSlot(entries: List<TempsEntry>, slot: String): String {
-        val l = entries.filter { isInSlot(it, slot) }
-        if (l.isEmpty()) return "vide"
-        val nr = l.count { it.observationType.startsWith("NR") }
-        val annule = l.count { Resultat.estAnnule(it.observationType) }
-        val ok = l.size - nr - annule
-        return listOfNotNull(
-            if (ok > 0) "$ok OK" else null, if (nr > 0) "$nr NR" else null, if (annule > 0) "$annule annulée(s)" else null
-        ).joinToString(" + ") + " (${slotHours(entries, slot).toInt()}h)"
+    private fun describeSlot(ok: Int, nr: Int): String = when {
+        ok == 0 && nr == 0 -> "vide"
+        ok > 0 -> "OK ($ok)" + if (nr > 0) " + $nr NR" else ""
+        else -> "$nr NR"
     }
 }

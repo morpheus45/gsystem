@@ -14,10 +14,13 @@ object Resultat {
     const val ANNULE_ROUTE = "ANNULE_ROUTE"
     const val ANNULE_SITE = "ANNULE_SITE"
 
-    /** Ancien code sans motif, plus proposé. */
+    /** Ancien code, plus proposé : les journées déjà saisies gardent leurs heures. */
     const val ANNULE = "ANNULE"
 
     fun estAnnule(code: String): Boolean = code.startsWith(ANNULE)
+
+    /** Compte comme une intervention OK pour les HEURES (pas pour les résultats ni les NR). */
+    fun okPourHeures(code: String): Boolean = code.isBlank() || code == ANNULE_ROUTE || code == ANNULE_SITE
 
     /** Libellé en majuscules (feuille de temps, CSV, liste) ; vide = OK. */
     fun majuscules(code: String): String = when (code) {
