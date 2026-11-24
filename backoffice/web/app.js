@@ -11,6 +11,7 @@ import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/inte
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
+import { moduleActif } from '../core/organisation.js';
 import { TUILES_APK, tuileVisible } from '../core/tuiles-apk.js';
 import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
@@ -369,7 +370,7 @@ async function loadSocietes() {
     societes = socData.data;
     holdings = holdData.data;
     renderSocietes();
-    renderHoldingsAdmin();
+    chargerOrganisation();
   } catch (err) {
     alert(err.message || 'Erreur lors du chargement des sociétés');
   }
@@ -387,7 +388,8 @@ function renderSocietes() {
   }
   const sansHolding = [];
   for (const s of societes) {
-    if (s.holding_id) {
+    // Une personne d'une seule société ne lit pas la holding : pas de titre.
+    if (holdings.some((h) => h.id === s.holding_id)) {
       let group = ul.querySelector(`[data-holding-id="${s.holding_id}"]`);
       if (!group) {
         const h = holdings.find((x) => x.id === s.holding_id);
@@ -430,87 +432,178 @@ function appendSocieteItem(container, s) {
   tachesSociete(s.id).then((t) => marquer(li, t.conges + t.vehicules + t.paie > 0));
 }
 
-async function renderHoldingsAdmin() {
-  const container = $('#holdings-admin');
-  if (!superAdmin || !container) return;
-  container.classList.remove('hidden');
+// === ORGANISATION (super admin) : holdings, patrons, sociétés et tous les modules au même endroit ===
+let reglagesHolding = [], reglagesSociete = [], admins = {}, orgCible = null, lectureOrg = 0;
 
-  // Remplir les selects
-  const selS = $('#holding-societe');
-  const selH1 = $('#holding-target');
-  const selH2 = $('#holding-admin-holding');
-  selS.replaceChildren(...societes.map((s) => {
-    const o = document.createElement('option');
-    o.value = s.id;
-    o.textContent = s.nom;
-    return o;
-  }));
-  selH1.replaceChildren(...holdings.map((h) => {
-    const o = document.createElement('option');
-    o.value = h.id;
-    o.textContent = h.nom;
-    return o;
-  }));
-  selH2.replaceChildren(...holdings.map((h) => {
-    const o = document.createElement('option');
-    o.value = h.id;
-    o.textContent = h.nom;
-    return o;
-  }));
-
-  // Créer une holding
-  $('#holdings-create-form').onsubmit = async (e) => {
-    e.preventDefault();
-    clearAlert();
-    const input = $('#holding-nom');
-    const nom = input.value.trim();
-    if (!nom) return;
-    try {
-      const { error } = await sb.from('holdings').insert({ nom });
-      if (error) throw error;
-      input.value = '';
-      await loadSocietes();
-    } catch (err) {
-      alert(err.message || 'Erreur lors de la création de la holding');
-    }
-  };
-
-  // Rattacher une société à une holding
-  $('#holdings-attach-form').onsubmit = async (e) => {
-    e.preventDefault();
-    clearAlert();
-    const sid = selS.value;
-    const hid = selH1.value;
-    if (!sid || !hid) return;
-    try {
-      const { error } = await sb.from('societes').update({ holding_id: hid }).eq('id', sid);
-      if (error) throw error;
-      await loadSocietes();
-    } catch (err) {
-      alert(err.message || 'Erreur lors du rattachement');
-    }
-  };
-
-  // Nommer un admin de holding
-  $('#holdings-admin-form').onsubmit = async (e) => {
-    e.preventDefault();
-    clearAlert();
-    const email = $('#holding-admin-email').value.trim().toLowerCase();
-    const hid = selH2.value;
-    if (!email || !hid) return;
-    try {
-      const { data: user, error: userErr } = await sb.from('auth.users').select('id').eq('email', email).single();
-      if (userErr) throw userErr;
-      if (!user) { alert("Aucun compte trouvé avec cet email. La personne doit d'abord créer son compte."); return; }
-      const { error } = await sb.from('membres_holding').insert({ holding_id: hid, user_id: user.id, role: 'admin' });
-      if (error) throw error;
-      $('#holding-admin-email').value = '';
-      await loadSocietes();
-    } catch (err) {
-      alert(err.message || "Erreur lors de la nomination de l'admin");
-    }
-  };
+async function chargerOrganisation() {
+  $('#organisation').classList.toggle('hidden', !superAdmin);
+  if (!superAdmin) return;
+  const tour = ++lectureOrg;
+  const [mh, ms, m, v, p, t, ...listes] = await Promise.all([
+    sb.from('modules_holding').select('holding_id, module, actif'),
+    sb.from('modules_societe').select('societe_id, module, actif'),
+    sb.from('modules_perso').select('id, nom, icone, couleur, finalite, version, actif').order('nom'),
+    sb.from('modules_perso_versions').select('module_id, version, champs'),
+    sb.from('modules_perso_portee').select('module_id, holding_id, societe_id, actif, supports'),
+    sb.from('tuiles_reglages').select('tuile, holding_id, societe_id, visible'),
+    ...holdings.map((h) => sb.rpc('admins_holding', { h: h.id })),
+  ]);
+  if (tour !== lectureOrg) return;
+  const erreur = [mh, ms, m, v, p, t, ...listes].find((x) => x.error)?.error;
+  $('#org-contenu').classList.toggle('hidden', !!erreur);
+  $('#org-erreur').textContent = erreur ? `Lecture impossible : ${erreur.message}` : '';
+  if (erreur) return;
+  [reglagesHolding, reglagesSociete, portees, tuilesReglages] = [mh.data, ms.data, p.data, t.data];
+  modulesPerso = m.data.map((x) => ({ ...x, champs: v.data.find((y) => y.module_id === x.id && y.version === x.version)?.champs || [],
+    cles: v.data.filter((y) => y.module_id === x.id).flatMap((y) => y.champs.map((c) => c.cle)) }));
+  admins = Object.fromEntries(holdings.map((h, i) => [h.id, listes[i].data]));
+  renderOrganisation();
 }
+
+async function orgAction(rpc, args, texte) {
+  const { data, error } = await sb.rpc(rpc, args);
+  if (error) { alert(error.message); return null; }
+  if (texte) alert(typeof texte === 'function' ? texte(data) : texte, 'success');
+  await loadSocietes();
+  return data ?? true;
+}
+
+function renderOrganisation() {
+  const carte = (titre, sous, enfants) => {
+    const c = elt('article', 'org-holding');
+    const tete = elt('div', 'org-tete');
+    tete.append(elt('strong', null, titre), elt('span', 'aide', sous));
+    c.append(tete, ...enfants);
+    return c;
+  };
+  const boutonCible = (cible, texte) => {
+    const b = boutonModule(texte, 'secondary', () => { orgCible = cible; renderOrganisation(); $('#org-modules').scrollIntoView({ block: 'start' }); });
+    b.setAttribute('aria-pressed', String(orgCible?.h === cible.h && orgCible?.s === cible.s));
+    return b;
+  };
+  const ligneSociete = (soc) => {
+    const l = elt('div', 'org-ligne'), choix = elt('select');
+    choix.setAttribute('aria-label', `Holding de ${soc.nom}`);
+    choix.add(new Option('Sans holding', ''));
+    for (const h of holdings) choix.add(new Option(h.nom, h.id));
+    choix.value = soc.holding_id || '';
+    choix.addEventListener('change', async () => {
+      const h = holdings.find((x) => x.id === choix.value);
+      if (!confirm(h ? `Mettre « ${soc.nom} » dans la holding « ${h.nom} » ? Son patron la verra et la gérera.` : `Sortir « ${soc.nom} » de sa holding ? Le patron de la holding ne la verra plus.`)) { choix.value = soc.holding_id || ''; return; }
+      if (!await orgAction('rattacher_societe', { s: soc.id, h: choix.value || null })) choix.value = soc.holding_id || '';
+    });
+    const actions = elt('div', 'org-actions');
+    actions.append(choix, boutonCible({ h: null, s: soc.id }, 'Modules'), boutonModule('Ouvrir', 'secondary', () => selectSociete(soc.id)));
+    l.append(elt('span', 'org-nom', soc.nom), actions);
+    return l;
+  };
+  const cartes = holdings.map((h) => {
+    const siennes = societes.filter((x) => x.holding_id === h.id), patrons = admins[h.id] || [];
+    const boutons = elt('div', 'org-actions');
+    boutons.append(boutonCible({ h: h.id, s: null }, 'Modules de la holding'), boutonModule('Renommer', 'secondary', () => {
+      const nom = prompt('Nom de la holding :', h.nom);
+      if (nom && nom.trim() !== h.nom) orgAction('enregistrer_holding', { h: h.id, p_nom: nom });
+    }));
+    const liste = elt('div', 'org-patrons');
+    liste.append(...patrons.map((a) => {
+      const l = elt('div', 'org-ligne');
+      const retirer = boutonModule('Retirer', 'danger', () => {
+        if (confirm(`Retirer ${a.email} ? Cette personne ne verra plus la holding « ${h.nom} ».`)) orgAction('retirer_admin_holding', { h: h.id, p_email: a.email });
+      });
+      l.append(elt('span', 'org-nom', a.email), pastille(a.etat === 'actif' ? 'Patron' : 'Invité', a.etat === 'actif' ? 'ok' : 'neutre'), retirer);
+      return l;
+    }));
+    if (!patrons.length) liste.append(elt('p', 'aide', 'Aucun patron nommé : toi seul vois cette holding.'));
+    const f = elt('form', 'org-form'), e = elt('input'), id = `org-patron-${h.id}`;
+    const lab = elt('label', 'lecteur-seul', `Email du patron de ${h.nom}`);
+    e.type = 'email'; e.required = true; e.id = id; e.placeholder = 'Email du patron'; lab.htmlFor = id;
+    f.append(lab, e, elt('button', 'secondary', 'Nommer'));
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!confirm(`Nommer ${e.value.trim()} patron de « ${h.nom} » ? Cette personne verra et gérera toutes ses sociétés.`)) return;
+      await orgAction('nommer_admin_holding', { h: h.id, p_email: e.value }, (d) => (d === 'nomme' ? 'Patron nommé.'
+        : 'Invitation enregistrée : prévenez la personne de créer son compte avec cet email (aucun email n’est envoyé).'));
+    });
+    return carte(h.nom, `${siennes.length} société${siennes.length > 1 ? 's' : ''}`, [boutons, elt('h4', null, 'Patron'), liste, f, elt('h4', null, 'Sociétés'),
+      ...(siennes.length ? siennes.map(ligneSociete) : [elt('p', 'aide', 'Aucune société pour l’instant.')])]);
+  });
+  const seules = societes.filter((x) => !x.holding_id);
+  if (seules.length) cartes.push(carte('Sans holding', 'Toi seul, et les membres de chaque société', seules.map(ligneSociete)));
+  $('#org-holdings').replaceChildren(...cartes);
+  renderOrgModules();
+}
+
+// Tous les réglages d'une holding ou d'une société. Vide = suit la holding, ou la valeur d'origine.
+function renderOrgModules() {
+  const zone = $('#org-modules'), { h, s } = orgCible || {};
+  const holding = holdings.find((x) => x.id === h), societe = societes.find((x) => x.id === s);
+  zone.classList.toggle('hidden', !holding && !societe);
+  if (!holding && !societe) return;
+  $('#org-modules-titre').textContent = `Modules de ${holding ? `la holding ${holding.nom}` : societe.nom}`;
+  const suit = !!societe?.holding_id;
+  $('#org-modules-aide').textContent = holding ? 'S’applique à toutes ses sociétés, sauf celles qui ont leur propre réglage.'
+    : suit ? `« Comme la holding » suit ${holdings.find((x) => x.id === societe.holding_id)?.nom || 'sa holding'}.` : 'Cette société n’est dans aucune holding.';
+  const ligneOrg = (nom, sien, herite, mots, envoyer) => {
+    const l = elt('label', 'module-portee-ligne'), sel = elt('select');
+    sel.add(new Option(suit ? `Comme la holding (${herite ? mots[0] : mots[1]})` : `D’origine (${herite ? mots[0] : mots[1]})`, ''));
+    sel.add(new Option(mots[0], 'oui'));
+    sel.add(new Option(mots[1], 'non'));
+    sel.value = sien === undefined ? '' : sien ? 'oui' : 'non';
+    sel.addEventListener('change', () => envoyer(sel.value === '' ? null : sel.value === 'oui'));
+    l.append(elt('span', null, nom), sel);
+    return l;
+  };
+  const bloc = (titre, aide, lignes) => {
+    const d = elt('div', 'org-bloc'), g = elt('div', 'tuiles-apk');
+    g.append(...lignes);
+    d.append(elt('h4', null, titre), elt('p', 'aide', aide), g);
+    return d;
+  };
+  const base = { id: null, holding_id: societe?.holding_id || null };
+  const bo = MODULES_LISTE.map((mod) => {
+    const sien = holding ? reglagesHolding.find((x) => x.holding_id === h && x.module === mod) : reglagesSociete.find((x) => x.societe_id === s && x.module === mod);
+    return ligneOrg(LIBELLE_MODULE[mod] || mod, sien?.actif, moduleActif([], holding ? [] : reglagesHolding, mod, base), ['Actif', 'Désactivé'],
+      (v) => orgAction('regler_module', { p_module: mod, p_holding: h, p_societe: s, p_actif: v }));
+  });
+  const tuiles = TUILES_APK.map(([tuile, nom]) => {
+    const sien = tuilesReglages.find((x) => x.tuile === tuile && (holding ? x.holding_id === h : x.societe_id === s));
+    return ligneOrg(nom, sien?.visible, tuileVisible(tuilesReglages, tuile, holding ? { id: null, holding_id: null } : base), ['Visible', 'Cachée'],
+      (v) => orgAction('regler_tuile', { p_tuile: tuile, p_holding: h, p_societe: s, p_visible: v }));
+  });
+  const perso = modulesPerso.filter((m) => m.actif).map((m) => {
+    const siennes = portees.filter((x) => x.module_id === m.id), sien = siennes.find((x) => (holding ? x.holding_id === h : x.societe_id === s));
+    const l = ligneOrg(m.nom, sien?.actif, holding ? false : enService(siennes, base), ['Activé', 'Coupé'],
+      (v) => orgAction('attribuer_module_perso', { id_module: m.id, p_holding: h, p_societe: s, p_actif: v, p_supports: null }));
+    if (!sien?.actif) return l;
+    const boite = elt('div'), f = elt('fieldset', 'module-supports');
+    f.setAttribute('aria-label', `Où sert ce module : ${m.nom}`);
+    for (const [cle, nom] of SUPPORTS) {
+      const lab = elt('label'), c = elt('input');
+      c.type = 'checkbox';
+      c.checked = sien.supports.includes(cle);
+      c.addEventListener('change', () => {
+        const choisis = [...f.querySelectorAll('input')].flatMap((x, i) => (x.checked ? [SUPPORTS[i][0]] : []));
+        if (!choisis.length) { c.checked = true; alert('Gardez au moins un endroit, ou coupez le module.'); return; }
+        orgAction('attribuer_module_perso', { id_module: m.id, p_holding: h, p_societe: s, p_actif: true, p_supports: choisis });
+      });
+      lab.append(c, document.createTextNode(nom));
+      f.append(lab);
+    }
+    boite.append(l, f);
+    return boite;
+  });
+  $('#org-modules-contenu').replaceChildren(
+    bloc('Back-office', 'Un module désactivé disparaît du menu ; ses données restent.', bo),
+    bloc('Tuiles des téléphones (APK et iPhone)', 'Cacher une tuile n’efface rien. Clôture et Envoi mensuel restent toujours visibles.', tuiles),
+    bloc('Modules que tu as créés', perso.length ? 'Choisis où chacun sert.' : 'Aucun module créé pour l’instant : onglet Modules d’une société → Créer un module.', perso));
+}
+
+$('#org-creer').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champ = $('#org-nom');
+  if (await orgAction('enregistrer_holding', { h: null, p_nom: champ.value }, 'Holding créée.')) champ.value = '';
+});
+$('#org-fermer').addEventListener('click', () => { orgCible = null; renderOrganisation(); });
 
 async function selectSociete(id) {
   selectedSociete = id;
@@ -545,7 +638,9 @@ async function loadSocieteDetail(societeId) {
     switchOnglet('panel-bord', false);
 
     renderMembers(members);
-    monRole = members.find(m => m.user_id === session.user.id)?.role || null;
+    // Le patron d'une holding est admin de toutes ses sociétés ; la base ne lui montre que SA holding.
+    monRole = holdings.some((h) => h.id === societe?.holding_id) ? 'admin'
+      : members.find(m => m.user_id === session.user.id)?.role || null;
     for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form', '#conge-form']) {
       const form = $(f);
       (form.closest('details') || form).classList.toggle('hidden', !peutEcrire());

@@ -620,6 +620,7 @@
   <link rel="stylesheet" href="ecran-signalements.css">
   <link rel="stylesheet" href="ecran-modules.css">
   <link rel="stylesheet" href="ecran-saisies.css">
+  <link rel="stylesheet" href="ecran-organisation.css">
 </head>
 <body>
   <div class="banner">Base locale de développement — données fictives</div>
@@ -693,50 +694,27 @@
                 </div>
                 <button type="submit">Créer la société</button>
               </form>
-              <div id="holdings-admin" class="section hidden">
-                <h3>Gestion des holdings</h3>
-                <div class="ajout">
-                  <summary>Nouvelle holding</summary>
-                  <form id="holdings-create-form">
-                    <div class="field">
-                      <label for="holding-nom">Nom de la holding</label>
-                      <input type="text" id="holding-nom" name="nom" required maxlength="120">
-                    </div>
-                    <button type="submit">Créer la holding</button>
-                  </form>
-                </div>
-                <div class="ajout">
-                  <summary>Rattacher une société à une holding</summary>
-                  <form id="holdings-attach-form">
-                    <div class="field">
-                      <label for="holding-societe">Société</label>
-                      <select id="holding-societe" name="societe_id" required></select>
-                    </div>
-                    <div class="field">
-                      <label for="holding-target">Holding</label>
-                      <select id="holding-target" name="holding_id" required></select>
-                    </div>
-                    <button type="submit">Rattacher</button>
-                  </form>
-                </div>
-                <div class="ajout">
-                  <summary>Nommer un admin de holding</summary>
-                  <form id="holdings-admin-form">
-                    <div class="field">
-                      <label for="holding-admin-email">Email</label>
-                      <input type="email" id="holding-admin-email" name="email" required>
-                    </div>
-                    <div class="field">
-                      <label for="holding-admin-holding">Holding</label>
-                      <select id="holding-admin-holding" name="holding_id" required></select>
-                    </div>
-                    <button type="submit">Nommer l'admin</button>
-                  </form>
-                </div>
-              </div>
             </details>
           </div>
           <ul id="societes-list" class="societe-list"></ul>
+        </section>
+        <section id="organisation" class="section organisation hidden">
+          <h3>Holdings et modules</h3>
+          <p class="aide">Toi seul vois cette partie. Le patron d'une holding ne voit que ses sociétés ; chaque personne nommée ne voit que la sienne.</p>
+          <p id="org-erreur" class="saisie-erreur" role="alert"></p>
+          <div id="org-contenu">
+            <form id="org-creer" class="org-form">
+              <label class="lecteur-seul" for="org-nom">Nom de la nouvelle holding</label>
+              <input id="org-nom" required minlength="2" maxlength="120" placeholder="Nom de la nouvelle holding" autocomplete="off">
+              <button type="submit">Créer la holding</button>
+            </form>
+            <div id="org-holdings" class="org-holdings"></div>
+            <div id="org-modules" class="org-modules hidden">
+              <div class="module-entete"><h3 id="org-modules-titre">Modules</h3><button type="button" id="org-fermer" class="secondary">Fermer</button></div>
+              <p id="org-modules-aide" class="aide"></p>
+              <div id="org-modules-contenu"></div>
+            </div>
+          </div>
         </section>
       </div>
 
