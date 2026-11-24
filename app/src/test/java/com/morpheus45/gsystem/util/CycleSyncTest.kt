@@ -9,92 +9,89 @@
  */
 package com.morpheus45.gsystem.util
 
+import com.morpheus45.gsystem.backup.CyclePlan
+import com.morpheus45.gsystem.backup.CyclePlan.Avis
 import com.morpheus45.gsystem.data.AppSettings
 import com.morpheus45.gsystem.data.EntriesStore
-import com.morpheus45.gsystem.data.GesteCoEntry
 import com.morpheus45.gsystem.data.TempsEntry
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
-/**
- * Test unitaire (JVM) : la synchro temps réel doit repousser le cycle PRÉCÉDENT
- * lorsqu'une entrée y a été ajoutée ou modifiée.
- *
- * Scénario du bug (2026-11-20) :
- *   - Envoi mensuel du cycle 21/10 → 20/11 le 20/11 (lastEnvoiDateIso = "2026-11-20").
- *   - Entry saisie le 20/11/2026 à 16:54 (dernier jour du cycle) → dans le cycle
- *     précédent (21/10 → 20/11), PAS dans le cycle courant (21/11 → 20/12).
- *   - La synchro temps réel ne ciblait que le cycle courant → entry jamais envoyée.
- */
+/** La synchro ne perd aucune journée et n'écrase jamais le Drive par moins de données. */
 class CycleSyncTest {
 
-    private fun settings(lastEnvoiDateIso: String, cycleStartDay: Int = 21) = AppSettings(
-        lastEnvoiDateIso = lastEnvoiDateIso,
-        cycleStartDay = cycleStartDay,
-        nomUtilisateur = "TECH-TEST"
-    )
+    private fun e(date: String, id: String = date) = TempsEntry(
+        id = id, date = date, departement = "34", typeMission = "INST", nomClient = "CLIENT", ville = "BEZIERS")
 
-    private fun entry(date: String) = TempsEntry(
-        id = java.util.UUID.randomUUID().toString(),
-        date = date,
-        departement = "34",
-        typeMission = "INST",
-        nomClient = "CLIENT",
-        ville = "BEZIERS"
-    )
+    private val reglages = AppSettings(
+        nomUtilisateur = "TECH-TEST", cycleStartDay = 18, lastEnvoiDateIso = "2026-11-20",
+        envoiHistoryIso = listOf("2026-08-21", "2026-09-18", "2026-10-23", "2026-11-20"))
+
+    private fun rangement(s: EntriesStore, r: AppSettings, today: String) =
+        CyclePlan.cycles(s, r, LocalDate.parse(today)).associate { (a, b) -> CyclePlan.mois(b) to CyclePlan.fenetre(s, a, b) }
 
     @Test
-    fun `entree du dernier jour du cycle est dans le PRECEDENT apres envoi mensuel`() {
-        val today = LocalDate.parse("2026-11-20")
-        val (cs, ce) = com.morpheus45.gsystem.util.DateUtil.currentCycle(
-            today, 21, "2026-11-20"
-        )
-        // cs = 2026-11-21, ce = 2026-12-20
-        assertFalse("Le 20/11 ne doit pas etre dans le cycle courant (21/11->20/12)",
-            LocalDate.parse("2026-11-20") in cs..ce)
-        // Le cycle precedent : 21/10 -> 20/11
-        assertTrue("Le 20/11 DOIT etre dans le cycle precedent (21/10->20/11)",
-            LocalDate.parse("2026-11-20") in (cs.minusMonths(1)..cs.minusDays(1)))
+    fun `les 19 et 20 octobre 2026 sont dans le cycle d'octobre, pas dans un trou`() {
+        val s = EntriesStore(temps = listOf("2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-23", "2026-10-26", "2026-11-20", "2026-11-23").map { e(it) })
+        val r = rangement(s, reglages, "2026-11-24")
+        assertEquals(listOf("2026-10-16", "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-23"), r.getValue("2026-10").temps.map { it.date })
+        assertEquals(listOf("2026-10-26", "2026-11-20"), r.getValue("2026-11").temps.map { it.date })
+        assertEquals(listOf("2026-11-23"), r.getValue("2026-12").temps.map { it.date })
     }
 
     @Test
-    fun `cycle precedent detecte quand une entree y est enregistree`() {
-        val store = EntriesStore(temps = listOf(entry("2026-11-20")))
-        val (cs, _) = com.morpheus45.gsystem.util.DateUtil.currentCycle(
-            LocalDate.parse("2026-11-20"), 21, "2026-11-20"
-        )
-        // Le cycle courant est 21/11 -> 20/12 ; le 20/11 est dans le precedent.
-        assertTrue("Une entree du 20/11 (dernier jour) doit etre detectee dans le cycle precedent",
-            com.morpheus45.gsystem.backup.CycleSync.hasEntriesInPreviousCycle(store, cs))
+    fun `chaque jour tombe dans au moins un fichier, quelles que soient les dates d'envoi`() {
+        val debut = LocalDate.parse("2026-05-01")
+        val s = EntriesStore(temps = (0L..400L).map { e(debut.plusDays(it).toString()) })
+        val alea = java.util.Random(7)
+        repeat(300) { n ->
+            val today = LocalDate.parse("2026-06-15").plusDays(alea.nextInt(250).toLong())
+            var d = LocalDate.parse("2026-06-10")
+            val envois = mutableListOf<String>()
+            while (d.isBefore(today)) { envois += d.toString(); d = d.plusDays(15L + alea.nextInt(35)) }
+            val r = AppSettings(cycleStartDay = 1 + alea.nextInt(28),
+                lastEnvoiDateIso = envois.lastOrNull().orEmpty(), envoiHistoryIso = envois)
+            val couverts = CyclePlan.cycles(s, r, today).flatMap { (a, b) -> CyclePlan.ids(CyclePlan.fenetre(s, a, b)) }.toSet()
+            assertEquals("cas $n envois=$envois jour=${r.cycleStartDay} le $today", emptySet<String>(), CyclePlan.ids(s) - couverts)
+        }
     }
 
     @Test
-    fun `cycle precedent detecte quand une entree fut mise a jour`() {
-        val store = EntriesStore(
-            temps = listOf(entry("2026-11-05")),
-            gesteCo = listOf(GesteCoEntry(
-                id = "g1", date = "2026-11-12", siteNumber = "SITE-1",
-                installedGsm = 1, offeredGsm = 1
-            ))
-        )
-        val (cs, _) = com.morpheus45.gsystem.util.DateUtil.currentCycle(
-            LocalDate.parse("2026-11-23"), 21, "2026-11-20"
-        )
-        // Cycle courant : 21/11 -> 20/12. Les 5/11 et 12/11 sont dans le precedent.
-        assertTrue("Les mises a jour sur les 5/11 et 12/11 doivent etre detectees dans le cycle precedent",
-            com.morpheus45.gsystem.backup.CycleSync.hasEntriesInPreviousCycle(store, cs))
+    fun `saisie du jour de l'envoi reste dans le cycle clos`() {
+        val r = rangement(EntriesStore(temps = listOf(e("2026-11-20"))), reglages, "2026-11-20")
+        assertEquals(1, r.getValue("2026-11").temps.size)
     }
 
     @Test
-    fun `cycle precedent non detecte quand rien ne s'y trouve`() {
-        val store = EntriesStore(temps = listOf(entry("2026-11-25"))) // 25/11 = futur cycle
-        val (cs, _) = com.morpheus45.gsystem.util.DateUtil.currentCycle(
-            LocalDate.parse("2026-11-25"), 21, "2026-11-20"
-        )
-        // Cycle courant : 21/11 -> 20/12. 25/11 est dans le futur -> pas de push precedent.
-        assertFalse("Pas d'entrée dans le cycle precedent -> pas de push",
-            com.morpheus45.gsystem.backup.CycleSync.hasEntriesInPreviousCycle(store, cs))
+    fun `le cycle courant est envoyé même vide`() {
+        assertTrue("2026-12" in rangement(EntriesStore(), reglages, "2026-11-24"))
+    }
+
+    private val a = "temps/a"; private val b = "temps/b"
+
+    @Test
+    fun `ajout ou contenu égal - on envoie`() {
+        assertEquals(Avis.POUSSER, CyclePlan.avis("m", setOf(a, b), setOf(a, b), emptySet(), mapOf("m" to setOf(a))))
+        assertEquals(Avis.POUSSER, CyclePlan.avis("m", setOf(a), setOf(a), emptySet(), emptyMap()))
+    }
+
+    @Test
+    fun `téléphone neuf ou vidé - on n'écrase rien`() {
+        assertEquals(Avis.REFUSER, CyclePlan.avis("m", emptySet(), emptySet(), emptySet(), mapOf("m" to setOf(a))))
+        assertEquals(Avis.REFUSER, CyclePlan.avis("m", setOf(b), setOf(b), emptySet(), mapOf("m" to setOf(a))))
+        assertEquals("même s'il les a déjà eues", Avis.REFUSER, CyclePlan.avis("m", emptySet(), emptySet(), setOf(a), mapOf("m" to setOf(a))))
+    }
+
+    @Test
+    fun `entrée supprimée sur ce téléphone - copie avant de remplacer`() {
+        assertEquals(Avis.ARCHIVER, CyclePlan.avis("m", setOf(b), setOf(b), setOf(a, b), mapOf("m" to setOf(a, b))))
+    }
+
+    @Test
+    fun `entrée qui change de cycle - attend que l'autre fichier soit écrit`() {
+        assertEquals(Avis.ATTENDRE, CyclePlan.avis("m", setOf(b), setOf(a, b), setOf(a, b), mapOf("m" to setOf(a, b))))
+        assertEquals(Avis.ARCHIVER, CyclePlan.avis("m", setOf(b), setOf(a, b), setOf(a, b), mapOf("m" to setOf(a, b), "n" to setOf(a))))
     }
 }

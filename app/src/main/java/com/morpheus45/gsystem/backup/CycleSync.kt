@@ -15,6 +15,8 @@ import com.morpheus45.gsystem.data.EntriesStore
 import com.morpheus45.gsystem.photos.PhotoStorage
 import com.morpheus45.gsystem.util.DateUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
@@ -36,19 +38,101 @@ object CycleSync {
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    // ---------------------------------------------------------------------
+    // État connu du Drive (relu une fois par ouverture de l'appli) et mémoire des
+    // entrées déjà passées sur CE téléphone : voir [CyclePlan.avis].
+    // ---------------------------------------------------------------------
+    private val verrou = Mutex()
+    private var driveUser = ""
+    private var drive: MutableMap<String, String>? = null   // mois -> texte de donnees.json
+
+    private fun vusFile(context: Context) = java.io.File(context.filesDir, "sync_ids.json")
+
+    private fun lireVus(context: Context): Set<String> = runCatching {
+        val a = org.json.JSONArray(vusFile(context).readText())
+        (0 until a.length()).map { a.getString(it) }.toSet()
+    }.getOrDefault(emptySet())
+
+    private fun ecrireVus(context: Context, vus: Set<String>): Boolean = runCatching {
+        val tmp = java.io.File(context.filesDir, "sync_ids.tmp")
+        tmp.writeText(org.json.JSONArray(vus.toList()).toString())
+        tmp.renameTo(vusFile(context))
+    }.getOrDefault(false)
+
+    private fun entrees(texte: String): EntriesStore =
+        json.decodeFromString(EntriesStore.serializer(), JSONObject(texte).getJSONObject("entries").toString())
+
+    private fun photosDe(texte: String?): Map<String, String> {
+        val o = texte?.let { JSONObject(it).optJSONObject("photos") } ?: return emptyMap()
+        return o.keys().asSequence().associateWith { o.getString(it) }
+    }
+
+    /** À appeler après une restauration : le Drive sera relu. */
+    fun oublierDrive() { drive = null }
+
     /**
-     * Vérifie si le store contient des entrées dans le cycle PRÉCÉDENT immédiat
-     * (celui qui se termine la veille du début du cycle courant `cs`).
-     * Utilisé par la synchro temps réel pour décider de repousser le cycle
-     * précédent quand une saisie/modification y a eu lieu après l'envoi mensuel.
+     * Envoie les cycles, du plus ancien au plus récent. Un cycle passé identique au
+     * Drive n'est pas renvoyé (sauf [tout]). Retourne le nombre de cycles à jour,
+     * ou -1 si au moins un n'a pas pu l'être : rien n'a alors été écrasé.
      */
-    fun hasEntriesInPreviousCycle(store: EntriesStore, cs: LocalDate): Boolean {
-        val prevStart = cs.minusMonths(1)
-        val prevEnd = cs.minusDays(1)
-        val allDates = (store.temps.map { it.date } + store.frais.map { it.date } +
-            store.gesteCo.map { it.date } + store.compteur.map { it.date })
-            .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-        return allDates.any { it in prevStart..prevEnd }
+    suspend fun synchroniser(
+        context: Context, settings: AppSettings, store: EntriesStore, tout: Boolean = false
+    ): Int = verrou.withLock {
+        withContext(Dispatchers.IO) {
+            if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext -1
+            runCatching {
+                if (DriveSync.restoreInProgress) return@runCatching -1
+                if (drive == null || driveUser != settings.nomUtilisateur) {
+                    drive = DriveSync.lireCycles(settings.nomUtilisateur)?.toMutableMap()
+                    driveUser = settings.nomUtilisateur
+                }
+                val etat = drive ?: return@runCatching -1            // Drive illisible : on n'écrit rien
+                val contenu = etat.mapValues { CyclePlan.ids(entrees(it.value)) }.toMutableMap()
+                val locaux = CyclePlan.ids(store)
+                val vus = lireVus(context)
+
+                val cycles = CyclePlan.cycles(store, settings)
+                val faits = HashSet<String>()
+                // Deux passages : une entrée peut attendre que son nouveau fichier soit écrit.
+                repeat(2) {
+                    for ((s, e) in cycles) {
+                        if (DriveSync.restoreInProgress) return@runCatching -1
+                        val mois = CyclePlan.mois(e)
+                        if (mois in faits) continue
+                        val part = CyclePlan.fenetre(store, s, e)
+                        val ids = CyclePlan.ids(part)
+                        when (CyclePlan.avis(mois, ids, locaux, vus, contenu)) {
+                            CyclePlan.Avis.REFUSER, CyclePlan.Avis.ATTENDRE -> continue
+                            CyclePlan.Avis.ARCHIVER -> {
+                                // Copie de l'ancien fichier : le nettoyage du Drive n'y touche pas.
+                                val ok = BackupUploader.uploadBytes(
+                                    settings.nomUtilisateur, "_secours",
+                                    "donnees-$mois-${System.currentTimeMillis()}.json", "application/json",
+                                    etat.getValue(mois).toByteArray(Charsets.UTF_8))
+                                if (!ok) continue
+                            }
+                            CyclePlan.Avis.POUSSER -> Unit
+                        }
+                        val ancien = etat[mois]
+                        val courant = DateUtil.today().let { it in s..e }
+                        val identique = ancien != null && !tout && !courant && entrees(ancien) == part
+                        if (!identique) {
+                            val texte = pushCycle(context, settings, store, s, e, ancien, tout) ?: continue
+                            etat[mois] = texte
+                            contenu[mois] = ids
+                        }
+                        faits.add(mois)
+                    }
+                }
+                // Mémorisé seulement après un passage : ce que le téléphone contient vraiment.
+                if (!ecrireVus(context, vus + locaux)) return@runCatching -1
+                if (faits.size == cycles.map { CyclePlan.mois(it.second) }.toSet().size) faits.size else -1
+            }.getOrElse { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                drive = null                                         // état incertain : relu au prochain passage
+                -1
+            }
+        }
     }
 
     private fun mimeFor(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
@@ -89,41 +173,47 @@ object CycleSync {
         }
     }
 
-    /** Pousse UN cycle dans son dossier mois-de-fin. */
-    suspend fun pushCycle(
+    /** Pousse UN cycle dans son dossier mois-de-fin. Retourne le donnees.json envoyé, null si échec. */
+    private suspend fun pushCycle(
         context: Context, settings: AppSettings, store: EntriesStore,
         start: LocalDate, end: LocalDate,
+        /** donnees.json actuel du Drive pour ce mois (null s'il n'existe pas). */
+        ancien: String?,
         /**
          * true = renvoie les photos même si l'index les croit déjà en ligne.
          * Utilisé par la sauvegarde complète : c'est le filet de sécurité si le
          * Drive a été vidé à la main, sinon ces photos ne repartiraient jamais.
          */
         forcerPhotos: Boolean = false
-    ): Boolean = withContext(Dispatchers.IO) {
-        if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext false
+    ): String? = withContext(Dispatchers.IO) {
         runCatching {
             val user = settings.nomUtilisateur
             val month = end.toString().take(7)
-            val s = start.toString(); val e = end.toString()
-            fun inP(d: String) = d in s..e
-
-            val temps = store.temps.filter { inP(it.date) }
-            val gestes = store.gesteCo.filter { inP(it.date) }
-            val frais = store.frais.filter { inP(it.date) }
-            val compteur = store.compteur.filter { inP(it.date) }
+            val cycleStore = CyclePlan.fenetre(store, start, end)
+            val frais = cycleStore.frais
+            val compteur = cycleStore.compteur
 
             val keep = ArrayList<String>()
             val photoMap = JSONObject()   // nom de fichier local -> nom propre sur le Drive
             // Index des photos déjà en ligne : on ne renvoie que ce qui a changé.
             val dejaEnvoyees = lireIndex(context)
             var indexModifie = false
+            var echecPhoto = false
+            val photosDrive = photosDe(ancien)
             /** Envoie la photo SEULEMENT si elle n'est pas déjà en ligne à l'identique. */
             suspend fun envoyerSiNouvelle(src: java.io.File, driveName: String, mime: String) {
-                val empreinte = "$driveName|${src.length()}"
-                if (!forcerPhotos && dejaEnvoyees[src.name] == empreinte) return
-                BackupUploader.uploadBytes(user, month, driveName, mime, src.readBytes())
-                dejaEnvoyees[src.name] = empreinte
-                indexModifie = true
+                // Le mois fait partie de l'empreinte : une photo qui change de cycle doit
+                // repartir dans son nouveau dossier (l'ancien sera nettoyé). Les empreintes
+                // d'avant, sans mois, ne valent que si le Drive la range déjà ici.
+                val sansMois = "$driveName|${src.length()}"
+                val empreinte = "$month/$sansMois"
+                val connue = dejaEnvoyees[src.name]
+                if (!forcerPhotos && (connue == empreinte ||
+                        (connue == sansMois && photosDrive[src.name] == driveName))) return
+                if (BackupUploader.uploadBytes(user, month, driveName, mime, src.readBytes())) {
+                    dejaEnvoyees[src.name] = empreinte
+                    indexModifie = true
+                } else echecPhoto = true
             }
 
             // Frais : noms propres FRAIS-CATÉGORIE-N.ext (même logique que l'envoi).
@@ -152,13 +242,15 @@ object CycleSync {
                 }
             }
             // donnees.json de CE cycle : entrées + correspondance de noms.
-            val cycleStore = EntriesStore(temps = temps, gesteCo = gestes, frais = frais, compteur = compteur)
             val payload = JSONObject()
                 .put("entries", JSONObject(json.encodeToString(EntriesStore.serializer(), cycleStore)))
                 .put("photos", photoMap)
                 .toString()
-            BackupUploader.uploadBytes(user, month, "donnees.json", "application/json",
+            val envoye = BackupUploader.uploadBytes(user, month, "donnees.json", "application/json",
                 payload.toByteArray(Charsets.UTF_8))
+            if (indexModifie) ecrireIndex(context, dejaEnvoyees)
+            // Envoi incomplet : on ne nettoie RIEN sur le Drive, et on réessaiera.
+            if (!envoye || echecPhoto) return@runCatching null
             keep.add("donnees.json")
 
             // _stats.json (tableau de bord).
@@ -167,55 +259,12 @@ object CycleSync {
             // Supprime l'obsolète : frais/compteur/donnees plus référencés. Ne touche
             // JAMAIS aux livrables d'envoi (_stats.json, *.xlsm, Recap-*, mail-*).
             DriveSync.cyclePrune(user, month, keep)
-            if (indexModifie) ecrireIndex(context, dejaEnvoyees)
-            true
+            payload
         }.getOrElse { e ->
             // Ne jamais avaler l'annulation de la coroutine (sinon push partiel
             // sans prune, silencieux).
             if (e is kotlinx.coroutines.CancellationException) throw e
-            false
+            null
         }
     }
-
-    /** Régénère TOUS les cycles présents dans les données. Retourne le nombre traité. */
-    suspend fun syncAllCycles(context: Context, settings: AppSettings, store: EntriesStore): Int =
-        withContext(Dispatchers.IO) {
-            if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext 0
-            val dates = (store.temps.map { it.date } + store.frais.map { it.date } +
-                store.gesteCo.map { it.date } + store.compteur.map { it.date })
-                .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-            if (dates.isEmpty()) return@withContext 0
-            // Même autorité de rangement que le temps réel et la clôture (cycle glissant,
-            // sans chevauchement) : une donnée n'atterrit QUE dans un seul dossier.
-            val cycles = DateUtil.cyclesFor(
-                dates, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
-            )
-            cycles.forEach { (cs, ce) ->
-                pushCycle(context, settings, store, cs, ce, forcerPhotos = true)
-            }
-            cycles.size
-        }
-
-    /**
-     * Pousse les cycles POSTÉRIEURS au cycle courant : congés/formations saisis
-     * en avance. Sans ça, ces jours resteraient uniquement sur le téléphone
-     * jusqu'à ce que leur cycle devienne le cycle courant.
-     */
-    suspend fun pushFutureCycles(context: Context, settings: AppSettings, store: EntriesStore): Int =
-        withContext(Dispatchers.IO) {
-            if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank()) return@withContext 0
-            val (_, curEnd) = DateUtil.currentCycle(
-                DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
-            )
-            val futures = (store.temps.map { it.date } + store.frais.map { it.date } +
-                store.gesteCo.map { it.date } + store.compteur.map { it.date })
-                .mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
-                .filter { it.isAfter(curEnd) }
-            if (futures.isEmpty()) return@withContext 0
-            val cycles = DateUtil.cyclesFor(
-                futures, settings.cycleStartDay, settings.lastEnvoiDateIso, settings.envoiHistoryIso
-            )
-            cycles.forEach { (cs, ce) -> pushCycle(context, settings, store, cs, ce) }
-            cycles.size
-        }
 }

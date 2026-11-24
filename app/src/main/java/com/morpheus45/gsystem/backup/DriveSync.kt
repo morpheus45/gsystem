@@ -67,11 +67,27 @@ object DriveSync {
     ): String = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
             return@withContext "Renseigne ton nom dans les réglages d'abord."
-        // Réglages globaux à la racine (tarifs, e-mails…) — léger, pour la restauration.
-        BackupUploader.uploadBytes(settings.nomUtilisateur, "__root__", "reglages.json",
+        // Les cycles d'abord : un téléphone neuf, pas encore restauré, ne doit écraser
+        // ni les données ni les réglages du Drive.
+        val n = CycleSync.synchroniser(context, settings, store, tout = true)
+        if (n < 0) return@withContext "Sauvegarde incomplète, rien n'a été écrasé. Réessaie ; " +
+            "sur un téléphone neuf, fais d'abord « Restaurer »."
+        val ok = BackupUploader.uploadBytes(settings.nomUtilisateur, "__root__", "reglages.json",
             "application/json", settingsJson.toByteArray(Charsets.UTF_8))
-        val n = CycleSync.syncAllCycles(context, settings, store)
-        if (n == 0) "Aucune donnée à synchroniser." else "✅ $n cycle(s) à jour sur le Drive"
+        if (!ok) "Données à jour, mais les réglages n'ont pas pu être envoyés. Réessaie."
+        else "✅ $n cycle(s) à jour sur le Drive"
+    }
+
+    /** donnees.json de chaque cycle du Drive (mois -> texte), null si le Drive est illisible. */
+    fun lireCycles(user: String): Map<String, String>? {
+        val rep = postJson(JSONObject().apply {
+            put("token", BackupConfig.TOKEN); put("action", "restore_list"); put("user", user)
+        }) ?: return null
+        if (!rep.optBoolean("ok")) return null
+        val cycles = rep.optJSONArray("cycles") ?: return null
+        return (0 until cycles.length()).mapNotNull { cycles.optJSONObject(it) }
+            .associate { it.optString("month") to it.optString("donnees") }
+            .filterValues { it.isNotBlank() }
     }
 
     /** Appelé par [CycleSync] : supprime les fichiers obsolètes d'un dossier de cycle. */
@@ -146,6 +162,6 @@ object DriveSync {
                 .getOrNull()?.let { applyDriveSettings(it) }
         }
         "✅ Restauré · $addedEntries entrée(s) + $gotPhotos photo(s) ajoutées"
-        } finally { restoreInProgress = false }
+        } finally { restoreInProgress = false; CycleSync.oublierDrive() }
     }
 }

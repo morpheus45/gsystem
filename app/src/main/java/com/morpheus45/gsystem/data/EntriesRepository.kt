@@ -28,24 +28,38 @@ class EntriesRepository private constructor(context: Context) {
     private val file: File = File(context.filesDir, "entries.json")
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
 
+    private val backupFile: File = File(file.parentFile, file.name + ".bak")
+
+    // Après json et backupFile : load() s'en sert.
     private val _store = MutableStateFlow(load())
     val store: StateFlow<EntriesStore> = _store.asStateFlow()
 
-    private fun load(): EntriesStore {
-        if (!file.exists()) return EntriesStore()
-        return runCatching {
-            json.decodeFromString(EntriesStore.serializer(), file.readText())
-        }.getOrElse { EntriesStore() }
-    }
+    private fun lire(f: File): EntriesStore? =
+        if (!f.exists()) null
+        else runCatching { json.decodeFromString(EntriesStore.serializer(), f.readText()) }.getOrNull()
 
-    private val backupFile: File = File(file.parentFile, file.name + ".bak")
+    /** Fichier illisible (coupure pendant l'écriture) : on en garde une copie et on reprend l'état d'avant. */
+    private fun load(): EntriesStore {
+        lire(file)?.let { return it }
+        if (file.exists()) runCatching {
+            file.copyTo(File(file.parentFile, "${file.name}.illisible-${System.currentTimeMillis()}"))
+        }
+        return lire(backupFile) ?: EntriesStore()
+    }
 
     private suspend fun persist(new: EntriesStore) = withContext(Dispatchers.IO) {
         // Backup automatique de l'avant-dernier état avant d'écraser
-        if (file.exists()) {
+        // (seulement s'il est lisible : un fichier abîmé ne remplace pas une bonne copie).
+        if (lire(file) != null) {
             runCatching { file.copyTo(backupFile, overwrite = true) }
         }
-        file.writeText(json.encodeToString(EntriesStore.serializer(), new))
+        // Écriture à côté puis échange : une coupure laisse l'ancien fichier entier.
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        java.io.FileOutputStream(tmp).use {
+            it.write(json.encodeToString(EntriesStore.serializer(), new).toByteArray(Charsets.UTF_8))
+            it.fd.sync()
+        }
+        if (!tmp.renameTo(file)) error("enregistrement impossible")
         _store.value = new
     }
 

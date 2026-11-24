@@ -390,21 +390,9 @@ fun AppNav() {
             // encore re-téléchargées et le prune les effacerait du Drive.
             if (DriveSync.restoreInProgress) return@collect
             driveSynced = false
-            val (cs, ce) = DateUtil.currentCycle(
-                DateUtil.today(), settings.cycleStartDay, settings.lastEnvoiDateIso
-            )
-            // Synchro du cycle EN COURS : frais/compteur propres + donnees.json +
-            // _stats.json dans son dossier, obsolète supprimé (hors .xlsm/Recap).
-            driveSynced = CycleSync.pushCycle(context, settings, snapshot, cs, ce)
-            // Cycle PRÉCÉDENT : si une entrée a été ajoutée/modifiée dans le cycle
-            // précédent (ex: saisie le dernier jour du cycle après l'envoi mensuel),
-            // on repousse ce cycle pour que son donnees.json soit à jour sur le Drive.
-            if (CycleSync.hasEntriesInPreviousCycle(snapshot, cs)) {
-                CycleSync.pushCycle(context, settings, snapshot, cs.minusMonths(1), cs.minusDays(1))
-            }
-            // Jours saisis EN AVANCE (congés/formation) : sauvegardés d'office dans
-            // le dossier de leur futur cycle, sans attendre que celui-ci arrive.
-            CycleSync.pushFutureCycles(context, settings, snapshot)
+            // Tous les cycles, rangés d'après les VRAIES dates d'envoi : en cours, passés
+            // (saisie tardive) et à venir (congés). Les cycles passés inchangés ne repartent pas.
+            driveSynced = CycleSync.synchroniser(context, settings, snapshot) >= 0
         }
     }
 
