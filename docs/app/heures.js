@@ -4,8 +4,8 @@
  */
 
 // Calcul des heures d'une journee - miroir de util/HoursCalculator.kt.
-// La regle n'est PAS un cumul d'horaires : elle depend des demi-journees
-// occupees et de celles reellement realisees (observation vide = realisee).
+// La regle n'est PAS un cumul d'horaires : elle depend de chaque demi-journee
+// (INST non realisee = 2h, tout le reste = 4h ; Cedric, 24/11/2026).
 
 const JOURNEE_ENTIERE = ['VACANCES', 'FORMATION', 'FERIE'];
 
@@ -30,26 +30,21 @@ export function heuresDuJour(entrees) {
   if (entrees.some(estPlanningVide)) return 0;   // journee sans mission
   if (entrees.some(estJourneeEntiere)) return 7;
 
-  const matinOccupe = entrees.some((e) => dansCreneau(e, 'MATIN'));
-  const apremOccupe = entrees.some((e) => dansCreneau(e, 'APREM'));
-  const matinOk = entrees.some((e) => dansCreneau(e, 'MATIN') && !e.observationType);
-  const apremOk = entrees.some((e) => dansCreneau(e, 'APREM') && !e.observationType);
+  return heuresDuCreneau(entrees, 'MATIN') + heuresDuCreneau(entrees, 'APREM');
+}
 
-  const occupes = (matinOccupe ? 1 : 0) + (apremOccupe ? 1 : 0);
-  const realises = (matinOk ? 1 : 0) + (apremOk ? 1 : 0);
-
-  if (occupes === 0) return 0;
-  if (occupes === 1) return 4;
-  return realises === 2 ? 8 : 6;
+/** 0h sans intervention ; 2h si seulement des INST NR ou annulees ; 4h pour tout le reste. */
+export function heuresDuCreneau(entrees, creneau) {
+  const l = entrees.filter((e) => dansCreneau(e, creneau));
+  if (!l.length) return 0;
+  return l.every((e) => String(e.typeMission || '').trim().toUpperCase() === 'INST' && e.observationType) ? 2 : 4;
 }
 
 export function expliquerHeures(entrees) {
   if (!entrees.length) return 'Aucune intervention \u2192 0h';
   if (entrees.some(estPlanningVide)) return 'Planning vide \u2192 0h';
   if (entrees.some(estJourneeEntiere)) return 'Journ\u00e9e enti\u00e8re \u2192 7h';
-  const h = heuresDuJour(entrees);
-  if (h === 8) return 'Matin et apr\u00e8s-midi r\u00e9alis\u00e9s \u2192 8h';
-  if (h === 6) return 'Matin et apr\u00e8s-midi, au moins une NR \u2192 6h';
-  if (h === 4) return 'Une seule demi-journ\u00e9e \u2192 4h';
-  return '0h';
+  const m = heuresDuCreneau(entrees, 'MATIN');
+  const a = heuresDuCreneau(entrees, 'APREM');
+  return 'Matin ' + m + 'h + apr\u00e8s-midi ' + a + 'h \u2192 ' + (m + a) + 'h';
 }
