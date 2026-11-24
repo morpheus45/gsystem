@@ -1107,9 +1107,14 @@ function vueEnvoi() {
         ? 'Remplacer la photo' : 'Photo du compteur'}</label>
       ${img ? '<img class="apercu-photo" src="' + img + '" alt="Compteur" />' : ''}
       <input id="e_compteur" type="file" accept="image/*" capture="environment" />
+      <label for="e_km">Kilom\u00e9trage du compteur</label>
+      <input id="e_km" inputmode="numeric" maxlength="9" placeholder="Nombre lu sur le compteur"
+             value="${ech(envoi.km !== undefined ? envoi.km : ((compteur && compteur.kilometres) || ''))}" />
+      <div class="aide" id="e_km_avis">${ech(avisKm(lireKm(envoi.km !== undefined ? envoi.km : (compteur && compteur.kilometres)))
+        || (compteur && compteur.kilometres ? '\u2713 ' + compteur.kilometres + ' km enregistr\u00e9s.' : compteur ? '' : 'Sera enregistr\u00e9 avec la photo.'))}</div>
       <div class="aide">V\u00e9hicule : ${ech(reglages.plaqueVoiture
-        || '<plaque non saisie dans les r\u00e9glages>')}. Le kilom\u00e9trage est
-        lu directement sur la photo. Une seule photo par cycle : la nouvelle
+        || '<plaque non saisie dans les r\u00e9glages>')}. Le bureau compare le
+        kilom\u00e9trage \u00e0 la photo. Une seule photo par cycle : la nouvelle
         remplace la pr\u00e9c\u00e9dente.</div>
     </div>
     ${compteur ? '<button class="btn" id="e_suppr_compteur" '
@@ -1949,6 +1954,35 @@ function envoyerDemandeBrouillard() {
     + '&body=' + encodeURIComponent(corps);
 }
 
+/** Kilometrage saisi : chiffres seulement, 0 si vide ou impossible. */
+function lireKm(texte) {
+  const n = parseInt(String(texte === undefined || texte === null ? '' : texte).replace(/\D/g, ''), 10);
+  return n >= 1 && n <= 2000000 ? n : 0;
+}
+
+/** Dernier km connu hors du cycle affiche. */
+function dernierKm() {
+  return (entrees.compteur || []).filter((c) => c.kilometres > 0 && c.date <= envoi.fin && !dansPeriode(c.date, envoi.debut, envoi.fin))
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).map((c) => c.kilometres)[0] || 0;
+}
+
+/** Avertissement, jamais bloquant (changement de vehicule). */
+function avisKm(km) {
+  const avant = dernierKm();
+  if (!km || !avant) return '';
+  if (km < avant) return 'Plus bas que le dernier relev\u00e9 (' + avant + ' km). V\u00e9rifiez, ou laissez si vous avez chang\u00e9 de v\u00e9hicule.';
+  return km - avant > 10000 ? (km - avant) + ' km de plus que le dernier relev\u00e9. V\u00e9rifiez la saisie.' : '';
+}
+
+function enregistrerKm(texte) {
+  envoi.km = String(texte).replace(/\D/g, '').slice(0, 7);
+  const c = compteurDuCycle(contenuPeriode(envoi.debut, envoi.fin).compteur);
+  const km = lireKm(envoi.km);
+  if (!c || !km || c.kilometres === km) return;
+  entrees.compteur = entrees.compteur.map((x) => (x.id === c.id ? { ...x, kilometres: km } : x));
+  ecrireEntrees(entrees);
+}
+
 /** La photo du compteur du cycle : la nouvelle remplace toutes les anciennes. */
 async function enregistrerCompteur(dataUrl) {
   const date = dateCompteurCycle(envoi.debut, envoi.fin);
@@ -1957,25 +1991,9 @@ async function enregistrerCompteur(dataUrl) {
     toast('M\u00e9moire du navigateur pleine : envoyez le mensuel, puis reprenez.', 6000);
     return false;
   }
-  // Demander le kilométrage (entier, ≥ dernier relevé connu).
-  let dernierKm = 0;
-  if (entrees.compteur && entrees.compteur.length) {
-    for (const c of entrees.compteur) {
-      if (typeof c.kilometres === 'number' && c.kilometres > dernierKm) {
-        dernierKm = c.kilometres;
-      }
-    }
-  }
-  const saisie = prompt('Kilométrage du compteur (entier, \u2265 ' + dernierKm + ') :', String(dernierKm));
-  if (saisie === null) {
-    // Annulé : on ne crée pas l'entrée, la photo reste mais ne sera pas liée.
-    return false;
-  }
-  const km = parseInt(saisie, 10);
-  if (isNaN(km) || km < dernierKm) {
-    toast('Kilométrage invalide (doit être \u2265 ' + dernierKm + ').');
-    return false;
-  }
+  // Le km deja saisi pour ce cycle suit la nouvelle photo.
+  const ancien = compteurDuCycle(contenuPeriode(envoi.debut, envoi.fin).compteur);
+  const km = lireKm(envoi.km) || (ancien && ancien.kilometres) || 0;
   // Une seule photo par cycle : les precedentes sont retirees, fichier compris,
   // ce qui nettoie au passage les doublons deja accumules.
   contenuPeriode(envoi.debut, envoi.fin).compteur.forEach((c) => {
@@ -2450,7 +2468,16 @@ document.addEventListener('change', async (e) => {
 });
 
 // Apercu du message tenu a jour pendant la frappe.
+document.addEventListener('change', (e) => {
+  if (ecran === 'envoi' && e.target.id === 'e_km') { enregistrerKm(e.target.value); rendre(); }
+});
+
 document.addEventListener('input', (e) => {
+  if (ecran === 'envoi' && e.target.id === 'e_km') {
+    envoi.km = e.target.value.replace(/\D/g, '').slice(0, 7);
+    const z = $('#e_km_avis'); if (z) z.textContent = avisKm(lireKm(envoi.km));
+    return;
+  }
   if (ecran === 'ticket') { lireTicket(); rendreMontants(); return; }
   if (ecran === 'pv') {
     if (e.target.matches('#p_ext, #p_int, #p_torus')) { lirePv(); rendre(); }
