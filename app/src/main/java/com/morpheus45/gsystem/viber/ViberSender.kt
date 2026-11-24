@@ -31,14 +31,8 @@ object ViberSender {
         "NR_TECHNIQUE" to "NR technique",
         "NR_CLIENT_ABS" to "NR client absent",
         "NR_AUTRES" to "NR autres",
-        "ANNULE_ROUTE" to "Annulée en route",
-        "ANNULE_SITE" to "Annulée sur site",
-        "ANNULE" to "Annulé (ancien)",
+        "ANNULE" to "Annulé",
     )
-
-    /** L'ancien « Annulé » n'est proposé que s'il est déjà choisi. */
-    fun choix(actuel: String): List<Pair<String, String>> =
-        OBSERVATION_LABELS.filter { it.first != "ANNULE" || actuel == "ANNULE" }
 
     /** Construit la phrase Viber selon le code observationType de l'entrée. */
     fun buildMessage(entry: TempsEntry): String {
@@ -55,8 +49,6 @@ object ViberSender {
             "NR_CLIENT_ABS" -> "NR CLIENT ABS"
             "NR_AUTRES" -> "NR AUTRES"
             "ANNULE" -> "ANNULE"
-            "ANNULE_ROUTE" -> "ANNULE EN ROUTE"
-            "ANNULE_SITE" -> "ANNULE SUR SITE"
             else -> "ok"
         }
         // La note libre est jointe au message pour toutes les NR (précision).

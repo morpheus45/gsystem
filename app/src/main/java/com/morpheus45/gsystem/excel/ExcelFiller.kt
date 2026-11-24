@@ -204,7 +204,13 @@ class ExcelFiller(private val context: Context, private val excelUri: Uri) {
     }
 
     private fun buildObservation(e: TempsEntry): String {
-        val codeLabel = com.morpheus45.gsystem.util.Resultat.majuscules(e.observationType)
+        val codeLabel = when (e.observationType) {
+            "NR_CLIENT" -> "NR CLIENT"
+            "NR_TECHNIQUE" -> "NR TECHNIQUE"
+            "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+            "NR_AUTRES" -> "NR AUTRES"
+            else -> ""
+        }
         val retardLabel = when (e.motifRetard) {
             "ADRESSE" -> "RETARD : PROBLÈME ADRESSE"
             "ATTENTE" -> "RETARD : ATTENTE CLIENT"

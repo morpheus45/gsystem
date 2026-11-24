@@ -351,8 +351,14 @@ private fun TempsCard(
                     entry.typeMission, entry.nomClient, entry.ville, entry.numeroIntervention
                 ).filter { it.isNotBlank() }.joinToString(" ")
                 Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                val obsTxt = if (entry.observationType == com.morpheus45.gsystem.util.Resultat.ANNULE) "ANNULÉ"
-                    else com.morpheus45.gsystem.util.Resultat.majuscules(entry.observationType)
+                val obsTxt = when (entry.observationType) {
+                    "NR_CLIENT" -> "NR CLIENT"
+                    "NR_TECHNIQUE" -> "NR TECHNIQUE"
+                    "NR_CLIENT_ABS" -> "NR CLIENT ABS"
+                    "NR_AUTRES" -> "NR AUTRES"
+                    "ANNULE" -> "ANNULÉ"
+                    else -> ""
+                }
                 val motifTxt = when (entry.motifRetard) {
                     "ADRESSE" -> "Retard : problème adresse"
                     "ATTENTE" -> "Retard : attente client"
@@ -699,7 +705,7 @@ private fun AddTempsDialog(
                         Spacer(Modifier.height(8.dp))
 
                         // Observation (OK / NR ...) — bien visible
-                        val obsLabel = ViberSender.OBSERVATION_LABELS.firstOrNull { it.first == obsType }?.second ?: obsType
+                        val obsLabel = ViberSender.OBSERVATION_LABELS.first { it.first == obsType }.second
                         ExposedDropdownMenuBox(
                             expanded = obsExpanded,
                             onExpandedChange = { obsExpanded = it }
@@ -714,7 +720,7 @@ private fun AddTempsDialog(
                                 expanded = obsExpanded,
                                 onDismissRequest = { obsExpanded = false }
                             ) {
-                                ViberSender.choix(obsType).forEach { (code, label) ->
+                                ViberSender.OBSERVATION_LABELS.forEach { (code, label) ->
                                     DropdownMenuItem(text = { Text(label) },
                                         onClick = { obsType = code; obsExpanded = false })
                                 }

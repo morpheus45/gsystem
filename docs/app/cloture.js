@@ -20,15 +20,8 @@ export const OBSERVATIONS = [
   ['NR_TECHNIQUE', 'NR technique'],
   ['NR_CLIENT_ABS', 'NR client absent'],
   ['NR_AUTRES', 'NR autres'],
-  ['ANNULE_ROUTE', 'Annul\u00e9e en route'],
-  ['ANNULE_SITE', 'Annul\u00e9e sur site'],
-  ['ANNULE', 'Annul\u00e9 (ancien)'],
+  ['ANNULE', 'Annul\u00e9'],
 ];
-
-/** L'ancien « Annule » n'est propose que s'il est deja choisi. */
-export function choixObservations(actuel) {
-  return OBSERVATIONS.filter((o) => o[0] !== 'ANNULE' || actuel === 'ANNULE');
-}
 
 export const MOTIFS_RETARD = [
   ['', 'Aucun'], ['ADRESSE', 'Probl\u00e8me adresse'],
