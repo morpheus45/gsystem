@@ -1790,11 +1790,11 @@ function afficherMoisFiche() {
   resumeTuiles.append(
     tuileChiffre('Prime', euros(primes.total), null, { ico: 'primes', cle: 'fiche-prime' }),
     tuileChiffre('Interventions', duMois.length, null, { ico: 'interventions', cle: 'fiche-interventions' }),
-    tuileChiffre('OK', duMois.filter((e) => !e.observation_type).length, null, { cle: 'fiche-ok' }),
+    tuileChiffre('OK', duMois.filter((e) => !e.observation_type).length, null, { ico: 'ok', cle: 'fiche-ok' }),
     tuileChiffre('NR', nr, null, { ico: 'nr', cle: 'fiche-nr' }),
     tuileChiffre('Heures', `${totalHeures} h`, null, { ico: 'heures', cle: 'fiche-heures' }),
     tuileChiffre('Frais validés', euros(valides.remboursable), null, { ico: 'frais', cle: 'fiche-frais-valides' }),
-    tuileChiffre('Photos (total)', fiche.photos, null, { cle: 'fiche-photos' })
+    tuileChiffre('Photos (total)', fiche.photos, null, { ico: 'photos', cle: 'fiche-photos' })
   );
   resume.appendChild(resumeTuiles);
 
@@ -1867,10 +1867,10 @@ function afficherMoisFiche() {
   fraisTuiles.className = 'tuiles';
   fraisTuiles.append(
     tuileChiffre('TTC', euros(totaux.ttc), null, { ico: 'frais', cle: 'fiche-frais-ttc' }),
-    tuileChiffre('HT', euros(totaux.ht), null, { cle: 'fiche-frais-ht' }),
-    tuileChiffre('TVA', euros(totaux.tva), null, { cle: 'fiche-frais-tva' }),
-    tuileChiffre('Remboursable', euros(totaux.remboursable), null, { cle: 'fiche-frais-remboursable' }),
-    tuileChiffre('Validé (remboursé)', euros(valides.remboursable), null, { cle: 'fiche-frais-valide' })
+    tuileChiffre('HT', euros(totaux.ht), null, { ico: 'frais', cle: 'fiche-frais-ht' }),
+    tuileChiffre('TVA', euros(totaux.tva), null, { ico: 'frais', cle: 'fiche-frais-tva' }),
+    tuileChiffre('Remboursable', euros(totaux.remboursable), null, { ico: 'frais', cle: 'fiche-frais-remboursable' }),
+    tuileChiffre('Validé (remboursé)', euros(valides.remboursable), null, { ico: 'ok', cle: 'fiche-frais-valide' })
   );
   $('#tech-frais-totaux').replaceChildren(fraisTuiles);
 }
@@ -2063,7 +2063,7 @@ function afficherPaie() {
   const sup1 = somme('sup1'), sup2 = somme('sup2');
   $('#paie-resume').replaceChildren(
     tuileChiffre('Techniciens', lignesPaie.length, `${lignesPaie.length - aTraiter} prêt(s)`, { ico: 'interventions', cle: 'paie-techniciens' }),
-    tuileChiffre('À traiter', aTraiter, null, { cle: 'paie-a-traiter' }),
+    tuileChiffre('À traiter', aTraiter, null, { ico: 'heures', cle: 'paie-a-traiter' }),
     tuileChiffre('Heures normales', h(somme('heuresNormales')), null, { ico: 'heures', cle: 'paie-heures' }),
     tuileChiffre('Heures supplémentaires', h(sup1 + sup2), `validées : ${h(sup1)} + ${h(sup2)}`, { ico: 'heures', cle: 'paie-heures-sup' }),
     tuileChiffre('Frais remboursables', euros(somme('fraisRemboursables')), null, { ico: 'frais', cle: 'paie-frais' }),
@@ -2522,7 +2522,7 @@ async function chargerFacturation() {
       ? recap.equipements.map((e) => ligne([e.type, e.qte])) : [ligne(['Aucun équipement installé sur la période', ''])]));
     $('#fact-resume').replaceChildren(
       tuileChiffre('Lignes d’intervention', recap.interventions.length, null, { ico: 'interventions', cle: 'fact-interventions' }),
-      tuileChiffre('Lignes d’équipement', recap.equipements.length, null, { cle: 'fact-equipements' }),
+      tuileChiffre('Lignes d’équipement', recap.equipements.length, null, { ico: 'interventions', cle: 'fact-equipements' }),
     );
     await chargerTarifs();
   } catch (err) {
