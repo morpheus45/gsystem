@@ -31,6 +31,11 @@ import { deposerEnvoi } from './backup.js';
 import { PASSERELLE, etatConnexion, demanderCode, connecter } from './connexion.js';
 import { sauvegarder, restaurer } from './sauvegarde.js';
 import { surEcriture } from './donnees.js';
+import {
+  listeModules, tuilesCachees, tuileVisible, nouvelId, nomPiece, lireBrouillon, garderBrouillon, effacerBrouillon, echanger,
+} from './modules.js';
+import { defautSaisie, valeursSaisie } from './modulesRegles.js';
+import { tuilesModules, vueModule, vueSaisies } from './modulesVue.js';
 import { envoyerMessage, chargerMessages, marquerLus } from './chat.js';
 import {
   TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
@@ -78,6 +83,10 @@ let chatTech = (reglages.nomUtilisateur || '').trim();
 let chatEnvoi = false;          // envoi en cours (pas de double envoi)
 let chatDraft = '';              // texte en cours de saisie
 let chatTimer = null;           // intervalle de rafraîchissement (12 s)
+let modBrouillon = null;        // formulaire du bureau ouvert
+let modErreur = '';
+let modOccupe = false;
+let modPads = {};              // cle du champ -> pad de signature
 let chatDernierFond = 0;        // dernier fetch de badge en arrière-plan (ms)
 
 const ech = (s) => String(s == null ? '' : s)
@@ -115,7 +124,11 @@ function vueAccueil() {
   // tuiles 01 ARRIVEE / 02 ATTENTE dans « Sur site ». Sans mission, l'accueil
   // reste strictement l'ancien.
   const missions = ongletActif === 'SITE' ? missionsActives() : [];
-  const liste = TUILES.filter((t) => t.groupe === ongletActif
+  const cachees = tuilesCachees();
+  const enCoursDe = enAttente ? reglages.pendingArrivalSource : '';
+  const modules = ongletActif === 'INTERV' ? listeModules() : [];
+  const mesSaisies = ongletActif === 'INTERV' && PASSERELLE ? entrees.modules : [];
+  const liste = TUILES.filter((t) => t.groupe === ongletActif && tuileVisible(t.ecran, cachees, enCoursDe)
     && !(missions.length && (t.num === '01' || t.num === '02')));
 
   // Memes couleurs que 01 (arrivee) puis que la tuile CLOTURER une fois pointee.
@@ -156,7 +169,7 @@ function vueAccueil() {
         <span class="txt"><div class="nom">${nom}</div>
         <div class="sous">${sous}</div></span>
       </button>`;
-  }).join('');
+  }).join('') + tuilesModules(modules, mesSaisies, ech);
 
   const nom = reglages.nomUtilisateur ? ' \u00b7 ' + ech(reglages.nomUtilisateur) : '';
   const duJour = entrees.temps.filter((e) => e.date === aujourdhuiIso());
@@ -192,7 +205,7 @@ function vueAccueil() {
   <div class="groupe">
     <span class="barre" style="background:${g.barre}"></span>
     <span><div class="titre" style="color:${g.barre}">${g.titre}</div>
-    <div class="desc">${g.desc} &middot; ${liste.length + missions.length} actions</div></span>
+    <div class="desc">${g.desc} &middot; ${liste.length + missions.length + modules.length} actions</div></span>
   </div>
   <main class="tuiles">${tuiles}</main>
   ${missionChoix ? vueChoixMission(missionChoix) : ''}`;
@@ -1278,9 +1291,13 @@ function rendre() {
     diagnostic: vueDiagnostic,
     envoi: vueEnvoi,
     chat: vueChat,
+    module: () => vueModule(modBrouillon, modErreur, photo, ech),
+    saisies: () => vueSaisies(entrees.modules, dateFr, ech),
   };
   app().innerHTML = (vues[ecran] || vueAccueil)();
   window.scrollTo(0, 0);
+  modPads = {};
+  document.querySelectorAll('[data-mod-pad]').forEach((c) => { modPads[c.dataset.modPad] = creerPad(c); });
   // Le canvas n'existe qu'apres le rendu : le pad est recree a chaque fois.
   const toile = $('#c_pad');
   pad = toile ? creerPad(toile) : null;
@@ -1521,6 +1538,7 @@ function pointerArrivee(source) {
 }
 
 async function ouvrir(cible) {
+  if (cible === 'saisies') { aller('saisies'); return; }
   if (cible === 'techline') { location.href = 'tel:' + TEL_TECHLINE; return; }
   if (cible === 'logistique') { location.href = 'tel:' + TEL_LOGISTIQUE; return; }
   if (cible === 'cloture' || cible === 'nouvelle') { aller(cible); return; }
@@ -2358,7 +2376,7 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const tuile = e.target.closest('.tuile');
+  const tuile = e.target.closest('.tuile[data-ecran]');
   if (tuile) { ouvrir(tuile.dataset.ecran); return; }
 
   if (e.target.closest('#valider')) { validerCloture(); return; }
@@ -2513,6 +2531,138 @@ document.addEventListener('input', (e) => {
 window.addEventListener('online', rendre);
 window.addEventListener('offline', rendre);
 
+// =========================================================== MODULES DU BUREAU
+function ouvrirModule(id) {
+  const m = listeModules().find((x) => x.id === id);
+  if (!m) return;
+  const b = lireBrouillon(id);
+  // Deja enregistre (page fermee juste apres) : ce brouillon ne doit pas donner une seconde saisie.
+  modBrouillon = b && !entrees.modules.some((s) => s.id === b.id) ? b : { module: m, id: nouvelId(), textes: {} };
+  modErreur = '';
+  ecran = 'module';
+  rendre();
+}
+
+function poserModule(cle, texte) {
+  modBrouillon.textes[cle] = texte;
+  garderBrouillon(modBrouillon);
+}
+
+/** Signature en image noire sur blanc ; gardee des qu'on leve le doigt. */
+async function garderSignature(cle) {
+  const p = modPads[cle];
+  if (!p || p.vide() || !modBrouillon) return true;
+  const toile = document.querySelector('[data-mod-pad="' + cle + '"]');
+  if (!toile) return true;
+  const r = toile.getBoundingClientRect();
+  const c = document.createElement('canvas');
+  c.width = Math.round(r.width * 2); c.height = Math.round(r.height * 2);
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.scale(2, 2); x.strokeStyle = '#000'; x.lineWidth = 2.2; x.lineCap = 'round'; x.lineJoin = 'round';
+  p.traces().forEach((t) => {
+    x.beginPath();
+    t.forEach((pt, i) => (i ? x.lineTo(pt.x, pt.y) : x.moveTo(pt.x, pt.y)));
+    if (t.length === 1) x.lineTo(t[0].x + 0.1, t[0].y);
+    x.stroke();
+  });
+  const b = modBrouillon;
+  const champ = b.module.champs.find((y) => y.cle === cle);
+  const nom = b.textes[cle] || nomPiece(champ);
+  if (!await enregistrerPhoto(nom, c.toDataURL('image/png'))) return false;
+  if (b === modBrouillon) poserModule(cle, nom);
+  return true;
+}
+
+async function enregistrerModule() {
+  if (modOccupe || !modBrouillon) return;
+  modOccupe = true;
+  const b = modBrouillon;
+  const dire = (t) => { modErreur = t; const z = $('#mod_erreur'); if (z) z.textContent = t; };
+  try {
+    for (const cle of Object.keys(modPads)) if (!await garderSignature(cle)) { dire('Signature non gard\u00e9e : espace insuffisant ?'); return; }
+    const defaut = defautSaisie(b.module.champs, b.textes);
+    if (defaut) { dire(defaut); return; }
+    if (!entrees.modules.some((s) => s.id === b.id)) {
+      const avant = entrees;
+      entrees = { ...entrees, modules: entrees.modules.concat({ id: b.id, module: b.module.id, version: b.module.version,
+        date: aujourdhuiIso(), valeurs: valeursSaisie(b.module.champs, b.textes), nomModule: b.module.nom,
+        champs: b.module.champs, creeLe: Date.now(), envoyee: false, refus: '' }) };
+      try { ecrireEntrees(entrees); }
+      catch (err) { entrees = avant; dire('Enregistrement impossible : espace insuffisant ? Rien n\u2019a \u00e9t\u00e9 perdu, r\u00e9essaie.'); return; }
+    }
+    effacerBrouillon(b.module.id);
+    modBrouillon = null;
+    ecran = 'accueil';
+    rendre();
+    toast('Enregistr\u00e9. L\u2019envoi se fait tout seul.');
+    echangerModules();
+  } finally { modOccupe = false; }
+}
+
+/** L'etat d'envoi se note dans les donnees ACTUELLES : une saisie faite entre-temps reste. */
+function marquerModule(id, etat) {
+  entrees = { ...entrees, modules: entrees.modules.map((s) => (s.id === id && !s.envoyee ? { ...s, ...etat } : s)) };
+  try { ecrireEntrees(entrees); } catch (err) { /* sera renvoyee : la base la reconnaitra */ }
+}
+
+async function echangerModules() {
+  const change = await echanger({ saisies: () => entrees.modules, marquer: marquerModule, photo });
+  if (change && (ecran === 'accueil' || ecran === 'saisies')) rendre();
+}
+
+document.addEventListener('click', (e) => {
+  const tuile = e.target.closest('[data-module]');
+  if (tuile) { ouvrirModule(tuile.dataset.module); return; }
+  if (ecran !== 'module' || !modBrouillon) return;
+  const choix = e.target.closest('[data-mod-choix]');
+  if (choix) {
+    const cle = choix.dataset.modChoix;
+    poserModule(cle, modBrouillon.textes[cle] === choix.dataset.valeur ? '' : choix.dataset.valeur);
+    document.querySelectorAll('[data-mod-choix="' + cle + '"]').forEach((x) =>
+      x.setAttribute('aria-pressed', String(x.dataset.valeur === modBrouillon.textes[cle])));
+    return;
+  }
+  const eff = e.target.closest('[data-mod-effacer]');
+  if (eff) {
+    // Un nouveau nom a chaque trace : l'ancienne image reste sur l'iPhone.
+    poserModule(eff.dataset.modEffacer, '');
+    const y = window.scrollY; rendre(); window.scrollTo(0, y);
+    return;
+  }
+  if (e.target.closest('#mod_enregistrer')) { enregistrerModule(); return; }
+  if (e.target.closest('#mod_vider') && confirm('Vider tout ce formulaire ?')) {
+    const m = listeModules().find((x) => x.id === modBrouillon.module.id) || modBrouillon.module;
+    effacerBrouillon(m.id);
+    modBrouillon = { module: m, id: nouvelId(), textes: {} };
+    modErreur = '';
+    rendre();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (ecran === 'module' && modBrouillon && e.target.dataset && e.target.dataset.mod) poserModule(e.target.dataset.mod, e.target.value);
+});
+
+document.addEventListener('change', async (e) => {
+  const cle = e.target.dataset && e.target.dataset.modPhoto;
+  if (ecran !== 'module' || !modBrouillon || !cle || !e.target.files || !e.target.files[0]) return;
+  const b = modBrouillon;
+  try {
+    const nom = nomPiece(b.module.champs.find((c) => c.cle === cle));
+    if (!await enregistrerPhoto(nom, await reduire(e.target.files[0]))) { toast('Photo non gard\u00e9e : espace insuffisant ?'); return; }
+    b.textes[cle] = nom;
+    garderBrouillon(b);
+    if (b === modBrouillon && ecran === 'module') { const y = window.scrollY; rendre(); window.scrollTo(0, y); }
+  } catch (err) { toast('Photo illisible, reprends-la.'); }
+});
+
+['pointerup', 'touchend'].forEach((n) => window.addEventListener(n, (e) => {
+  // Seulement si le doigt etait sur la signature : « Effacer » ne doit pas la regarder.
+  const c = ecran === 'module' && e.target.closest && e.target.closest('[data-mod-pad]');
+  if (c) garderSignature(c.dataset.modPad);
+}));
+
 // =========================================================== SAUVEGARDE ET CONNEXION
 let etatSauvegarde = ''; let cnx = { mail: '', code: '', message: '' }; let minuterie = 0; let occupeSauvegarde = false;
 
@@ -2581,7 +2731,7 @@ document.addEventListener('click', async (e) => {
       let r = await connecter(cnx.mail, cnx.code, false);
       if (r.etat === 'remplace' && !confirm((r.ancien || 'L\u2019ancien t\u00e9l\u00e9phone') + ' sera d\u00e9connect\u00e9. Si tu l\u2019as encore, ouvre-le d\u2019abord pour qu\u2019il finisse d\u2019envoyer. Ses donn\u00e9es ne seront pas effac\u00e9es. Continuer ?')) return;
       if (r.etat === 'remplace' || r.etat === 'pret') r = await connecter(cnx.mail, cnx.code, true);
-      if (r.etat === 'ok') { cnx = { mail: '', code: '', message: 'iPhone connect\u00e9. S\u2019il est neuf, touche \u00ab Restaurer depuis le Drive \u00bb.' }; rendre(); lancerSauvegarde(500); }
+      if (r.etat === 'ok') { cnx = { mail: '', code: '', message: 'iPhone connect\u00e9. S\u2019il est neuf, touche \u00ab Restaurer depuis le Drive \u00bb.' }; rendre(); lancerSauvegarde(500); echangerModules(); }
       else dire(r.etat === 'refus' ? 'Code refus\u00e9 ou expir\u00e9. Demande un nouveau code.' : 'R\u00e9seau indisponible. Rien n\u2019a \u00e9t\u00e9 chang\u00e9.');
     }
   } catch (err) {
@@ -2590,8 +2740,8 @@ document.addEventListener('click', async (e) => {
 });
 
 surEcriture(() => lancerSauvegarde(3000));
-window.addEventListener('online', () => lancerSauvegarde(1000));
-document.addEventListener('visibilitychange', () => { if (!document.hidden) lancerSauvegarde(1000); });
+window.addEventListener('online', () => { lancerSauvegarde(1000); echangerModules(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { lancerSauvegarde(1000); echangerModules(); } });
 // Demande au navigateur de ne pas vider les donnees de l'application.
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
@@ -2603,6 +2753,8 @@ await chargerPhotos();
 ecran = reglagesComplets(reglages) ? 'accueil' : 'reglages';
 rendre();
 lancerSauvegarde(2000);
+echangerModules();
+setInterval(() => { if (!document.hidden) echangerModules(); }, 5 * 60000);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

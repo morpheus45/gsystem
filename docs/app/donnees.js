@@ -36,7 +36,7 @@ export const REGLAGES_DEFAUT = {
   pendingArrivalSource: '',
 };
 
-export const ENTREES_DEFAUT = { temps: [], frais: [], compteur: [], gesteCo: [] };
+export const ENTREES_DEFAUT = { temps: [], frais: [], compteur: [], gesteCo: [], modules: [] };
 
 function lire(cle, defaut) {
   try {

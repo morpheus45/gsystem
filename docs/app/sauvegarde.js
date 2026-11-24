@@ -11,7 +11,7 @@ export const FICHIER = 'iphone-donnees.json';
 const DOSSIER_PHOTOS = 'iphone';
 const CLE_VUS = 'gsys.sauvegarde.vus';
 const CLE_PHOTOS = 'gsys.sauvegarde.photos';
-export const TYPES = ['temps', 'frais', 'compteur', 'gesteCo'];
+export const TYPES = ['temps', 'frais', 'compteur', 'gesteCo', 'modules'];
 
 const lireJson = (cle, defaut) => { try { return JSON.parse(localStorage.getItem(cle)) || defaut; } catch (e) { return defaut; } };
 const ecrireJson = (cle, v) => { localStorage.setItem(cle, JSON.stringify(v)); };

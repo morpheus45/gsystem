@@ -489,3 +489,15 @@ label.reglage-btn { display: flex; align-items: center; justify-content: center;
 }
 
 /* ===== Fin styles chat ===== */
+
+/* ------------------------------------------------- Modules du bureau */
+.champ textarea { font: inherit; font-size: 16px; }
+.champ label.mod-photo { display: block; text-align: center; background: var(--lift3); color: var(--hi); font-size: 15px; letter-spacing: 0; box-sizing: border-box; margin-top: 4px; }
+.champ.requis label.mod-photo::after { content: none; }
+.mod-photo input { position: absolute; width: 1px; height: 1px; opacity: 0; padding: 0; }
+.mod-signature { background: #fff; max-height: 160px; }
+.segment button[data-mod-choix] { min-height: 44px; }
+.mod-erreur { color: var(--signal); font-size: 13px; min-height: 1.2em; }
+.mod-saisie summary { cursor: pointer; min-height: 44px; }
+.mod-reponse { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.mod-reponse b { text-align: right; overflow-wrap: anywhere; min-width: 0; }
