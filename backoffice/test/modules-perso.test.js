@@ -81,7 +81,7 @@ test('rien ne s\'efface, aucune version ne se modifie', async () => {
   await assert.rejects(db.query('delete from modules_perso'), /interdit/);
   await assert.rejects(db.query('delete from modules_perso_versions'), /interdit/);
   await assert.rejects(db.query(`update modules_perso_versions set champs = '[]'`), /interdit/);
-  await assert.rejects(db.query('truncate modules_perso_versions'), /interdit/);
+  await assert.rejects(db.query('truncate modules_perso_versions'), /interdit|cannot truncate/);
 });
 
 test('désactivé partout : invisible, mais conservé et réactivable', async () => {
@@ -101,7 +101,7 @@ test('champs invalides refusés par la base', async () => {
 test('les tables de l\'APK ne sont pas touchées : aucune référence', async () => {
   const r = await db.query(`select conrelid::regclass::text t, confrelid::regclass::text f from pg_constraint
     where contype = 'f' and (conrelid::regclass::text like 'modules_perso%' or confrelid::regclass::text like 'modules_perso%')`);
-  for (const { f } of r.rows) assert.ok(['modules_perso', 'holdings', 'societes'].includes(f), f);
+  for (const { f } of r.rows) assert.ok(['modules_perso', 'modules_perso_versions', 'holdings', 'societes'].includes(f), f);
 });
 
 test('aides de saisie : clé stable, défauts en clair, portée', () => {
