@@ -36,6 +36,9 @@ object BackupImporter {
         runCatching {
             var store: EntriesStore? = null
             val temp = File(context.cacheDir, "import-${System.currentTimeMillis()}").apply { mkdirs() }
+            val tempModules = File(context.cacheDir, "${temp.name}-modules").apply { mkdirs() }
+            val modules = com.morpheus45.gsystem.modules.ModulesDepot.ouvrir(context)
+            val saisies = mutableListOf<String>()
             try {
                 // Tout est lu et vérifié avant de toucher aux données.
                 (context.contentResolver.openInputStream(uri) ?: error("fichier illisible")).use { flux ->
@@ -44,6 +47,12 @@ object BackupImporter {
                             val e = zip.nextEntry ?: break
                             if (e.name == "entries.json") {
                                 store = json.decodeFromString(EntriesStore.serializer(), String(lire(zip, MAX_ENTREES), Charsets.UTF_8))
+                            } else if (e.name.startsWith("modules_saisies/")) {
+                                saisies += String(lire(zip, MAX_ENTREES), Charsets.UTF_8)
+                            } else if (e.name.startsWith("modules_fichiers/")) {
+                                modules.fichier(e.name.removePrefix("modules_fichiers/"))?.let { f ->
+                                    File(tempModules, f.name).outputStream().use { out -> copier(zip, out, MAX_PHOTO) }
+                                }
                             } else nomPhoto(e.name)?.let { nom ->
                                 File(temp, nom).outputStream().use { out -> copier(zip, out, MAX_PHOTO) }
                             }
@@ -63,9 +72,20 @@ object BackupImporter {
                         photos++
                     }
                 }
-                val n = repo.mergeIn(s)
+                tempModules.listFiles().orEmpty().forEach { f ->
+                    val cible = modules.fichier(f.name)
+                    if (cible != null && !cible.exists()) {
+                        val part = File(modules.dossierFichiers, ".${f.name}.part")
+                        f.copyTo(part, overwrite = true)
+                        if (!part.renameTo(cible)) error("photo non copiée")
+                        photos++
+                    }
+                }
+                val n = repo.mergeIn(s) + saisies.count { modules.importer(it) }
+                com.morpheus45.gsystem.modules.ModulesDepot.recharger(context)
+                com.morpheus45.gsystem.modules.ModulesDepot.demanderEnvoi(context)
                 "✅ $n entrée(s) et $photos photo(s) ajoutées, rien n'a été remplacé"
-            } finally { temp.deleteRecursively() }
+            } finally { temp.deleteRecursively(); tempModules.deleteRecursively() }
         }.getOrElse { "Import impossible : fichier abîmé ou espace insuffisant. Tes données n'ont pas été modifiées." }
     }
 

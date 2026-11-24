@@ -67,6 +67,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -173,6 +174,7 @@ fun HomeScreen(
     onPrimeAVenir: () -> Unit = {},
     onBulletin: () -> Unit = {},
     onConge: () -> Unit = {},
+    onModules: () -> Unit = {},
     onSettings: () -> Unit
 ) {
     val today = LocalDate.now()
@@ -331,6 +333,16 @@ fun HomeScreen(
         val arrHm = com.morpheus45.gsystem.util.DateUtil.hm(settings.pendingArrivalMs)
         val cloture01 = arrPending && settings.pendingArrivalSource == "arrivee"
         val cloture02 = arrPending && settings.pendingArrivalSource == "attente"
+        // Absente tant que le bureau n'a mis aucun module en service (et sans passerelle).
+        val modules by com.morpheus45.gsystem.modules.ModulesDepot.modules.collectAsState()
+        val saisies by com.morpheus45.gsystem.modules.ModulesDepot.saisies.collectAsState()
+        val enAttente = saisies.count { !it.envoyee }
+        val modulesTile = if (!com.morpheus45.gsystem.backup.Passerelle.disponible || (modules.isEmpty() && saisies.isEmpty())) emptyList()
+        else listOf(HomeTile("16", "MODULES", "Formulaires du bureau",
+            Icons.Outlined.FactCheck, RecapStart, RecapEnd, RecapAccent, HomeGroup.INTERV,
+            liveValue = if (enAttente > 0) enAttente.toString() else null,
+            liveLabel = if (enAttente > 0) "en attente" else null,
+            onClick = onModules))
         val baseTiles = listOf(
             HomeTile("01",
                 if (cloture01) "CLÔTURER" else "ARRIVÉE SUR SITE",
@@ -402,7 +414,7 @@ fun HomeScreen(
             HomeTile("15", "DEMANDE DE CONGÉ", "Formulaire signé · envoi bureau",
                 Icons.Outlined.BeachAccess, CongeStart, CongeEnd, CongeAccent, HomeGroup.FIN,
                 onClick = onConge)
-        )
+        ) + modulesTile
 
         // -------- Tournée du jour : 1 tuile par mission (PDF ordre de mission).
         // Si des missions sont chargées, elles REMPLACENT 01 ARRIVÉE / 02 ATTENTE

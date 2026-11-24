@@ -3,6 +3,7 @@
     <!-- Exports CSV/XLSX, APK de MAJ, et photos tickets/compteur. -->
     <files-path name="exports" path="exports/" />
     <files-path name="photos" path="photos/" />
+    <files-path name="modules" path="modules/fichiers/" />
     <cache-path name="cache_exports" path="exports/" />
     <cache-path name="updates" path="updates/" />
 </paths>

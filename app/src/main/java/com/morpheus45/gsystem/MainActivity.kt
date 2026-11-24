@@ -384,6 +384,18 @@ fun AppNav() {
     // de l'accueil passent au vert quand la remontée a réussi, rouge tant qu'il
     // reste des données en attente (réseau faible, non configuré, etc.).
     val driveSynced by com.morpheus45.gsystem.backup.SyncMoteur.ok.collectAsState()
+    // Modules du bureau : liste relue et saisies en attente renvoyées (rien ne part sans passerelle).
+    val connexion by com.morpheus45.gsystem.backup.Passerelle.etat.collectAsState()
+    LaunchedEffect(connexion) {
+        if (!com.morpheus45.gsystem.backup.Passerelle.disponible) return@LaunchedEffect
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.morpheus45.gsystem.modules.ModulesDepot.recharger(context)
+        }
+        while (true) {
+            com.morpheus45.gsystem.modules.ModulesDepot.demanderEnvoi(context)
+            kotlinx.coroutines.delay(5 * 60_000L)
+        }
+    }
     LaunchedEffect(settings.isReady, settings.nomUtilisateur, settings.lastEnvoiDateIso) {
         if (!BackupConfig.isConfigured || !settings.isReady ||
             settings.nomUtilisateur.isBlank()) {
@@ -505,6 +517,7 @@ fun AppNav() {
                 onPrimeAVenir = { navController.navigate("prime_a_venir") },
                 onBulletin = { navController.navigate("bulletin") },
                 onConge = { navController.navigate("conge") },
+                onModules = { navController.navigate("modules") },
                 onSettings = { navController.navigate("settings") }
             )
         }
@@ -696,6 +709,9 @@ fun AppNav() {
                 nomTech = settings.nomUtilisateur,
                 mission = Preremplissage.surPlace(missions)
             )
+        }
+        composable("modules") {
+            com.morpheus45.gsystem.ui.ModulesScreen(onBack = { navController.popBackStack() })
         }
         composable("conge") {
             CongeScreen(

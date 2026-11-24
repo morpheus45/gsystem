@@ -64,7 +64,13 @@ object BackupExporter {
                 }
             }
 
-            // 5. README explicatif dans le ZIP
+            // 5. saisies des modules et leurs photos
+            val modules = com.morpheus45.gsystem.modules.ModulesDepot.ouvrir(context)
+            for ((nom, dossier) in listOf("modules_saisies" to modules.dossierSaisies, "modules_fichiers" to modules.dossierFichiers)) {
+                dossier.listFiles()?.forEach { f -> if (f.isFile && !f.name.endsWith(".tmp")) addToZip(zip, "$nom/${f.name}", f) }
+            }
+
+            // 6. README explicatif dans le ZIP
             zip.putNextEntry(ZipEntry("LISEZ_MOI.txt"))
             zip.write(readmeContent().toByteArray(Charsets.UTF_8))
             zip.closeEntry()
