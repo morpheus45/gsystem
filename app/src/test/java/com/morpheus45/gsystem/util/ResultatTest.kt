@@ -17,25 +17,37 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ResultatTest {
-    private fun e(slot: String, code: String) = TempsEntry(id = slot + code, date = "2026-11-24", departement = "34",
-        typeMission = "INST", nomClient = "X", ville = "SETE", numeroIntervention = "1", observationType = code, slotMidi = slot)
-    private fun h(vararg l: TempsEntry) = HoursCalculator.computeForDay(l.toList())
+    private fun e(slot: String, code: String, type: String = "INST") = TempsEntry(id = slot + code + type, date = "2026-11-24", departement = "34",
+        typeMission = type, nomClient = "X", ville = "SETE", numeroIntervention = "1", observationType = code, slotMidi = slot)
+    private fun h(vararg l: TempsEntry) = HoursCalculator.computeForDay(l.toList()).toInt()
+    private val nonRealises = listOf("NR_CLIENT", "NR_TECHNIQUE", "NR_CLIENT_ABS", "NR_AUTRES", "ANNULE", "ANNULE_ROUTE", "ANNULE_SITE")
 
     @Test
-    fun `annulée en route ou sur site compte comme OK pour les heures`() {
-        for (c in listOf("ANNULE_ROUTE", "ANNULE_SITE")) {
-            assertEquals(8.0, h(e("MATIN", ""), e("APREM", c)), 0.0)
-            assertEquals(8.0, h(e("MATIN", c), e("APREM", c)), 0.0)
-            assertEquals(4.0, h(e("MATIN", c)), 0.0)
-            assertEquals(6.0, h(e("MATIN", c), e("APREM", "NR_CLIENT")), 0.0)
+    fun `INST en NR ou annulée = 2h la demi-journée`() {
+        for (c in nonRealises) {
+            assertEquals(2, h(e("MATIN", c)))
+            assertEquals(6, h(e("MATIN", ""), e("APREM", c)))
+            assertEquals(4, h(e("MATIN", c), e("APREM", c)))
+            assertEquals(2, h(e("MATIN", c), e("MATIN", "NR_CLIENT")))
+            assertEquals(4, h(e("MATIN", c), e("MATIN", "")))          // une INST réalisée dans la demi-journée
+            assertEquals(4, h(e("MATIN", c), e("MATIN", c, "SAV")))    // un autre type dans la demi-journée
         }
     }
 
     @Test
-    fun `anciens résultats inchangés`() {
-        assertEquals(6.0, h(e("MATIN", ""), e("APREM", "ANNULE")), 0.0)
-        assertEquals(6.0, h(e("MATIN", ""), e("APREM", "NR_AUTRES")), 0.0)
-        assertEquals(8.0, h(e("MATIN", ""), e("APREM", "")), 0.0)
+    fun `tout autre type = 4h, même NR ou annulé`() {
+        for (c in nonRealises + "") for (t in listOf("SAV", "INTE", "PILE", "sav")) {
+            assertEquals(4, h(e("APREM", c, t)))
+            assertEquals(8, h(e("MATIN", ""), e("APREM", c, t)))
+        }
+    }
+
+    @Test
+    fun `journées entières et planning vide inchangés`() {
+        assertEquals(7, h(e("MATIN", "", "VACANCES")))
+        assertEquals(0, h(e("MATIN", "", "PLANNING VIDE"), e("APREM", "")))
+        assertEquals(8, h(e("MATIN", ""), e("APREM", "")))
+        assertEquals(4, h(e("", "")))
     }
 
     @Test
