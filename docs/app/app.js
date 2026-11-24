@@ -18,7 +18,7 @@ import {
   CATEGORIES, htDepuisTtc, tvaDepuisTtc, remboursable, eur,
 } from './frais.js';
 import {
-  photo, enregistrerPhoto, supprimerPhoto, chargerPhotos, reduire, nomTicket,
+  photo, clesPhotos, enregistrerPhoto, supprimerPhoto, chargerPhotos, reduire, nomTicket,
   nomCompteur,
   fichierDepuisDataUrl,
 } from './photos.js';
@@ -28,6 +28,9 @@ import {
   lireClasseur, memoriserClasseur, oublierClasseur,
 } from './classeur.js';
 import { deposerEnvoi } from './backup.js';
+import { PASSERELLE, etatConnexion, demanderCode, connecter } from './connexion.js';
+import { sauvegarder, restaurer } from './sauvegarde.js';
+import { surEcriture } from './donnees.js';
 import { envoyerMessage, chargerMessages, marquerLus } from './chat.js';
 import {
   TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
@@ -248,6 +251,7 @@ function vueReglages() {
             '21 par d\u00e9faut.', false, 'number')}
     <button class="btn" id="enregistrer"
             style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">Enregistrer</button>
+    ${blocSauvegarde()}
   </div>`;
 }
 
@@ -2480,6 +2484,88 @@ document.addEventListener('input', (e) => {
 window.addEventListener('online', rendre);
 window.addEventListener('offline', rendre);
 
+// =========================================================== SAUVEGARDE ET CONNEXION
+let etatSauvegarde = ''; let cnx = { mail: '', code: '', message: '' }; let minuterie = 0; let occupeSauvegarde = false;
+
+function etatPourSauvegarde() {
+  return { tech: reglages.nomUtilisateur, entrees, reglages, complets: reglagesComplets(reglages), clesPhotos: clesPhotos(), photo };
+}
+
+function lancerSauvegarde(delai) {
+  clearTimeout(minuterie);
+  minuterie = setTimeout(async () => {
+    if (!reglages.nomUtilisateur.trim() || etatConnexion() === 'deconnecte') return;
+    const avant = JSON.stringify(entrees);
+    etatSauvegarde = await sauvegarder(etatPourSauvegarde());
+    montrerSauvegarde();
+    if (JSON.stringify(entrees) !== avant) lancerSauvegarde(1000);
+    else if (etatSauvegarde === 'attente') lancerSauvegarde(60000);
+  }, delai);
+}
+
+function texteSauvegarde() {
+  if (etatConnexion() === 'deconnecte') return 'Cet iPhone est d\u00e9connect\u00e9 : il n\u2019envoie plus rien. Tes donn\u00e9es y sont toujours.';
+  return { ok: 'Donn\u00e9es \u00e0 jour sur le Drive.', attente: 'Envoi en attente (r\u00e9seau). Nouvel essai automatique.',
+    restaurer: 'Le Drive contient des donn\u00e9es absentes de cet iPhone : touche \u00ab Restaurer \u00bb.' }[etatSauvegarde] || 'V\u00e9rification en cours\u2026';
+}
+function montrerSauvegarde() { const z = $('#etat_sauvegarde'); if (z) z.textContent = texteSauvegarde(); }
+
+function blocSauvegarde() {
+  const c = etatConnexion();
+  return `
+    <div class="note" id="etat_sauvegarde">${ech(texteSauvegarde())}</div>
+    <button class="btn" id="restaurer_drive">Restaurer depuis le Drive</button>
+    ${PASSERELLE && c !== 'connecte' ? `
+      <div class="note">${c === 'deconnecte' ? 'Reconnecte cet iPhone' : 'Connecte cet iPhone'} avec ton adresse mail enregistr\u00e9e par le bureau.</div>
+      ${champ('cnx_mail', 'Adresse mail', cnx.mail, '', false, 'email')}
+      <button class="btn" id="cnx_code_btn">Recevoir un code</button>
+      ${champ('cnx_code', 'Code re\u00e7u', cnx.code, '', false)}
+      <button class="btn" id="cnx_ok">Connecter cet iPhone</button>` : ''}
+    ${PASSERELLE && c === 'connecte' ? '<div class="note">Cet iPhone est connect\u00e9.</div>' : ''}
+    <div class="note" id="cnx_message">${ech(cnx.message)}</div>`;
+}
+
+document.addEventListener('click', async (e) => {
+  const id = e.target && e.target.id;
+  if (!['restaurer_drive', 'cnx_code_btn', 'cnx_ok'].includes(id) || occupeSauvegarde) return;
+  const val = (s) => ($(s) ? $(s).value.trim() : '');
+  cnx.mail = val('#cnx_mail'); cnx.code = val('#cnx_code');
+  const dire = (t) => { cnx.message = t; const z = $('#cnx_message'); if (z) z.textContent = t; };
+  occupeSauvegarde = true;
+  try {
+    if (id === 'restaurer_drive') {
+      const nom = val('#r_nom') || reglages.nomUtilisateur;
+      if (!nom.trim() && etatConnexion() !== 'connecte') { dire('Renseigne d\u2019abord ton nom, identique \u00e0 avant.'); return; }
+      dire('Restauration\u2026');
+      const r = await restaurer({ ...etatPourSauvegarde(), tech: nom || 'iPhone' }, enregistrerPhoto);
+      if (!r) { dire('Aucune sauvegarde iPhone sur le Drive pour ce nom.'); return; }
+      // Refusionne avec l'etat ACTUEL : une saisie faite pendant la restauration reste.
+      const { ajouterManquants } = await import('./sauvegarde.js');
+      entrees = ajouterManquants(r.entrees, entrees).entrees;
+      ecrireEntrees(entrees);
+      reglages = r.reglages; ecrireReglages(reglages);
+      dire(r.n + ' entr\u00e9e(s) et ' + r.photos + ' photo(s) ajout\u00e9es, rien n\u2019a \u00e9t\u00e9 remplac\u00e9.' + (r.manquantes ? ' ' + r.manquantes + ' photo(s) \u00e0 reprendre : recommence plus tard.' : ''));
+      rendre();
+    } else if (id === 'cnx_code_btn') {
+      dire(await demanderCode(cnx.mail) ? 'Si cette adresse est enregistr\u00e9e, un code vient d\u2019\u00eatre envoy\u00e9. Il est valable 10 minutes.' : 'R\u00e9seau indisponible. R\u00e9essaie.');
+    } else {
+      let r = await connecter(cnx.mail, cnx.code, false);
+      if (r.etat === 'remplace' && !confirm((r.ancien || 'L\u2019ancien t\u00e9l\u00e9phone') + ' sera d\u00e9connect\u00e9. Si tu l\u2019as encore, ouvre-le d\u2019abord pour qu\u2019il finisse d\u2019envoyer. Ses donn\u00e9es ne seront pas effac\u00e9es. Continuer ?')) return;
+      if (r.etat === 'remplace' || r.etat === 'pret') r = await connecter(cnx.mail, cnx.code, true);
+      if (r.etat === 'ok') { cnx = { mail: '', code: '', message: 'iPhone connect\u00e9. S\u2019il est neuf, touche \u00ab Restaurer depuis le Drive \u00bb.' }; rendre(); lancerSauvegarde(500); }
+      else dire(r.etat === 'refus' ? 'Code refus\u00e9 ou expir\u00e9. Demande un nouveau code.' : 'R\u00e9seau indisponible. Rien n\u2019a \u00e9t\u00e9 chang\u00e9.');
+    }
+  } catch (err) {
+    dire('Drive injoignable. Rien n\u2019a \u00e9t\u00e9 chang\u00e9.');
+  } finally { occupeSauvegarde = false; }
+});
+
+surEcriture(() => lancerSauvegarde(3000));
+window.addEventListener('online', () => lancerSauvegarde(1000));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) lancerSauvegarde(1000); });
+// Demande au navigateur de ne pas vider les donnees de l'application.
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
 // Les vignettes sont lues en memoire pendant le rendu, qui est synchrone : la
 // base doit etre chargee avant le premier affichage, sinon les photos
 // manqueraient a l'ecran jusqu'au rendu suivant.
@@ -2487,6 +2573,7 @@ await chargerPhotos();
 
 ecran = reglagesComplets(reglages) ? 'accueil' : 'reglages';
 rendre();
+lancerSauvegarde(2000);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
