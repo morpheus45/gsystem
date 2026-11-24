@@ -16,6 +16,7 @@ import { TUILES_APK, tuileVisible } from '../core/tuiles-apk.js';
 import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
+import { normaliserCodeTech } from '../core/code-tech.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
 import { controles, releve, ecritures, versCsvFec, PARAMS_DEFAUT } from '../core/compta.js';
@@ -944,7 +945,7 @@ async function cancelInvitation(id) {
 // === TECHNICIENS ===
 async function loadTechniciens(societeId) {
   try {
-    const { data, error } = await sb.from('techniciens').select('id, nom, nom_apk, actif, archive_le, compte_auxiliaire').eq('societe_id', societeId).order('nom');
+    const { data, error } = await sb.from('techniciens').select('id, nom, nom_apk, actif, archive_le, compte_auxiliaire, code_tech').eq('societe_id', societeId).order('nom');
     if (error) throw error;
     techniciens = data;
     renderTechniciens(data);
@@ -1063,6 +1064,9 @@ function ouvrirFicheTechnicien(t) {
   initialiserSousOnglets($('#tech-fiche'));
   mettreAJourFil();
   // Charger les données de la fiche
+  $('#tech-code-form').classList.toggle('hidden', !peutEcrire());
+  $('#tech-code-edit').value = t.code_tech || '';
+  $('#tech-code-etat').textContent = '';
   chargerFicheTechnicien(t);
   chargerPapiers(t);
   chargerTelephones(t);
@@ -1881,14 +1885,29 @@ $$('.sous-onglets button').forEach(button => {
 $('#retour-societes').addEventListener('click', retournerSocietes);
 
 // Formulaires Techniciens
+$('#tech-code-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const t = ficheTechnicien;
+  if (!t || !peutEcrire()) return;
+  const code = normaliserCodeTech($('#tech-code-edit').value);
+  if (code === null) { $('#tech-code-etat').textContent = 'Lettres et chiffres seulement.'; return; }
+  const { error } = await sb.from('techniciens').update({ code_tech: code || null }).eq('id', t.id);
+  if (error) { $('#tech-code-etat').textContent = error.message; return; }
+  t.code_tech = code || null;
+  const dans = techniciens.find((x) => x.id === t.id); if (dans) dans.code_tech = t.code_tech;
+  $('#tech-code-etat').textContent = 'Code enregistré.';
+});
+
 $('#technicien-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   clearAlert();
   if (!peutEcrire()) return;
   const nom = $('#tech-nom').value.trim();
   if (!nom) return;
+  const code = normaliserCodeTech($('#tech-code').value);
+  if (code === null) { alert('Code tech : lettres et chiffres seulement (ex. ISTGS54).'); return; }
   try {
-    const { error } = await sb.from('techniciens').insert({ societe_id: selectedSociete, nom });
+    const { error } = await sb.from('techniciens').insert({ societe_id: selectedSociete, nom, code_tech: code || null });
     if (error) throw error;
     $('#technicien-form').reset();
     await loadTechniciens(selectedSociete);

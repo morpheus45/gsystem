@@ -975,6 +975,10 @@
                   <label for="tech-nom">Nom</label>
                   <input type="text" id="tech-nom" name="nom" required maxlength="120">
                 </div>
+                <div class="field">
+                  <label for="tech-code">Code tech (planning EPS, ex. ISTGS54)</label>
+                  <input type="text" id="tech-code" name="code_tech" maxlength="20" autocomplete="off" placeholder="facultatif">
+                </div>
                 <button type="submit">Ajouter</button>
               </form>
             </details>
@@ -1008,6 +1012,11 @@
               <button data-cible="tech-section-telephone" id="tech-onglet-telephone" class="hidden">Téléphone</button>
             </div>
 
+            <form class="tech-barre" id="tech-code-form">
+              <div class="field"><label for="tech-code-edit">Code tech (planning EPS)</label><input id="tech-code-edit" maxlength="20" autocomplete="off" placeholder="ex. ISTGS54"></div>
+              <button type="submit" class="secondary">Enregistrer le code</button>
+              <span id="tech-code-etat" class="aide" role="status"></span>
+            </form>
             <div class="tech-barre">
               <p id="tech-info" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
               <p id="tech-vehicule" style="font-size:0.9rem;color:var(--muted);margin:0;"></p>
