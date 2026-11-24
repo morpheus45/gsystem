@@ -53,28 +53,25 @@ test('cumul : les vacances vont en absence, hors du seuil des heures sup', () =>
   ]);
 });
 
-test('annulée en route / sur site : 4 h sauf INST ; INST et NR inchangées ; ni NR ni OK ailleurs', async () => {
+test('hors INST : 4 h même NR ou annulé ; INST inchangée ; une annulation n\'est ni NR ni OK ailleurs', async () => {
   const { tauxNr } = await import('../core/stats.js');
   const { libelleResultat } = await import('../core/interventions.js');
   const { recapFacturation } = await import('../core/facturation.js');
   const m = (o, t) => jour('2026-11-24', 'MATIN', o, t), a = (o, t) => jour('2026-11-24', 'APREM', o, t);
-  for (const c of ['ANNULE_ROUTE', 'ANNULE_SITE']) {
-    for (const t of ['SAV', 'INTE', 'PILE', 'sav']) {
+  for (const c of ['NR_CLIENT', 'NR_TECHNIQUE', 'NR_CLIENT_ABS', 'NR_AUTRES', 'ANNULE', 'ANNULE_ROUTE', 'ANNULE_SITE']) {
+    for (const t of ['SAV', 'INTE', 'DECL', 'PILE', 'sav']) {
       assert.equal(heuresJour([a(c, t)]), 4);
       assert.equal(heuresJour([m(''), a(c, t)]), 8);
       assert.equal(heuresJour([m(c, t), a(c, t)]), 8);
-      assert.equal(heuresJour([m(c, t), a('NR_CLIENT', t)]), 6);
+      assert.equal(heuresJour([m(c, t), a('NR_CLIENT')]), 6);
     }
     assert.equal(heuresJour([m(c)]), 4);
     assert.equal(heuresJour([m(''), a(c)]), 6);
     assert.equal(heuresJour([m(c), a(c)]), 6);
+  }
+  for (const c of ['ANNULE_ROUTE', 'ANNULE_SITE']) {
     assert.deepEqual(tauxNr([m(''), a(c)], '2026-11'), tauxNr([m('')], '2026-11'));
     assert.equal(recapFacturation([m(''), a(c)], []).interventions[0].ok, 1);
-  }
-  for (const c of ['NR_CLIENT', 'NR_AUTRES', 'ANNULE']) for (const t of ['INST', 'SAV']) {
-    assert.equal(heuresJour([m(c, t)]), 4);
-    assert.equal(heuresJour([m(''), a(c, t)]), 6);
-    assert.equal(heuresJour([m(c, t), a(c, t)]), 6);
   }
   assert.equal(libelleResultat('ANNULE_ROUTE'), 'Annulé en route');
   assert.equal(libelleResultat('ANNULE_SITE'), 'Annulé sur site');
