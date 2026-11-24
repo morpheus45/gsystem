@@ -11,6 +11,7 @@ import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/inte
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
+import { TUILES_APK, tuileVisible } from '../core/tuiles-apk.js';
 import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
@@ -3931,6 +3932,7 @@ async function chargerModules() {
   renderModulesSociete();
   fermerEditeurModule();
   chargerReglesDocuments();
+  chargerTuilesApk();
   const [m, v, p] = await Promise.all([
     sb.from('modules_perso').select('id, nom, icone, couleur, finalite, conservation_mois, version, actif').order('nom'),
     sb.from('modules_perso_versions').select('module_id, version, champs'),
@@ -4039,6 +4041,44 @@ function porteeModule(m, siennes) {
 }
 
 const SUPPORTS = [['apk', 'APK Android'], ['iphone', 'iPhone'], ['bureau', 'Back-office']];
+
+// --- Tuiles d'origine de l'APK : visibles ou cachées, par holding puis société ---
+let tuilesReglages = [];
+
+async function chargerTuilesApk() {
+  const { data, error } = await sb.from('tuiles_reglages').select('tuile, holding_id, societe_id, visible');
+  $('#tuiles-section').classList.toggle('hidden', !!error);   // base pas encore à jour
+  if (error) return console.error(error);
+  tuilesReglages = data;
+  const cible = $('#tuiles-cible'), avant = cible.value;
+  cible.replaceChildren(...holdings.map((h) => new Option(`${h.nom} (holding)`, `h:${h.id}`)), ...societes.map((s) => new Option(s.nom, `s:${s.id}`)));
+  cible.value = avant || `s:${selectedSociete}`;
+  if (!cible.value) cible.selectedIndex = 0;
+  renderTuilesApk();
+}
+
+function renderTuilesApk() {
+  const [genre, id] = [$('#tuiles-cible').value.slice(0, 1), $('#tuiles-cible').value.slice(2)];
+  const h = genre === 'h' ? id : null, s = genre === 's' ? id : null;
+  const societe = s ? societes.find((x) => x.id === s) : { id: null, holding_id: h };
+  $('#tuiles-liste').replaceChildren(...TUILES_APK.map(([tuile, nom]) => {
+    const l = elt('label', 'module-portee-ligne'), sel = elt('select');
+    const sien = tuilesReglages.find((r) => r.tuile === tuile && (s ? r.societe_id === s : r.holding_id === h));
+    const commun = tuileVisible(tuilesReglages.filter((r) => !s || r.societe_id !== s), tuile, s ? societe : { id: null });
+    sel.add(new Option(s && societe?.holding_id ? `Comme la holding (${commun ? 'visible' : 'cachée'})` : 'Visible (par défaut)', ''));
+    sel.add(new Option('Visible', 'oui'));
+    sel.add(new Option('Cachée', 'non'));
+    sel.value = sien ? (sien.visible ? 'oui' : 'non') : '';
+    sel.addEventListener('change', async () => {
+      const { error } = await sb.rpc('regler_tuile', { p_tuile: tuile, p_holding: h, p_societe: s, p_visible: sel.value === '' ? null : sel.value === 'oui' });
+      if (error) alert(error.message);
+      chargerTuilesApk();
+    });
+    l.append(elt('span', null, nom), sel);
+    return l;
+  }));
+}
+$('#tuiles-cible').addEventListener('change', renderTuilesApk);
 
 async function attribuerModule(m, holding, societe, actif, supports = null) {
   const { error } = await sb.rpc('attribuer_module_perso', { id_module: m.id, p_holding: holding, p_societe: societe, p_actif: actif, p_supports: supports });

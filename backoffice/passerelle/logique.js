@@ -38,7 +38,7 @@ export function traiter(p, env) {
   if (p.action === 'chat_fetch') return env.relais({ action: 'chat_fetch', tech: droit.dossier });
   if (p.action === 'chat_markRead') return env.relais({ action: 'chat_markRead', tech: droit.dossier, upTo: Number(p.upTo) || 0 });
   if (p.action === 'envoi_complet') return { ok: true };
-  if (p.action === 'modules_liste') return { ok: true, modules: env.base.modules(p.jeton, p.support === 'iphone' ? 'iphone' : 'apk') };
+  if (p.action === 'modules_liste') return listerModules(p, env);
   if (p.action === 'module_saisie') return saisirModule(p, env);
 
   const racine = env.drive(droit.dossier);
@@ -72,6 +72,14 @@ function connecter(p, env) {
       + '\n\nSi ce n\'est pas vous, prévenez le bureau tout de suite : il peut couper l\'accès.');
   } catch (e) { /* sans effet sur la connexion */ }
   return { ok: true, etat: 'ok', jeton: r.jeton };
+}
+
+// Tuiles cachées : absentes de la réponse si la base ne les donne pas, le téléphone ne change alors rien.
+function listerModules(p, env) {
+  const r = { ok: true, modules: env.base.modules(p.jeton, p.support === 'iphone' ? 'iphone' : 'apk') };
+  const cachees = env.base.tuiles(p.jeton);
+  if (Array.isArray(cachees)) r.cachees = cachees;
+  return r;
 }
 
 // Tout ce qui n'est pas « ok » ou « deja » : le téléphone garde sa saisie et réessaiera.

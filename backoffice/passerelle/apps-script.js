@@ -34,6 +34,7 @@ function environnement_() {
       demanderCode: (m) => rpc_('telephone_demander_code', { p_mail: m })[0] || null,
       connecter: (m, c, a, ok) => rpc_('telephone_connecter', { p_mail: m, p_code: c, p_appareil: a, confirme: ok })[0] || null,
       modules: (j, support) => rpc_('telephone_modules', { p_jeton: j, p_support: support }),
+      tuiles: (j) => rpc_('telephone_tuiles', { p_jeton: j }),
       saisie: (x) => rpc_('telephone_saisie', x),
     },
     relais: (p) => {

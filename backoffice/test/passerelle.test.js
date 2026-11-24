@@ -140,8 +140,11 @@ test('modules : la liste et la saisie passent par le jeton ; seuls ok et deja va
   const recus = [];
   let rep = 'ok';
   env.base.modules = (j) => [{ nom: 'Outillage ' + (j === JU) }];
+  env.base.tuiles = () => null;
   env.base.saisie = (x) => (recus.push(x), rep);
   assert.deepEqual(go({ action: 'modules_liste' }), { ok: true, modules: [{ nom: 'Outillage true' }] });
+  env.base.tuiles = () => ['frais'];
+  assert.deepEqual(go({ action: 'modules_liste' }).cachees, ['frais']);
   const bonne = { action: 'module_saisie', id, module, version: 1, date: '2026-11-24', valeurs: { etat: 'Bon' } };
   assert.deepEqual(go(bonne), { ok: true, etat: 'ok' });
   assert.deepEqual(recus, [{ p_jeton: JU, p_id: id, p_module: module, p_version: 1, p_date: '2026-11-24', p_valeurs: { etat: 'Bon' } }]);
