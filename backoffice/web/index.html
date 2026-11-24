@@ -213,6 +213,17 @@
     .field input, .field select { min-width: 0; }
     .field input, .field select { width: 100%; box-sizing: border-box; }
     .papiers-bloc { margin-bottom: 24px; }
+    .documents-liste { list-style: none; margin: 0; padding: 0; }
+    .document-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .document-nom { display: grid; gap: 4px; min-width: 0; }
+    .document-nom .aide { margin: 0; }
+    .document-ligne > .pastille { white-space: nowrap; }
+    .document-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .document-actions button { min-height: 44px; }
+    .papiers-bloc .document-form { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    .document-form .field { flex: 1 1 11rem; min-width: 0; }
+    #documents-cible { width: auto; min-height: 44px; }
+    @media (max-width: 640px) { .document-ligne { grid-template-columns: minmax(0, 1fr) auto; } .document-actions { grid-column: 1 / -1; justify-content: flex-start; } }
     .papiers-bloc form { max-width: 760px; align-items: end; }
     .papiers-bloc input { max-width: 100%; min-height: 44px; }
     .papiers-bloc input[type="date"] { -webkit-appearance: none; appearance: none; }   /* Safari iPad : la date débordait du champ */
@@ -931,6 +942,11 @@
               <p class="aide">Pour toutes les sociétés et holdings. Les téléphones ne les reçoivent pas encore : rien ne change dans l'APK.</p>
               <div id="modules-perso-liste" class="modules-perso-liste"></div>
             </div>
+            <div class="section">
+              <div class="module-entete"><h3>Documents demandés à l'embauche</h3><select id="documents-cible" aria-label="Société ou holding"></select></div>
+              <p class="aide">Le réglage de la société l'emporte sur celui de sa holding.</p>
+              <div id="documents-regles"></div>
+            </div>
           </div>
           <div id="module-editeur" class="section hidden">
             <h3 id="module-editeur-titre">Nouveau module</h3>
@@ -1090,6 +1106,12 @@
                   <div class="field"><label for="secu-nir">N° de sécurité sociale (15 chiffres, clé comprise)</label><input id="secu-nir" autocomplete="off" required inputmode="text" placeholder="1 85 05 78 006 084 91"></div>
                   <button type="submit">Enregistrer le n°</button>
                 </form>
+              </div>
+              <div class="papiers-bloc">
+                <h4>Documents d'embauche</h4>
+                <p id="documents-bilan" class="aide"></p>
+                <ul id="documents-liste" class="documents-liste"></ul>
+                <p class="aide">Le casier judiciaire n'est jamais copié, seulement « vu le ». Le solde de points ne doit pas être demandé ni noté.</p>
               </div>
               <p class="aide">Données personnelles réservées à leur usage : le permis sert à désigner le conducteur d'une amende (admin et gestion) ; le n° de sécurité sociale sert à la paie et aux déclarations sociales (admin, gestion et comptable). Numéros masqués à l'écran, jamais effacés à la main, purgés après le départ du technicien ; le journal note qui les modifie, sans les numéros.</p>
             </div>

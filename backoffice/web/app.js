@@ -11,6 +11,7 @@ import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/inte
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
+import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -675,7 +676,7 @@ async function loadTechniciens(societeId) {
 // Conservation légale (super admin) : délais, aperçu, puis purge confirmée.
 const NOMS_DONNEES = { temps: 'Interventions et heures', heures_sup: 'Heures sup validées', gestes_co: 'Équipements posés (primes)',
   primes_tarifs: 'Barèmes de primes', conges: 'Congés', frais: 'Notes de frais', photos_apk: 'Photos et justificatifs',
-  amendes: 'Amendes', techniciens: 'Techniciens partis', permis_conduire: 'Permis de conduire', secu_sociale: 'N° de sécurité sociale' };
+  amendes: 'Amendes', techniciens: 'Techniciens partis', permis_conduire: 'Permis de conduire', secu_sociale: 'N° de sécurité sociale', documents_tech: 'Documents d\'embauche' };
 
 async function chargerDurees() {
   const { data, error } = await sb.from('durees_conservation').select('table_nom, annees, source').order('annees');
@@ -699,7 +700,7 @@ $('#purge-lancer').addEventListener('click', async () => {
   const { data, error } = await sb.rpc('purger_donnees', { s: selectedSociete, confirmation: 'PURGER' });
   if (error) return alert(error.message);
   // Les fichiers suivent (la base n'autorise que ceux dont la ligne vient d'être purgée).
-  const seaux = { photos_apk: 'photos', amendes: 'scans', permis_conduire: 'identite' };
+  const seaux = { photos_apk: 'photos', amendes: 'scans', permis_conduire: 'identite', documents_tech: 'identite' };
   const echecs = [];
   for (const l of data) {
     if (!seaux[l.table_nom] || !l.fichiers.length) continue;
@@ -3596,6 +3597,7 @@ async function chargerPapiers(t) {
   $('#permis-valeurs').replaceChildren();
   $('#secu-valeurs').replaceChildren();
   if (!voitSecu()) return;
+  chargerDocuments(t);
   const [permis, secu] = await Promise.all([
     voitPermis() ? sb.from('permis_conduire').select('numero, categories, delivre_le, scan, modifie_le').eq('technicien_id', t.id).maybeSingle() : { data: null },
     sb.from('secu_sociale').select('nir, modifie_le').eq('technicien_id', t.id).maybeSingle(),
@@ -3799,6 +3801,7 @@ async function chargerModules() {
   if (!superAdmin) return;
   renderModulesSociete();
   fermerEditeurModule();
+  chargerReglesDocuments();
   const [m, v, p] = await Promise.all([
     sb.from('modules_perso').select('id, nom, icone, couleur, finalite, conservation_mois, version, actif').order('nom'),
     sb.from('modules_perso_versions').select('module_id, version, champs'),
@@ -4004,3 +4007,140 @@ $('#module-form').addEventListener('submit', async (e) => {
   if (error) return alert(error.message);
   await chargerModules();
 });
+
+// === DOCUMENTS D'EMBAUCHE (onglet Papiers) ===
+const ETATS_DOCUMENT = { recu: ['Reçu', 'ok'], bientot: ['Expire bientôt', 'alerte'], expire: ['Expiré', 'danger'],
+  manquant: ['Manquant', 'danger'], facultatif: ['Facultatif', 'neutre'] };
+
+async function chargerDocuments(t) {
+  $('#documents-liste').replaceChildren();
+  $('#documents-bilan').textContent = '';
+  const [types, regles, remises] = await Promise.all([
+    sb.from('documents_types').select('code, libelle, aide, acces, copie, expire, rappel_mois, exige').order('ordre'),
+    sb.from('documents_regles').select('type, holding_id, societe_id, exige'),
+    sb.from('documents_tech').select('id, type, vu_le, expire_le, fichier, ecarte, cree_le').eq('technicien_id', t.id),
+  ]);
+  const erreur = types.error || regles.error || remises.error;
+  if (erreur) return alert(erreur.message);
+  if (ficheTechnicien !== t) return;
+  const societe = societes.find((s) => s.id === selectedSociete) || { id: selectedSociete };
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const vus = types.data.filter((k) => k.acces === 'paie' || voitPermis())
+    .map((k) => ({ k, ...etatDocument(k, exigence(k, regles.data, societe), remises.data, aujourdhui), exige: exigence(k, regles.data, societe) }))
+    .filter((x) => x.exige !== 'non_demande' || x.remise);
+  const obligatoires = vus.filter((x) => x.exige === 'obligatoire');
+  const bons = obligatoires.filter((x) => ['recu', 'bientot'].includes(x.etat)).length;
+  $('#documents-bilan').textContent = `${bons} sur ${obligatoires.length} documents obligatoires à jour.`;
+  $('#documents-liste').replaceChildren(...vus.map((x) => ligneDocument(t, x)));
+}
+
+function ligneDocument(t, { k, etat, remise }) {
+  const li = elt('li', 'document-ligne');
+  const nom = elt('div', 'document-nom');
+  nom.append(elt('strong', null, k.libelle));
+  if (k.aide) nom.append(elt('span', 'aide', k.aide));
+  if (remise) {
+    const limite = limiteDocument(k, remise);
+    nom.append(elt('span', 'aide', `${k.copie ? 'Reçu' : 'Vu'} le ${formaterDate(remise.vu_le)}${limite ? ` · ${k.rappel_mois ? 'à revérifier' : 'expire'} le ${formaterDate(limite)}` : ''}`));
+  }
+  const actions = elt('div', 'document-actions');
+  if (remise?.fichier) {
+    const voir = boutonModule('Ouvrir', 'secondary voir', async () => {
+      const { data, error } = await sb.storage.from('identite').createSignedUrl(remise.fichier, 120);
+      if (error) return alert(error.message);
+      window.open(data.signedUrl, '_blank', 'noopener');
+    });
+    actions.append(voir);
+  }
+  if (peutEcrire()) {
+    actions.append(boutonModule(k.copie ? (remise ? 'Renouveler' : 'Ajouter') : 'Vu aujourd’hui', 'secondary', () => ajouterDocument(t, k, li)));
+    if (remise) actions.append(boutonModule('Écarter', 'danger', () => ecarterDocument(t, k, remise)));
+  }
+  const [texte, ton] = ETATS_DOCUMENT[etat];
+  li.append(nom, pastille(etat === 'recu' && !k.copie ? 'Vu' : texte, ton), actions);
+  return li;
+}
+
+async function ecarterDocument(t, k, remise) {
+  if (!confirm(`Écarter « ${k.libelle} » ? Il sera masqué, pas effacé. À utiliser pour une erreur.`)) return;
+  const { error } = await sb.from('documents_tech').update({ ecarte: true }).eq('id', remise.id);
+  if (error) return alert(error.message);
+  await chargerDocuments(t);
+}
+
+// Document sans copie : une date suffit. Sinon photo ou PDF, et l'expiration si le document en a une.
+function ajouterDocument(t, k, li) {
+  li.querySelector('form')?.remove();
+  const form = elt('form', 'document-form');
+  const champ = (libelle, type) => {
+    const l = elt('label', 'field', libelle), i = elt('input');
+    i.type = type;
+    l.append(i);
+    form.append(l);
+    return i;
+  };
+  const vu = champ(k.copie ? 'Reçu le' : 'Vu le', 'date');
+  vu.value = new Date().toISOString().slice(0, 10);
+  vu.required = true;
+  const fichier = k.copie ? champ('Photo ou PDF', 'file') : null;
+  if (fichier) { fichier.accept = 'application/pdf,image/jpeg,image/png'; fichier.required = true; }
+  const expire = k.expire ? champ('Expire le', 'date') : null;
+  const envoyer = elt('button', null, 'Enregistrer');
+  form.append(envoyer, boutonModule('Annuler', 'secondary', () => form.remove()));
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = fichier?.files[0];
+    if (f && !extensionScan(f)) return alert('Copie acceptée : PDF, JPEG ou PNG.');
+    if (f && f.size > 10 * 1024 * 1024) return alert('Fichier trop lourd : 10 Mo au plus.');
+    envoyer.disabled = true;
+    try {
+      let chemin = null;
+      if (f) {
+        chemin = `${selectedSociete}/${k.acces}/${t.id}_${k.code}_${Date.now()}.${extensionScan(f)}`;
+        const { error } = await sb.storage.from('identite').upload(chemin, f, { contentType: f.type });
+        if (error) throw error;
+      }
+      const { error } = await sb.from('documents_tech').insert({ societe_id: selectedSociete, technicien_id: t.id, type: k.code,
+        vu_le: vu.value, expire_le: expire?.value || null, fichier: chemin });
+      if (error) throw error;
+      await chargerDocuments(t);
+    } catch (err) {
+      alert(err.message || 'Erreur lors de l\'enregistrement du document');
+      envoyer.disabled = false;
+    }
+  });
+  li.append(form);
+}
+
+// Réglage (onglet Modules, super admin) : ce qui est demandé, par holding ou par société.
+async function chargerReglesDocuments() {
+  const societe = societes.find((s) => s.id === selectedSociete);
+  const holding = holdings.find((h) => h.id === societe?.holding_id);
+  const cible = $('#documents-cible'), garde = cible.value;
+  cible.replaceChildren(new Option(societe?.nom || 'La société', 'societe'), ...(holding ? [new Option(`${holding.nom} (holding)`, 'holding')] : []));
+  if (garde === 'holding' && holding) cible.value = garde;
+  const [types, regles] = await Promise.all([
+    sb.from('documents_types').select('code, libelle, exige').order('ordre'),
+    sb.from('documents_regles').select('type, holding_id, societe_id, exige'),
+  ]);
+  if (types.error || regles.error) return alert((types.error || regles.error).message);
+  const surHolding = cible.value === 'holding';
+  const MOTS = { obligatoire: 'Obligatoire', facultatif: 'Facultatif', non_demande: 'Non demandé' };
+  $('#documents-regles').replaceChildren(...types.data.map((k) => {
+    const sien = regles.data.find((r) => r.type === k.code && (surHolding ? r.holding_id === holding.id : r.societe_id === selectedSociete));
+    const sans = exigence(k, regles.data.filter((r) => r !== sien), { id: null, holding_id: surHolding ? null : holding?.id });
+    const l = elt('label', 'module-portee-ligne');
+    const sel = elt('select');
+    sel.add(new Option(`Par défaut (${MOTS[sans].toLowerCase()})`, '', false, !sien));
+    for (const [v, texte] of Object.entries(MOTS)) sel.add(new Option(texte, v, false, sien?.exige === v));
+    sel.addEventListener('change', async () => {
+      const { error } = await sb.rpc('regler_document', { p_type: k.code, p_holding: surHolding ? holding.id : null,
+        p_societe: surHolding ? null : selectedSociete, p_exige: sel.value || null });
+      if (error) alert(error.message);
+      await chargerReglesDocuments();
+    });
+    l.append(elt('span', null, k.libelle), sel);
+    return l;
+  }));
+}
+$('#documents-cible').addEventListener('change', chargerReglesDocuments);
