@@ -10,6 +10,7 @@ import { primesDuMois, moisDesPrimes, primePayee } from '../core/primes.js';
 import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/interventions.js';
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
+import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -236,13 +237,16 @@ function switchOnglet(tabId, calculer = true) {
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
     // Onglet d'un module désactivé : masqué (le module ne se charge pas)
-    const masque = modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab);
+    // ou réservé à un rôle : les remontrer ici annulerait ce masquage.
+    const masque = (modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab))
+      || (['signalements', 'modules'].includes(b.dataset.tab) && !superAdmin)
+      || (b.dataset.tab === 'messages' && !peutEcrire());
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-signalements']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-signalements', 'panel-modules']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -254,6 +258,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-compta') chargerCompta();
   if (tabId === 'panel-interventions') chargerInterventions();
   if (tabId === 'panel-signalements') chargerSignalements();
+  if (tabId === 'panel-modules') chargerModules();
   clearInterval(relanceChat);
   if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
 }
@@ -555,7 +560,7 @@ async function loadSocieteDetail(societeId) {
     await loadTechniciens(societeId);
     compterCongesAValider();
     compterMessagesNonLus();
-    $('#onglet-messages').classList.toggle('hidden', !peutEcrire());   // admin et gestion seulement
+    $('#onglet-messages').classList.toggle('hidden', !peutEcrire() || !!(modulesActifs && !modulesActifs.has('messages')));   // admin et gestion seulement
     await loadVehicules(societeId);
     chargerBord();   // le tableau de bord a besoin de la liste des techniciens
 
@@ -608,46 +613,6 @@ function renderMembers(members) {
     });
     return tr;
   }));
-
-  // Carte « Modules » (super admin seulement) : un interrupteur par module, confirmation avant désactivation.
-  if (superAdmin) {
-    $('#carte-modules')?.remove();   // une seule carte, même après plusieurs ouvertures
-    const card = document.createElement('section');
-    card.className = 'carte';
-    card.id = 'carte-modules';
-    const h3 = card.appendChild(document.createElement('h3'));
-    h3.textContent = 'Modules';
-    const p = card.appendChild(document.createElement('p'));
-    p.textContent = 'Un module désactivé n\'apparaît plus dans le menu (son onglet est caché) ; ses données restent en base. Les modules non mentionnés sont actifs.';
-    const grid = card.appendChild(document.createElement('div'));
-    grid.className = 'modules-liste';
-    for (const mod of MODULES_LISTE) {
-      const actif = !modulesActifs || modulesActifs.has(mod);
-      const ligne = grid.appendChild(document.createElement('label'));
-      ligne.className = 'module-ligne';
-      const input = ligne.appendChild(document.createElement('input'));
-      input.type = 'checkbox';
-      input.checked = actif;
-      input.disabled = true;
-      const span = ligne.appendChild(document.createElement('span'));
-      span.textContent = LIBELLE_MODULE[mod] || mod;
-      if (!actif) {
-        const bouton = ligne.appendChild(document.createElement('button'));
-        bouton.className = 'secondary';
-        bouton.textContent = 'Réactiver';
-        bouton.addEventListener('click', () => changerModule(mod, true));
-      } else {
-        const bouton = ligne.appendChild(document.createElement('button'));
-        bouton.className = 'danger';
-        bouton.textContent = 'Désactiver';
-        bouton.addEventListener('click', () => {
-          if (!doubleValidation(`Désactiver le module « ${LIBELLE_MODULE[mod] || mod} » pour ${societes.find(s => s.id === selectedSociete)?.nom || 'la société'} ? L'onglet disparaîtra du menu.`, 'DÉSACTIVER')) return;
-          changerModule(mod, false);
-        });
-      }
-    }
-    $('#membres-table').closest('.section').appendChild(card);
-  }
 }
 
 async function changerModule(mod, actif) {
@@ -655,6 +620,7 @@ async function changerModule(mod, actif) {
     const { error } = await sb.rpc('activer_module', { s: selectedSociete, mod, actif });
     if (error) throw error;
     await loadSocieteDetail(selectedSociete);
+    switchOnglet('panel-modules');   // on reste sur les modules
   } catch (err) {
     alert(err.message || 'Erreur lors de la modification du module');
   }
@@ -709,7 +675,7 @@ async function loadTechniciens(societeId) {
 // Conservation légale (super admin) : délais, aperçu, puis purge confirmée.
 const NOMS_DONNEES = { temps: 'Interventions et heures', heures_sup: 'Heures sup validées', gestes_co: 'Équipements posés (primes)',
   primes_tarifs: 'Barèmes de primes', conges: 'Congés', frais: 'Notes de frais', photos_apk: 'Photos et justificatifs',
-  amendes: 'Amendes', techniciens: 'Techniciens partis' };
+  amendes: 'Amendes', techniciens: 'Techniciens partis', permis_conduire: 'Permis de conduire', secu_sociale: 'N° de sécurité sociale' };
 
 async function chargerDurees() {
   const { data, error } = await sb.from('durees_conservation').select('table_nom, annees, source').order('annees');
@@ -3815,4 +3781,226 @@ sb.auth.onAuthStateChange((event, newSession) => {
     session = null;
     showScreen('login-screen');
   }
+});
+
+// === MODULES (super admin) ===
+// Ceux du back-office (un interrupteur par société) et les modules personnalisés.
+let modulesPerso = [], portees = [], moduleEdite = null, champsEdites = [];
+const ICONES_MODULE = { outil: 'Outil', liste: 'Liste', photo: 'Photo', vehicule: 'Véhicule', alerte: 'Alerte', document: 'Document' };
+
+function boutonModule(texte, classe, action) {
+  const b = elt('button', classe, texte);
+  b.type = 'button';
+  b.addEventListener('click', action);
+  return b;
+}
+
+async function chargerModules() {
+  if (!superAdmin) return;
+  renderModulesSociete();
+  fermerEditeurModule();
+  const [m, v, p] = await Promise.all([
+    sb.from('modules_perso').select('id, nom, icone, couleur, finalite, conservation_mois, version, actif').order('nom'),
+    sb.from('modules_perso_versions').select('module_id, version, champs'),
+    sb.from('modules_perso_portee').select('module_id, holding_id, societe_id, actif'),
+  ]);
+  const erreur = m.error || v.error || p.error;
+  if (erreur) return alert(erreur.message);
+  portees = p.data;
+  modulesPerso = m.data.map((x) => ({ ...x,
+    champs: v.data.find((y) => y.module_id === x.id && y.version === x.version)?.champs || [],
+    cles: v.data.filter((y) => y.module_id === x.id).flatMap((y) => y.champs.map((c) => c.cle)) }));   // toutes versions : jamais réutilisées
+  renderModulesPerso();
+}
+
+function renderModulesSociete() {
+  const nom = societes.find((s) => s.id === selectedSociete)?.nom || 'la société';
+  $('#modules-societe-titre').textContent = `Modules de ${nom}`;
+  $('#modules-societe').replaceChildren(...MODULES_LISTE.map((mod) => {
+    const actif = !modulesActifs || modulesActifs.has(mod);
+    const l = elt('div', 'module-ligne');
+    l.append(elt('span', 'module-nom', LIBELLE_MODULE[mod] || mod), pastille(actif ? 'Actif' : 'Désactivé', actif ? 'ok' : 'alerte'),
+      actif ? boutonModule('Désactiver', 'danger', () => {
+        if (doubleValidation(`Désactiver le module « ${LIBELLE_MODULE[mod] || mod} » pour ${nom} ? L'onglet disparaîtra du menu ; les données restent.`, 'DÉSACTIVER')) changerModule(mod, false);
+      }) : boutonModule('Réactiver', 'secondary', () => changerModule(mod, true)));
+    return l;
+  }));
+}
+
+function renderModulesPerso() {
+  $('#modules-perso-liste').replaceChildren(...(modulesPerso.length ? modulesPerso.map(carteModulePerso)
+    : [elt('p', 'aide', 'Aucun module personnalisé pour l’instant.')]));
+}
+
+function carteModulePerso(m) {
+  const carte = elt('article', 'module-carte');
+  const siennes = portees.filter((p) => p.module_id === m.id);
+  const nb = m.actif ? societes.filter((s) => enService(siennes, s)).length : 0;
+  const tete = elt('div', 'module-tete');
+  tete.append(iconeModule(m), elt('strong', null, m.nom),
+    pastille(!m.actif ? 'Désactivé' : nb ? `${nb} société${nb > 1 ? 's' : ''}` : 'Non attribué', m.actif && nb ? 'ok' : 'alerte'));
+  const actions = elt('div', 'module-actions');
+  actions.append(boutonModule('Modifier', 'secondary', () => ouvrirEditeurModule(m)),
+    m.actif ? boutonModule('Désactiver', 'danger', () => activerModulePerso(m, false))
+      : boutonModule('Réactiver', 'secondary', () => activerModulePerso(m, true)));
+  const details = elt('details');
+  details.append(elt('summary', null, 'Attribuer aux holdings et sociétés'), porteeModule(m, siennes));
+  carte.append(tete, elt('p', 'aide', `${m.champs.length} champ${m.champs.length > 1 ? 's' : ''} · version ${m.version} · ${m.finalite}`), actions, details);
+  return carte;
+}
+
+function iconeModule(m) {
+  const i = elt('span', 'module-icone');
+  i.dataset.ico = m.icone;
+  i.style.setProperty('--teinte', m.couleur);
+  i.setAttribute('aria-hidden', 'true');
+  return i;
+}
+
+// Holding : oui / non. Société : suit sa holding, ou son propre réglage.
+function porteeModule(m, siennes) {
+  const boite = elt('div', 'module-portee');
+  const choix = (nom, options, valeur, envoyer) => {
+    const l = elt('label', 'module-portee-ligne');
+    const sel = elt('select');
+    for (const [v, texte] of options) sel.add(new Option(texte, v, false, v === valeur));
+    sel.addEventListener('change', () => envoyer(sel.value === '' ? null : sel.value === 'oui'));
+    l.append(elt('span', null, nom), sel);
+    return l;
+  };
+  const lire = (p) => (p ? (p.actif ? 'oui' : 'non') : '');
+  const groupe = (titre, liste, holdingId) => {
+    if (titre) boite.append(choix(titre, [['', 'Non attribué'], ['oui', 'Toute la holding']],
+      siennes.some((p) => p.holding_id === holdingId && p.actif) ? 'oui' : '', (actif) => attribuerModule(m, holdingId, null, actif)));
+    for (const s of liste) {
+      const l = choix(s.nom, [['', titre ? 'Comme la holding' : 'Non attribué'], ['oui', 'Activé'], ...(titre ? [['non', 'Coupé']] : [])],
+        lire(siennes.find((p) => p.societe_id === s.id && (titre || p.actif))), (actif) => attribuerModule(m, null, s.id, actif));
+      if (titre) l.classList.add('sous-holding');
+      boite.append(l);
+    }
+  };
+  for (const h of holdings) groupe(`${h.nom} (holding)`, societes.filter((s) => s.holding_id === h.id), h.id);
+  groupe(null, societes.filter((s) => !s.holding_id));
+  return boite;
+}
+
+async function attribuerModule(m, holding, societe, actif) {
+  const { error } = await sb.rpc('attribuer_module_perso', { id_module: m.id, p_holding: holding, p_societe: societe, p_actif: actif });
+  if (error) alert(error.message);
+  await chargerModules();
+}
+
+async function activerModulePerso(m, actif) {
+  if (!actif && !doubleValidation(`Désactiver « ${m.nom} » partout ? Rien n'est effacé, il pourra être réactivé.`, 'DÉSACTIVER')) return;
+  const { error } = await sb.rpc('activer_module_perso', { id_module: m.id, p_actif: actif });
+  if (error) return alert(error.message);
+  await chargerModules();
+}
+
+function fermerEditeurModule() {
+  moduleEdite = null;
+  $('#module-editeur').classList.add('hidden');
+  $('#modules-vue').classList.remove('hidden');
+}
+
+function ouvrirEditeurModule(m) {
+  moduleEdite = m;
+  champsEdites = m ? m.champs.map((c) => ({ ...c, choix: [...(c.choix || [])] })) : [];
+  $('#module-editeur-titre').textContent = m ? `Modifier « ${m.nom} »` : 'Nouveau module';
+  $('#module-nom').value = m?.nom || '';
+  $('#module-icone').value = m?.icone || 'outil';
+  $('#module-couleur').value = m?.couleur || '#e6001c';
+  $('#module-finalite').value = m?.finalite || '';
+  $('#module-conservation').value = m?.conservation_mois || 24;
+  $('#modules-vue').classList.add('hidden');
+  $('#module-editeur').classList.remove('hidden');
+  renderChampsModule();
+}
+
+function renderChampsModule() {
+  $('#module-champs').replaceChildren(...champsEdites.map((c, i) => {
+    const li = elt('li', 'module-champ');
+    const nom = elt('input');
+    nom.value = c.libelle;
+    nom.maxLength = 60;
+    nom.placeholder = 'Nom du champ';
+    nom.setAttribute('aria-label', `Nom du champ ${i + 1}`);
+    nom.addEventListener('input', () => { c.libelle = nom.value; apercuModule(); });
+    const type = elt('select');
+    type.setAttribute('aria-label', `Type du champ ${i + 1}`);
+    for (const [v, texte] of Object.entries(TYPES_CHAMP)) type.add(new Option(texte, v, false, v === c.type));
+    type.disabled = !!c.cle;   // déjà enregistré : son type ne change plus, sinon les saisies deviendraient illisibles
+    if (c.cle) type.title = 'Le type d\'un champ enregistré ne change plus : créez un nouveau champ.';
+    type.addEventListener('change', () => { c.type = type.value; renderChampsModule(); });
+    const obl = elt('label', 'module-obligatoire');
+    const coche = elt('input');
+    coche.type = 'checkbox';
+    coche.checked = c.obligatoire;
+    coche.addEventListener('change', () => { c.obligatoire = coche.checked; apercuModule(); });
+    obl.append(coche, 'Obligatoire');
+    const bouger = (d) => { [champsEdites[i], champsEdites[i + d]] = [champsEdites[i + d], champsEdites[i]]; renderChampsModule(); };
+    const haut = boutonModule('↑', 'secondary', () => bouger(-1)), bas = boutonModule('↓', 'secondary', () => bouger(1));
+    haut.disabled = i === 0;
+    bas.disabled = i === champsEdites.length - 1;
+    haut.setAttribute('aria-label', `Monter le champ ${i + 1}`);
+    bas.setAttribute('aria-label', `Descendre le champ ${i + 1}`);
+    const retirer = boutonModule('Retirer', 'danger', () => { champsEdites.splice(i, 1); renderChampsModule(); });
+    const outils = elt('div', 'module-champ-outils');
+    outils.append(obl, haut, bas, retirer);
+    li.append(nom, type, outils);
+    if (c.type === 'liste') {
+      const choix = elt('textarea');
+      choix.rows = 3;
+      choix.value = c.choix.join('\n');
+      choix.placeholder = 'Un choix par ligne';
+      choix.setAttribute('aria-label', `Choix du champ ${i + 1}, un par ligne`);
+      choix.addEventListener('input', () => { c.choix = choix.value.split('\n').map((x) => x.trim()).filter(Boolean); apercuModule(); });
+      li.append(choix);
+    }
+    return li;
+  }));
+  apercuModule();
+}
+
+// Aperçu : l'écran tel que l'APK l'affichera (aucun téléphone ne le reçoit à ce stade).
+function apercuModule() {
+  const ecran = $('#module-apercu');
+  const tete = elt('div', 'apercu-tete');
+  tete.append(iconeModule({ icone: $('#module-icone').value, couleur: $('#module-couleur').value }), elt('span', null, $('#module-nom').value || 'Nom du module'));
+  ecran.style.setProperty('--teinte', $('#module-couleur').value);
+  const indice = { texte: 'Saisir…', nombre: '0', date: 'jj/mm/aaaa', photo: 'Prendre une photo', signature: 'Signer ici' };
+  ecran.replaceChildren(tete, ...champsEdites.map((c) => {
+    const d = elt('div', `apercu-champ ${c.type}`);
+    d.append(elt('span', 'apercu-libelle', `${c.libelle || 'Champ sans nom'}${c.obligatoire ? ' *' : ''}`));
+    if (c.type === 'liste') d.append(...(c.choix.length ? c.choix : ['Choix']).map((x) => elt('span', 'apercu-choix', x)));
+    else d.append(elt('span', 'apercu-zone', indice[c.type] || ''));
+    return d;
+  }), elt('span', 'apercu-bouton', 'Enregistrer'));
+}
+
+$('#module-nouveau').addEventListener('click', () => ouvrirEditeurModule(null));
+$('#module-annuler').addEventListener('click', fermerEditeurModule);
+$('#module-champ-ajouter').addEventListener('click', () => {
+  champsEdites.push({ cle: null, libelle: '', type: 'texte', obligatoire: false, choix: [] });
+  renderChampsModule();
+  $('#module-champs li:last-child input').focus();
+});
+for (const id of ['#module-nom', '#module-icone', '#module-couleur']) $(id).addEventListener('input', apercuModule);
+for (const [v, texte] of Object.entries(ICONES_MODULE)) $('#module-icone').add(new Option(texte, v));
+
+$('#module-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const saisie = { nom: $('#module-nom').value, finalite: $('#module-finalite').value, conservation: Number($('#module-conservation').value), champs: champsEdites };
+  const defaut = defautModule(saisie);
+  if (defaut) return alert(defaut);
+  const prises = [...(moduleEdite?.cles || [])];
+  const champs = champsEdites.map((c) => {
+    const cle = c.cle || cleChamp(c.libelle, prises);
+    prises.push(cle);
+    return { cle, libelle: c.libelle.trim(), type: c.type, obligatoire: c.obligatoire, ...(c.type === 'liste' ? { choix: c.choix } : {}) };
+  });
+  const { error } = await sb.rpc('enregistrer_module_perso', { id_module: moduleEdite?.id ?? null, p_nom: saisie.nom,
+    p_icone: $('#module-icone').value, p_couleur: $('#module-couleur').value, p_finalite: saisie.finalite, p_conservation: saisie.conservation, p_champs: champs });
+  if (error) return alert(error.message);
+  await chargerModules();
 });
