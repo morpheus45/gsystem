@@ -1010,6 +1010,7 @@
               <button data-cible="tech-section-photos">Photos</button>
               <button data-cible="tech-section-primes">Primes</button>
               <button data-cible="tech-section-papiers" id="tech-onglet-papiers" class="hidden">Papiers</button>
+              <button data-cible="tech-section-telephone" id="tech-onglet-telephone" class="hidden">Téléphone</button>
             </div>
 
             <div class="tech-barre">
@@ -1085,6 +1086,27 @@
                 <table id="tech-primes-table"><thead><tr><th>Équipement installé</th><th>Quantité</th><th>Montant</th></tr></thead><tbody></tbody></table>
               </div>
               <p class="aide">Règle de l'APK : équipements installés × barème du mois ; une caméra ne compte que les jours avec une installation (INST).</p>
+            </div>
+
+            <div id="tech-section-telephone" class="section sous-section hidden">
+              <div class="papiers-bloc">
+                <h4>Téléphone connecté</h4>
+                <ul id="telephone-liste" class="documents-liste"></ul>
+                <div class="module-actions">
+                  <button type="button" id="telephone-couper" class="danger hidden">Perdu ou volé : couper l'accès</button>
+                  <button type="button" id="telephone-secours" class="secondary hidden">Créer un code de secours</button>
+                </div>
+                <p id="telephone-code" role="status"></p>
+              </div>
+              <div class="papiers-bloc">
+                <h4>Adresse mail de connexion</h4>
+                <p id="telephone-mail-affiche"></p>
+                <form id="telephone-mail-form" class="flex">
+                  <div class="field"><label for="telephone-mail">Adresse lue ailleurs que sur ce téléphone</label><input id="telephone-mail" type="email" autocomplete="off"></div>
+                  <button type="submit">Enregistrer l'adresse</button>
+                </form>
+              </div>
+              <p class="aide">Pas encore en service : les téléphones utilisent toujours l'ancienne connexion. Le technicien changera seul de téléphone avec un code reçu par mail ; l'ancien sera déconnecté, sans effacer ses données.</p>
             </div>
 
             <div id="tech-section-papiers" class="section sous-section hidden">

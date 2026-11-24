@@ -129,7 +129,7 @@ function afficherSousOnglet(conteneur, cible) {
   conteneur.querySelectorAll(':scope > .sous-onglets button').forEach(b => b.classList.toggle('active', b.dataset.cible === cible));
   // Fiche technicien : le contenu suit les onglets ; résumé avec les interventions, pas de mois pour les papiers.
   conteneur.querySelector(':scope > .tech-resume-carte')?.classList.toggle('hidden', cible !== 'tech-section-interventions');
-  conteneur.querySelector(':scope > .tech-barre')?.classList.toggle('hidden', cible === 'tech-section-papiers');
+  conteneur.querySelector(':scope > .tech-barre')?.classList.toggle('hidden', ['tech-section-papiers', 'tech-section-telephone'].includes(cible));
 }
 
 function initialiserSousOnglets(conteneur) {
@@ -783,6 +783,7 @@ function ouvrirFicheTechnicien(t) {
   // Charger les données de la fiche
   chargerFicheTechnicien(t);
   chargerPapiers(t);
+  chargerTelephones(t);
 }
 
 // === VÉHICULES ===
@@ -4144,3 +4145,62 @@ async function chargerReglesDocuments() {
   }));
 }
 $('#documents-cible').addEventListener('change', chargerReglesDocuments);
+
+// === TÉLÉPHONE DU TECHNICIEN ===
+// Mail et code de secours : admin. Couper : admin et gestion. La base refuse le reste.
+const gereMail = () => superAdmin || monRole === 'admin';
+const instant = (iso) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : 'jamais');
+
+async function chargerTelephones(t) {
+  $('#tech-onglet-telephone').classList.toggle('hidden', !voitPermis());
+  $('#telephone-code').textContent = '';
+  $('#telephone-liste').replaceChildren();
+  if (!voitPermis()) return;
+  $('#telephone-mail-form').classList.toggle('hidden', !gereMail());
+  const [mail, tels] = await Promise.all([
+    sb.from('techniciens_mail').select('mail').eq('technicien_id', t.id).maybeSingle(),
+    sb.from('telephones').select('id, appareil, cree_le, vu_le, envoi_le, coupe_le, coupe_motif').eq('technicien_id', t.id).order('cree_le', { ascending: false }),
+  ]);
+  if (ficheTechnicien !== t) return;
+  if (mail.error || tels.error) return alert((mail.error || tels.error).message);
+  const adresse = mail.data?.mail || '';
+  $('#telephone-mail-affiche').textContent = adresse || 'non enregistrée';
+  $('#telephone-mail').value = adresse;
+  const actif = tels.data.find((x) => !x.coupe_le);
+  $('#telephone-couper').classList.toggle('hidden', !actif || !peutEcrire());
+  $('#telephone-secours').classList.toggle('hidden', !adresse || !gereMail());
+  $('#telephone-liste').replaceChildren(...(tels.data.length ? tels.data.map((x) => {
+    const li = elt('li', 'document-ligne'), nom = elt('div', 'document-nom');
+    nom.append(elt('strong', null, x.appareil || 'Téléphone'), elt('span', 'aide', x.coupe_le
+      ? `Connecté le ${instant(x.cree_le)} · coupé le ${instant(x.coupe_le)} (${x.coupe_motif === 'remplace' ? 'remplacé par un autre' : 'par le bureau'})`
+      : `Connecté le ${instant(x.cree_le)} · vu le ${instant(x.vu_le)} · dernier envoi complet : ${instant(x.envoi_le)}`));
+    li.append(nom, pastille(x.coupe_le ? 'Déconnecté' : 'Actif', x.coupe_le ? 'neutre' : 'ok'));
+    return li;
+  }) : [elt('li', 'aide', 'Aucun téléphone connecté pour l’instant.')]));
+}
+
+$('#telephone-mail-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const t = ficheTechnicien;
+  if (!t) return;
+  const { error } = await sb.rpc('telephone_regler_mail', { tech: t.id, p_mail: $('#telephone-mail').value });
+  if (error) return alert(/unique|duplicate/.test(error.message) ? 'Cette adresse est déjà celle d\'un autre technicien.' : error.message);
+  await chargerTelephones(t);
+});
+
+$('#telephone-couper').addEventListener('click', async () => {
+  const t = ficheTechnicien;
+  if (!t || !doubleValidation(`Couper l'accès du téléphone de ${t.nom} ? Ses données restent ; seules les saisies pas encore envoyées manqueront tant qu'il n'est pas reconnecté.`, 'COUPER')) return;
+  const { error } = await sb.rpc('telephone_couper', { tech: t.id });
+  if (error) return alert(error.message);
+  await chargerTelephones(t);
+});
+
+$('#telephone-secours').addEventListener('click', async () => {
+  const t = ficheTechnicien;
+  if (!t || !confirm(`Créer un code de secours pour ${t.nom} ? Vérifiez d'abord que c'est bien la bonne personne.`)) return;
+  const { data, error } = await sb.rpc('telephone_code_bureau', { tech: t.id });
+  if (error) return alert(error.message);
+  if (ficheTechnicien !== t) return;
+  $('#telephone-code').textContent = `Code : ${data.slice(0, 4)} ${data.slice(4)} — valable 15 minutes, une seule fois. À utiliser avec son adresse mail.`;
+});
