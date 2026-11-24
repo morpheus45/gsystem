@@ -53,7 +53,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onCheckUpdate: () -> Unit = {},
     onSync: suspend () -> String = { "" },
-    onRestore: suspend () -> String = { "" }
+    onRestore: suspend () -> String = { "" },
+    onAjouterZip: suspend (android.net.Uri) -> String = { "" },
+    onConnecte: () -> Unit = {}
 ) {
     // Destinataires fixes (GS To, EPS To, EPS Cc 1) codés en dur dans AppSettings
     // et masqués ici. Seul le responsable secteur (EPS Cc 2) reste éditable.
@@ -244,6 +246,12 @@ fun SettingsScreen(
                 PriceField(label = "SONDE IN", value = giftSondeIn, onChange = { giftSondeIn = it }, modifier = Modifier.weight(1f))
             }
 
+            if (com.morpheus45.gsystem.backup.Passerelle.disponible) {
+                Spacer(Modifier.height(20.dp))
+                SectionTitle("Connexion de ce téléphone")
+                ConnexionSection(onConnecte)
+            }
+
             Spacer(Modifier.height(20.dp))
             SectionTitle("Sauvegarde de mes données")
             Text("Crée un fichier ZIP contenant toutes tes saisies + photos. " +
@@ -324,6 +332,33 @@ fun SettingsScreen(
                 }
             )
             Text("Après une réinstallation : renseigne le même nom qu'avant, puis récupère tes données et photos depuis le Drive (elles complètent le local, sans rien écraser).",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp))
+
+            Spacer(Modifier.height(10.dp))
+            var ajout by remember { mutableStateOf(false) }
+            val choisirZip = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null) {
+                    ajout = true
+                    syncScope.launch {
+                        val msg = onAjouterZip(uri)
+                        ajout = false
+                        Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            GSecondaryButton(
+                label = if (ajout) "Ajout…" else "Ajouter les données d'un ZIP",
+                accent = MaterialTheme.colorScheme.primary,
+                icon = Icons.Filled.Archive,
+                loading = ajout,
+                enabled = !ajout,
+                onClick = { choisirZip.launch(arrayOf("application/zip", "application/octet-stream")) }
+            )
+            Text("Pour récupérer les saisies d'un ancien téléphone : ajoute seulement ce qui manque, sans rien remplacer.",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 4.dp))

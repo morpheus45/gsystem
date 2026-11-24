@@ -11,6 +11,7 @@ package com.morpheus45.gsystem.ordres
 
 import android.util.Base64
 import com.morpheus45.gsystem.backup.BackupConfig
+import com.morpheus45.gsystem.backup.Passerelle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -31,29 +32,12 @@ object OrdresApi {
     suspend fun pull(user: String, sinceTs: Long): List<OrdrePdf> = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || user.isBlank()) return@withContext emptyList()
         val payload = JSONObject()
-            .put("token", BackupConfig.TOKEN)
             .put("action", "ordres_pull")
             .put("user", user)
             .put("sinceTs", sinceTs)
-        val resp = runCatching {
-            val conn = (URL(BackupConfig.ENDPOINT).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                instanceFollowRedirects = true   // /exec renvoie un 302
-                connectTimeout = 20_000
-                readTimeout = 60_000             // un PDF en base64 dans la reponse
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            }
-            conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
-            val code = conn.responseCode
-            val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                ?.bufferedReader()?.use { it.readText() }.orEmpty()
-            conn.disconnect()
-            if (code in 200..299) body else null
-        }.getOrNull() ?: return@withContext emptyList()
+        val obj = Passerelle.post(payload, 20_000, 60_000) ?: return@withContext emptyList()
 
         runCatching {
-            val obj = JSONObject(resp)
             if (!obj.optBoolean("ok")) return@withContext emptyList()
             val arr = obj.optJSONArray("ordres") ?: return@withContext emptyList()
             (0 until arr.length()).mapNotNull { i ->

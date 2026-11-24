@@ -28,6 +28,9 @@ object BackupConfig {
      */
     const val TOKEN = "gsys-8lIQ8ikcwUwK0hbDPFOloDtLsyvAUw7C"
 
+    /** URL « /exec » de la passerelle (un jeton par téléphone). Vide = pas encore en service. */
+    val PASSERELLE: String = ""
+
     /** Intervalle de la sauvegarde complète automatique (7 jours). */
     const val BACKUP_INTERVAL_MS = 7L * 24 * 60 * 60 * 1000
 

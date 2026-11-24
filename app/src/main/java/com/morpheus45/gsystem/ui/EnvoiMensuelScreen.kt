@@ -84,6 +84,7 @@ fun EnvoiMensuelScreen(
     // période, l'envoi restait bloqué et on la reprenait en boucle.
     var compteurDateCible by remember { mutableStateOf<String?>(null) }
     var compteurRemplaceIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var kmSaisi by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val takeCompteurPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
@@ -108,7 +109,9 @@ fun EnvoiMensuelScreen(
                     id = EntriesRepository.newId(),
                     date = date,
                     timestamp = System.currentTimeMillis(),
-                    fileName = file.name
+                    fileName = file.name,
+                    // Le km déjà saisi pour cette période suit la nouvelle photo.
+                    kilometres = com.morpheus45.gsystem.util.Kilometrage.lire(kmSaisi) ?: 0
                 ))
             }
         } else if (!success && file != null) {
@@ -221,6 +224,17 @@ fun EnvoiMensuelScreen(
         .eachCount().entries
         .sortedByDescending { it.value }
         .map { it.key to it.value }
+
+    // Le champ km suit la photo affichée ; une saisie faite avant la photo est gardée.
+    LaunchedEffect(photoCompteur?.id) {
+        photoCompteur?.kilometres?.takeIf { it > 0 }?.let { kmSaisi = it.toString() }
+    }
+    val kmValide = com.morpheus45.gsystem.util.Kilometrage.lire(kmSaisi)
+    val kmAEnregistrer = photoCompteur != null && kmValide != null && kmValide != photoCompteur.kilometres
+    suspend fun enregistrerKm() {
+        val p = photoCompteur
+        if (p != null && kmValide != null && kmValide != p.kilometres) repo.updateCompteur(p.copy(kilometres = kmValide))
+    }
 
     var status by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
@@ -409,7 +423,44 @@ fun EnvoiMensuelScreen(
                             )
                         }
                     }
-                    Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le kilométrage est lu directement sur la photo.",
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = kmSaisi,
+                        onValueChange = { v -> kmSaisi = v.filter { it.isDigit() }.take(7) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Kilométrage du compteur") },
+                        suffix = { Text("km") },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                    )
+                    val kmPrecedent = com.morpheus45.gsystem.util.Kilometrage.precedent(
+                        store.compteur, compteurPeriod.map { it.id }.toSet(), end.toString())
+                    val kmAvis = kmValide?.let { com.morpheus45.gsystem.util.Kilometrage.avertissement(it, kmPrecedent) }
+                    Text(
+                        when {
+                            kmAvis != null -> kmAvis
+                            photoCompteur == null && kmValide != null -> "Sera enregistré avec la photo."
+                            kmAEnregistrer -> "Pas encore enregistré."
+                            photoCompteur != null && photoCompteur.kilometres > 0 -> "✓ ${photoCompteur.kilometres} km enregistrés. Le back-office les recevra après l’envoi."
+                            kmPrecedent != null -> "Dernier relevé saisi : $kmPrecedent km."
+                            else -> "Recopie le nombre lu sur le compteur."
+                        },
+                        fontSize = 11.sp,
+                        color = if (kmAvis != null) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    if (kmAEnregistrer) {
+                        Spacer(Modifier.height(6.dp))
+                        GSecondaryButton(
+                            label = "Enregistrer le kilométrage",
+                            accent = EnvoiColor,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { scope.launch { enregistrerKm() } }
+                        )
+                    }
+                    Text("Véhicule : ${settings.plaqueVoiture.ifBlank { "<plaque non saisie>" }}. Le bureau compare le kilométrage à la photo.",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.padding(top = 4.dp))
@@ -437,6 +488,7 @@ fun EnvoiMensuelScreen(
                     scope.launch {
                         working = true
                         errorMsg = null
+                        enregistrerKm()   // un km saisi mais pas validé part quand même
                         status = "Remplissage du fichier Excel…"
                         val sendResult = runCatching {
                             // 1. Remplir le .xlsm avec les TEMPS + les FRAIS (F=TTC remboursable, G=TVA)
