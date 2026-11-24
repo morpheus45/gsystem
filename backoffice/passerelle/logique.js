@@ -38,6 +38,8 @@ export function traiter(p, env) {
   if (p.action === 'chat_fetch') return env.relais({ action: 'chat_fetch', tech: droit.dossier });
   if (p.action === 'chat_markRead') return env.relais({ action: 'chat_markRead', tech: droit.dossier, upTo: Number(p.upTo) || 0 });
   if (p.action === 'envoi_complet') return { ok: true };
+  if (p.action === 'modules_liste') return { ok: true, modules: env.base.modules(p.jeton) };
+  if (p.action === 'module_saisie') return saisirModule(p, env);
 
   const racine = env.drive(droit.dossier);
   if (p.action === undefined || p.action === 'upload') return deposer(p, racine, env);
@@ -70,6 +72,23 @@ function connecter(p, env) {
       + '\n\nSi ce n\'est pas vous, prévenez le bureau tout de suite : il peut couper l\'accès.');
   } catch (e) { /* sans effet sur la connexion */ }
   return { ok: true, etat: 'ok', jeton: r.jeton };
+}
+
+// Tout ce qui n'est pas « ok » ou « deja » : le téléphone garde sa saisie et réessaiera.
+function saisirModule(p, env) {
+  const uuid = (x) => typeof x === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(x);
+  if (!uuid(p.id) || !uuid(p.module) || !Number.isInteger(p.version) || p.version < 1 || p.version > 100000
+    || typeof p.date !== 'string' || !dateReelle(p.date)
+    || !p.valeurs || typeof p.valeurs !== 'object' || Array.isArray(p.valeurs)) return { ok: false, error: 'contenu' };
+  const r = env.base.saisie({ p_jeton: p.jeton, p_id: p.id, p_module: p.module, p_version: p.version, p_date: p.date, p_valeurs: p.valeurs });
+  if (r === 'jeton') return REFUS;
+  return r === 'ok' || r === 'deja' ? { ok: true, etat: r } : { ok: false, error: r || 'serveur' };
+}
+
+function dateReelle(t) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return false;
+  const d = new Date(t + 'T00:00:00Z');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t;
 }
 
 const horodatage = (env) => new Date(env.maintenant()).toISOString().replace(/[:.]/g, '-');

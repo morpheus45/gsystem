@@ -47,7 +47,7 @@ def sans(debut, fin):
 sans("function propriete_(", "function environnement_(")
 sans("    mail: (a", "    base: {")
 sans("      verifier:", "    },\n    relais")
-s = s.replace("    base: {\n", "    mail: () => {},\n    base: {\n      verifier: (j) => (j === JETON_ESSAI ? { dossier: 'TECH-ESSAI' } : null),\n      demanderCode: () => null,\n      connecter: () => null,\n", 1)
+s = s.replace("    base: {\n", "    mail: () => {},\n    base: {\n      verifier: (j) => (j === JETON_ESSAI ? { dossier: 'TECH-ESSAI' } : null),\n      demanderCode: () => null,\n      connecter: () => null,\n      modules: () => [],\n      saisie: () => 'module',\n", 1)
 sans("    relais: (p) => {", "    // Le dossier du technicien doit")
 s = s.replace("    // Le dossier du technicien doit", "    relais: () => ({ ok: true, messages: [] }),\n    // Le dossier du technicien doit", 1)
 sans("function rpc_(", "function liste_(")

@@ -134,3 +134,34 @@ test('le script Google ne contient aucun appel d\'effacement ni de partage', () 
   const code = readFileSync(new URL('../passerelle/apps-script.js', import.meta.url), 'utf8') + readFileSync(new URL('../passerelle/logique.js', import.meta.url), 'utf8');
   for (const mot of ['setTrashed', 'removeFile', 'removeFolder', 'Drive.Files', 'deleteRow', 'setSharing', 'addViewer', 'addEditor', 'clearContent']) assert.ok(!code.includes(mot), mot);
 });
+
+test('modules : la liste et la saisie passent par le jeton ; seuls ok et deja valent reçu', () => {
+  const id = '20000000-0000-0000-0000-000000000001', module = '20000000-0000-0000-0000-0000000000aa';
+  const recus = [];
+  let rep = 'ok';
+  env.base.modules = (j) => [{ nom: 'Outillage ' + (j === JU) }];
+  env.base.saisie = (x) => (recus.push(x), rep);
+  assert.deepEqual(go({ action: 'modules_liste' }), { ok: true, modules: [{ nom: 'Outillage true' }] });
+  const bonne = { action: 'module_saisie', id, module, version: 1, date: '2026-11-24', valeurs: { etat: 'Bon' } };
+  assert.deepEqual(go(bonne), { ok: true, etat: 'ok' });
+  assert.deepEqual(recus, [{ p_jeton: JU, p_id: id, p_module: module, p_version: 1, p_date: '2026-11-24', p_valeurs: { etat: 'Bon' } }]);
+  for (const [r, attendu] of [['deja', { ok: true, etat: 'deja' }], ['conflit', { ok: false, error: 'conflit' }],
+    ['module', { ok: false, error: 'module' }], ['jeton', { ok: false, error: 'token' }], [undefined, { ok: false, error: 'serveur' }]]) {
+    rep = r;
+    assert.deepEqual(go(bonne), attendu);
+  }
+  recus.length = 0;
+  for (const faux of [{ id: 'x' }, { id: null }, { module: '../x' }, { version: '1' }, { version: 0 }, { date: '2026-02-31' }, { date: 'x' },
+    { valeurs: null }, { valeurs: [] }, { valeurs: 'x' }]) assert.deepEqual(go({ ...bonne, ...faux }), { ok: false, error: 'contenu' });
+  for (const action of ['modules_liste', 'module_saisie']) assert.deepEqual(traiter({ ...bonne, action, jeton: 'c'.repeat(64) }, env), { ok: false, error: 'token' });
+  assert.deepEqual(recus, []);
+  assert.deepEqual(journal, []);   // rien dans le Drive
+});
+
+test('la photo d\'un module se dépose à part et n\'est jamais rangée par le nettoyage', () => {
+  assert.ok(go({ month: 'modules', fileName: 'MOD_1.jpg', dataBase64: b64('p') }).ok);
+  go({ action: 'cycle_prune', month: '2026-10', keep: ['donnees.json'] });
+  assert.equal(go({ action: 'cycle_prune', month: 'modules', keep: ['donnees.json'] }).error, 'liste');
+  assert.equal(un.dossier('modules').fs[0].nom, 'MOD_1.jpg');
+  assert.deepEqual(go({ action: 'restore_list' }).cycles.map((c) => c.month), ['2026-10']);
+});
