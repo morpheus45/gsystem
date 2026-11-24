@@ -6,16 +6,13 @@
 const RACINE = 'Sauvegardes G-Systems';
 
 function doPost(e) {
-  const verrou = LockService.getScriptLock();
   let r;
   try {
-    const p = JSON.parse(e.postData.contents);
-    verrou.waitLock(25000);
-    r = traiter(p, environnement_());
+    r = traiter(JSON.parse(e.postData.contents), environnement_());
   } catch (err) {
     console.error(err);   // le détail reste dans le journal du script
     r = { ok: false, error: 'serveur' };
-  } finally { verrou.releaseLock(); }
+  }
   return ContentService.createTextOutput(JSON.stringify(r)).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -28,6 +25,11 @@ function propriete_(nom) {
 function environnement_() {
   return {
     maintenant: () => Date.now(),
+    verrou: (f) => {
+      const v = LockService.getScriptLock();
+      v.waitLock(25000);
+      try { return f(); } finally { v.releaseLock(); }
+    },
     mail: (a, sujet, texte) => MailApp.sendEmail(a, sujet, texte, { name: 'G-Systems', noReply: false }),
     base: {
       verifier: (j, complet) => rpc_('telephone_verifier', { p_jeton: j, p_envoi_complet: complet })[0] || null,
@@ -53,6 +55,23 @@ function environnement_() {
       return dossier_(d);
     },
   };
+}
+
+// À lancer dans l'éditeur : autorise le script et dit ce qui manque, sans jamais montrer une clé
+// ni écrire dans le Drive, la base ou un mail.
+function controlerPasserelle() {
+  const dire = (nom, f) => {
+    let t;
+    try { t = f() ? 'OK' : 'À FAIRE'; } catch (e) { t = 'À FAIRE (' + String(e.message).slice(0, 80) + ')'; }
+    console.log(nom + ' : ' + t);
+  };
+  const lue = (n) => PropertiesService.getScriptProperties().getProperty(n) || '';
+  dire('1. Clé Supabase', () => /^sb_secret_/.test(lue('SUPABASE_CLE_SERVEUR')));
+  dire('2. Adresse de l\'ancien script', () => /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(lue('ANCIEN_SCRIPT')));
+  dire('3. Jeton de l\'ancien script', () => lue('ANCIEN_JETON').length > 0);
+  dire('4. Base joignable', () => Array.isArray(rpc_('telephone_verifier', { p_jeton: '0'.repeat(64), p_envoi_complet: false })));
+  dire('5. Dossier des sauvegardes', () => { const it = DriveApp.getRootFolder().getFoldersByName(RACINE); it.next(); return !it.hasNext(); });
+  dire('6. Mails possibles aujourd\'hui', () => MailApp.getRemainingDailyQuota() > 0);
 }
 
 function rpc_(nom, corps) {

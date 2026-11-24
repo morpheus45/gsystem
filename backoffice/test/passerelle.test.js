@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { traiter, nomSur, dossierEcriture } from '../passerelle/logique.js';
 
 const b64 = (t) => Buffer.from(t).toString('base64');
-let journal, panne;
+let journal, panne, verrous;
 // Faux Drive : comme le vrai, deux fichiers peuvent porter le même nom.
 function dossier(nom) {
   const d = { nom, fs: [], ds: [] };
@@ -31,7 +31,8 @@ beforeEach(() => {
   const m = un.dossier('2026-10', true);
   m.poser('donnees.json', b64('v1')); m.poser('FRAIS.jpg', b64('photo')); m.poser('x.xlsm', b64('excel')); m.poser('_stats.json', b64('s1'));
   deux.dossier('2026-10', true).poser('donnees.json', b64('secret de DEUX'));
-  env = { maintenant: () => Date.UTC(2026, 10, 24), mail: (...a) => mails.push(a), relais: (p) => (relais.push(p), { ok: true }),
+  verrous = 0;
+  env = { verrou: (f) => { verrous++; return f(); }, maintenant: () => Date.UTC(2026, 10, 24), mail: (...a) => mails.push(a), relais: (p) => (relais.push(p), { ok: true }),
     drive: (n) => ({ UN: un, DEUX: deux })[n],
     base: { verifier: (j) => ({ [JU]: { dossier: 'UN' }, [JD]: { dossier: 'DEUX' } })[j] ?? null,
       demanderCode: (x) => (x === 'un@exemple.test' ? { mail: x, nom: 'Un', code: '123456' } : null),
@@ -167,4 +168,43 @@ test('la photo d\'un module se dépose à part et n\'est jamais rangée par le n
   assert.equal(go({ action: 'cycle_prune', month: 'modules', keep: ['donnees.json'] }).error, 'liste');
   assert.equal(un.dossier('modules').fs[0].nom, 'MOD_1.jpg');
   assert.deepEqual(go({ action: 'restore_list' }).cycles.map((c) => c.month), ['2026-10']);
+});
+
+test('le verrou ne sert qu\'aux écritures, après le contrôle du jeton', () => {
+  for (const action of [undefined, 'upload', 'cycle_prune', 'restore_list', 'code_demander', 'connecter'])
+    traiter({ jeton: 'c'.repeat(64), action, month: '2026-10', fileName: 'x', dataBase64: 'AAAA' }, env);
+  go({ action: 'restore_list' }); go({ action: 'chat_fetch' });
+  assert.equal(verrous, 0);
+  go({ month: '2026-10', fileName: 'n.jpg', dataBase64: b64('n') });
+  go({ action: 'cycle_prune', month: '2026-10', keep: ['donnees.json'] });
+  assert.equal(verrous, 2);
+});
+
+test('le script Google : une panne libère le verrou, et le contrôle n\'affiche jamais une clé', () => {
+  const code = readFileSync(new URL('../passerelle/apps-script.js', import.meta.url), 'utf8');
+  const props = { SUPABASE_CLE_SERVEUR: 'sb_secret_TRES_SECRET', ANCIEN_JETON: 'JETON_TRES_SECRET', ANCIEN_SCRIPT: 'https://script.google.com/macros/s/abc/exec' };
+  const lignes = [];
+  let libere = 0, statut = 200, envois = [];
+  const monde = { console: { log: (x) => lignes.push(x), error: () => {} }, SUPABASE_URL: 'https://base.test',
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (n) => props[n] ?? null }) },
+    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() { libere++; } }) },
+    UrlFetchApp: { fetch: (u, o) => (envois.push([u, o]), { getResponseCode: () => statut, getContentText: () => '[]' }) },
+    MailApp: { getRemainingDailyQuota: () => 100, sendEmail: () => assert.fail('aucun mail') },
+    DriveApp: { getRootFolder: () => ({ getFoldersByName: () => { let n = 1; return { hasNext: () => n > 0, next: () => n-- }; } }) },
+    ContentService: { createTextOutput: (t) => ({ setMimeType: () => t }), MimeType: {} }, traiter };
+  const f = new Function(...Object.keys(monde), `${code}; return { controlerPasserelle, environnement_, doPost };`)(...Object.values(monde));
+  f.controlerPasserelle();
+  assert.equal(lignes.filter((l) => l.endsWith(': OK')).length, 6, lignes.join('|'));
+  statut = 401; f.controlerPasserelle();
+  for (const n of Object.keys(props)) props[n] = null;
+  f.controlerPasserelle();
+  assert.ok(lignes.some((l) => l.startsWith('1. Clé Supabase : À FAIRE')));
+  assert.ok(!lignes.join('|').includes('SECRET'));
+  assert.throws(() => f.environnement_().verrou(() => { throw new Error('quota'); }), /quota/);
+  assert.equal(libere, 1);
+  // Sans clé : tout est refusé, rien ne part.
+  envois = [];
+  assert.deepEqual(JSON.parse(f.doPost({ postData: { contents: JSON.stringify({ jeton: 'a'.repeat(64), action: 'restore_list' }) } })), { ok: false, error: 'serveur' });
+  assert.deepEqual(JSON.parse(f.doPost({ postData: { contents: 'pas du json' } })), { ok: false, error: 'serveur' });
+  assert.equal(envois.length, 0);
 });

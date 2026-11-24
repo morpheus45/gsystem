@@ -25,7 +25,8 @@ export function protege(nom) {
     || /\.(xlsm|zip)$/i.test(nom) || /^(Recap-|mail-)/i.test(nom);
 }
 
-// env : { base, drive, mail, relais, maintenant }. drive(dossierTech) renvoie le dossier du technicien.
+// env : { base, drive, mail, relais, maintenant, verrou }. verrou(f) : une écriture Drive à la fois, et
+// seulement APRÈS le contrôle du jeton (des appels sans droit ne bloquent pas les téléphones). drive(dossierTech) renvoie le dossier du technicien.
 export function traiter(p, env) {
   if (!p || typeof p !== 'object') return REFUS;
   if (p.action === 'code_demander') return demanderCode(p, env);
@@ -42,10 +43,10 @@ export function traiter(p, env) {
   if (p.action === 'module_saisie') return saisirModule(p, env);
 
   const racine = env.drive(droit.dossier);
-  if (p.action === undefined || p.action === 'upload') return deposer(p, racine, env);
+  if (p.action === undefined || p.action === 'upload') return env.verrou(() => deposer(p, racine, env));
   if (p.action === 'restore_list') return restaurerListe(racine);
   if (p.action === 'photo_pull') return lirePhoto(p, racine);
-  if (p.action === 'cycle_prune') return ranger(p, racine, env);
+  if (p.action === 'cycle_prune') return env.verrou(() => ranger(p, racine, env));
   if (p.action === 'ordres_pull') return lireOrdres(p, racine);
   return { ok: false, error: 'action' };
 }

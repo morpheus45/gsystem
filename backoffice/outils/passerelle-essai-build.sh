@@ -50,7 +50,7 @@ sans("      verifier:", "    },\n    relais")
 s = s.replace("    base: {\n", "    mail: () => {},\n    base: {\n      verifier: (j) => (j === JETON_ESSAI ? { dossier: 'TECH-ESSAI' } : null),\n      demanderCode: () => null,\n      connecter: () => null,\n      modules: () => [],\n      tuiles: () => [],\n      saisie: () => 'module',\n", 1)
 sans("    relais: (p) => {", "    // Le dossier du technicien doit")
 s = s.replace("    // Le dossier du technicien doit", "    relais: () => ({ ok: true, messages: [] }),\n    // Le dossier du technicien doit", 1)
-sans("function rpc_(", "function liste_(")
+sans("// À lancer dans l'éditeur", "function liste_(")
 for mot in ('UrlFetchApp', 'MailApp', 'PropertiesService', 'Sauvegardes', 'SUPABASE'):
     assert mot not in s, mot
 print(s)
