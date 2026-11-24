@@ -818,6 +818,16 @@
               </table>
             </div>
           </div>
+          <div id="responsables-section" class="section hidden">
+            <h3>Responsables de secteur</h3>
+            <p class="aide">Coche ce que chacun peut voir ou modifier, et ses techniciens. Tout est décoché au départ. Jamais visibles : sécurité sociale, documents d'embauche, membres.</p>
+            <form id="responsable-form" class="org-form">
+              <label class="lecteur-seul" for="responsable-email">Email du responsable</label>
+              <input id="responsable-email" type="email" required placeholder="Email du responsable">
+              <button type="submit">Nommer</button>
+            </form>
+            <div id="responsables-liste" class="org-holdings"></div>
+          </div>
           <div id="admin-tools" class="section hidden">
             <details class="ajout" id="identite">
               <summary>Identité de la société (nom, adresse, logo)</summary>

@@ -34,6 +34,12 @@ let holdings = [];
 let modulesSaisis = [];   // modules personnalisés remplis ou en service dans la société (admin, gestion)
 let selectedSociete = null;
 let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
+// Responsable de secteur : ses cases (domaine -> peut modifier). null = autre rôle. La base refuse de toute façon le reste.
+let responsable = null;
+let ongletOuvert = 'bord', pageRestauree = false;
+const DOMAINE_ONGLET = { interventions: 'interventions', conges: 'conges', messages: 'messages', vehicules: 'vehicules', paie: 'paie',
+  compta: 'compta', facturation: 'facturation', saisies: 'saisies', techniciens: 'frais' };
+const ongletDuResponsable = (o) => o === 'techniciens' || responsable.droits.has(DOMAINE_ONGLET[o]);
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
 let modulesActifs = null; // modules actifs de la société sélectionnée (absence d'un module = actif)
 const MODULES_LISTE = ['interventions','heures','frais','vehicules','conges','paie','compta','facturation','messages','documents'];
@@ -50,6 +56,8 @@ let listeAffectations = []; // affectations de la société courante
 
 // Peut-on écrire dans la société courante ? La base refuse de toute façon le reste.
 function peutEcrire() {
+  // Responsable de secteur : selon la case « modifier » de l'écran ouvert.
+  if (responsable) return responsable.droits.get(DOMAINE_ONGLET[ongletOuvert]) === true;
   return superAdmin || ['admin', 'gestion'].includes(monRole);
 }
 const peutCompta = () => superAdmin || ['admin', 'comptable'].includes(monRole);   // comptes et leur validation
@@ -163,6 +171,7 @@ function afficherMarque() {
 function mettreAJourFil() {
   afficherMarque();
   // Dans une fiche, un seul retour : « ← Techniciens » / « ← Véhicules » (le fil d'Ariane fait le reste).
+  noterPage();
   $('#retour-societes').classList.toggle('hidden', !!(vehiculeActif || ficheTechnicien));
   const fil = $('#fil');
   fil.replaceChildren();
@@ -220,6 +229,7 @@ function retournerSocietes() {
   fermerFicheTechnicien();
   selectedSociete = null;
   monRole = null;
+  responsable = null;
   $('#societe-detail').classList.add('hidden');
   $('#niveau-societes').classList.remove('hidden');
   renderSocietes();
@@ -238,6 +248,8 @@ function switchOnglet(tabId, calculer = true) {
   if (modulesActifs && ONGLETS_MODULES.includes(onglet) && !modulesActifs.has(onglet)) {
     tabId = 'panel-bord';
   }
+  if (responsable && !ongletDuResponsable(tabId.replace('panel-', ''))) tabId = 'panel-techniciens';
+  ongletOuvert = tabId.replace('panel-', '');
 
   $$('.tab').forEach(b => {
     const actif = `panel-${b.dataset.tab}` === tabId;   // data-tab="vehicules" -> #panel-vehicules
@@ -245,12 +257,13 @@ function switchOnglet(tabId, calculer = true) {
     // ou réservé à un rôle : les remontrer ici annulerait ce masquage.
     const masque = (modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab))
       || (['signalements', 'modules'].includes(b.dataset.tab) && !superAdmin)
-      || (b.dataset.tab === 'messages' && !peutEcrire())
+      || (responsable ? !ongletDuResponsable(b.dataset.tab) : b.dataset.tab === 'messages' && !peutEcrire())
       || (b.dataset.tab === 'saisies' && !modulesSaisis.length);
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
+  if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
   for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
@@ -266,6 +279,8 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-signalements') chargerSignalements();
   if (tabId === 'panel-modules') chargerModules();
   if (tabId === 'panel-saisies') chargerSaisies();
+  if (tabId === 'panel-membres') renderResponsables();
+  noterPage();
   clearInterval(relanceChat);
   if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
 }
@@ -324,6 +339,9 @@ async function logout() {
     societes = [];
     selectedSociete = null;
     superAdmin = false;
+    responsable = null;
+    pageRestauree = false;
+    try { localStorage.removeItem(CLE_PAGE); } catch (e) { /* rien */ }
     for (const id of ['#operator-section', '#admin-tools', '#societe-detail']) $(id).classList.add('hidden');
     $('#niveau-societes').classList.remove('hidden');
     $('#fil').style.display = 'none';
@@ -342,6 +360,8 @@ async function init() {
     }
     await checkOperator();
     await loadSocietes();
+    signatureDroits = superAdmin ? null : await lireSignature();   // point de départ de la surveillance
+    await restaurerPage();
   } catch (err) {
     alert(err.message || 'Erreur d\'initialisation');
   }
@@ -618,8 +638,14 @@ async function selectSociete(id) {
 
 async function loadSocieteDetail(societeId) {
   try {
-    const { data: members, error } = await sb.rpc('membres_de', { s: societeId });
-    if (error) throw error;
+    const [resp, cases] = await Promise.all([
+      sb.from('responsables').select('societe_id').eq('societe_id', societeId).eq('user_id', session.user.id),
+      sb.from('responsables_droits').select('domaine, modifier').eq('societe_id', societeId).eq('user_id', session.user.id)]);
+    responsable = null;
+    const { data, error } = await sb.rpc('membres_de', { s: societeId });
+    if (error && !resp.data?.length) throw error;
+    const members = data || [];
+    if (error) responsable = { droits: new Map((cases.data || []).map((d) => [d.domaine, d.modifier])) };
     // Modules de la société : absence d'une ligne = module actif (caché si désactivé).
     const { data: mods, error: modsErr } = await sb.rpc('modules_actifs', { s: societeId });
     // En cas d'erreur (base pas encore à jour…), on n'éteint rien : tous les onglets restent visibles.
@@ -633,20 +659,16 @@ async function loadSocieteDetail(societeId) {
     $('#nav-email').textContent = session.user.email || '';
     $('#nav-avatar').replaceWith(Object.assign(avatar(session.user.email || '?'), { id: 'nav-avatar' }));
 
+    // Le patron d'une holding est admin de toutes ses sociétés ; la base ne lui montre que SA holding.
+    monRole = holdings.some((h) => h.id === societe?.holding_id) ? 'admin'
+      : members.find(m => m.user_id === session.user.id)?.role || null;
     await chargerModulesSaisis(societeId);
     // Un seul panneau visible : on repart sur Membres à chaque société.
     switchOnglet('panel-bord', false);
 
     renderMembers(members);
-    // Le patron d'une holding est admin de toutes ses sociétés ; la base ne lui montre que SA holding.
-    monRole = holdings.some((h) => h.id === societe?.holding_id) ? 'admin'
-      : members.find(m => m.user_id === session.user.id)?.role || null;
-    for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form', '#conge-form']) {
-      const form = $(f);
-      (form.closest('details') || form).classList.toggle('hidden', !peutEcrire());
-    }
-    // Lecture seule : les boutons d'action des tableaux sont masqués (CSS).
-    document.body.classList.toggle('lecture-seule', !peutEcrire());
+    reglerEcriture();
+    await chargerResponsables();
     if (superAdmin || monRole === 'admin') {
       $('#admin-tools').classList.remove('hidden');
       await loadInvitations(societeId);
@@ -662,9 +684,10 @@ async function loadSocieteDetail(societeId) {
     await loadTechniciens(societeId);
     compterCongesAValider();
     compterMessagesNonLus();
-    $('#onglet-messages').classList.toggle('hidden', !peutEcrire() || !!(modulesActifs && !modulesActifs.has('messages')));   // admin et gestion seulement
+    if (!responsable) $('#onglet-messages').classList.toggle('hidden', !peutEcrire() || !!(modulesActifs && !modulesActifs.has('messages')));   // admin et gestion seulement
     await loadVehicules(societeId);
-    chargerBord();   // le tableau de bord a besoin de la liste des techniciens
+    if (responsable) switchOnglet('panel-techniciens');
+    else chargerBord();   // le tableau de bord a besoin de la liste des techniciens
 
     $('#niveau-societes').classList.add('hidden');
     $('#societe-detail').classList.remove('hidden');
@@ -677,12 +700,170 @@ async function loadSocieteDetail(societeId) {
   }
 }
 
+// Formulaires et boutons selon le rôle ; pour un responsable, selon la case de l'écran ouvert.
+function reglerEcriture() {
+  const oui = peutEcrire();
+  for (const f of ['#technicien-form', '#vehicule-form', '#affectation-form', '#releve-form', '#echeance-form', '#entretien-form', '#amende-form', '#conge-form']) {
+    const form = $(f);
+    const permis = oui && !(responsable && ['#technicien-form', '#vehicule-form', '#affectation-form', '#amende-form'].includes(f));
+    (form.closest('details') || form).classList.toggle('hidden', !permis);
+  }
+  // Lecture seule : les boutons d'action des tableaux sont masqués (CSS).
+  document.body.classList.toggle('lecture-seule', !oui);
+}
+
+// === RESPONSABLES DE SECTEUR (admin de la société, patron de la holding, super admin) ===
+const DOMAINES = [['interventions', 'Interventions'], ['conges', 'Congés', true], ['frais', 'Frais', true], ['vehicules', 'Véhicules', true],
+  ['messages', 'Messages', true], ['saisies', 'Saisies des modules'], ['primes', 'Primes'], ['paie', 'Paie'], ['compta', 'Compta'], ['facturation', 'Facturation']];
+const DOMAINES_SOCIETE = ['paie', 'compta', 'facturation'];
+let responsables = [];
+
+async function chargerResponsables() {
+  const admin = superAdmin || monRole === 'admin';
+  $('#responsables-section').classList.toggle('hidden', !admin);
+  responsables = [];
+  if (!admin) return;
+  const { data, error } = await sb.rpc('responsables_de', { s: selectedSociete });
+  if (error) { console.error(error); $('#responsables-section').classList.add('hidden'); return; }   // base pas encore à jour
+  responsables = data;
+}
+
+function renderResponsables() {
+  $('#responsables-liste').replaceChildren(...(responsables.length ? responsables.map(carteResponsable)
+    : [elt('p', 'aide', 'Aucun responsable pour l’instant.')]));
+}
+
+function carteResponsable(x) {
+  const carte = elt('article', 'org-holding'), tete = elt('div', 'org-ligne');
+  tete.append(elt('strong', 'org-nom', x.email), pastille(x.etat === 'actif' ? 'Actif' : 'Invité', x.etat === 'actif' ? 'ok' : 'neutre'),
+    boutonModule('Retirer', 'danger', async () => {
+      if (!confirm(`Retirer ${x.email} ? Son accès se ferme tout de suite.`)) return;
+      const { error } = await sb.rpc('retirer_responsable', { s: selectedSociete, p_email: x.email });
+      if (error) alert(error.message);
+      await chargerResponsables();
+      renderResponsables();
+    }));
+  carte.append(tete);
+  if (x.etat !== 'actif') { carte.append(elt('p', 'aide', 'Doit créer son compte avec cet email. Ses cases se règlent ensuite.')); return carte; }
+  const etat = elt('p', 'aide', 'Chaque case s’enregistre et agit tout de suite, même si la personne est connectée.');
+  etat.setAttribute('aria-live', 'polite');
+  // Une seule écriture à la fois, toujours avec l'état affiché le plus récent.
+  let enCours = false, encore = false;
+  const enregistrer = async () => {
+    if (enCours) { encore = true; return; }
+    enCours = true;
+    etat.textContent = 'Enregistrement…';
+    const { error } = await sb.rpc('regler_responsable', { s: selectedSociete, u: x.user_id, droits: x.droits, techs: x.techniciens });
+    enCours = false;
+    if (encore) { encore = false; await enregistrer(); return; }
+    if (error) { alert(error.message); await chargerResponsables(); renderResponsables(); } else etat.textContent = 'Enregistré.';
+  };
+  const caseACocher = (nom, coche, action) => {
+    const c = elt('input');
+    c.type = 'checkbox';
+    c.checked = coche;
+    c.setAttribute('aria-label', nom);
+    c.addEventListener('change', () => { action(c.checked); enregistrer(); });
+    return c;
+  };
+  const table = elt('div', 'resp-cases');
+  table.append(elt('span', 'aide', ''), elt('span', 'aide', 'Voir'), elt('span', 'aide', 'Modifier'));
+  for (const [cle, nom, modifiable] of DOMAINES) {
+    const voir = caseACocher(`${nom} : voir`, cle in x.droits, (oui) => {
+      if (oui) x.droits[cle] = false; else { delete x.droits[cle]; if (modif) modif.checked = false; }
+    });
+    const modif = modifiable ? caseACocher(`${nom} : modifier`, x.droits[cle] === true, (oui) => { x.droits[cle] = oui; voir.checked = true; }) : null;
+    const lib = elt('span', null, nom);
+    if (DOMAINES_SOCIETE.includes(cle)) lib.append(elt('small', 'aide', ' (toute la société)'));
+    table.append(lib, voir, modif || elt('span', 'aide', '—'));
+  }
+  const techs = elt('fieldset', 'module-supports');
+  techs.append(elt('legend', null, 'Ses techniciens'));
+  for (const t of techniciens.filter((y) => y.actif || x.techniciens.includes(y.id))) {
+    const l = elt('label');
+    l.append(caseACocher(t.nom, x.techniciens.includes(t.id), (oui) => {
+      x.techniciens = oui ? [...x.techniciens, t.id] : x.techniciens.filter((y) => y !== t.id);
+    }), document.createTextNode(t.nom));
+    techs.append(l);
+  }
+  carte.append(table, techs, etat);
+  return carte;
+}
+
+$('#responsable-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const champ = $('#responsable-email');
+  const { data, error } = await sb.rpc('nommer_responsable', { s: selectedSociete, p_email: champ.value });
+  if (error) return alert(error.message);
+  alert(data === 'nomme' ? 'Responsable nommé : cochez ce qu’il peut voir.' : 'Invitation enregistrée : la personne doit créer son compte avec cet email (aucun email n’est envoyé).', 'success');
+  champ.value = '';
+  await chargerResponsables();
+  renderResponsables();
+});
+
+// === SURVEILLANCE : un droit retiré ferme l'écran tout de suite, même page ouverte ===
+let signatureDroits = null, verifEnCours = false;
+
+async function lireSignature() {
+  const [s, h, d, t, m] = await Promise.all([
+    sb.from('societes').select('id').order('id'), sb.from('holdings').select('id').order('id'),
+    sb.from('responsables_droits').select('societe_id, domaine, modifier').eq('user_id', session.user.id).order('societe_id').order('domaine'),
+    sb.from('responsables_techniciens').select('societe_id, technicien_id').eq('user_id', session.user.id).order('technicien_id'),
+    sb.from('membres').select('societe_id, role').eq('user_id', session.user.id).order('societe_id')]);
+  if ([s, h, d, t, m].some((x) => x.error)) return null;   // réseau : on ne conclut rien
+  return JSON.stringify([s.data, h.data, d.data, t.data, m.data]);
+}
+
+async function surveillerDroits() {
+  if (!session || superAdmin || verifEnCours || document.hidden) return;
+  verifEnCours = true;
+  try {
+    const neuve = await lireSignature();
+    if (!neuve) return;
+    const avant = signatureDroits;
+    signatureDroits = neuve;
+    if (avant === null || avant === neuve) return;
+    const garde = selectedSociete, onglet = ongletOuvert;
+    await loadSocietes();
+    if (!garde) return;
+    if (!societes.some((x) => x.id === garde)) { retournerSocietes(); alert('Votre accès à cette société a été retiré.'); return; }
+    await selectSociete(garde);
+    switchOnglet(`panel-${onglet}`);
+    alert('Vos accès ont été modifiés.', 'success');
+  } finally { verifEnCours = false; }
+}
+setInterval(surveillerDroits, 20000);
+document.addEventListener('visibilitychange', surveillerDroits);
+
+// === RESTER SUR LA PAGE quand on actualise ===
+const CLE_PAGE = 'gsys.page';
+
+function noterPage() {
+  if (!pageRestauree || !session) return;
+  try {
+    localStorage.setItem(CLE_PAGE, JSON.stringify({ u: session.user.id, s: selectedSociete, o: ongletOuvert, t: ficheTechnicien?.id || null, v: vehiculeActif?.id || vehiculeActif || null }));
+  } catch (e) { /* sans mémoire : on repart de l'accueil */ }
+}
+
+async function restaurerPage() {
+  if (pageRestauree) return;   // l'app se reconnecte seule au retour sur l'onglet : ne rien fermer
+  try {
+    const p = JSON.parse(localStorage.getItem(CLE_PAGE) || 'null');
+    if (!p || p.u !== session.user.id || !societes.some((x) => x.id === p.s)) return;
+    await selectSociete(p.s);
+    const b = document.querySelector(`.tab[data-tab="${CSS.escape(String(p.o))}"]`);
+    if (b && !b.classList.contains('hidden')) switchOnglet(`panel-${p.o}`);
+    const t = p.o === 'techniciens' && techniciens.find((x) => x.id === p.t);
+    if (t) ouvrirFicheTechnicien(t);
+  } catch (e) { console.error(e); } finally { pageRestauree = true; }
+}
+
 const ROLES = { admin: 'Admin', gestion: 'Gestion', comptable: 'Comptable', lecture: 'Lecture seule' };
 
 // Admin (ou super admin) : changer le rôle d'un membre ou le retirer. La base refuse de
 // retirer le dernier admin de la société (trigger garder_un_admin).
 function renderMembers(members) {
-  const admin = superAdmin || members.find((m) => m.user_id === session.user.id)?.role === 'admin';
+  const admin = superAdmin || monRole === 'admin';
   $('#membres-table tbody').replaceChildren(...members.map((m) => {
     const tr = ligne([m.email, ROLES[m.role] || m.role, m.user_id === session.user.id ? '✓' : '']);
     const cellule = tr.children[0];

@@ -19,3 +19,9 @@
 .org-form input { flex: 1 1 14rem; min-width: 0; min-height: 44px; box-sizing: border-box; font: inherit; }
 .org-bloc .module-portee-ligne select { max-width: 60%; }
 @media (max-width: 480px) { .org-holding, .org-modules { padding: 16px 12px; } .org-ligne .org-actions { width: 100%; } .org-ligne .org-actions select { flex: 1 1 100%; } }
+.resp-cases { display: grid; grid-template-columns: minmax(0, 1fr) 64px 72px; align-items: center; justify-items: center; margin: 12px 0; }
+.resp-cases > :nth-child(3n + 1) { justify-self: start; }
+.resp-cases > * { min-height: 44px; display: flex; align-items: center; margin: 0; }
+.resp-cases small { margin-left: 4px; }
+.resp-cases input, .org-holding .module-supports input { width: 22px; height: 22px; min-height: 0; margin: 11px 0; }
+.org-holding .module-supports { padding-left: 0; border-bottom: 0; }
