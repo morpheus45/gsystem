@@ -619,6 +619,7 @@
   <link rel="stylesheet" href="ecran-gestion.css">
   <link rel="stylesheet" href="ecran-signalements.css">
   <link rel="stylesheet" href="ecran-modules.css">
+  <link rel="stylesheet" href="ecran-saisies.css">
 </head>
 <body>
   <div class="banner">Base locale de développement — données fictives</div>
@@ -762,6 +763,7 @@
             <button class="tab" data-tab="interventions">Interventions</button>
             <button class="tab" data-tab="conges" id="onglet-conges">Congés</button>
             <button class="tab" data-tab="messages" id="onglet-messages">Messages</button>
+            <button class="tab hidden" data-tab="saisies" id="onglet-saisies">Saisies</button>
             <p class="nav-groupe">Flotte</p>
             <button class="tab" data-tab="vehicules">Véhicules</button>
             <p class="nav-groupe">Finance</p>
@@ -1557,6 +1559,20 @@
                 <tbody></tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div id="panel-saisies" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <h3>Saisies des modules</h3>
+            <p class="aide">Ce que les techniciens remplissent sur leur téléphone. Lecture seule : une saisie reçue ne se modifie pas et ne s'efface pas.</p>
+            <div class="barre saisies-filtres">
+              <div class="field"><label for="saisies-module">Module</label><select id="saisies-module"></select></div>
+              <div class="field"><label for="saisies-tech">Technicien</label><select id="saisies-tech"></select></div>
+            </div>
+            <p id="saisies-etat" class="aide" aria-live="polite"></p>
+            <div id="saisies-liste" class="saisies-liste"></div>
+            <button type="button" id="saisies-plus" class="secondary hidden">Afficher plus</button>
           </div>
         </div>
 

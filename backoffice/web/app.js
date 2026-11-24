@@ -11,6 +11,7 @@ import { dureeMinutes, texteDuree, filtrer, libelleResultat } from '../core/inte
 import { zipStocke } from '../core/zip.js';
 import { finProposee, lendemain } from '../core/periodes.js';
 import { TYPES_CHAMP, cleChamp, defautModule, enService } from '../core/modules-perso.js';
+import { reponses } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
@@ -28,6 +29,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_CLE_PUBLIQUE);
 let session = null;
 let societes = [];
 let holdings = [];
+let modulesSaisis = [];   // modules personnalisés remplis ou en service dans la société (admin, gestion)
 let selectedSociete = null;
 let superAdmin = false;   // opérateur de la plateforme : accès à tout (vérifié par la base)
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
@@ -241,13 +243,14 @@ function switchOnglet(tabId, calculer = true) {
     // ou réservé à un rôle : les remontrer ici annulerait ce masquage.
     const masque = (modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab))
       || (['signalements', 'modules'].includes(b.dataset.tab) && !superAdmin)
-      || (b.dataset.tab === 'messages' && !peutEcrire());
+      || (b.dataset.tab === 'messages' && !peutEcrire())
+      || (b.dataset.tab === 'saisies' && !modulesSaisis.length);
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-signalements', 'panel-modules']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -260,6 +263,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-interventions') chargerInterventions();
   if (tabId === 'panel-signalements') chargerSignalements();
   if (tabId === 'panel-modules') chargerModules();
+  if (tabId === 'panel-saisies') chargerSaisies();
   clearInterval(relanceChat);
   if (tabId === 'panel-messages') { chargerMessages(); relanceChat = setInterval(chargerMessages, 5000); }
 }
@@ -535,6 +539,7 @@ async function loadSocieteDetail(societeId) {
     $('#nav-email').textContent = session.user.email || '';
     $('#nav-avatar').replaceWith(Object.assign(avatar(session.user.email || '?'), { id: 'nav-avatar' }));
 
+    await chargerModulesSaisis(societeId);
     // Un seul panneau visible : on repart sur Membres à chaque société.
     switchOnglet('panel-bord', false);
 
@@ -3758,6 +3763,62 @@ $('#signaler-envoyer').addEventListener('click', envoyerSignalement);
 $('#signaler-ajouter-capture').addEventListener('click', ajouterCaptureSignalement);
 $('#signalements-gravite').addEventListener('change', chargerSignalements);
 $('#signalements-statut').addEventListener('change', chargerSignalements);
+
+// === SAISIES DES MODULES (admin, gestion) ===
+const PAGE_SAISIES = 50;
+let saisiesLues = 0, lectureSaisies = 0;
+
+// Onglet absent tant qu'aucun module n'est en service ni rempli (ou base pas encore à jour).
+async function chargerModulesSaisis(s) {
+  const { data, error } = await sb.rpc('modules_saisis', { s });
+  if (error) console.error(error);
+  modulesSaisis = error ? [] : data;
+}
+
+function chargerSaisies() {
+  options($('#saisies-module'), modulesSaisis.map((m) => [m.id, m.nom]), 'Tous');
+  options($('#saisies-tech'), techniciens.map((t) => [t.id, t.nom]), 'Tous');
+  lirePageSaisies(true);
+}
+
+async function lirePageSaisies(debut) {
+  const tour = ++lectureSaisies, s = selectedSociete;   // une réponse dépassée (filtre, société changés) est ignorée
+  if (debut) saisiesLues = 0;
+  $('#saisies-etat').textContent = 'Chargement…';
+  $('#saisies-plus').disabled = true;
+  let q = sb.from('saisies_modules').select('id, technicien_id, module_id, version, date, valeurs, recu_le', { count: 'exact' }).eq('societe_id', s);
+  if ($('#saisies-module').value) q = q.eq('module_id', $('#saisies-module').value);
+  if ($('#saisies-tech').value) q = q.eq('technicien_id', $('#saisies-tech').value);
+  const { data, error, count } = await q.order('date', { ascending: false }).order('recu_le', { ascending: false }).order('id')
+    .range(saisiesLues, saisiesLues + PAGE_SAISIES - 1);
+  if (tour !== lectureSaisies || s !== selectedSociete) return;
+  $('#saisies-plus').disabled = false;
+  if (error) { $('#saisies-etat').textContent = `Lecture impossible : ${error.message}`; return; }
+  if (debut) $('#saisies-liste').replaceChildren();
+  $('#saisies-liste').append(...data.map(carteSaisie));
+  saisiesLues += data.length;
+  $('#saisies-etat').textContent = !count ? 'Aucune saisie pour l’instant.'
+    : `${count} saisie${count > 1 ? 's' : ''}${saisiesLues < count ? ` · ${saisiesLues} affichées` : ''}`;
+  $('#saisies-plus').classList.toggle('hidden', saisiesLues >= count || !data.length);
+}
+
+function carteSaisie(x) {
+  const m = modulesSaisis.find((y) => y.id === x.module_id) || { nom: 'Module', icone: 'liste', couleur: '#5b6472', versions: {} };
+  const carte = elt('article', 'saisie-carte'), tete = elt('div', 'saisie-tete'), qui = elt('div', 'saisie-qui');
+  qui.append(elt('strong', null, m.nom), elt('span', 'aide', `${nomTech(x.technicien_id)} · ${formaterDate(x.date)}`));
+  tete.append(iconeModule(m), qui);
+  const dl = elt('dl', 'saisie-reponses');
+  for (const r of reponses(m.versions?.[x.version], x.valeurs)) {
+    const bloc = elt('div');
+    bloc.append(elt('dt', null, r.libelle), elt('dd', r.texte === null ? 'vide' : null, r.texte ?? 'Non rempli'));
+    dl.append(bloc);
+  }
+  carte.append(tete, dl, elt('p', 'saisie-recu', `Reçue le ${new Date(x.recu_le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`));
+  return carte;
+}
+
+for (const id of ['#saisies-module', '#saisies-tech']) $(id).addEventListener('change', () => lirePageSaisies(true));
+$('#saisies-plus').addEventListener('click', () => lirePageSaisies(false));
 
 // Afficher/masquer l'onglet Signalements si super admin
 function mettreAJourVisibiliteSignalements() {
