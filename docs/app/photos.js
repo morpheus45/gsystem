@@ -83,6 +83,8 @@ export async function chargerPhotos() {
   return memoire.size;
 }
 
+export function clesPhotos() { return [...memoire.keys()]; }
+
 export function photo(nom) { return memoire.get(nom) || null; }
 
 /** Rend false si la photo n'a pas pu etre gardee durablement. */

@@ -42,7 +42,16 @@ function lire(cle, defaut) {
   try {
     const brut = localStorage.getItem(cle);
     return brut ? { ...defaut, ...JSON.parse(brut) } : { ...defaut };
-  } catch (e) { return { ...defaut }; }
+  } catch (e) {
+    // Illisible : on garde une copie de l'original avant de repartir de l'etat d'avant.
+    try {
+      const abime = localStorage.getItem(cle);
+      if (abime) localStorage.setItem(cle + '.illisible', abime);
+      const avant = localStorage.getItem(cle + '.avant');
+      if (avant) return { ...defaut, ...JSON.parse(avant) };
+    } catch (e2) { /* rien a reprendre */ }
+    return { ...defaut };
+  }
 }
 
 export function lireReglages() { return lire(CLE_REGLAGES, REGLAGES_DEFAUT); }
@@ -50,8 +59,16 @@ export function ecrireReglages(r) {
   localStorage.setItem(CLE_REGLAGES, JSON.stringify(r));
 }
 export function lireEntrees() { return lire(CLE_ENTREES, ENTREES_DEFAUT); }
+let apresEcriture = () => {};
+/** Appele apres chaque enregistrement (sauvegarde sur le Drive). */
+export function surEcriture(f) { apresEcriture = f; }
 export function ecrireEntrees(e) {
+  try {
+    const avant = localStorage.getItem(CLE_ENTREES);
+    if (avant) { JSON.parse(avant); localStorage.setItem(CLE_ENTREES + '.avant', avant); }
+  } catch (err) { /* copie d'avant impossible : l'enregistrement compte davantage */ }
   localStorage.setItem(CLE_ENTREES, JSON.stringify(e));
+  apresEcriture();
 }
 
 /**

@@ -6,26 +6,14 @@
  * Tout est non bloquant et tolérant à l'échec réseau (retourne null / [] / false).
  */
 
-import { POINT, JETON } from './backup.js';
+import { poster } from './connexion.js';
 
 /**
  * POST JSON { token, action, tech, ... } → réponse JSON { ok, ... }.
  * Non bloquant et tolérant à l'échec réseau (retourne null / [] / false).
  */
 async function demanderChat(action, tech, extra) {
-  try {
-    const payload = { token: JETON, action, tech };
-    if (extra) Object.assign(payload, extra);
-    const r = await fetch(POINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (e) {
-    return null;
-  }
+  return poster({ ...(extra || {}), action, tech });
 }
 
 /**

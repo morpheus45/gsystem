@@ -12,13 +12,13 @@ import {
 import { messageCloture, messageAttente, RAPPEL_ATTENTE, partager } from './viber.js';
 import { heuresDuJour, expliquerHeures } from './heures.js';
 import {
-  TYPES, TYPES_JOURNEE, OBSERVATIONS, MOTIFS_RETARD, entreeVide, manques,
+  TYPES, TYPES_JOURNEE, OBSERVATIONS, choixObservations, MOTIFS_RETARD, entreeVide, manques,
 } from './cloture.js';
 import {
   CATEGORIES, htDepuisTtc, tvaDepuisTtc, remboursable, eur,
 } from './frais.js';
 import {
-  photo, enregistrerPhoto, supprimerPhoto, chargerPhotos, reduire, nomTicket,
+  photo, clesPhotos, enregistrerPhoto, supprimerPhoto, chargerPhotos, reduire, nomTicket,
   nomCompteur,
   fichierDepuisDataUrl,
 } from './photos.js';
@@ -28,6 +28,9 @@ import {
   lireClasseur, memoriserClasseur, oublierClasseur,
 } from './classeur.js';
 import { deposerEnvoi } from './backup.js';
+import { PASSERELLE, etatConnexion, demanderCode, connecter } from './connexion.js';
+import { sauvegarder, restaurer } from './sauvegarde.js';
+import { surEcriture } from './donnees.js';
 import { envoyerMessage, chargerMessages, marquerLus } from './chat.js';
 import {
   TYPES as TYPES_GESTE, TYPES_SAV_GESTE, gesteVide, gesteValide, besoinSite,
@@ -248,6 +251,7 @@ function vueReglages() {
             '21 par d\u00e9faut.', false, 'number')}
     <button class="btn" id="enregistrer"
             style="background:linear-gradient(135deg,#3B82F6,#06B6D4)">Enregistrer</button>
+    ${blocSauvegarde()}
   </div>`;
 }
 
@@ -255,6 +259,8 @@ function vueReglages() {
 function etiquette(e) {
   if (!e.observationType) return '<span class="etiquette ok">OK</span>';
   if (e.observationType === 'ANNULE') return '<span class="etiquette an">ANNUL\u00c9</span>';
+  if (e.observationType === 'ANNULE_ROUTE') return '<span class="etiquette an">ANNUL\u00c9 EN ROUTE</span>';
+  if (e.observationType === 'ANNULE_SITE') return '<span class="etiquette an">ANNUL\u00c9 SUR SITE</span>';
   const o = OBSERVATIONS.find((x) => x[0] === e.observationType);
   return '<span class="etiquette nr">' + ech(o ? o[1] : 'NR') + '</span>';
 }
@@ -411,7 +417,7 @@ function vueFormulaire() {
     ${sectionGeste()}
 
     <div class="champ"><label for="f_obs">Observation</label>
-      <select id="f_obs">${optionsHtml(OBSERVATIONS, e.observationType)}</select></div>
+      <select id="f_obs">${optionsHtml(choixObservations(e.observationType), e.observationType)}</select></div>
 
     <div class="champ"><label for="f_note">Note (jointe au message si NR)</label>
       <input id="f_note" value="${ech(e.observations)}" /></div>
@@ -1103,9 +1109,14 @@ function vueEnvoi() {
         ? 'Remplacer la photo' : 'Photo du compteur'}</label>
       ${img ? '<img class="apercu-photo" src="' + img + '" alt="Compteur" />' : ''}
       <input id="e_compteur" type="file" accept="image/*" capture="environment" />
+      <label for="e_km">Kilom\u00e9trage du compteur</label>
+      <input id="e_km" inputmode="numeric" maxlength="9" placeholder="Nombre lu sur le compteur"
+             value="${ech(envoi.km !== undefined ? envoi.km : ((compteur && compteur.kilometres) || ''))}" />
+      <div class="aide" id="e_km_avis">${ech(avisKm(lireKm(envoi.km !== undefined ? envoi.km : (compteur && compteur.kilometres)))
+        || (compteur && compteur.kilometres ? '\u2713 ' + compteur.kilometres + ' km enregistr\u00e9s.' : compteur ? '' : 'Sera enregistr\u00e9 avec la photo.'))}</div>
       <div class="aide">V\u00e9hicule : ${ech(reglages.plaqueVoiture
-        || '<plaque non saisie dans les r\u00e9glages>')}. Le kilom\u00e9trage est
-        lu directement sur la photo. Une seule photo par cycle : la nouvelle
+        || '<plaque non saisie dans les r\u00e9glages>')}. Le bureau compare le
+        kilom\u00e9trage \u00e0 la photo. Une seule photo par cycle : la nouvelle
         remplace la pr\u00e9c\u00e9dente.</div>
     </div>
     ${compteur ? '<button class="btn" id="e_suppr_compteur" '
@@ -1945,6 +1956,35 @@ function envoyerDemandeBrouillard() {
     + '&body=' + encodeURIComponent(corps);
 }
 
+/** Kilometrage saisi : chiffres seulement, 0 si vide ou impossible. */
+function lireKm(texte) {
+  const n = parseInt(String(texte === undefined || texte === null ? '' : texte).replace(/\D/g, ''), 10);
+  return n >= 1 && n <= 2000000 ? n : 0;
+}
+
+/** Dernier km connu hors du cycle affiche. */
+function dernierKm() {
+  return (entrees.compteur || []).filter((c) => c.kilometres > 0 && c.date <= envoi.fin && !dansPeriode(c.date, envoi.debut, envoi.fin))
+    .sort((a, b) => (a.date < b.date ? 1 : -1)).map((c) => c.kilometres)[0] || 0;
+}
+
+/** Avertissement, jamais bloquant (changement de vehicule). */
+function avisKm(km) {
+  const avant = dernierKm();
+  if (!km || !avant) return '';
+  if (km < avant) return 'Plus bas que le dernier relev\u00e9 (' + avant + ' km). V\u00e9rifiez, ou laissez si vous avez chang\u00e9 de v\u00e9hicule.';
+  return km - avant > 10000 ? (km - avant) + ' km de plus que le dernier relev\u00e9. V\u00e9rifiez la saisie.' : '';
+}
+
+function enregistrerKm(texte) {
+  envoi.km = String(texte).replace(/\D/g, '').slice(0, 7);
+  const c = compteurDuCycle(contenuPeriode(envoi.debut, envoi.fin).compteur);
+  const km = lireKm(envoi.km);
+  if (!c || !km || c.kilometres === km) return;
+  entrees.compteur = entrees.compteur.map((x) => (x.id === c.id ? { ...x, kilometres: km } : x));
+  ecrireEntrees(entrees);
+}
+
 /** La photo du compteur du cycle : la nouvelle remplace toutes les anciennes. */
 async function enregistrerCompteur(dataUrl) {
   const date = dateCompteurCycle(envoi.debut, envoi.fin);
@@ -1953,25 +1993,9 @@ async function enregistrerCompteur(dataUrl) {
     toast('M\u00e9moire du navigateur pleine : envoyez le mensuel, puis reprenez.', 6000);
     return false;
   }
-  // Demander le kilométrage (entier, ≥ dernier relevé connu).
-  let dernierKm = 0;
-  if (entrees.compteur && entrees.compteur.length) {
-    for (const c of entrees.compteur) {
-      if (typeof c.kilometres === 'number' && c.kilometres > dernierKm) {
-        dernierKm = c.kilometres;
-      }
-    }
-  }
-  const saisie = prompt('Kilométrage du compteur (entier, \u2265 ' + dernierKm + ') :', String(dernierKm));
-  if (saisie === null) {
-    // Annulé : on ne crée pas l'entrée, la photo reste mais ne sera pas liée.
-    return false;
-  }
-  const km = parseInt(saisie, 10);
-  if (isNaN(km) || km < dernierKm) {
-    toast('Kilométrage invalide (doit être \u2265 ' + dernierKm + ').');
-    return false;
-  }
+  // Le km deja saisi pour ce cycle suit la nouvelle photo.
+  const ancien = compteurDuCycle(contenuPeriode(envoi.debut, envoi.fin).compteur);
+  const km = lireKm(envoi.km) || (ancien && ancien.kilometres) || 0;
   // Une seule photo par cycle : les precedentes sont retirees, fichier compris,
   // ce qui nettoie au passage les doublons deja accumules.
   contenuPeriode(envoi.debut, envoi.fin).compteur.forEach((c) => {
@@ -2446,7 +2470,16 @@ document.addEventListener('change', async (e) => {
 });
 
 // Apercu du message tenu a jour pendant la frappe.
+document.addEventListener('change', (e) => {
+  if (ecran === 'envoi' && e.target.id === 'e_km') { enregistrerKm(e.target.value); rendre(); }
+});
+
 document.addEventListener('input', (e) => {
+  if (ecran === 'envoi' && e.target.id === 'e_km') {
+    envoi.km = e.target.value.replace(/\D/g, '').slice(0, 7);
+    const z = $('#e_km_avis'); if (z) z.textContent = avisKm(lireKm(envoi.km));
+    return;
+  }
   if (ecran === 'ticket') { lireTicket(); rendreMontants(); return; }
   if (ecran === 'pv') {
     if (e.target.matches('#p_ext, #p_int, #p_torus')) { lirePv(); rendre(); }
@@ -2480,6 +2513,88 @@ document.addEventListener('input', (e) => {
 window.addEventListener('online', rendre);
 window.addEventListener('offline', rendre);
 
+// =========================================================== SAUVEGARDE ET CONNEXION
+let etatSauvegarde = ''; let cnx = { mail: '', code: '', message: '' }; let minuterie = 0; let occupeSauvegarde = false;
+
+function etatPourSauvegarde() {
+  return { tech: reglages.nomUtilisateur, entrees, reglages, complets: reglagesComplets(reglages), clesPhotos: clesPhotos(), photo };
+}
+
+function lancerSauvegarde(delai) {
+  clearTimeout(minuterie);
+  minuterie = setTimeout(async () => {
+    if (!reglages.nomUtilisateur.trim() || etatConnexion() === 'deconnecte') return;
+    const avant = JSON.stringify(entrees);
+    etatSauvegarde = await sauvegarder(etatPourSauvegarde());
+    montrerSauvegarde();
+    if (JSON.stringify(entrees) !== avant) lancerSauvegarde(1000);
+    else if (etatSauvegarde === 'attente') lancerSauvegarde(60000);
+  }, delai);
+}
+
+function texteSauvegarde() {
+  if (etatConnexion() === 'deconnecte') return 'Cet iPhone est d\u00e9connect\u00e9 : il n\u2019envoie plus rien. Tes donn\u00e9es y sont toujours.';
+  return { ok: 'Donn\u00e9es \u00e0 jour sur le Drive.', attente: 'Envoi en attente (r\u00e9seau). Nouvel essai automatique.',
+    restaurer: 'Le Drive contient des donn\u00e9es absentes de cet iPhone : touche \u00ab Restaurer \u00bb.' }[etatSauvegarde] || 'V\u00e9rification en cours\u2026';
+}
+function montrerSauvegarde() { const z = $('#etat_sauvegarde'); if (z) z.textContent = texteSauvegarde(); }
+
+function blocSauvegarde() {
+  const c = etatConnexion();
+  return `
+    <div class="note" id="etat_sauvegarde">${ech(texteSauvegarde())}</div>
+    <button class="btn" id="restaurer_drive">Restaurer depuis le Drive</button>
+    ${PASSERELLE && c !== 'connecte' ? `
+      <div class="note">${c === 'deconnecte' ? 'Reconnecte cet iPhone' : 'Connecte cet iPhone'} avec ton adresse mail enregistr\u00e9e par le bureau.</div>
+      ${champ('cnx_mail', 'Adresse mail', cnx.mail, '', false, 'email')}
+      <button class="btn" id="cnx_code_btn">Recevoir un code</button>
+      ${champ('cnx_code', 'Code re\u00e7u', cnx.code, '', false)}
+      <button class="btn" id="cnx_ok">Connecter cet iPhone</button>` : ''}
+    ${PASSERELLE && c === 'connecte' ? '<div class="note">Cet iPhone est connect\u00e9.</div>' : ''}
+    <div class="note" id="cnx_message">${ech(cnx.message)}</div>`;
+}
+
+document.addEventListener('click', async (e) => {
+  const id = e.target && e.target.id;
+  if (!['restaurer_drive', 'cnx_code_btn', 'cnx_ok'].includes(id) || occupeSauvegarde) return;
+  const val = (s) => ($(s) ? $(s).value.trim() : '');
+  cnx.mail = val('#cnx_mail'); cnx.code = val('#cnx_code');
+  const dire = (t) => { cnx.message = t; const z = $('#cnx_message'); if (z) z.textContent = t; };
+  occupeSauvegarde = true;
+  try {
+    if (id === 'restaurer_drive') {
+      const nom = val('#r_nom') || reglages.nomUtilisateur;
+      if (!nom.trim() && etatConnexion() !== 'connecte') { dire('Renseigne d\u2019abord ton nom, identique \u00e0 avant.'); return; }
+      dire('Restauration\u2026');
+      const r = await restaurer({ ...etatPourSauvegarde(), tech: nom || 'iPhone' }, enregistrerPhoto);
+      if (!r) { dire('Aucune sauvegarde iPhone sur le Drive pour ce nom.'); return; }
+      // Refusionne avec l'etat ACTUEL : une saisie faite pendant la restauration reste.
+      const { ajouterManquants } = await import('./sauvegarde.js');
+      entrees = ajouterManquants(r.entrees, entrees).entrees;
+      ecrireEntrees(entrees);
+      reglages = r.reglages; ecrireReglages(reglages);
+      dire(r.n + ' entr\u00e9e(s) et ' + r.photos + ' photo(s) ajout\u00e9es, rien n\u2019a \u00e9t\u00e9 remplac\u00e9.' + (r.manquantes ? ' ' + r.manquantes + ' photo(s) \u00e0 reprendre : recommence plus tard.' : ''));
+      rendre();
+    } else if (id === 'cnx_code_btn') {
+      dire(await demanderCode(cnx.mail) ? 'Si cette adresse est enregistr\u00e9e, un code vient d\u2019\u00eatre envoy\u00e9. Il est valable 10 minutes.' : 'R\u00e9seau indisponible. R\u00e9essaie.');
+    } else {
+      let r = await connecter(cnx.mail, cnx.code, false);
+      if (r.etat === 'remplace' && !confirm((r.ancien || 'L\u2019ancien t\u00e9l\u00e9phone') + ' sera d\u00e9connect\u00e9. Si tu l\u2019as encore, ouvre-le d\u2019abord pour qu\u2019il finisse d\u2019envoyer. Ses donn\u00e9es ne seront pas effac\u00e9es. Continuer ?')) return;
+      if (r.etat === 'remplace' || r.etat === 'pret') r = await connecter(cnx.mail, cnx.code, true);
+      if (r.etat === 'ok') { cnx = { mail: '', code: '', message: 'iPhone connect\u00e9. S\u2019il est neuf, touche \u00ab Restaurer depuis le Drive \u00bb.' }; rendre(); lancerSauvegarde(500); }
+      else dire(r.etat === 'refus' ? 'Code refus\u00e9 ou expir\u00e9. Demande un nouveau code.' : 'R\u00e9seau indisponible. Rien n\u2019a \u00e9t\u00e9 chang\u00e9.');
+    }
+  } catch (err) {
+    dire('Drive injoignable. Rien n\u2019a \u00e9t\u00e9 chang\u00e9.');
+  } finally { occupeSauvegarde = false; }
+});
+
+surEcriture(() => lancerSauvegarde(3000));
+window.addEventListener('online', () => lancerSauvegarde(1000));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) lancerSauvegarde(1000); });
+// Demande au navigateur de ne pas vider les donnees de l'application.
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
 // Les vignettes sont lues en memoire pendant le rendu, qui est synchrone : la
 // base doit etre chargee avant le premier affichage, sinon les photos
 // manqueraient a l'ecran jusqu'au rendu suivant.
@@ -2487,6 +2602,7 @@ await chargerPhotos();
 
 ecran = reglagesComplets(reglages) ? 'accueil' : 'reglages';
 rendre();
+lancerSauvegarde(2000);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

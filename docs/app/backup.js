@@ -19,6 +19,7 @@
 // Rien n'est bloquant : un depot qui echoue ne doit jamais empecher un envoi
 // mensuel de partir, exactement comme le runCatching de l'Android.
 
+import { poster } from './connexion.js';
 import { remboursable, tvaDepuisTtc, htDepuisTtc } from './frais.js';
 import { primesParType, datesInstallation, totalInstalle } from './gesteco.js';
 
@@ -49,24 +50,14 @@ export function typeMime(nom) {
 
 /** Depose des octets. Rend true seulement si le script a repondu ok. */
 export async function envoyerOctets(tech, mois, nomFichier, mime, octets) {
-  try {
-    const r = await fetch(POINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        token: JETON,
-        user: String(tech || '').trim() || 'Inconnu',
-        month: mois,
-        fileName: nomFichier,
-        mimeType: mime,
-        dataBase64: enBase64(octets),
-      }),
-    });
-    if (!r.ok) return false;
-    return (await r.text()).indexOf('"ok":true') >= 0;
-  } catch (e) {
-    return false;   // hors reseau ou script injoignable : jamais bloquant
-  }
+  const r = await poster({
+    user: String(tech || '').trim() || 'Inconnu',
+    month: mois,
+    fileName: nomFichier,
+    mimeType: mime,
+    dataBase64: enBase64(octets),
+  });
+  return !!(r && r.ok === true);   // hors reseau ou script injoignable : jamais bloquant
 }
 
 /** Depose un fichier deja constitue (piece jointe du mensuel). */

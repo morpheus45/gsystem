@@ -19,6 +19,14 @@ export function estPlanningVide(e) {
   return (e.typeMission || '').toUpperCase() === 'PLANNING VIDE';
 }
 
+/**
+ * Realisee pour les heures : OK, ou tout type SAUF INST, meme NR ou annule.
+ * Pour les INST, la regle d'avant ne change pas.
+ */
+export function okPourHeures(e) {
+  return !e.observationType || String(e.typeMission || '').trim().toUpperCase() !== 'INST';
+}
+
 /** Un creneau vide compte comme MATIN (entrees anciennes sans creneau). */
 function dansCreneau(e, creneau) {
   if (creneau === 'MATIN') return e.slotMidi === 'MATIN' || !e.slotMidi;
@@ -33,8 +41,8 @@ export function heuresDuJour(entrees) {
 
   const matinOccupe = entrees.some((e) => dansCreneau(e, 'MATIN'));
   const apremOccupe = entrees.some((e) => dansCreneau(e, 'APREM'));
-  const matinOk = entrees.some((e) => dansCreneau(e, 'MATIN') && !e.observationType);
-  const apremOk = entrees.some((e) => dansCreneau(e, 'APREM') && !e.observationType);
+  const matinOk = entrees.some((e) => dansCreneau(e, 'MATIN') && okPourHeures(e));
+  const apremOk = entrees.some((e) => dansCreneau(e, 'APREM') && okPourHeures(e));
 
   const occupes = (matinOccupe ? 1 : 0) + (apremOccupe ? 1 : 0);
   const realises = (matinOk ? 1 : 0) + (apremOk ? 1 : 0);
@@ -50,7 +58,7 @@ export function expliquerHeures(entrees) {
   if (entrees.some(estJourneeEntiere)) return 'Journ\u00e9e enti\u00e8re \u2192 7h';
   const h = heuresDuJour(entrees);
   if (h === 8) return 'Matin et apr\u00e8s-midi r\u00e9alis\u00e9s \u2192 8h';
-  if (h === 6) return 'Matin et apr\u00e8s-midi, au moins une NR \u2192 6h';
+  if (h === 6) return 'Matin et apr\u00e8s-midi, au moins une INST NR \u2192 6h';
   if (h === 4) return 'Une seule demi-journ\u00e9e \u2192 4h';
   return '0h';
 }

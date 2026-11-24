@@ -65,6 +65,7 @@ export function texteObservation(e) {
   const codes = {
     NR_CLIENT: 'NR CLIENT', NR_TECHNIQUE: 'NR TECHNIQUE',
     NR_CLIENT_ABS: 'NR CLIENT ABS', NR_AUTRES: 'NR AUTRES',
+    ANNULE_ROUTE: 'ANNULÉ EN ROUTE', ANNULE_SITE: 'ANNULÉ SUR SITE',
   };
   const retards = {
     ADRESSE: 'RETARD : PROBLÈME ADRESSE',
