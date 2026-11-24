@@ -247,8 +247,12 @@ fun AppNav() {
             // Synchro INCRÉMENTALE (données fusionnées + photos une seule fois).
             // Remplace l'ancien zip complet par mois qui saturait le Drive en Go.
             val settingsJson = Json.encodeToString(AppSettings.serializer(), settings)
-            val msg = DriveSync.sync(context, settings, repo.store.value, settingsJson)
-            if (msg.startsWith("✅")) settingsStore.update { it.copy(lastDriveBackup = now) }
+            com.morpheus45.gsystem.backup.SyncMoteur.scope.launch {
+                runCatching {
+                    val msg = DriveSync.sync(context.applicationContext, settings, repo.store.value, settingsJson)
+                    if (msg.startsWith("✅")) settingsStore.update { it.copy(lastDriveBackup = now) }
+                }
+            }
         }
     }
 
@@ -378,21 +382,19 @@ fun AppNav() {
     // geste, compteur), on repousse les stats du cycle. Le point + « OPÉRATIONNEL »
     // de l'accueil passent au vert quand la remontée a réussi, rouge tant qu'il
     // reste des données en attente (réseau faible, non configuré, etc.).
-    var driveSynced by remember { mutableStateOf(false) }
+    val driveSynced by com.morpheus45.gsystem.backup.SyncMoteur.ok.collectAsState()
     LaunchedEffect(settings.isReady, settings.nomUtilisateur, settings.lastEnvoiDateIso) {
         if (!BackupConfig.isConfigured || !settings.isReady ||
             settings.nomUtilisateur.isBlank()) {
-            driveSynced = false
             return@LaunchedEffect
         }
         repo.store.debounce(1200L).collect { snapshot ->
             // Jamais de push pendant une restauration : les photos ne sont pas
             // encore re-téléchargées et le prune les effacerait du Drive.
-            if (DriveSync.restoreInProgress) return@collect
-            driveSynced = false
             // Tous les cycles, rangés d'après les VRAIES dates d'envoi : en cours, passés
             // (saisie tardive) et à venir (congés). Les cycles passés inchangés ne repartent pas.
-            driveSynced = CycleSync.synchroniser(context, settings, snapshot) >= 0
+            // Hors de l'écran : l'envoi continue si une autre appli passe devant.
+            com.morpheus45.gsystem.backup.SyncMoteur.demander(context, settings, snapshot)
         }
     }
 
@@ -567,7 +569,7 @@ fun AppNav() {
                     if (!BackupConfig.isConfigured) "Sauvegarde Drive non configurée"
                     else DriveSync.sync(
                         context, settings, repo.store.value,
-                        Json.encodeToString(AppSettings.serializer(), settings)
+                        Json.encodeToString(AppSettings.serializer(), settings), tout = true
                     )
                 },
                 onRestore = {

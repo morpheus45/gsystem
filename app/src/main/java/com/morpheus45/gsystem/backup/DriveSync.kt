@@ -63,13 +63,15 @@ object DriveSync {
 
     /** Synchronisation local -> Drive : régénère tous les cycles. Statut. */
     suspend fun sync(
-        context: Context, settings: AppSettings, store: EntriesStore, settingsJson: String
+        context: Context, settings: AppSettings, store: EntriesStore, settingsJson: String,
+        /** Renvoie aussi les photos déjà en ligne (bouton, si le Drive a été vidé à la main). */
+        tout: Boolean = false
     ): String = withContext(Dispatchers.IO) {
         if (!BackupConfig.isConfigured || settings.nomUtilisateur.isBlank())
             return@withContext "Renseigne ton nom dans les réglages d'abord."
         // Les cycles d'abord : un téléphone neuf, pas encore restauré, ne doit écraser
         // ni les données ni les réglages du Drive.
-        val n = CycleSync.synchroniser(context, settings, store, tout = true)
+        val n = CycleSync.synchroniser(context, settings, store, tout)
         if (n < 0) return@withContext "Sauvegarde incomplète, rien n'a été écrasé. Réessaie ; " +
             "sur un téléphone neuf, fais d'abord « Restaurer »."
         val ok = BackupUploader.uploadBytes(settings.nomUtilisateur, "__root__", "reglages.json",

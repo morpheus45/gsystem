@@ -18,8 +18,8 @@ android {
         // téléphones Android modernes.
         minSdk = 26
         targetSdk = 34
-        versionCode = 190
-        versionName = "1.9.110"
+        versionCode = 191
+        versionName = "1.9.111"
         vectorDrawables { useSupportLibrary = true }
         // Canal sideload : auto-update active. Le flavor "play" (branche playstore)
         // repasse ce flag à true. Défini ici pour que le code partagé (UpdateDialog)

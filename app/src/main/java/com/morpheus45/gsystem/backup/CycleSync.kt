@@ -91,42 +91,66 @@ object CycleSync {
                 val locaux = CyclePlan.ids(store)
                 val vus = lireVus(context)
 
-                val cycles = CyclePlan.cycles(store, settings)
+                val lots = CyclePlan.cycles(store, settings).map { (a, b) -> preparer(context, settings, store, a, b) }
+                val index = lireIndex(context)
                 val faits = HashSet<String>()
-                // Deux passages : une entrée peut attendre que son nouveau fichier soit écrit.
+                // 1. Les DONNÉES de tous les mois (léger). Deux passages : une entrée peut
+                //    attendre que son nouveau fichier soit écrit.
                 repeat(2) {
-                    for ((s, e) in cycles) {
+                    for (lot in lots) {
                         if (DriveSync.restoreInProgress) return@runCatching -1
-                        val mois = CyclePlan.mois(e)
-                        if (mois in faits) continue
-                        val part = CyclePlan.fenetre(store, s, e)
-                        val ids = CyclePlan.ids(part)
-                        when (CyclePlan.avis(mois, ids, locaux, vus, contenu)) {
-                            CyclePlan.Avis.REFUSER, CyclePlan.Avis.ATTENDRE -> continue
-                            CyclePlan.Avis.ARCHIVER -> {
-                                // Copie de l'ancien fichier : le nettoyage du Drive n'y touche pas.
-                                val ok = BackupUploader.uploadBytes(
-                                    settings.nomUtilisateur, "_secours",
-                                    "donnees-$mois-${System.currentTimeMillis()}.json", "application/json",
-                                    etat.getValue(mois).toByteArray(Charsets.UTF_8))
-                                if (!ok) continue
+                        if (lot.mois in faits) continue
+                        val avis = CyclePlan.avis(lot.mois, CyclePlan.ids(lot.part), locaux, vus, contenu)
+                        if (avis == CyclePlan.Avis.REFUSER || avis == CyclePlan.Avis.ATTENDRE) continue
+                        val ancien = etat[lot.mois]
+                        val identique = ancien != null && entrees(ancien) == lot.part && photosDe(ancien) == lot.noms()
+                        if (!identique || tout) {
+                            // Copie de l'ancien fichier : le nettoyage du Drive n'y touche pas.
+                            if (avis == CyclePlan.Avis.ARCHIVER && !envoyerJson(settings, "_secours",
+                                    "donnees-${lot.mois}-${System.currentTimeMillis()}.json", etat.getValue(lot.mois))) continue
+                            // Avant d'annoncer une photo sous ce nom : elle devra vraiment y être envoyée.
+                            val avant = photosDe(ancien)
+                            lot.photos.forEach { ph ->
+                                val connue = index[ph.src.name]
+                                if (connue != null && connue != ph.empreinte(lot.mois) && avant[ph.src.name] != ph.nom) index.remove(ph.src.name)
                             }
-                            CyclePlan.Avis.POUSSER -> Unit
+                            index[A_FINIR + lot.mois] = "1"
+                            if (!ecrireIndex(context, index)) return@runCatching -1
+                            if (!envoyerJson(settings, lot.mois, "donnees.json", lot.texte())) continue
+                            etat[lot.mois] = lot.texte()
+                            contenu[lot.mois] = CyclePlan.ids(lot.part)
                         }
-                        val ancien = etat[mois]
-                        val courant = DateUtil.today().let { it in s..e }
-                        val identique = ancien != null && !tout && !courant && entrees(ancien) == part
-                        if (!identique) {
-                            val texte = pushCycle(context, settings, store, s, e, ancien, tout) ?: continue
-                            etat[mois] = texte
-                            contenu[mois] = ids
-                        }
-                        faits.add(mois)
+                        faits.add(lot.mois)
                     }
+                }
+                // 2. Les PHOTOS (lourd), puis le nettoyage. Chaque photo envoyée est notée
+                //    aussitôt : une coupure reprend où elle en était.
+                var complet = true
+                for (lot in lots) {
+                    if (lot.mois !in faits) { complet = false; continue }
+                    for (ph in lot.photos) {
+                        if (DriveSync.restoreInProgress) return@runCatching -1
+                        val connue = index[ph.src.name]
+                        if (!tout && (connue == ph.empreinte(lot.mois) || connue == ph.sansMois())) continue
+                        if (BackupUploader.uploadBytes(settings.nomUtilisateur, lot.mois, ph.nom, ph.mime, ph.src.readBytes())) {
+                            index[ph.src.name] = ph.empreinte(lot.mois)
+                            index[A_FINIR + lot.mois] = "1"
+                            ecrireIndex(context, index)
+                        } else complet = false
+                    }
+                    val courant = DateUtil.today() in lot.debut..lot.fin
+                    if (index[A_FINIR + lot.mois] == null && !courant && !tout) continue
+                    StatsUploader.push(settings, store, lot.debut, lot.fin)
+                    // Rien n'est nettoyé tant qu'une photo n'a pas pu partir : elle a peut-être
+                    // changé de mois, et l'ancien dossier en garde la seule copie.
+                    if (!complet) continue
+                    DriveSync.cyclePrune(settings.nomUtilisateur, lot.mois, lot.photos.map { it.nom } + "donnees.json")
+                    index.remove(A_FINIR + lot.mois)
+                    ecrireIndex(context, index)
                 }
                 // Mémorisé seulement après un passage : ce que le téléphone contient vraiment.
                 if (!ecrireVus(context, vus + locaux)) return@runCatching -1
-                if (faits.size == cycles.map { CyclePlan.mois(it.second) }.toSet().size) faits.size else -1
+                if (complet) faits.size else -1
             }.getOrElse { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 drive = null                                         // état incertain : relu au prochain passage
@@ -165,106 +189,61 @@ object CycleSync {
         }.getOrDefault(mutableMapOf())
     }
 
-    private fun ecrireIndex(context: Context, index: Map<String, String>) {
-        runCatching {
-            val o = JSONObject()
-            index.forEach { (k, v) -> o.put(k, v) }
-            indexFile(context).writeText(o.toString())
-        }
+    private fun ecrireIndex(context: Context, index: Map<String, String>): Boolean = runCatching {
+        val o = JSONObject()
+        index.forEach { (k, v) -> o.put(k, v) }
+        val tmp = java.io.File(context.filesDir, "sync_photos.tmp")
+        tmp.writeText(o.toString())
+        tmp.renameTo(indexFile(context))
+    }.getOrDefault(false)
+
+    /** Clé d'index d'un mois dont les photos ou le nettoyage restent à finir. */
+    private const val A_FINIR = "#a-finir/"
+
+    private suspend fun envoyerJson(settings: AppSettings, dossier: String, nom: String, texte: String): Boolean =
+        BackupUploader.uploadBytes(settings.nomUtilisateur, dossier, nom, "application/json", texte.toByteArray(Charsets.UTF_8))
+
+    /** Une photo et son nom propre sur le Drive. */
+    private class Photo(val src: java.io.File, val nom: String, val mime: String) {
+        fun sansMois() = "$nom|${src.length()}"                  // empreinte d'avant la 1.9.110
+        fun empreinte(mois: String) = "$mois/${sansMois()}"
     }
 
-    /** Pousse UN cycle dans son dossier mois-de-fin. Retourne le donnees.json envoyé, null si échec. */
-    private suspend fun pushCycle(
-        context: Context, settings: AppSettings, store: EntriesStore,
-        start: LocalDate, end: LocalDate,
-        /** donnees.json actuel du Drive pour ce mois (null s'il n'existe pas). */
-        ancien: String?,
-        /**
-         * true = renvoie les photos même si l'index les croit déjà en ligne.
-         * Utilisé par la sauvegarde complète : c'est le filet de sécurité si le
-         * Drive a été vidé à la main, sinon ces photos ne repartiraient jamais.
-         */
-        forcerPhotos: Boolean = false
-    ): String? = withContext(Dispatchers.IO) {
-        runCatching {
-            val user = settings.nomUtilisateur
-            val month = end.toString().take(7)
-            val cycleStore = CyclePlan.fenetre(store, start, end)
-            val frais = cycleStore.frais
-            val compteur = cycleStore.compteur
+    /** Ce que doit contenir le dossier d'un cycle. */
+    private class Lot(
+        val mois: String, val debut: LocalDate, val fin: LocalDate,
+        val part: EntriesStore, val photos: List<Photo>
+    ) {
+        fun noms(): Map<String, String> = photos.associate { it.src.name to it.nom }
+        fun texte(): String = JSONObject()
+            .put("entries", JSONObject(json.encodeToString(EntriesStore.serializer(), part)))
+            .put("photos", JSONObject(noms()))
+            .toString()
+    }
 
-            val keep = ArrayList<String>()
-            val photoMap = JSONObject()   // nom de fichier local -> nom propre sur le Drive
-            // Index des photos déjà en ligne : on ne renvoie que ce qui a changé.
-            val dejaEnvoyees = lireIndex(context)
-            var indexModifie = false
-            var echecPhoto = false
-            val photosDrive = photosDe(ancien)
-            /** Envoie la photo SEULEMENT si elle n'est pas déjà en ligne à l'identique. */
-            suspend fun envoyerSiNouvelle(src: java.io.File, driveName: String, mime: String) {
-                // Le mois fait partie de l'empreinte : une photo qui change de cycle doit
-                // repartir dans son nouveau dossier (l'ancien sera nettoyé). Les empreintes
-                // d'avant, sans mois, ne valent que si le Drive la range déjà ici.
-                val sansMois = "$driveName|${src.length()}"
-                val empreinte = "$month/$sansMois"
-                val connue = dejaEnvoyees[src.name]
-                if (!forcerPhotos && (connue == empreinte ||
-                        (connue == sansMois && photosDrive[src.name] == driveName))) return
-                if (BackupUploader.uploadBytes(user, month, driveName, mime, src.readBytes())) {
-                    dejaEnvoyees[src.name] = empreinte
-                    indexModifie = true
-                } else echecPhoto = true
+    private fun preparer(
+        context: Context, settings: AppSettings, store: EntriesStore, start: LocalDate, end: LocalDate
+    ): Lot {
+        val part = CyclePlan.fenetre(store, start, end)
+        val photos = ArrayList<Photo>()
+        // Frais : noms propres FRAIS-CATÉGORIE-N.ext (même logique que l'envoi).
+        val catCount = HashMap<String, Int>()
+        part.frais.sortedBy { it.date }.forEach { t ->
+            val src = PhotoStorage.fileFor(context, t.fileName)
+            if (src.exists()) {
+                val cat = t.categorie.ifBlank { "DIVERS" }
+                val idx = (catCount[cat.uppercase()] ?: 0) + 1
+                catCount[cat.uppercase()] = idx
+                val nom = PhotoStorage.fraisAttachmentName(cat, t.fileName.substringAfterLast('.', "jpg"), idx)
+                photos.add(Photo(src, nom, mimeFor(nom)))
             }
-
-            // Frais : noms propres FRAIS-CATÉGORIE-N.ext (même logique que l'envoi).
-            val catCount = HashMap<String, Int>()
-            frais.sortedBy { it.date }.forEach { t ->
-                val src = PhotoStorage.fileFor(context, t.fileName)
-                if (src.exists()) {
-                    val cat = t.categorie.ifBlank { "DIVERS" }
-                    val idx = (catCount[cat.uppercase()] ?: 0) + 1
-                    catCount[cat.uppercase()] = idx
-                    val ext = t.fileName.substringAfterLast('.', "jpg")
-                    val driveName = PhotoStorage.fraisAttachmentName(cat, ext, idx)
-                    envoyerSiNouvelle(src, driveName, mimeFor(driveName))
-                    // keep/photoMap TOUJOURS renseignés, même sans renvoi : sinon
-                    // cyclePrune supprimerait du Drive les photos non re-poussées.
-                    keep.add(driveName); photoMap.put(t.fileName, driveName)
-                }
-            }
-            // Photos compteur : noms propres PLAQUE-MM-AAAA.jpg.
-            compteur.sortedBy { it.date }.forEachIndexed { i, entry ->
-                val src = PhotoStorage.fileFor(context, entry.fileName)
-                if (src.exists()) {
-                    val driveName = PhotoStorage.compteurAttachmentName(settings.plaqueVoiture, entry.date, i + 1)
-                    envoyerSiNouvelle(src, driveName, "image/jpeg")
-                    keep.add(driveName); photoMap.put(entry.fileName, driveName)
-                }
-            }
-            // donnees.json de CE cycle : entrées + correspondance de noms.
-            val payload = JSONObject()
-                .put("entries", JSONObject(json.encodeToString(EntriesStore.serializer(), cycleStore)))
-                .put("photos", photoMap)
-                .toString()
-            val envoye = BackupUploader.uploadBytes(user, month, "donnees.json", "application/json",
-                payload.toByteArray(Charsets.UTF_8))
-            if (indexModifie) ecrireIndex(context, dejaEnvoyees)
-            // Envoi incomplet : on ne nettoie RIEN sur le Drive, et on réessaiera.
-            if (!envoye || echecPhoto) return@runCatching null
-            keep.add("donnees.json")
-
-            // _stats.json (tableau de bord).
-            StatsUploader.push(settings, store, start, end)
-
-            // Supprime l'obsolète : frais/compteur/donnees plus référencés. Ne touche
-            // JAMAIS aux livrables d'envoi (_stats.json, *.xlsm, Recap-*, mail-*).
-            DriveSync.cyclePrune(user, month, keep)
-            payload
-        }.getOrElse { e ->
-            // Ne jamais avaler l'annulation de la coroutine (sinon push partiel
-            // sans prune, silencieux).
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            null
         }
+        // Photos compteur : noms propres PLAQUE-MM-AAAA.jpg.
+        part.compteur.sortedBy { it.date }.forEachIndexed { i, entry ->
+            val src = PhotoStorage.fileFor(context, entry.fileName)
+            if (src.exists()) photos.add(Photo(src,
+                PhotoStorage.compteurAttachmentName(settings.plaqueVoiture, entry.date, i + 1), "image/jpeg"))
+        }
+        return Lot(CyclePlan.mois(end), start, end, part, photos)
     }
 }
