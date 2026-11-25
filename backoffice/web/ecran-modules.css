@@ -77,3 +77,17 @@
 #client-form { max-width: 560px; }
 #client-form .field { margin-bottom: 10px; }
 @media (max-width: 560px) { .client-duo { grid-template-columns: 1fr; } }
+
+/* Module Devis */
+.devis-entete { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; margin-bottom: 16px; }
+.devis-entete h3 { grid-column: 1 / -1; margin: 0; }
+.devis-lignes { border-top: 1px solid var(--border); padding-top: 12px; }
+.devis-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); }
+.devis-ligne:first-of-type { border-top: 0; }
+.devis-ligne input, .devis-ligne select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+.devis-ligne > input:first-of-type, .devis-ligne > select:first-child { flex: 1 1 160px; min-width: 120px; }
+.devis-qte { width: 56px; } .devis-pu { width: 84px; } .devis-rem { width: 56px; }
+.devis-ligne-ht { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.devis-totaux { margin-top: 14px; text-align: right; }
+.devis-totaux p { margin: 2px 0; }
+.devis-ttc { font-weight: 700; font-size: 16px; }

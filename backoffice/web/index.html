@@ -748,12 +748,14 @@
             <button class="tab" data-tab="paie">Paie</button>
             <button class="tab" data-tab="compta">Compta</button>
             <button class="tab" data-tab="facturation">Facturation</button>
+            <p class="nav-groupe hidden" id="groupe-commerce">Commerce</p>
+            <button class="tab hidden" data-tab="clients" id="onglet-clients">Clients</button>
+            <button class="tab hidden" data-tab="articles" id="onglet-articles">Articles</button>
+            <button class="tab hidden" data-tab="devis" id="onglet-devis">Devis</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
             <button class="tab hidden" data-tab="modules" id="onglet-modules">Modules</button>
-            <button class="tab hidden" data-tab="clients" id="onglet-clients">Clients</button>
-            <button class="tab hidden" data-tab="articles" id="onglet-articles">Articles</button>
           </nav>
           <div class="nav-utilisateur" id="nav-utilisateur"><span class="avatar" id="nav-avatar" aria-hidden="true"></span><span class="nav-email" id="nav-email"></span></div>
           <button type="button" id="signaler-bug">Signaler un problème</button>
@@ -1027,6 +1029,16 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="article-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="articles-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Devis (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-devis" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Devis</h3><button type="button" id="devis-nouveau">Nouveau devis</button></div>
+            <p class="aide">Choisis un client, ajoute des lignes d'articles ; les totaux se calculent tout seuls.</p>
+            <div id="devis-liste"></div>
+            <div id="devis-editeur" class="hidden"></div>
           </div>
         </div>
 

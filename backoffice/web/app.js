@@ -264,14 +264,17 @@ function switchOnglet(tabId, calculer = true) {
       || (responsable ? !ongletDuResponsable(b.dataset.tab) : b.dataset.tab === 'messages' && !peutEcrire())
       || (b.dataset.tab === 'saisies' && !modulesSaisis.length)
       || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'))
-      || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'));
+      || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'))
+      || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
+  // Barres de catégorie : visibles seulement si au moins un de leurs modules est allumé.
+  $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -286,6 +289,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-modules') chargerModules();
   if (tabId === 'panel-clients') chargerClients();
   if (tabId === 'panel-articles') chargerArticles();
+  if (tabId === 'panel-devis') chargerDevis();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4535,6 +4539,140 @@ async function soumettreArticle(ev) {
 $('#article-nouveau').addEventListener('click', () => ouvrirFormArticle(null));
 $('#article-form').addEventListener('submit', soumettreArticle);
 $('#article-annuler').addEventListener('click', fermerFormArticle);
+
+// === MODULE DEVIS (en-tête client + lignes d'articles + totaux calculés par la base) ===
+const LIBELLE_STATUT_DEVIS = { brouillon: 'Brouillon', envoye: 'Envoyé', accepte: 'Accepté', refuse: 'Refusé' };
+let devisListe = [], devisTiers = [], devisArticles = [], devisOuvert = null, devisLignes = [];
+const peutDevis = () => superAdmin || ['admin', 'gestion'].includes(monRole);
+const champField = (texte, champ) => { const d = elt('div', 'field'); d.append(elt('label', null, texte), champ); return d; };
+
+async function chargerDevis() {
+  if (!selectedSociete) return;
+  const [dv, ti, ar] = await Promise.all([
+    sb.from('devis').select('id, numero, client_nom, date_devis, statut, total_ht_centimes, total_tva_centimes, total_ttc_centimes, tiers_id').eq('societe_id', selectedSociete).order('date_devis', { ascending: false }),
+    sb.from('tiers').select('id, nom').eq('societe_id', selectedSociete).eq('actif', true).order('nom'),
+    sb.from('articles').select('id, libelle, prix_ht_centimes, taux_tva').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+  ]);
+  if (dv.error) { $('#devis-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${dv.error.message}`)); return; }
+  devisListe = dv.data || []; devisTiers = ti.data || []; devisArticles = ar.data || [];
+  const d = devisOuvert && devisListe.find((x) => x.id === devisOuvert);
+  if (d) {
+    const { data } = await sb.from('devis_ligne').select('id, article_id, libelle, quantite, prix_unitaire_centimes, remise_pct, taux_tva, ht_centimes, rang').eq('devis_id', devisOuvert).order('rang');
+    devisLignes = data || [];
+    renderDevisEditeur(d);
+  } else { devisOuvert = null; renderDevisListe(); }
+}
+
+function renderDevisListe() {
+  $('#devis-editeur').classList.add('hidden');
+  $('#devis-liste').classList.remove('hidden');
+  $('#devis-nouveau').classList.toggle('hidden', !peutDevis());
+  const carte = (d) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, d.numero || '(brouillon)'), elt('span', 'aide', d.client_nom));
+    art.append(tete, elt('p', 'client-infos', [d.date_devis, LIBELLE_STATUT_DEVIS[d.statut], `${centimesEnEuros(d.total_ttc_centimes)} TTC`].join(' — ')));
+    const actions = elt('div', 'org-actions');
+    actions.append(boutonModule('Ouvrir', 'secondary', () => { devisOuvert = d.id; chargerDevis(); }));
+    if (peutDevis()) actions.append(boutonModule('Supprimer', 'danger', () => supprimerDevis(d)));
+    art.append(actions);
+    return art;
+  };
+  $('#devis-liste').replaceChildren(...(devisListe.length ? devisListe.map(carte) : [elt('p', 'aide', 'Aucun devis pour l’instant.')]));
+}
+
+async function nouveauDevis() {
+  const row = { societe_id: selectedSociete, client_nom: 'Nouveau client', date_devis: new Date().toISOString().slice(0, 10) };
+  const { data, error } = await sb.from('devis').insert(row).select('id').single();
+  if (error) { alert(error.message); return; }
+  devisOuvert = data.id; await chargerDevis();
+}
+
+async function supprimerDevis(d) {
+  if (!confirm(`Supprimer le devis ${d.numero || ''} ? Ses lignes partent avec.`)) return;
+  const { error } = await sb.from('devis').delete().eq('id', d.id);
+  if (error) { alert(error.message); return; }
+  devisOuvert = null; await chargerDevis();
+}
+
+const majDevis = (champs) => sb.from('devis').update(champs).eq('id', devisOuvert).then(({ error }) => { if (error) alert(error.message); return chargerDevis(); });
+const majLigne = (id, champs) => sb.from('devis_ligne').update(champs).eq('id', id).then(({ error }) => { if (error) alert(error.message); return chargerDevis(); });
+
+function ligneDevisRow(l, ro) {
+  const row = elt('div', 'devis-ligne');
+  if (devisArticles.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— article —', ''));
+    for (const a of devisArticles) sel.add(new Option(a.libelle, a.id));
+    sel.value = l.article_id || '';
+    sel.addEventListener('change', () => {
+      const a = devisArticles.find((x) => x.id === sel.value);
+      if (a) majLigne(l.id, { article_id: a.id, libelle: a.libelle, prix_unitaire_centimes: a.prix_ht_centimes, taux_tva: a.taux_tva });
+    });
+    row.append(sel);
+  }
+  const lib = elt('input'); lib.value = l.libelle; lib.placeholder = 'Libellé'; lib.disabled = ro;
+  lib.addEventListener('change', () => majLigne(l.id, { libelle: lib.value.trim() || 'Ligne' }));
+  const qte = elt('input'); qte.type = 'number'; qte.min = 1; qte.value = l.quantite; qte.disabled = ro; qte.className = 'devis-qte';
+  qte.addEventListener('change', () => majLigne(l.id, { quantite: Math.max(1, Math.round(Number(qte.value) || 1)) }));
+  const pu = elt('input'); pu.inputMode = 'decimal'; pu.value = (l.prix_unitaire_centimes / 100).toFixed(2).replace('.', ','); pu.disabled = ro; pu.className = 'devis-pu';
+  pu.addEventListener('change', () => { const c = eurosEnCentimes(pu.value); if (c === null) { alert('Prix invalide.'); return; } majLigne(l.id, { prix_unitaire_centimes: c }); });
+  const rem = elt('input'); rem.type = 'number'; rem.min = 0; rem.max = 100; rem.value = l.remise_pct; rem.disabled = ro; rem.className = 'devis-rem'; rem.title = 'Remise %';
+  rem.addEventListener('change', () => majLigne(l.id, { remise_pct: Math.min(100, Math.max(0, Number(rem.value) || 0)) }));
+  const tva = elt('select'); tva.disabled = ro;
+  for (const t of [20, 10, 5.5, 2.1, 0]) tva.add(new Option(`${String(t).replace('.', ',')} %`, String(t)));
+  tva.value = String(l.taux_tva); tva.addEventListener('change', () => majLigne(l.id, { taux_tva: Number(tva.value) }));
+  row.append(lib, qte, pu, rem, tva, elt('span', 'devis-ligne-ht', `${centimesEnEuros(l.ht_centimes)} HT`));
+  if (!ro) row.append(boutonModule('✕', 'danger', () => sb.from('devis_ligne').delete().eq('id', l.id).then(() => chargerDevis())));
+  return row;
+}
+
+async function ajouterLigneDevis() {
+  const { error } = await sb.from('devis_ligne').insert({ devis_id: devisOuvert, libelle: 'Nouvelle ligne', quantite: 1, prix_unitaire_centimes: 0, taux_tva: 20, rang: devisLignes.length });
+  if (error) { alert(error.message); return; }
+  await chargerDevis();
+}
+
+function renderDevisEditeur(d) {
+  $('#devis-liste').classList.add('hidden');
+  const z = $('#devis-editeur'); z.classList.remove('hidden'); z.replaceChildren();
+  const ro = !peutDevis();
+  const entete = elt('div', 'devis-entete');
+  entete.append(elt('h3', null, d.numero || 'Nouveau devis'));
+  if (devisTiers.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— choisir un client —', ''));
+    for (const t of devisTiers) sel.add(new Option(t.nom, t.id));
+    sel.value = d.tiers_id || '';
+    sel.addEventListener('change', () => { const t = devisTiers.find((x) => x.id === sel.value); if (t) majDevis({ tiers_id: t.id, client_nom: t.nom }); });
+    entete.append(champField('Client (module Clients)', sel));
+  }
+  const nom = elt('input'); nom.value = d.client_nom; nom.maxLength = 200; nom.disabled = ro;
+  nom.addEventListener('change', () => majDevis({ client_nom: nom.value.trim() || 'Client', tiers_id: null }));
+  const date = elt('input'); date.type = 'date'; date.value = d.date_devis; date.disabled = ro;
+  date.addEventListener('change', () => majDevis({ date_devis: date.value }));
+  const statut = elt('select'); statut.disabled = ro;
+  for (const [v, lab] of Object.entries(LIBELLE_STATUT_DEVIS)) statut.add(new Option(lab, v));
+  statut.value = d.statut; statut.addEventListener('change', () => majDevis({ statut: statut.value }));
+  entete.append(champField('Nom du client', nom), champField('Date', date), champField('Statut', statut));
+  z.append(entete);
+  const zl = elt('div', 'devis-lignes');
+  zl.append(elt('h4', null, 'Lignes'));
+  for (const l of devisLignes) zl.append(ligneDevisRow(l, ro));
+  if (!devisLignes.length) zl.append(elt('p', 'aide', 'Aucune ligne.'));
+  if (!ro) zl.append(boutonModule('Ajouter une ligne', 'secondary', ajouterLigneDevis));
+  z.append(zl);
+  const tot = elt('div', 'devis-totaux');
+  tot.append(elt('p', null, `Total HT : ${centimesEnEuros(d.total_ht_centimes)}`),
+    elt('p', null, `TVA : ${centimesEnEuros(d.total_tva_centimes)}`),
+    elt('p', 'devis-ttc', `Total TTC : ${centimesEnEuros(d.total_ttc_centimes)}`));
+  z.append(tot);
+  const actions = elt('div', 'org-actions');
+  actions.append(boutonModule('Fermer', 'secondary', () => { devisOuvert = null; chargerDevis(); }));
+  z.append(actions);
+}
+
+$('#devis-nouveau').addEventListener('click', nouveauDevis);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
