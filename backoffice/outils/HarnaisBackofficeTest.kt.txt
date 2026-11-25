@@ -1,0 +1,64 @@
+© 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
+package com.morpheus45.gsystem
+
+import com.morpheus45.gsystem.data.CompteurEntry
+import com.morpheus45.gsystem.data.EntriesStore
+import com.morpheus45.gsystem.data.FraisTicket
+import com.morpheus45.gsystem.data.GesteCoEntry
+import com.morpheus45.gsystem.data.TempsEntry
+import com.morpheus45.gsystem.util.HoursCalculator
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Test
+import java.io.File
+
+// HARNAIS JETABLE (backoffice/) : ne doit jamais etre commite sous app/.
+class HarnaisBackofficeTest {
+    private val out = File("../backoffice/fixtures")
+    // Meme configuration que CycleSync.kt:37
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Test fun donneesJsonFictif() {
+        val store = EntriesStore(
+            temps = listOf(
+                TempsEntry(id = "t1", date = "2026-10-22", departement = "34", typeMission = "INST",
+                    nomClient = "CLIENT FICTIF", ville = "VILLE-A", numeroIntervention = "10000001",
+                    slotMidi = "MATIN", heureDebut = "08:30", heureFin = "10:00"),
+                TempsEntry(id = "t2", date = "2026-10-22", departement = "34", typeMission = "INST",
+                    nomClient = "CLIENT FICTIF", ville = "VILLE-B", numeroIntervention = "10000002",
+                    observationType = "NR_CLIENT", observations = "absent", slotMidi = "APREM"),
+                TempsEntry(id = "t3", date = "2026-10-23", departement = "34", typeMission = "VACANCES",
+                    nomClient = ""),
+            ),
+            gesteCo = listOf(GesteCoEntry(id = "g1", date = "2026-10-22", siteNumber = "10000001", installedGsm = 1)),
+            frais = listOf(
+                FraisTicket(id = "f1", date = "2026-10-22", timestamp = 1792656000000, fileName = "f1.jpg",
+                    categorie = "PARKING", montantEur = 4.5, sansTva = true),
+                FraisTicket(id = "f2", date = "2026-10-25", timestamp = 1792915200000, fileName = "f2.jpg",
+                    categorie = "MOBILE", montantEur = 50.0),
+            ),
+            compteur = listOf(CompteurEntry(id = "c1", date = "2026-11-19", timestamp = 1795046400000, fileName = "c1.jpg")),
+        )
+        // Meme forme que CycleSync.kt:141-143 (org.json n'est pas utilisable en test unitaire)
+        val donnees = "{\"entries\":" + json.encodeToString(EntriesStore.serializer(), store) +
+            ",\"photos\":{\"f1.jpg\":\"FRAIS-PARKING.jpg\",\"c1.jpg\":\"ZZ-999-ZZ-11-2026.jpg\"}}"
+        File(out, "donnees-fictif.json").writeText(donnees + "\n")
+    }
+
+    @Test fun heuresKotlin() {
+        val cas = Json.parseToJsonElement(File(out, "heures-cas.json").readText()).jsonArray
+        val res = cas.map { c ->
+            val entrees = c.jsonObject["entrees"]!!.jsonArray.mapIndexed { i, e ->
+                val o = e.jsonObject
+                TempsEntry(id = "e$i", date = "2026-01-05", departement = "34",
+                    typeMission = o["typeMission"]!!.jsonPrimitive.content, nomClient = "",
+                    slotMidi = o["slotMidi"]!!.jsonPrimitive.content,
+                    observationType = o["observationType"]!!.jsonPrimitive.content)
+            }
+            "{\"nom\":" + c.jsonObject["nom"].toString() + ",\"heures\":" + HoursCalculator.computeForDay(entrees) + "}"
+        }
+        File(out, "heures-kotlin.json").writeText(res.joinToString(",\n", "[\n", "\n]\n"))
+    }
+}

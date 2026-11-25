@@ -1,0 +1,18 @@
+[
+{"nom":"aucune entree","heures":0.0},
+{"nom":"planning vide","heures":0.0},
+{"nom":"vacances","heures":7.0},
+{"nom":"formation minuscules","heures":7.0},
+{"nom":"ferie","heures":7.0},
+{"nom":"planning vide l emporte sur vacances","heures":0.0},
+{"nom":"matin OK seul","heures":4.0},
+{"nom":"aprem NR seul","heures":4.0},
+{"nom":"creneau vide = matin","heures":8.0},
+{"nom":"OK + OK","heures":8.0},
+{"nom":"OK + NR","heures":6.0},
+{"nom":"NR + NR","heures":6.0},
+{"nom":"matin NR puis OK, aprem OK","heures":8.0},
+{"nom":"observation avec espace seul","heures":8.0},
+{"nom":"creneau avec espace seul","heures":4.0},
+{"nom":"creneau inconnu","heures":0.0}
+]

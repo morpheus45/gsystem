@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE). -->
+<!-- Formes 3D abstraites du back-office (Three.js) : une forme par ?objet=…, matière irisée de la référence, couleurs G-Systems. -->
+<html><head><meta charset="utf-8">
+<script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+<style>html,body{margin:0;background:transparent}</style></head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const W = 640;
+const objet = new URLSearchParams(location.search).get('objet') || 'logo';
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, W);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 0.95;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 1.0;
+const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+camera.position.set(0, 0, 9);
+const lumiere = (c, i, x, y, z) => { const l = new THREE.DirectionalLight(c, i); l.position.set(x, y, z); scene.add(l); };
+lumiere(0xffffff, 1.6, 3, 4, 5);
+lumiere(0xffd6c8, 1.1, -4, 2, -3);
+lumiere(0xffffff, 0.5, -2, -3, 4);
+
+// Matière de la référence : irisée, vernie, satinée (roughness 0.28), aux couleurs G-Systems.
+const irise = (couleur, o = {}) => new THREE.MeshPhysicalMaterial({
+  color: couleur, roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08,
+  iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [120, 900],
+  sheen: 0.45, sheenColor: new THREE.Color(couleur).lerp(new THREE.Color("#ffffff"), 0.5), sheenRoughness: 0.45, ...o });
+const verre = () => new THREE.MeshPhysicalMaterial({ color: '#160b0d', roughness: 0.06, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.04 });
+const nuit = () => new THREE.MeshPhysicalMaterial({ color: '#1c0a0e', roughness: 0.24, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08 });
+const tube = (points, r, mat, courbe = false) => {
+  const chemin = new THREE.CurvePath();
+  for (let i = 0; i < points.length - 1; i++) chemin.add(new THREE.LineCurve3(points[i], points[i + 1]));
+  return new THREE.Mesh(new THREE.TubeGeometry(chemin, 200, r, 24, false), mat);
+};
+const groupe = new THREE.Group();
+scene.add(groupe);
+
+// Formes abstraites, comme la référence (nœud, galet, pétales) : aucune illustration littérale.
+if (objet === 'noeud') {
+  // Nœud torique : dégradé de la marque (rouge -> corail -> orange) le long du tube.
+  const geo = new THREE.TorusKnotGeometry(0.95, 0.34, 400, 64, 2, 3);
+  const stops = [new THREE.Color('#e6001c'), new THREE.Color('#ff5a6e'), new THREE.Color('#ff8a3d')];
+  const pos = geo.attributes.position, cols = [];
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.min(1, Math.max(0, (pos.getX(i) + pos.getY(i) + 2.4) / 4.8));
+    const c = t < 0.5 ? stops[0].clone().lerp(stops[1], t * 2) : stops[1].clone().lerp(stops[2], (t - 0.5) * 2);
+    cols.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  groupe.add(new THREE.Mesh(geo, irise('#ffffff', { vertexColors: true, roughness: 0.2 })));
+  groupe.rotation.set(0.5, -0.35, 0.2);
+  groupe.scale.setScalar(0.92);
+}
+
+if (objet === 'galet') {
+  // Galet lisse : sphère légèrement déformée, nacre corail.
+  const geo = new THREE.IcosahedronGeometry(1.25, 64);
+  const p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const d = 1 + 0.12 * Math.sin(v.x * 2.1 + 0.6) * Math.cos(v.y * 1.7) + 0.08 * Math.sin(v.z * 2.6 + v.y);
+    v.multiplyScalar(d); v.y *= 0.82; p.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  groupe.add(new THREE.Mesh(geo, irise('#ff6a5e', { roughness: 0.18 })));
+  groupe.rotation.set(0.3, 0.4, -0.2);
+}
+
+if (objet === 'petales') {
+  // Pétales : ellipsoïdes en couronne, nacre rosée (la « fleur » de la référence, en corail).
+  for (let i = 0; i < 9; i++) {
+    const pet = new THREE.Mesh(new THREE.SphereGeometry(0.5, 64, 32), irise(i % 2 ? '#ff8a7a' : '#ff6a5e', { roughness: 0.2 }));
+    pet.scale.set(0.42, 1.35, 0.28);
+    const a = (i / 9) * Math.PI * 2;
+    pet.position.set(Math.sin(a) * 0.62, Math.cos(a) * 0.62, 0);
+    pet.rotation.z = -a;
+    pet.rotation.x = 0.35;
+    groupe.add(pet);
+  }
+  const coeur = new THREE.Mesh(new THREE.SphereGeometry(0.32, 48, 24), irise('#fff0ea', { roughness: 0.16 }));
+  coeur.position.z = 0.22; groupe.add(coeur);
+  groupe.rotation.set(-0.55, 0.35, 0.2);
+}
+
+renderer.render(scene, camera);
+window.rendu = renderer.domElement.toDataURL('image/png');
+</script>
+</body></html>

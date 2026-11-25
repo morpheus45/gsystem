@@ -1,0 +1,13 @@
+#!/bin/sh
+# © 2026 Cédric LAGO-GOMEZ — Tous droits réservés. Reproduction, copie, adaptation ou décompilation, même partielles, interdites sans autorisation écrite de l'auteur (CPI L.122-4, L.122-6, L.335-2 ; voir LICENSE).
+# Lance l'écran du back-office sur http://127.0.0.1:5180 (ce poste seulement).
+# Assemble la page avec l'adresse et la clé PUBLIQUE de Supabase local
+# (jamais la clé secrète). Supabase local doit déjà tourner.
+set -e
+cd "$(dirname "$0")/.."
+eval "$(npx -y supabase@2.122.1 status -o env 2>/dev/null | grep -E '^(API_URL|PUBLISHABLE_KEY)=')"
+[ -n "$API_URL" ] && [ -n "$PUBLISHABLE_KEY" ] || { echo "Supabase local n'est pas démarré." >&2; exit 1; }
+# Même fichier assemblé que la version en ligne : on teste ce qui partira.
+python3 outils/assembler.py "$API_URL" "$PUBLISHABLE_KEY" .local "Base locale de développement — données fictives"
+echo "Back-office : http://127.0.0.1:5180"
+exec python3 -m http.server 5180 --bind 127.0.0.1 --directory .local
