@@ -758,6 +758,8 @@
             <button class="tab hidden" data-tab="stock" id="onglet-stock">Stock</button>
             <button class="tab hidden" data-tab="inventaires" id="onglet-inventaires">Inventaires</button>
             <button class="tab hidden" data-tab="peremption" id="onglet-peremption">Péremption</button>
+            <p class="nav-groupe hidden" id="groupe-location">Location</p>
+            <button class="tab hidden" data-tab="location_contrats" id="onglet-location">Locations</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1128,6 +1130,49 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="lot-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="peremption-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Contrats de location (module fin, générique : véhicule, immobilier, matériel…) -->
+        <div id="panel-location_contrats" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Biens à louer</h3><button type="button" id="bien-nouveau">Ajouter un bien</button></div>
+            <p class="aide">Ce que la société met en location : véhicule, immobilier, matériel…</p>
+            <form id="bien-form" class="hidden">
+              <h4 id="bien-form-titre">Nouveau bien</h4>
+              <div class="field"><label for="bien-libelle">Libellé</label><input id="bien-libelle" maxlength="200" autocomplete="off"></div>
+              <div class="client-duo">
+                <div class="field"><label for="bien-type">Type</label><select id="bien-type"><option value="vehicule">Véhicule</option><option value="immobilier">Immobilier</option><option value="materiel">Matériel</option><option value="autre">Autre</option></select></div>
+                <div class="field"><label for="bien-reference">Référence</label><input id="bien-reference" maxlength="60" autocomplete="off"></div>
+              </div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="bien-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="location-biens"></div>
+          </div>
+          <div class="section">
+            <div class="module-entete"><h3>Contrats de location</h3><button type="button" id="contrat-nouveau">Nouveau contrat</button></div>
+            <form id="contrat-form" class="hidden">
+              <h4 id="contrat-form-titre">Nouveau contrat</h4>
+              <div class="client-duo">
+                <div class="field"><label for="contrat-bien">Bien</label><select id="contrat-bien"></select></div>
+                <div class="field"><label for="contrat-bien-libelle">Bien (nom)</label><input id="contrat-bien-libelle" maxlength="200" autocomplete="off"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="contrat-client">Client</label><select id="contrat-client"></select></div>
+                <div class="field"><label for="contrat-client-nom">Client (nom)</label><input id="contrat-client-nom" maxlength="200" autocomplete="off"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="contrat-debut">Début</label><input id="contrat-debut" type="date"></div>
+                <div class="field"><label for="contrat-fin">Fin (si connue)</label><input id="contrat-fin" type="date"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="contrat-loyer">Loyer (€)</label><input id="contrat-loyer" inputmode="decimal" placeholder="0,00"></div>
+                <div class="field"><label for="contrat-periode">Par</label><select id="contrat-periode"><option value="mois">mois</option><option value="semaine">semaine</option><option value="jour">jour</option></select></div>
+              </div>
+              <div class="field"><label for="contrat-statut">Statut</label><select id="contrat-statut"><option value="en_cours">En cours</option><option value="termine">Terminé</option><option value="annule">Annulé</option></select></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="contrat-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="location-contrats"></div>
           </div>
         </div>
 

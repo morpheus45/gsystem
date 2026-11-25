@@ -19,6 +19,7 @@ import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/pa
 import { normaliserSiren, normaliserSiret, normaliserTelFr, normaliserEmail } from '../core/tiers.js';
 import { normaliserReference, normaliserEan13, normaliserLibelle } from '../core/articles.js';
 import { joursAvantPeremption, statutPeremption } from '../core/peremption.js';
+import { dureeJours, enCours } from '../core/location.js';
 import { normaliserCodeTech } from '../core/code-tech.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -271,7 +272,8 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'reglements' && !modulesFinsOuverts.has('reglements'))
       || (b.dataset.tab === 'stock' && !modulesFinsOuverts.has('stock'))
       || (b.dataset.tab === 'inventaires' && !modulesFinsOuverts.has('inventaires'))
-      || (b.dataset.tab === 'peremption' && !modulesFinsOuverts.has('peremption'));
+      || (b.dataset.tab === 'peremption' && !modulesFinsOuverts.has('peremption'))
+      || (b.dataset.tab === 'location_contrats' && !modulesFinsOuverts.has('location_contrats'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
@@ -279,9 +281,10 @@ function switchOnglet(tabId, calculer = true) {
   // Barres de catégorie : visibles seulement si au moins un de leurs modules est allumé.
   $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures', 'reglements'].some((c) => modulesFinsOuverts.has(c)));
   $('#groupe-stock').classList.toggle('hidden', !['stock', 'inventaires', 'peremption'].some((c) => modulesFinsOuverts.has(c)));
+  $('#groupe-location').classList.toggle('hidden', !['location_contrats', 'etats_lieux'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption', 'panel-location_contrats']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -302,6 +305,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-stock') chargerStock();
   if (tabId === 'panel-inventaires') chargerInventaires();
   if (tabId === 'panel-peremption') chargerPeremption();
+  if (tabId === 'panel-location_contrats') chargerLocation();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -5092,6 +5096,131 @@ async function soumettreLot(ev) {
 $('#lot-nouveau').addEventListener('click', () => ouvrirFormLot(null));
 $('#lot-form').addEventListener('submit', soumettreLot);
 $('#lot-annuler').addEventListener('click', fermerFormLot);
+
+// === MODULE CONTRATS DE LOCATION (générique : biens + contrats) ===
+const TYPE_BIEN = { vehicule: 'Véhicule', immobilier: 'Immobilier', materiel: 'Matériel', autre: 'Autre' };
+const STATUT_CONTRAT = { en_cours: ['En cours', 'ok'], termine: ['Terminé', 'neutre'], annule: ['Annulé', 'alerte'] };
+let biensListe = [], contratsListe = [], bienEnEdition = null, contratEnEdition = null;
+
+async function chargerLocation() {
+  if (!selectedSociete) return;
+  const [bi, co, ti] = await Promise.all([
+    sb.from('bien_location').select('id, libelle, type, reference, actif').eq('societe_id', selectedSociete).order('libelle'),
+    sb.from('contrat_location').select('id, bien_id, bien_libelle, client_nom, tiers_id, date_debut, date_fin, loyer_centimes, periode, statut').eq('societe_id', selectedSociete).order('date_debut', { ascending: false }),
+    sb.from('tiers').select('id, nom').eq('societe_id', selectedSociete).eq('actif', true).order('nom'),
+  ]);
+  if (bi.error) { $('#location-contrats').replaceChildren(elt('p', 'aide', `Lecture impossible : ${bi.error.message}`)); return; }
+  biensListe = bi.data || []; contratsListe = co.data || []; locationTiers = ti.data || [];
+  renderLocation();
+}
+
+let locationTiers = [];
+const peutLocation = () => superAdmin || ['admin', 'gestion'].includes(monRole);
+
+function renderLocation() {
+  const peut = peutLocation();
+  $('#bien-nouveau').classList.toggle('hidden', !peut);
+  $('#contrat-nouveau').classList.toggle('hidden', !peut);
+  // Biens
+  const carteBien = (b) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, b.libelle), elt('span', 'aide', `${TYPE_BIEN[b.type]}${b.reference ? ' · ' + b.reference : ''}`));
+    art.append(tete);
+    if (peut) { const a = elt('div', 'org-actions'); a.append(boutonModule('Modifier', 'secondary', () => ouvrirFormBien(b)), boutonModule('Supprimer', 'danger', () => supprimerBien(b))); art.append(a); }
+    return art;
+  };
+  $('#location-biens').replaceChildren(...(biensListe.length ? biensListe.map(carteBien) : [elt('p', 'aide', 'Aucun bien à louer. Ajoute une voiture, une maison, du matériel…')]));
+  // Contrats
+  const carteContrat = (c) => {
+    const art = elt('article', 'client-carte');
+    const [lab, cls] = STATUT_CONTRAT[c.statut] || ['—', 'neutre'];
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, c.bien_libelle), pastille(lab, cls));
+    const periode = c.date_fin ? `du ${c.date_debut} au ${c.date_fin}` : `depuis le ${c.date_debut}`;
+    art.append(tete, elt('p', 'client-infos', [c.client_nom, periode, `${centimesEnEuros(c.loyer_centimes)} / ${c.periode}`].join(' — ')));
+    if (peut) { const a = elt('div', 'org-actions'); a.append(boutonModule('Modifier', 'secondary', () => ouvrirFormContrat(c)), boutonModule('Supprimer', 'danger', () => supprimerContrat(c))); art.append(a); }
+    return art;
+  };
+  $('#location-contrats').replaceChildren(...(contratsListe.length ? contratsListe.map(carteContrat) : [elt('p', 'aide', 'Aucun contrat pour l’instant.')]));
+}
+
+// --- Biens ---
+function ouvrirFormBien(b) {
+  bienEnEdition = b || null;
+  const f = $('#bien-form'); f.reset(); f.classList.remove('hidden');
+  $('#bien-form-titre').textContent = b ? 'Modifier le bien' : 'Nouveau bien';
+  $('#bien-libelle').value = b?.libelle || ''; $('#bien-type').value = b?.type || 'vehicule'; $('#bien-reference').value = b?.reference || '';
+  $('#bien-libelle').focus();
+}
+function fermerFormBien() { bienEnEdition = null; $('#bien-form').classList.add('hidden'); }
+async function supprimerBien(b) {
+  if (!confirm('Supprimer ce bien ? Les contrats liés gardent son nom.')) return;
+  const { error } = await sb.from('bien_location').delete().eq('id', b.id);
+  if (error) { alert(error.message); return; } await chargerLocation();
+}
+async function soumettreBien(ev) {
+  ev.preventDefault();
+  const libelle = $('#bien-libelle').value.trim();
+  if (!libelle) { alert('Le libellé est obligatoire.'); return; }
+  const row = { societe_id: selectedSociete, libelle, type: $('#bien-type').value, reference: champOuNull($('#bien-reference').value) };
+  const { error } = bienEnEdition ? await sb.from('bien_location').update(row).eq('id', bienEnEdition.id) : await sb.from('bien_location').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormBien(); await chargerLocation();
+}
+
+// --- Contrats ---
+function ouvrirFormContrat(c) {
+  contratEnEdition = c || null;
+  const f = $('#contrat-form'); f.reset(); f.classList.remove('hidden');
+  $('#contrat-form-titre').textContent = c ? 'Modifier le contrat' : 'Nouveau contrat';
+  const selB = $('#contrat-bien'); selB.replaceChildren(new Option('— saisir à la main —', ''));
+  for (const b of biensListe) selB.add(new Option(`${b.libelle} (${TYPE_BIEN[b.type]})`, b.id));
+  selB.value = c?.bien_id || '';
+  selB.onchange = () => { const b = biensListe.find((x) => x.id === selB.value); if (b) $('#contrat-bien-libelle').value = b.libelle; };
+  const selC = $('#contrat-client'); selC.replaceChildren(new Option('— saisir à la main —', ''));
+  for (const t of locationTiers) selC.add(new Option(t.nom, t.id));
+  selC.value = c?.tiers_id || '';
+  selC.onchange = () => { const t = locationTiers.find((x) => x.id === selC.value); if (t) $('#contrat-client-nom').value = t.nom; };
+  $('#contrat-bien-libelle').value = c?.bien_libelle || '';
+  $('#contrat-client-nom').value = c?.client_nom || '';
+  $('#contrat-debut').value = c?.date_debut || new Date().toISOString().slice(0, 10);
+  $('#contrat-fin').value = c?.date_fin || '';
+  $('#contrat-loyer').value = c ? (c.loyer_centimes / 100).toFixed(2).replace('.', ',') : '';
+  $('#contrat-periode').value = c?.periode || 'mois';
+  $('#contrat-statut').value = c?.statut || 'en_cours';
+  $('#contrat-bien').focus();
+}
+function fermerFormContrat() { contratEnEdition = null; $('#contrat-form').classList.add('hidden'); }
+async function supprimerContrat(c) {
+  if (!confirm('Supprimer ce contrat ?')) return;
+  const { error } = await sb.from('contrat_location').delete().eq('id', c.id);
+  if (error) { alert(error.message); return; } await chargerLocation();
+}
+async function soumettreContrat(ev) {
+  ev.preventDefault();
+  const bienLib = $('#contrat-bien-libelle').value.trim(), clientNom = $('#contrat-client-nom').value.trim();
+  if (!bienLib || !clientNom) { alert('Le bien et le client sont obligatoires.'); return; }
+  if (!$('#contrat-debut').value) { alert('La date de début est obligatoire.'); return; }
+  const loyer = eurosEnCentimes($('#contrat-loyer').value);
+  if (loyer === null) { alert('Loyer invalide (ex. 750,00).'); return; }
+  const row = {
+    societe_id: selectedSociete, bien_id: $('#contrat-bien').value || null, bien_libelle: bienLib,
+    tiers_id: $('#contrat-client').value || null, client_nom: clientNom,
+    date_debut: $('#contrat-debut').value, date_fin: $('#contrat-fin').value || null,
+    loyer_centimes: loyer, periode: $('#contrat-periode').value, statut: $('#contrat-statut').value,
+  };
+  const { error } = contratEnEdition ? await sb.from('contrat_location').update(row).eq('id', contratEnEdition.id) : await sb.from('contrat_location').insert(row);
+  if (error) { alert(error.message); return; }   // ex. fin avant début
+  fermerFormContrat(); await chargerLocation();
+}
+
+$('#bien-nouveau').addEventListener('click', () => ouvrirFormBien(null));
+$('#bien-form').addEventListener('submit', soumettreBien);
+$('#bien-annuler').addEventListener('click', fermerFormBien);
+$('#contrat-nouveau').addEventListener('click', () => ouvrirFormContrat(null));
+$('#contrat-form').addEventListener('submit', soumettreContrat);
+$('#contrat-annuler').addEventListener('click', fermerFormContrat);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
