@@ -267,16 +267,18 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'))
       || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'))
       || (b.dataset.tab === 'factures' && !modulesFinsOuverts.has('factures'))
-      || (b.dataset.tab === 'reglements' && !modulesFinsOuverts.has('reglements'));
+      || (b.dataset.tab === 'reglements' && !modulesFinsOuverts.has('reglements'))
+      || (b.dataset.tab === 'stock' && !modulesFinsOuverts.has('stock'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   // Barres de catégorie : visibles seulement si au moins un de leurs modules est allumé.
   $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures', 'reglements'].some((c) => modulesFinsOuverts.has(c)));
+  $('#groupe-stock').classList.toggle('hidden', !['stock', 'inventaires', 'peremption'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -294,6 +296,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-devis') chargerDevis();
   if (tabId === 'panel-factures') chargerFactures();
   if (tabId === 'panel-reglements') chargerReglements();
+  if (tabId === 'panel-stock') chargerStock();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4879,6 +4882,67 @@ async function soumettreReglement(ev) {
 $('#reglement-nouveau').addEventListener('click', ouvrirFormReglement);
 $('#reglement-form').addEventListener('submit', soumettreReglement);
 $('#reglement-annuler').addEventListener('click', fermerFormReglement);
+
+// === MODULE GESTION DE STOCK (mouvements d'entrée/sortie, stock courant) ===
+let stockCourant = [], stockArticles = [];
+
+async function chargerStock() {
+  if (!selectedSociete) return;
+  const [sc, ar] = await Promise.all([
+    sb.rpc('stock_courant', { s: selectedSociete }),
+    sb.from('articles').select('id, libelle').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+  ]);
+  if (sc.error) { $('#stock-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${sc.error.message}`)); return; }
+  stockCourant = sc.data || []; stockArticles = ar.data || [];
+  renderStock();
+}
+
+function renderStock() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#stock-nouveau').classList.toggle('hidden', !peut || !stockArticles.length);
+  if (!stockArticles.length) {
+    $('#stock-liste').replaceChildren(elt('p', 'aide', 'Ajoute d’abord des articles (module Articles) : le stock porte sur eux.'));
+    return;
+  }
+  const carte = (a) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, a.libelle), pastille(`${a.quantite} en stock`, a.quantite <= 0 ? 'alerte' : 'ok'));
+    art.append(tete);
+    return art;
+  };
+  $('#stock-liste').replaceChildren(...(stockCourant.length ? stockCourant.map(carte) : [elt('p', 'aide', 'Aucun article.')]));
+}
+
+function ouvrirFormStock() {
+  const f = $('#stock-form'); f.reset(); f.classList.remove('hidden');
+  const sel = $('#stock-article'); sel.replaceChildren();
+  for (const a of stockArticles) sel.add(new Option(a.libelle, a.id));
+  $('#stock-date').value = new Date().toISOString().slice(0, 10);
+  $('#stock-quantite').value = '1';
+  $('#stock-article').focus();
+}
+
+function fermerFormStock() { $('#stock-form').classList.add('hidden'); }
+
+async function soumettreStock(ev) {
+  ev.preventDefault();
+  const quantite = Math.round(Number($('#stock-quantite').value));
+  if (!(quantite > 0)) { alert('Quantité invalide.'); return; }
+  const row = {
+    societe_id: selectedSociete, article_id: $('#stock-article').value,
+    type: $('#stock-type').value, quantite, date_mouvement: $('#stock-date').value,
+    motif: champOuNull($('#stock-motif').value),
+  };
+  const { error } = await sb.from('mouvement_stock').insert(row);
+  if (error) { alert(error.message); return; }   // ex. « stock insuffisant pour cette sortie »
+  fermerFormStock();
+  await chargerStock();
+}
+
+$('#stock-nouveau').addEventListener('click', ouvrirFormStock);
+$('#stock-form').addEventListener('submit', soumettreStock);
+$('#stock-annuler').addEventListener('click', fermerFormStock);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');

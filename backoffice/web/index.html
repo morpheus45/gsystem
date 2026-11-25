@@ -754,6 +754,8 @@
             <button class="tab hidden" data-tab="devis" id="onglet-devis">Devis</button>
             <button class="tab hidden" data-tab="factures" id="onglet-factures">Factures clients</button>
             <button class="tab hidden" data-tab="reglements" id="onglet-reglements">Règlements</button>
+            <p class="nav-groupe hidden" id="groupe-stock">Stock</p>
+            <button class="tab hidden" data-tab="stock" id="onglet-stock">Stock</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1074,6 +1076,27 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="reglement-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="reglements-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Gestion de stock (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-stock" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Gestion de stock</h3><button type="button" id="stock-nouveau">Mouvement</button></div>
+            <p class="aide">Le stock de chaque article, entrées et sorties. Une sortie ne peut pas passer sous zéro.</p>
+            <form id="stock-form" class="hidden">
+              <div class="client-duo">
+                <div class="field"><label for="stock-article">Article</label><select id="stock-article"></select></div>
+                <div class="field"><label for="stock-type">Type</label><select id="stock-type"><option value="entree">Entrée</option><option value="sortie">Sortie</option></select></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="stock-quantite">Quantité</label><input id="stock-quantite" type="number" min="1" value="1"></div>
+                <div class="field"><label for="stock-date">Date</label><input id="stock-date" type="date"></div>
+              </div>
+              <div class="field"><label for="stock-motif">Motif</label><input id="stock-motif" maxlength="200" autocomplete="off" placeholder="réception, vente, casse…"></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="stock-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="stock-liste"></div>
           </div>
         </div>
 
