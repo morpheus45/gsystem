@@ -67,3 +67,13 @@
 .pilotage-module:first-child { border-top: 0; }
 .pilotage-dispo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .pilotage-module .module-supports { margin-top: 8px; }
+
+/* Module Clients / tiers */
+.client-carte { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--rayon-sm); background: var(--card); margin-bottom: 10px; }
+.client-tete { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.client-infos { color: var(--muted); font-size: 13px; margin: 6px 0 10px; }
+.client-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.client-cases { display: flex; gap: 16px; margin: 8px 0; }
+#client-form { max-width: 560px; }
+#client-form .field { margin-bottom: 10px; }
+@media (max-width: 560px) { .client-duo { grid-template-columns: 1fr; } }

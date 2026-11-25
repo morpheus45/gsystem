@@ -752,6 +752,7 @@
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
             <button class="tab hidden" data-tab="modules" id="onglet-modules">Modules</button>
+            <button class="tab hidden" data-tab="clients" id="onglet-clients">Clients</button>
           </nav>
           <div class="nav-utilisateur" id="nav-utilisateur"><span class="avatar" id="nav-avatar" aria-hidden="true"></span><span class="nav-email" id="nav-email"></span></div>
           <button type="button" id="signaler-bug">Signaler un problème</button>
@@ -968,6 +969,38 @@
               </form>
               <aside><p class="aide">Aperçu sur le téléphone</p><div class="module-telephone"><div id="module-apercu"></div></div></aside>
             </div>
+          </div>
+        </div>
+
+        <!-- Panneau Clients / tiers (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-clients" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Clients / tiers</h3><button type="button" id="client-nouveau">Ajouter un tiers</button></div>
+            <p class="aide">Les clients et fournisseurs de cette société. Éteindre le module les masque sans les effacer.</p>
+            <form id="client-form" class="hidden">
+              <h4 id="client-form-titre">Nouveau tiers</h4>
+              <div class="field"><label for="client-nom">Nom</label><input id="client-nom" maxlength="200" autocomplete="off" required></div>
+              <div class="client-cases">
+                <label><input type="checkbox" id="client-estclient" checked> Client</label>
+                <label><input type="checkbox" id="client-estfourn"> Fournisseur</label>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="client-siren">SIREN</label><input id="client-siren" inputmode="numeric" autocomplete="off"></div>
+                <div class="field"><label for="client-siret">SIRET</label><input id="client-siret" inputmode="numeric" autocomplete="off"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="client-email">E-mail</label><input id="client-email" type="email" autocomplete="off"></div>
+                <div class="field"><label for="client-tel">Téléphone</label><input id="client-tel" inputmode="tel" autocomplete="off"></div>
+              </div>
+              <div class="field"><label for="client-adresse">Adresse</label><input id="client-adresse" maxlength="300" autocomplete="off"></div>
+              <div class="client-duo">
+                <div class="field"><label for="client-cp">Code postal</label><input id="client-cp" inputmode="numeric" maxlength="5" autocomplete="off"></div>
+                <div class="field"><label for="client-ville">Ville</label><input id="client-ville" maxlength="120" autocomplete="off"></div>
+              </div>
+              <div class="field"><label for="client-notes">Notes</label><textarea id="client-notes" maxlength="2000" rows="2"></textarea></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="client-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="clients-liste"></div>
           </div>
         </div>
 

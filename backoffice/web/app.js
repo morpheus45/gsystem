@@ -16,6 +16,7 @@ import { TUILES_APK, tuileVisible } from '../core/tuiles-apk.js';
 import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
+import { normaliserSiren, normaliserSiret, normaliserTelFr, normaliserEmail } from '../core/tiers.js';
 import { normaliserCodeTech } from '../core/code-tech.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -42,6 +43,7 @@ const DOMAINE_ONGLET = { interventions: 'interventions', conges: 'conges', messa
   compta: 'compta', facturation: 'facturation', saisies: 'saisies', techniciens: 'frais' };
 const ongletDuResponsable = (o) => o === 'techniciens' || responsable.droits.has(DOMAINE_ONGLET[o]);
 let monRole = null;       // rôle de l'utilisateur dans la société sélectionnée
+let modulesFinsOuverts = new Set();   // modules fins (catalogue) allumés sur Bureau pour la société
 let modulesActifs = null; // modules actifs de la société sélectionnée (absence d'un module = actif)
 const MODULES_LISTE = ['interventions','heures','frais','vehicules','conges','paie','compta','facturation','messages','documents'];
 const LIBELLE_MODULE = {
@@ -259,14 +261,15 @@ function switchOnglet(tabId, calculer = true) {
     const masque = (modulesActifs && ONGLETS_MODULES.includes(b.dataset.tab) && !modulesActifs.has(b.dataset.tab))
       || (['signalements', 'modules'].includes(b.dataset.tab) && !superAdmin)
       || (responsable ? !ongletDuResponsable(b.dataset.tab) : b.dataset.tab === 'messages' && !peutEcrire())
-      || (b.dataset.tab === 'saisies' && !modulesSaisis.length);
+      || (b.dataset.tab === 'saisies' && !modulesSaisis.length)
+      || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -279,6 +282,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-interventions') chargerInterventions();
   if (tabId === 'panel-signalements') chargerSignalements();
   if (tabId === 'panel-modules') chargerModules();
+  if (tabId === 'panel-clients') chargerClients();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -652,6 +656,9 @@ async function loadSocieteDetail(societeId) {
     // En cas d'erreur (base pas encore à jour…), on n'éteint rien : tous les onglets restent visibles.
     modulesActifs = modsErr ? null : new Set((mods || []).map((m) => (typeof m === 'string' ? m : m.module)));   // la base renvoie [{ module }]
     if (modsErr) console.error(modsErr);
+    // Modules fins allumés sur Bureau : pilotent l'apparition de leurs onglets (Clients…).
+    const { data: fins } = await sb.from('module_allume').select('code').eq('societe_id', societeId).eq('support', 'bureau');
+    modulesFinsOuverts = new Set((fins || []).map((x) => x.code));
 
     const societe = societes.find(s => s.id === societeId);
     $('#societe-detail-title').textContent = societe?.nom || 'Société';
@@ -4325,6 +4332,106 @@ function renderPilotage(modules, demandes) {
     return d;
   }));
 }
+
+// === MODULE CLIENTS / TIERS (module fin, gardé par le pilotage sur Bureau) ===
+let clients = [], clientEnEdition = null;
+const champOuNull = (v) => { const s = (v || '').trim(); return s === '' ? null : s; };
+
+async function chargerClients() {
+  if (!selectedSociete) return;
+  const { data, error } = await sb.from('tiers')
+    .select('id, nom, est_client, est_fournisseur, siren, siret, email, telephone, adresse, code_postal, ville, notes, actif')
+    .eq('societe_id', selectedSociete).order('nom');
+  if (error) { $('#clients-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${error.message}`)); return; }
+  clients = data || [];
+  renderClients();
+}
+
+function renderClients() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#client-nouveau').classList.toggle('hidden', !peut);
+  const carte = (c) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    const roles = [c.est_client && 'Client', c.est_fournisseur && 'Fournisseur'].filter(Boolean).join(' · ');
+    tete.append(elt('strong', null, c.nom), elt('span', 'aide', roles || 'Tiers'));
+    art.append(tete);
+    const infos = [[c.code_postal, c.ville].filter(Boolean).join(' '), c.telephone, c.email, c.siren && `SIREN ${c.siren}`].filter(Boolean);
+    if (infos.length) art.append(elt('p', 'client-infos', infos.join(' — ')));
+    if (peut) {
+      const actions = elt('div', 'org-actions');
+      actions.append(boutonModule('Modifier', 'secondary', () => ouvrirFormClient(c)),
+        c.actif ? boutonModule('Désactiver', 'danger', () => majClient(c, { actif: false }))
+                : boutonModule('Réactiver', 'secondary', () => majClient(c, { actif: true })));
+      art.append(actions);
+    }
+    return art;
+  };
+  const actifs = clients.filter((c) => c.actif), inactifs = clients.filter((c) => !c.actif);
+  const enfants = actifs.length ? actifs.map(carte) : [elt('p', 'aide', 'Aucun tiers pour l’instant.')];
+  if (inactifs.length) enfants.push(elt('h4', null, 'Désactivés'), ...inactifs.map(carte));
+  $('#clients-liste').replaceChildren(...enfants);
+}
+
+function ouvrirFormClient(c) {
+  clientEnEdition = c || null;
+  const f = $('#client-form');
+  f.reset();
+  $('#client-form-titre').textContent = c ? 'Modifier le tiers' : 'Nouveau tiers';
+  $('#client-estclient').checked = c ? c.est_client : true;
+  $('#client-estfourn').checked = !!c?.est_fournisseur;
+  for (const [id, cle] of [['client-nom', 'nom'], ['client-siren', 'siren'], ['client-siret', 'siret'], ['client-email', 'email'],
+    ['client-tel', 'telephone'], ['client-adresse', 'adresse'], ['client-cp', 'code_postal'], ['client-ville', 'ville'], ['client-notes', 'notes']]) {
+    $(`#${id}`).value = c?.[cle] || '';
+  }
+  f.classList.remove('hidden');
+  $('#client-nom').focus();
+}
+
+function fermerFormClient() { clientEnEdition = null; $('#client-form').classList.add('hidden'); }
+
+async function majClient(c, champs) {
+  const { error } = await sb.from('tiers').update(champs).eq('id', c.id);
+  if (error) { alert(error.message); return; }
+  await chargerClients();
+}
+
+async function soumettreClient(ev) {
+  ev.preventDefault();
+  const nom = $('#client-nom').value.trim();
+  if (!nom) { alert('Le nom est obligatoire.'); return; }
+  // Normalisation + contrôle par le cœur testé : un champ rempli mais invalide est refusé.
+  const controles = [
+    ['SIREN', $('#client-siren').value, normaliserSiren],
+    ['SIRET', $('#client-siret').value, normaliserSiret],
+    ['e-mail', $('#client-email').value, normaliserEmail],
+    ['téléphone', $('#client-tel').value, normaliserTelFr],
+  ];
+  const valeurs = {};
+  for (const [nomChamp, brut, normaliser] of controles) {
+    if (!champOuNull(brut)) { valeurs[nomChamp] = null; continue; }
+    const v = normaliser(brut);
+    if (v === null) { alert(`${nomChamp} invalide.`); return; }
+    valeurs[nomChamp] = v;
+  }
+  const row = {
+    societe_id: selectedSociete, nom,
+    est_client: $('#client-estclient').checked, est_fournisseur: $('#client-estfourn').checked,
+    siren: valeurs.SIREN, siret: valeurs.SIRET, email: valeurs['e-mail'], telephone: valeurs['téléphone'],
+    adresse: champOuNull($('#client-adresse').value), code_postal: champOuNull($('#client-cp').value),
+    ville: champOuNull($('#client-ville').value), notes: champOuNull($('#client-notes').value),
+  };
+  const { error } = clientEnEdition
+    ? await sb.from('tiers').update(row).eq('id', clientEnEdition.id)
+    : await sb.from('tiers').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormClient();
+  await chargerClients();
+}
+
+$('#client-nouveau').addEventListener('click', () => ouvrirFormClient(null));
+$('#client-form').addEventListener('submit', soumettreClient);
+$('#client-annuler').addEventListener('click', fermerFormClient);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
