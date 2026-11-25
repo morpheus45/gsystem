@@ -762,6 +762,8 @@
             <button class="tab hidden" data-tab="location_contrats" id="onglet-location">Locations</button>
             <p class="nav-groupe hidden" id="groupe-achats">Achats</p>
             <button class="tab hidden" data-tab="fournisseurs" id="onglet-fournisseurs">Fournisseurs</button>
+            <button class="tab hidden" data-tab="achats" id="onglet-achats">Commandes</button>
+            <button class="tab hidden" data-tab="receptions" id="onglet-receptions">Réceptions</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1203,6 +1205,38 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="fournisseur-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="fournisseurs-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Commandes fournisseurs (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-achats" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Commandes fournisseurs</h3><button type="button" id="cmf-nouvelle">Nouvelle commande</button></div>
+            <p class="aide">Les bons de commande vers tes fournisseurs ; les totaux se calculent tout seuls.</p>
+            <div id="cmf-liste"></div>
+            <div id="cmf-editeur" class="hidden"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Réceptions (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-receptions" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Réceptions</h3><button type="button" id="reception-nouvelle">Ajouter une réception</button></div>
+            <p class="aide">La marchandise reçue. Avec un article, le stock monte automatiquement.</p>
+            <form id="reception-form" class="hidden">
+              <div class="client-duo">
+                <div class="field"><label for="reception-commande">Commande (si liée)</label><select id="reception-commande"></select></div>
+                <div class="field"><label for="reception-article">Article</label><select id="reception-article"></select></div>
+              </div>
+              <div class="field"><label for="reception-libelle">Libellé reçu</label><input id="reception-libelle" maxlength="200" autocomplete="off"></div>
+              <div class="client-duo">
+                <div class="field"><label for="reception-quantite">Quantité</label><input id="reception-quantite" type="number" min="1" value="1"></div>
+                <div class="field"><label for="reception-date">Date</label><input id="reception-date" type="date"></div>
+              </div>
+              <div class="field"><label for="reception-fournisseur">Fournisseur</label><input id="reception-fournisseur" maxlength="200" autocomplete="off"></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="reception-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="receptions-liste"></div>
           </div>
         </div>
 

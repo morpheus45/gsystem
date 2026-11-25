@@ -274,7 +274,9 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'inventaires' && !modulesFinsOuverts.has('inventaires'))
       || (b.dataset.tab === 'peremption' && !modulesFinsOuverts.has('peremption'))
       || (b.dataset.tab === 'location_contrats' && !modulesFinsOuverts.has('location_contrats'))
-      || (b.dataset.tab === 'fournisseurs' && !modulesFinsOuverts.has('fournisseurs'));
+      || (b.dataset.tab === 'fournisseurs' && !modulesFinsOuverts.has('fournisseurs'))
+      || (b.dataset.tab === 'achats' && !modulesFinsOuverts.has('achats'))
+      || (b.dataset.tab === 'receptions' && !modulesFinsOuverts.has('receptions'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
@@ -286,7 +288,7 @@ function switchOnglet(tabId, calculer = true) {
   $('#groupe-achats').classList.toggle('hidden', !['fournisseurs', 'achats', 'receptions'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption', 'panel-location_contrats', 'panel-fournisseurs']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption', 'panel-location_contrats', 'panel-fournisseurs', 'panel-achats', 'panel-receptions']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -309,6 +311,8 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-peremption') chargerPeremption();
   if (tabId === 'panel-location_contrats') chargerLocation();
   if (tabId === 'panel-fournisseurs') chargerFournisseurs();
+  if (tabId === 'panel-achats') chargerCommandesF();
+  if (tabId === 'panel-receptions') chargerReceptions();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -5317,6 +5321,208 @@ async function soumettreFournisseur(ev) {
 $('#fournisseur-nouveau').addEventListener('click', () => ouvrirFormFournisseur(null));
 $('#fournisseur-form').addEventListener('submit', soumettreFournisseur);
 $('#fournisseur-annuler').addEventListener('click', fermerFormFournisseur);
+
+// === MODULE COMMANDES FOURNISSEURS (bon de commande vers un fournisseur) ===
+const LIBELLE_STATUT_CMF = { brouillon: 'Brouillon', envoyee: 'Envoyée', recue: 'Reçue', annulee: 'Annulée' };
+let cmfListe = [], cmfFournisseurs = [], cmfArticles = [], cmfOuverte = null, cmfLignes = [];
+
+async function chargerCommandesF() {
+  if (!selectedSociete) return;
+  const [cm, fo, ar] = await Promise.all([
+    sb.from('commande_fournisseur').select('id, numero, fournisseur_nom, fournisseur_id, date_commande, date_livraison_prevue, statut, total_ht_centimes, total_tva_centimes, total_ttc_centimes').eq('societe_id', selectedSociete).order('date_commande', { ascending: false }),
+    sb.from('fournisseur').select('id, nom').eq('societe_id', selectedSociete).eq('actif', true).order('nom'),
+    sb.from('articles').select('id, libelle, prix_ht_centimes, taux_tva').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+  ]);
+  if (cm.error) { $('#cmf-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${cm.error.message}`)); return; }
+  cmfListe = cm.data || []; cmfFournisseurs = fo.data || []; cmfArticles = ar.data || [];
+  const o = cmfOuverte && cmfListe.find((x) => x.id === cmfOuverte);
+  if (o) {
+    const { data } = await sb.from('commande_fournisseur_ligne').select('id, article_id, libelle, quantite, prix_unitaire_centimes, remise_pct, taux_tva, ht_centimes, rang').eq('commande_fournisseur_id', cmfOuverte).order('rang');
+    cmfLignes = data || [];
+    renderCmfEditeur(o);
+  } else { cmfOuverte = null; renderCmfListe(); }
+}
+
+function renderCmfListe() {
+  $('#cmf-editeur').classList.add('hidden');
+  $('#cmf-liste').classList.remove('hidden');
+  $('#cmf-nouvelle').classList.toggle('hidden', !peutDevis());
+  const carte = (c) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, c.numero || '(brouillon)'), elt('span', 'aide', c.fournisseur_nom));
+    art.append(tete, elt('p', 'client-infos', [c.date_commande, LIBELLE_STATUT_CMF[c.statut], `${centimesEnEuros(c.total_ttc_centimes)} TTC`].join(' — ')));
+    const actions = elt('div', 'org-actions');
+    actions.append(boutonModule('Ouvrir', 'secondary', () => { cmfOuverte = c.id; chargerCommandesF(); }));
+    if (peutDevis()) actions.append(boutonModule('Supprimer', 'danger', () => supprimerCmf(c)));
+    art.append(actions);
+    return art;
+  };
+  $('#cmf-liste').replaceChildren(...(cmfListe.length ? cmfListe.map(carte) : [elt('p', 'aide', 'Aucune commande pour l’instant.')]));
+}
+
+async function nouvelleCmf() {
+  const { data, error } = await sb.from('commande_fournisseur').insert({ societe_id: selectedSociete, fournisseur_nom: 'Nouveau fournisseur', date_commande: new Date().toISOString().slice(0, 10) }).select('id').single();
+  if (error) { alert(error.message); return; }
+  cmfOuverte = data.id; await chargerCommandesF();
+}
+
+async function supprimerCmf(c) {
+  if (!confirm(`Supprimer la commande ${c.numero || ''} ? Ses lignes partent avec.`)) return;
+  const { error } = await sb.from('commande_fournisseur').delete().eq('id', c.id);
+  if (error) { alert(error.message); return; }
+  cmfOuverte = null; await chargerCommandesF();
+}
+
+const majCmf = (champs) => sb.from('commande_fournisseur').update(champs).eq('id', cmfOuverte).then(({ error }) => { if (error) alert(error.message); return chargerCommandesF(); });
+const majCmfLigne = (id, champs) => sb.from('commande_fournisseur_ligne').update(champs).eq('id', id).then(({ error }) => { if (error) alert(error.message); return chargerCommandesF(); });
+
+function ligneCmfRow(l, ro) {
+  const row = elt('div', 'devis-ligne');
+  if (cmfArticles.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— article —', ''));
+    for (const a of cmfArticles) sel.add(new Option(a.libelle, a.id));
+    sel.value = l.article_id || '';
+    sel.addEventListener('change', () => { const a = cmfArticles.find((x) => x.id === sel.value); if (a) majCmfLigne(l.id, { article_id: a.id, libelle: a.libelle, prix_unitaire_centimes: a.prix_ht_centimes, taux_tva: a.taux_tva }); });
+    row.append(sel);
+  }
+  const lib = elt('input'); lib.value = l.libelle; lib.placeholder = 'Libellé'; lib.disabled = ro;
+  lib.addEventListener('change', () => majCmfLigne(l.id, { libelle: lib.value.trim() || 'Ligne' }));
+  const qte = elt('input'); qte.type = 'number'; qte.min = 1; qte.value = l.quantite; qte.disabled = ro; qte.className = 'devis-qte';
+  qte.addEventListener('change', () => majCmfLigne(l.id, { quantite: Math.max(1, Math.round(Number(qte.value) || 1)) }));
+  const pu = elt('input'); pu.inputMode = 'decimal'; pu.value = (l.prix_unitaire_centimes / 100).toFixed(2).replace('.', ','); pu.disabled = ro; pu.className = 'devis-pu';
+  pu.addEventListener('change', () => { const c = eurosEnCentimes(pu.value); if (c === null) { alert('Prix invalide.'); return; } majCmfLigne(l.id, { prix_unitaire_centimes: c }); });
+  const rem = elt('input'); rem.type = 'number'; rem.min = 0; rem.max = 100; rem.value = l.remise_pct; rem.disabled = ro; rem.className = 'devis-rem'; rem.title = 'Remise %';
+  rem.addEventListener('change', () => majCmfLigne(l.id, { remise_pct: Math.min(100, Math.max(0, Number(rem.value) || 0)) }));
+  const tva = elt('select'); tva.disabled = ro;
+  for (const t of [20, 10, 5.5, 2.1, 0]) tva.add(new Option(`${String(t).replace('.', ',')} %`, String(t)));
+  tva.value = String(l.taux_tva); tva.addEventListener('change', () => majCmfLigne(l.id, { taux_tva: Number(tva.value) }));
+  row.append(lib, qte, pu, rem, tva, elt('span', 'devis-ligne-ht', `${centimesEnEuros(l.ht_centimes)} HT`));
+  if (!ro) row.append(boutonModule('✕', 'danger', () => sb.from('commande_fournisseur_ligne').delete().eq('id', l.id).then(() => chargerCommandesF())));
+  return row;
+}
+
+async function ajouterLigneCmf() {
+  const { error } = await sb.from('commande_fournisseur_ligne').insert({ commande_fournisseur_id: cmfOuverte, libelle: 'Nouvelle ligne', quantite: 1, prix_unitaire_centimes: 0, taux_tva: 20, rang: cmfLignes.length });
+  if (error) { alert(error.message); return; }
+  await chargerCommandesF();
+}
+
+function renderCmfEditeur(c) {
+  $('#cmf-liste').classList.add('hidden');
+  const z = $('#cmf-editeur'); z.classList.remove('hidden'); z.replaceChildren();
+  const ro = !peutDevis();
+  const entete = elt('div', 'devis-entete');
+  entete.append(elt('h3', null, c.numero || 'Nouvelle commande'));
+  if (cmfFournisseurs.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— choisir un fournisseur —', ''));
+    for (const f of cmfFournisseurs) sel.add(new Option(f.nom, f.id));
+    sel.value = c.fournisseur_id || '';
+    sel.addEventListener('change', () => { const f = cmfFournisseurs.find((x) => x.id === sel.value); if (f) majCmf({ fournisseur_id: f.id, fournisseur_nom: f.nom }); });
+    entete.append(champField('Fournisseur (module Fournisseurs)', sel));
+  }
+  const nom = elt('input'); nom.value = c.fournisseur_nom; nom.maxLength = 200; nom.disabled = ro;
+  nom.addEventListener('change', () => majCmf({ fournisseur_nom: nom.value.trim() || 'Fournisseur', fournisseur_id: null }));
+  const date = elt('input'); date.type = 'date'; date.value = c.date_commande; date.disabled = ro;
+  date.addEventListener('change', () => majCmf({ date_commande: date.value }));
+  const liv = elt('input'); liv.type = 'date'; liv.value = c.date_livraison_prevue || ''; liv.disabled = ro;
+  liv.addEventListener('change', () => majCmf({ date_livraison_prevue: liv.value || null }));
+  const statut = elt('select'); statut.disabled = ro;
+  for (const [v, lab] of Object.entries(LIBELLE_STATUT_CMF)) statut.add(new Option(lab, v));
+  statut.value = c.statut; statut.addEventListener('change', () => majCmf({ statut: statut.value }));
+  entete.append(champField('Nom du fournisseur', nom), champField('Date', date), champField('Livraison prévue', liv), champField('Statut', statut));
+  z.append(entete);
+  const zl = elt('div', 'devis-lignes');
+  zl.append(elt('h4', null, 'Lignes'));
+  for (const l of cmfLignes) zl.append(ligneCmfRow(l, ro));
+  if (!cmfLignes.length) zl.append(elt('p', 'aide', 'Aucune ligne.'));
+  if (!ro) zl.append(boutonModule('Ajouter une ligne', 'secondary', ajouterLigneCmf));
+  z.append(zl);
+  const tot = elt('div', 'devis-totaux');
+  tot.append(elt('p', null, `Total HT : ${centimesEnEuros(c.total_ht_centimes)}`),
+    elt('p', null, `TVA : ${centimesEnEuros(c.total_tva_centimes)}`),
+    elt('p', 'devis-ttc', `Total TTC : ${centimesEnEuros(c.total_ttc_centimes)}`));
+  z.append(tot);
+  const actions = elt('div', 'org-actions');
+  actions.append(boutonModule('Fermer', 'secondary', () => { cmfOuverte = null; chargerCommandesF(); }));
+  z.append(actions);
+}
+
+$('#cmf-nouvelle').addEventListener('click', nouvelleCmf);
+
+// === MODULE RÉCEPTIONS (crée automatiquement une entrée de stock) ===
+let receptionsListe = [], receptionsArticles = [], receptionsCommandes = [];
+
+async function chargerReceptions() {
+  if (!selectedSociete) return;
+  const [re, ar, cm] = await Promise.all([
+    sb.from('reception').select('id, commande_fournisseur_id, article_id, article_libelle, quantite, date_reception, fournisseur_nom').eq('societe_id', selectedSociete).order('date_reception', { ascending: false }),
+    sb.from('articles').select('id, libelle').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+    sb.from('commande_fournisseur').select('id, numero, fournisseur_nom').eq('societe_id', selectedSociete).order('date_commande', { ascending: false }),
+  ]);
+  if (re.error) { $('#receptions-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${re.error.message}`)); return; }
+  receptionsListe = re.data || []; receptionsArticles = ar.data || []; receptionsCommandes = cm.data || [];
+  renderReceptions();
+}
+
+function renderReceptions() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#reception-nouvelle').classList.toggle('hidden', !peut);
+  const numCmd = (id) => receptionsCommandes.find((c) => c.id === id)?.numero;
+  const carte = (r) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, r.article_libelle), pastille(`+${r.quantite}`, 'ok'));
+    art.append(tete, elt('p', 'client-infos', [r.date_reception, r.fournisseur_nom, r.commande_fournisseur_id && `commande ${numCmd(r.commande_fournisseur_id) || ''}`].filter(Boolean).join(' — ')));
+    if (peut) { const a = elt('div', 'org-actions'); a.append(boutonModule('Supprimer', 'danger', () => supprimerReception(r))); art.append(a); }
+    return art;
+  };
+  $('#receptions-liste').replaceChildren(...(receptionsListe.length ? receptionsListe.map(carte) : [elt('p', 'aide', 'Aucune réception pour l’instant.')]));
+}
+
+async function supprimerReception(r) {
+  if (!confirm('Supprimer cette réception ? L’entrée de stock déjà créée n’est pas annulée automatiquement.')) return;
+  const { error } = await sb.from('reception').delete().eq('id', r.id);
+  if (error) { alert(error.message); return; }
+  await chargerReceptions();
+}
+
+function ouvrirFormReception() {
+  const f = $('#reception-form'); f.reset(); f.classList.remove('hidden');
+  const selC = $('#reception-commande'); selC.replaceChildren(new Option('— sans commande —', ''));
+  for (const c of receptionsCommandes) selC.add(new Option(`${c.numero || '(brouillon)'} — ${c.fournisseur_nom}`, c.id));
+  const selA = $('#reception-article'); selA.replaceChildren(new Option('— sans article (pas de stock) —', ''));
+  for (const a of receptionsArticles) selA.add(new Option(a.libelle, a.id));
+  selA.onchange = () => { const a = receptionsArticles.find((x) => x.id === selA.value); if (a) $('#reception-libelle').value = a.libelle; };
+  selC.onchange = () => { const c = receptionsCommandes.find((x) => x.id === selC.value); if (c) $('#reception-fournisseur').value = c.fournisseur_nom; };
+  $('#reception-date').value = new Date().toISOString().slice(0, 10);
+  $('#reception-quantite').value = '1';
+  selA.focus();
+}
+
+function fermerFormReception() { $('#reception-form').classList.add('hidden'); }
+
+async function soumettreReception(ev) {
+  ev.preventDefault();
+  const libelle = $('#reception-libelle').value.trim();
+  if (!libelle) { alert('Le libellé de l’article est obligatoire.'); return; }
+  const quantite = Math.round(Number($('#reception-quantite').value));
+  if (!(quantite > 0)) { alert('Quantité invalide.'); return; }
+  const row = {
+    societe_id: selectedSociete, commande_fournisseur_id: $('#reception-commande').value || null,
+    article_id: $('#reception-article').value || null, article_libelle: libelle, quantite,
+    date_reception: $('#reception-date').value, fournisseur_nom: champOuNull($('#reception-fournisseur').value),
+  };
+  const { error } = await sb.from('reception').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormReception(); await chargerReceptions();
+}
+
+$('#reception-nouvelle').addEventListener('click', ouvrirFormReception);
+$('#reception-form').addEventListener('submit', soumettreReception);
+$('#reception-annuler').addEventListener('click', fermerFormReception);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
