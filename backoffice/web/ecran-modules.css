@@ -60,3 +60,10 @@
 .module-supports label { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; }
 .module-supports input { width: 20px; height: 20px; margin: 0; }
 .tuiles-apk { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 0 24px; }
+
+/* Pilotage des modules fins : disponible + allumé × support + demandes */
+#pilotage-demandes:not(:empty) { margin-bottom: 12px; }
+.pilotage-module { padding: 10px 0; border-top: 1px solid var(--border); }
+.pilotage-module:first-child { border-top: 0; }
+.pilotage-dispo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.pilotage-module .module-supports { margin-top: 8px; }

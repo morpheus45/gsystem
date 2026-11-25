@@ -81,6 +81,14 @@ test('demande : la société réclame, le patron accorde, le module devient disp
   assert.equal((await lignes(`select * from public.module_disponible where societe_id = '${A}' and code = 'factures'`)).length, 1);
 });
 
+test('le super admin peut aussi allumer (il configure tout)', async () => {
+  await db.comme(SUP, () => db.query(`select public.allumer_module('${A}', 'factures', 'bureau', true)`));
+  await db.comme(SUP, async () => {
+    const [f] = await lignes(`select allumes from public.pilotage_modules('${A}') where code = 'factures'`);
+    assert.deepEqual(f.allumes, ['bureau']);
+  });
+});
+
 test('cloisonnement : l\'admin d\'une autre holding ne pilote pas la société A', async () => {
   await db.comme(ADB, () => assert.rejects(
     db.query(`select public.rendre_disponible('${A}', 'clients', true)`), /patron|reserve/));

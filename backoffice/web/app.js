@@ -4225,6 +4225,7 @@ function boutonModule(texte, classe, action) {
 async function chargerModules() {
   if (!superAdmin) return;
   renderModulesSociete();
+  chargerPilotage();
   fermerEditeurModule();
   chargerReglesDocuments();
   chargerTuilesApk();
@@ -4259,6 +4260,70 @@ function renderModulesSociete() {
 function renderModulesPerso() {
   $('#modules-perso-liste').replaceChildren(...(modulesPerso.length ? modulesPerso.map(carteModulePerso)
     : [elt('p', 'aide', 'Aucun module personnalisé pour l’instant.')]));
+}
+
+// === PILOTAGE DES MODULES FINS : disponible (toi/Gilles) + allumé × support (la société) + demandes ===
+const NOM_SUPPORT = { bureau: 'Bureau', apk: 'APK', iphone: 'iPhone' };
+
+async function chargerPilotage() {
+  if (!selectedSociete) return;
+  const [p, d] = await Promise.all([
+    sb.rpc('pilotage_modules', { s: selectedSociete }),
+    sb.from('demande_module').select('id, code').eq('societe_id', selectedSociete).eq('etat', 'en_attente'),
+  ]);
+  if (p.error) { $('#pilotage-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${p.error.message}`)); return; }
+  renderPilotage(p.data || [], d.data || []);
+}
+
+async function reglerPilotage(rpc, args) {
+  const { error } = await sb.rpc(rpc, args);
+  if (error) { alert(error.message); }
+  await chargerPilotage();
+}
+
+function lignePilotage(m) {
+  const boite = elt('div', 'pilotage-module'), tete = elt('div', 'org-ligne');
+  const dispo = elt('label', 'pilotage-dispo'), cd = elt('input');
+  cd.type = 'checkbox'; cd.checked = m.disponible;
+  cd.addEventListener('change', () => reglerPilotage('rendre_disponible', { p_societe: selectedSociete, p_code: m.code, p_actif: cd.checked }));
+  dispo.append(cd, document.createTextNode(' Disponible'));
+  tete.append(elt('span', 'org-nom', m.libelle), dispo);
+  boite.append(tete);
+  if (m.disponible) {
+    const f = elt('fieldset', 'module-supports');
+    f.setAttribute('aria-label', `Où allumer : ${m.libelle}`);
+    for (const sup of m.supports) {
+      const lab = elt('label'), c = elt('input');
+      c.type = 'checkbox'; c.checked = m.allumes.includes(sup);
+      c.addEventListener('change', () => reglerPilotage('allumer_module', { p_societe: selectedSociete, p_code: m.code, p_support: sup, p_actif: c.checked }));
+      lab.append(c, document.createTextNode(NOM_SUPPORT[sup] || sup));
+      f.append(lab);
+    }
+    boite.append(f);
+  }
+  return boite;
+}
+
+function renderPilotage(modules, demandes) {
+  const zoneD = $('#pilotage-demandes');
+  if (demandes.length) {
+    const libelle = (code) => modules.find((m) => m.code === code)?.libelle || code;
+    const lignes = demandes.map((x) => {
+      const l = elt('div', 'org-ligne'), actions = elt('div', 'org-actions');
+      actions.append(boutonModule('Accorder', 'secondary', () => reglerPilotage('repondre_demande', { p_id: x.id, p_accord: true })),
+        boutonModule('Refuser', 'danger', () => reglerPilotage('repondre_demande', { p_id: x.id, p_accord: false })));
+      l.append(elt('span', 'org-nom', `Demande : ${libelle(x.code)}`), actions);
+      return l;
+    });
+    zoneD.replaceChildren(elt('h4', null, 'Demandes en attente'), ...lignes);
+  } else zoneD.replaceChildren();
+  const parFamille = {};
+  for (const m of modules) (parFamille[m.famille] ||= []).push(m);
+  $('#pilotage-liste').replaceChildren(...Object.entries(parFamille).map(([famille, mods]) => {
+    const d = elt('div', 'org-bloc');
+    d.append(elt('h4', null, famille), ...mods.map(lignePilotage));
+    return d;
+  }));
 }
 
 function carteModulePerso(m) {
