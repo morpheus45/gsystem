@@ -760,6 +760,8 @@
             <button class="tab hidden" data-tab="peremption" id="onglet-peremption">Péremption</button>
             <p class="nav-groupe hidden" id="groupe-location">Location</p>
             <button class="tab hidden" data-tab="location_contrats" id="onglet-location">Locations</button>
+            <p class="nav-groupe hidden" id="groupe-achats">Achats</p>
+            <button class="tab hidden" data-tab="fournisseurs" id="onglet-fournisseurs">Fournisseurs</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1173,6 +1175,34 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="contrat-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="location-contrats"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Fournisseurs (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-fournisseurs" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Fournisseurs</h3><button type="button" id="fournisseur-nouveau">Ajouter un fournisseur</button></div>
+            <p class="aide">Le carnet des fournisseurs de cette société.</p>
+            <form id="fournisseur-form" class="hidden">
+              <h4 id="fournisseur-form-titre">Nouveau fournisseur</h4>
+              <div class="field"><label for="fournisseur-nom">Nom</label><input id="fournisseur-nom" maxlength="200" autocomplete="off" required></div>
+              <div class="client-duo">
+                <div class="field"><label for="fournisseur-siren">SIREN</label><input id="fournisseur-siren" inputmode="numeric" autocomplete="off"></div>
+                <div class="field"><label for="fournisseur-siret">SIRET</label><input id="fournisseur-siret" inputmode="numeric" autocomplete="off"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="fournisseur-email">E-mail</label><input id="fournisseur-email" type="email" autocomplete="off"></div>
+                <div class="field"><label for="fournisseur-tel">Téléphone</label><input id="fournisseur-tel" inputmode="tel" autocomplete="off"></div>
+              </div>
+              <div class="field"><label for="fournisseur-adresse">Adresse</label><input id="fournisseur-adresse" maxlength="300" autocomplete="off"></div>
+              <div class="client-duo">
+                <div class="field"><label for="fournisseur-cp">Code postal</label><input id="fournisseur-cp" inputmode="numeric" maxlength="5" autocomplete="off"></div>
+                <div class="field"><label for="fournisseur-ville">Ville</label><input id="fournisseur-ville" maxlength="120" autocomplete="off"></div>
+              </div>
+              <div class="field"><label for="fournisseur-notes">Notes</label><textarea id="fournisseur-notes" maxlength="2000" rows="2"></textarea></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="fournisseur-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="fournisseurs-liste"></div>
           </div>
         </div>
 

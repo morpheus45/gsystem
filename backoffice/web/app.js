@@ -273,7 +273,8 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'stock' && !modulesFinsOuverts.has('stock'))
       || (b.dataset.tab === 'inventaires' && !modulesFinsOuverts.has('inventaires'))
       || (b.dataset.tab === 'peremption' && !modulesFinsOuverts.has('peremption'))
-      || (b.dataset.tab === 'location_contrats' && !modulesFinsOuverts.has('location_contrats'));
+      || (b.dataset.tab === 'location_contrats' && !modulesFinsOuverts.has('location_contrats'))
+      || (b.dataset.tab === 'fournisseurs' && !modulesFinsOuverts.has('fournisseurs'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
@@ -282,9 +283,10 @@ function switchOnglet(tabId, calculer = true) {
   $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures', 'reglements'].some((c) => modulesFinsOuverts.has(c)));
   $('#groupe-stock').classList.toggle('hidden', !['stock', 'inventaires', 'peremption'].some((c) => modulesFinsOuverts.has(c)));
   $('#groupe-location').classList.toggle('hidden', !['location_contrats', 'etats_lieux'].some((c) => modulesFinsOuverts.has(c)));
+  $('#groupe-achats').classList.toggle('hidden', !['fournisseurs', 'achats', 'receptions'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption', 'panel-location_contrats']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption', 'panel-location_contrats', 'panel-fournisseurs']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -306,6 +308,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-inventaires') chargerInventaires();
   if (tabId === 'panel-peremption') chargerPeremption();
   if (tabId === 'panel-location_contrats') chargerLocation();
+  if (tabId === 'panel-fournisseurs') chargerFournisseurs();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -5221,6 +5224,99 @@ $('#bien-annuler').addEventListener('click', fermerFormBien);
 $('#contrat-nouveau').addEventListener('click', () => ouvrirFormContrat(null));
 $('#contrat-form').addEventListener('submit', soumettreContrat);
 $('#contrat-annuler').addEventListener('click', fermerFormContrat);
+
+// === MODULE FOURNISSEURS (catégorie Achats) ===
+let fournisseurs = [], fournisseurEnEdition = null;
+
+async function chargerFournisseurs() {
+  if (!selectedSociete) return;
+  const { data, error } = await sb.from('fournisseur')
+    .select('id, nom, siren, siret, email, telephone, adresse, code_postal, ville, notes, actif')
+    .eq('societe_id', selectedSociete).order('nom');
+  if (error) { $('#fournisseurs-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${error.message}`)); return; }
+  fournisseurs = data || [];
+  renderFournisseurs();
+}
+
+function renderFournisseurs() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#fournisseur-nouveau').classList.toggle('hidden', !peut);
+  const carte = (c) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, c.nom), elt('span', 'aide', c.siren ? `SIREN ${c.siren}` : ''));
+    art.append(tete);
+    const infos = [[c.code_postal, c.ville].filter(Boolean).join(' '), c.telephone, c.email].filter(Boolean);
+    if (infos.length) art.append(elt('p', 'client-infos', infos.join(' — ')));
+    if (peut) {
+      const actions = elt('div', 'org-actions');
+      actions.append(boutonModule('Modifier', 'secondary', () => ouvrirFormFournisseur(c)),
+        c.actif ? boutonModule('Désactiver', 'danger', () => majFournisseur(c, { actif: false }))
+                : boutonModule('Réactiver', 'secondary', () => majFournisseur(c, { actif: true })));
+      art.append(actions);
+    }
+    return art;
+  };
+  const actifs = fournisseurs.filter((c) => c.actif), inactifs = fournisseurs.filter((c) => !c.actif);
+  const enfants = actifs.length ? actifs.map(carte) : [elt('p', 'aide', 'Aucun fournisseur pour l’instant.')];
+  if (inactifs.length) enfants.push(elt('h4', null, 'Désactivés'), ...inactifs.map(carte));
+  $('#fournisseurs-liste').replaceChildren(...enfants);
+}
+
+function ouvrirFormFournisseur(c) {
+  fournisseurEnEdition = c || null;
+  const f = $('#fournisseur-form'); f.reset();
+  $('#fournisseur-form-titre').textContent = c ? 'Modifier le fournisseur' : 'Nouveau fournisseur';
+  for (const [id, cle] of [['fournisseur-nom', 'nom'], ['fournisseur-siren', 'siren'], ['fournisseur-siret', 'siret'], ['fournisseur-email', 'email'],
+    ['fournisseur-tel', 'telephone'], ['fournisseur-adresse', 'adresse'], ['fournisseur-cp', 'code_postal'], ['fournisseur-ville', 'ville'], ['fournisseur-notes', 'notes']]) {
+    $(`#${id}`).value = c?.[cle] || '';
+  }
+  f.classList.remove('hidden');
+  $('#fournisseur-nom').focus();
+}
+
+function fermerFormFournisseur() { fournisseurEnEdition = null; $('#fournisseur-form').classList.add('hidden'); }
+
+async function majFournisseur(c, champs) {
+  const { error } = await sb.from('fournisseur').update(champs).eq('id', c.id);
+  if (error) { alert(error.message); return; }
+  await chargerFournisseurs();
+}
+
+async function soumettreFournisseur(ev) {
+  ev.preventDefault();
+  const nom = $('#fournisseur-nom').value.trim();
+  if (!nom) { alert('Le nom est obligatoire.'); return; }
+  const controles = [
+    ['SIREN', $('#fournisseur-siren').value, normaliserSiren],
+    ['SIRET', $('#fournisseur-siret').value, normaliserSiret],
+    ['e-mail', $('#fournisseur-email').value, normaliserEmail],
+    ['téléphone', $('#fournisseur-tel').value, normaliserTelFr],
+  ];
+  const v = {};
+  for (const [nomChamp, brut, normaliser] of controles) {
+    if (!champOuNull(brut)) { v[nomChamp] = null; continue; }
+    const r = normaliser(brut);
+    if (r === null) { alert(`${nomChamp} invalide.`); return; }
+    v[nomChamp] = r;
+  }
+  const row = {
+    societe_id: selectedSociete, nom,
+    siren: v.SIREN, siret: v.SIRET, email: v['e-mail'], telephone: v['téléphone'],
+    adresse: champOuNull($('#fournisseur-adresse').value), code_postal: champOuNull($('#fournisseur-cp').value),
+    ville: champOuNull($('#fournisseur-ville').value), notes: champOuNull($('#fournisseur-notes').value),
+  };
+  const { error } = fournisseurEnEdition
+    ? await sb.from('fournisseur').update(row).eq('id', fournisseurEnEdition.id)
+    : await sb.from('fournisseur').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormFournisseur();
+  await chargerFournisseurs();
+}
+
+$('#fournisseur-nouveau').addEventListener('click', () => ouvrirFormFournisseur(null));
+$('#fournisseur-form').addEventListener('submit', soumettreFournisseur);
+$('#fournisseur-annuler').addEventListener('click', fermerFormFournisseur);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
