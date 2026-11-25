@@ -756,6 +756,8 @@
             <button class="tab hidden" data-tab="reglements" id="onglet-reglements">Règlements</button>
             <p class="nav-groupe hidden" id="groupe-stock">Stock</p>
             <button class="tab hidden" data-tab="stock" id="onglet-stock">Stock</button>
+            <button class="tab hidden" data-tab="inventaires" id="onglet-inventaires">Inventaires</button>
+            <button class="tab hidden" data-tab="peremption" id="onglet-peremption">Péremption</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1097,6 +1099,35 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="stock-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="stock-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Inventaires (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-inventaires" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Inventaires</h3><button type="button" id="inventaire-nouveau">Nouvel inventaire</button></div>
+            <p class="aide">Un inventaire fige le stock actuel ; tu saisis le compté, l'écart s'affiche, et la clôture ajuste le stock.</p>
+            <div id="inventaires-liste"></div>
+            <div id="inventaire-editeur" class="hidden"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Lots & péremption (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-peremption" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Lots &amp; péremption</h3><button type="button" id="lot-nouveau">Ajouter un lot</button></div>
+            <p class="aide">Les lots de chaque article et leur DLUO. Les lots proches ou dépassés sont signalés.</p>
+            <form id="lot-form" class="hidden">
+              <h4 id="lot-form-titre">Nouveau lot</h4>
+              <div class="field"><label for="lot-article">Article</label><select id="lot-article"></select></div>
+              <div class="client-duo">
+                <div class="field"><label for="lot-numero">N° de lot</label><input id="lot-numero" maxlength="60" autocomplete="off"></div>
+                <div class="field"><label for="lot-dluo">DLUO (péremption)</label><input id="lot-dluo" type="date"></div>
+              </div>
+              <div class="field"><label for="lot-quantite">Quantité</label><input id="lot-quantite" type="number" min="0" value="0"></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="lot-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="peremption-liste"></div>
           </div>
         </div>
 

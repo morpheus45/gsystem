@@ -91,3 +91,5 @@
 .devis-totaux { margin-top: 14px; text-align: right; }
 .devis-totaux p { margin: 2px 0; }
 .devis-ttc { font-weight: 700; font-size: 16px; }
+
+.devis-ligne .inv-libelle { flex: 1 1 140px; min-width: 100px; }

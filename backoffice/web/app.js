@@ -18,6 +18,7 @@ import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { normaliserSiren, normaliserSiret, normaliserTelFr, normaliserEmail } from '../core/tiers.js';
 import { normaliserReference, normaliserEan13, normaliserLibelle } from '../core/articles.js';
+import { joursAvantPeremption, statutPeremption } from '../core/peremption.js';
 import { normaliserCodeTech } from '../core/code-tech.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -268,7 +269,9 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'))
       || (b.dataset.tab === 'factures' && !modulesFinsOuverts.has('factures'))
       || (b.dataset.tab === 'reglements' && !modulesFinsOuverts.has('reglements'))
-      || (b.dataset.tab === 'stock' && !modulesFinsOuverts.has('stock'));
+      || (b.dataset.tab === 'stock' && !modulesFinsOuverts.has('stock'))
+      || (b.dataset.tab === 'inventaires' && !modulesFinsOuverts.has('inventaires'))
+      || (b.dataset.tab === 'peremption' && !modulesFinsOuverts.has('peremption'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
@@ -278,7 +281,7 @@ function switchOnglet(tabId, calculer = true) {
   $('#groupe-stock').classList.toggle('hidden', !['stock', 'inventaires', 'peremption'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements', 'panel-stock', 'panel-inventaires', 'panel-peremption']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -297,6 +300,8 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-factures') chargerFactures();
   if (tabId === 'panel-reglements') chargerReglements();
   if (tabId === 'panel-stock') chargerStock();
+  if (tabId === 'panel-inventaires') chargerInventaires();
+  if (tabId === 'panel-peremption') chargerPeremption();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4943,6 +4948,150 @@ async function soumettreStock(ev) {
 $('#stock-nouveau').addEventListener('click', ouvrirFormStock);
 $('#stock-form').addEventListener('submit', soumettreStock);
 $('#stock-annuler').addEventListener('click', fermerFormStock);
+
+// === MODULE INVENTAIRES (comptage + écart + clôture qui ajuste le stock) ===
+let inventairesListe = [], inventaireOuvert = null, inventaireLignes = [];
+
+async function chargerInventaires() {
+  if (!selectedSociete) return;
+  const inv = await sb.from('inventaire').select('id, date_inventaire, statut').eq('societe_id', selectedSociete).order('date_inventaire', { ascending: false });
+  if (inv.error) { $('#inventaires-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${inv.error.message}`)); return; }
+  inventairesListe = inv.data || [];
+  const o = inventaireOuvert && inventairesListe.find((x) => x.id === inventaireOuvert);
+  if (o) {
+    const { data } = await sb.from('inventaire_ligne').select('id, libelle, quantite_theorique, quantite_comptee, ecart, rang').eq('inventaire_id', inventaireOuvert).order('rang');
+    inventaireLignes = data || [];
+    renderInventaireEditeur(o);
+  } else { inventaireOuvert = null; renderInventairesListe(); }
+}
+
+function renderInventairesListe() {
+  $('#inventaire-editeur').classList.add('hidden');
+  $('#inventaires-liste').classList.remove('hidden');
+  $('#inventaire-nouveau').classList.toggle('hidden', !peutDevis());
+  const carte = (i) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, `Inventaire du ${i.date_inventaire}`), pastille(i.statut === 'clos' ? 'Clos' : 'En cours', i.statut === 'clos' ? 'ok' : 'alerte'));
+    art.append(tete);
+    const a = elt('div', 'org-actions'); a.append(boutonModule('Ouvrir', 'secondary', () => { inventaireOuvert = i.id; chargerInventaires(); }));
+    art.append(a);
+    return art;
+  };
+  $('#inventaires-liste').replaceChildren(...(inventairesListe.length ? inventairesListe.map(carte) : [elt('p', 'aide', 'Aucun inventaire. « Nouvel inventaire » fige le stock actuel.')]));
+}
+
+async function nouvelInventaire() {
+  const { data, error } = await sb.rpc('creer_inventaire', { s: selectedSociete });
+  if (error) { alert(error.message); return; }
+  inventaireOuvert = data; await chargerInventaires();
+}
+
+async function cloturerInventaire(id) {
+  if (!confirm('Clôturer cet inventaire ? Le stock sera ajusté selon les écarts, sans retour en arrière.')) return;
+  const { error } = await sb.rpc('cloturer_inventaire', { p_id: id });
+  if (error) { alert(error.message); return; }
+  await chargerInventaires();
+}
+
+function renderInventaireEditeur(inv) {
+  $('#inventaires-liste').classList.add('hidden');
+  const z = $('#inventaire-editeur'); z.classList.remove('hidden'); z.replaceChildren();
+  const clos = inv.statut === 'clos';
+  const ro = clos || !peutDevis();
+  z.append(elt('h3', null, `Inventaire du ${inv.date_inventaire}${clos ? ' — clos' : ''}`));
+  const tbl = elt('div', 'devis-lignes');
+  tbl.append(elt('h4', null, 'Articles'));
+  for (const l of inventaireLignes) {
+    const row = elt('div', 'devis-ligne');
+    const c = elt('input'); c.type = 'number'; c.min = 0; c.value = l.quantite_comptee; c.disabled = ro; c.className = 'devis-qte';
+    c.addEventListener('change', () => sb.from('inventaire_ligne').update({ quantite_comptee: Math.max(0, Math.round(Number(c.value) || 0)) }).eq('id', l.id).then(({ error }) => { if (error) alert(error.message); return chargerInventaires(); }));
+    row.append(elt('span', 'inv-libelle', l.libelle), elt('span', 'aide', `théo. ${l.quantite_theorique}`), elt('span', 'aide', 'compté'), c,
+      elt('span', 'devis-ligne-ht', `écart ${l.ecart > 0 ? '+' : ''}${l.ecart}`));
+    tbl.append(row);
+  }
+  if (!inventaireLignes.length) tbl.append(elt('p', 'aide', 'Aucun article à compter — ajoute des articles d’abord.'));
+  z.append(tbl);
+  const actions = elt('div', 'org-actions');
+  actions.append(boutonModule('Fermer', 'secondary', () => { inventaireOuvert = null; chargerInventaires(); }));
+  if (!clos && peutDevis()) actions.append(boutonModule('Clôturer et ajuster le stock', 'danger', () => cloturerInventaire(inv.id)));
+  z.append(actions);
+}
+
+$('#inventaire-nouveau').addEventListener('click', nouvelInventaire);
+
+// === MODULE LOTS & PÉREMPTION (DLUO + alerte de péremption) ===
+const SEUIL_PEREMPTION = 30;   // jours avant la DLUO où l'on alerte
+const STATUT_PEREMPTION = { perime: ['Périmé', 'alerte'], proche: ['Bientôt', 'alerte'], bon: ['Bon', 'ok'] };
+let lotsListe = [], lotsArticles = [], lotEnEdition = null;
+
+async function chargerPeremption() {
+  if (!selectedSociete) return;
+  const [lo, ar] = await Promise.all([
+    sb.from('lot').select('id, article_id, numero_lot, dluo, quantite').eq('societe_id', selectedSociete).order('dluo'),
+    sb.from('articles').select('id, libelle').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+  ]);
+  if (lo.error) { $('#peremption-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${lo.error.message}`)); return; }
+  lotsListe = lo.data || []; lotsArticles = ar.data || [];
+  renderPeremption();
+}
+
+function renderPeremption() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#lot-nouveau').classList.toggle('hidden', !peut || !lotsArticles.length);
+  if (!lotsArticles.length) { $('#peremption-liste').replaceChildren(elt('p', 'aide', 'Ajoute d’abord des articles (module Articles) : les lots portent sur eux.')); return; }
+  const nomArt = (id) => lotsArticles.find((a) => a.id === id)?.libelle || '—';
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const carte = (l) => {
+    const art = elt('article', 'client-carte');
+    const [lab, cls] = STATUT_PEREMPTION[statutPeremption(l.dluo, aujourdhui, SEUIL_PEREMPTION)] || ['—', 'ok'];
+    const j = joursAvantPeremption(l.dluo, aujourdhui);
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, nomArt(l.article_id)), pastille(lab, cls));
+    const reste = j === null ? '' : (j < 0 ? `périmé depuis ${-j} j` : `${j} j restants`);
+    art.append(tete, elt('p', 'client-infos', [`DLUO ${l.dluo}`, reste, l.numero_lot && `lot ${l.numero_lot}`, `${l.quantite} u.`].filter(Boolean).join(' — ')));
+    if (peut) { const a = elt('div', 'org-actions'); a.append(boutonModule('Modifier', 'secondary', () => ouvrirFormLot(l)), boutonModule('Supprimer', 'danger', () => supprimerLot(l))); art.append(a); }
+    return art;
+  };
+  $('#peremption-liste').replaceChildren(...(lotsListe.length ? lotsListe.map(carte) : [elt('p', 'aide', 'Aucun lot pour l’instant.')]));
+}
+
+function ouvrirFormLot(l) {
+  lotEnEdition = l || null;
+  const f = $('#lot-form'); f.reset(); f.classList.remove('hidden');
+  const sel = $('#lot-article'); sel.replaceChildren();
+  for (const a of lotsArticles) sel.add(new Option(a.libelle, a.id));
+  $('#lot-form-titre').textContent = l ? 'Modifier le lot' : 'Nouveau lot';
+  if (l) { sel.value = l.article_id; $('#lot-numero').value = l.numero_lot || ''; $('#lot-dluo').value = l.dluo; $('#lot-quantite').value = l.quantite; }
+  else { $('#lot-quantite').value = '0'; }
+  sel.focus();
+}
+
+function fermerFormLot() { lotEnEdition = null; $('#lot-form').classList.add('hidden'); }
+
+async function supprimerLot(l) {
+  if (!confirm('Supprimer ce lot ?')) return;
+  const { error } = await sb.from('lot').delete().eq('id', l.id);
+  if (error) { alert(error.message); return; }
+  await chargerPeremption();
+}
+
+async function soumettreLot(ev) {
+  ev.preventDefault();
+  if (!$('#lot-dluo').value) { alert('La date de péremption (DLUO) est obligatoire.'); return; }
+  const row = {
+    societe_id: selectedSociete, article_id: $('#lot-article').value,
+    numero_lot: champOuNull($('#lot-numero').value), dluo: $('#lot-dluo').value,
+    quantite: Math.max(0, Math.round(Number($('#lot-quantite').value) || 0)),
+  };
+  const { error } = lotEnEdition ? await sb.from('lot').update(row).eq('id', lotEnEdition.id) : await sb.from('lot').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormLot(); await chargerPeremption();
+}
+
+$('#lot-nouveau').addEventListener('click', () => ouvrirFormLot(null));
+$('#lot-form').addEventListener('submit', soumettreLot);
+$('#lot-annuler').addEventListener('click', fermerFormLot);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
