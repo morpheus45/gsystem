@@ -753,6 +753,7 @@
             <button class="tab hidden" data-tab="articles" id="onglet-articles">Articles</button>
             <button class="tab hidden" data-tab="devis" id="onglet-devis">Devis</button>
             <button class="tab hidden" data-tab="factures" id="onglet-factures">Factures clients</button>
+            <button class="tab hidden" data-tab="reglements" id="onglet-reglements">Règlements</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1050,6 +1051,29 @@
             <p class="aide">Même principe que les devis, avec une date d'échéance et un statut de paiement.</p>
             <div id="factures-liste"></div>
             <div id="facture-editeur" class="hidden"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Règlements (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-reglements" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Règlements</h3><button type="button" id="reglement-nouveau">Ajouter un règlement</button></div>
+            <p class="aide">Les encaissements reçus. Quand une facture est entièrement réglée, elle passe en « payée » toute seule.</p>
+            <form id="reglement-form" class="hidden">
+              <div class="field"><label for="reglement-facture">Facture</label><select id="reglement-facture"></select></div>
+              <div class="client-duo">
+                <div class="field"><label for="reglement-date">Date</label><input id="reglement-date" type="date"></div>
+                <div class="field"><label for="reglement-montant">Montant (€)</label><input id="reglement-montant" inputmode="decimal" placeholder="0,00"></div>
+              </div>
+              <div class="client-duo">
+                <div class="field"><label for="reglement-mode">Mode</label><select id="reglement-mode">
+                  <option value="virement">Virement</option><option value="cheque">Chèque</option><option value="especes">Espèces</option><option value="cb">Carte</option><option value="autre">Autre</option>
+                </select></div>
+                <div class="field"><label for="reglement-reference">Référence</label><input id="reglement-reference" maxlength="100" autocomplete="off"></div>
+              </div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="reglement-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="reglements-liste"></div>
           </div>
         </div>
 

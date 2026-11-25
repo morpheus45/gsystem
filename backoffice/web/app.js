@@ -266,16 +266,17 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'))
       || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'))
       || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'))
-      || (b.dataset.tab === 'factures' && !modulesFinsOuverts.has('factures'));
+      || (b.dataset.tab === 'factures' && !modulesFinsOuverts.has('factures'))
+      || (b.dataset.tab === 'reglements' && !modulesFinsOuverts.has('reglements'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   // Barres de catégorie : visibles seulement si au moins un de leurs modules est allumé.
-  $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures'].some((c) => modulesFinsOuverts.has(c)));
+  $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures', 'reglements'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures', 'panel-reglements']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -292,6 +293,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-articles') chargerArticles();
   if (tabId === 'panel-devis') chargerDevis();
   if (tabId === 'panel-factures') chargerFactures();
+  if (tabId === 'panel-reglements') chargerReglements();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4805,6 +4807,78 @@ function renderFactureEditeur(f) {
 }
 
 $('#facture-nouvelle').addEventListener('click', nouvelleFacture);
+
+// === MODULE RÈGLEMENTS (encaissements qui soldent les factures clients) ===
+const MODES_REGLEMENT = { virement: 'Virement', cheque: 'Chèque', especes: 'Espèces', cb: 'Carte', autre: 'Autre' };
+let reglementsListe = [], reglementsFactures = [];
+
+async function chargerReglements() {
+  if (!selectedSociete) return;
+  const [rg, fv] = await Promise.all([
+    sb.from('reglement').select('id, facture_vente_id, date_reglement, montant_centimes, mode, reference').eq('societe_id', selectedSociete).order('date_reglement', { ascending: false }),
+    sb.from('facture_vente').select('id, numero, client_nom, total_ttc_centimes').eq('societe_id', selectedSociete).order('date_facture', { ascending: false }),
+  ]);
+  if (rg.error) { $('#reglements-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${rg.error.message}`)); return; }
+  reglementsListe = rg.data || []; reglementsFactures = fv.data || [];
+  renderReglements();
+}
+
+const resteFacture = (f) => f.total_ttc_centimes - reglementsListe.filter((r) => r.facture_vente_id === f.id).reduce((s, r) => s + r.montant_centimes, 0);
+
+function renderReglements() {
+  $('#reglement-nouveau').classList.toggle('hidden', !peutDevis());
+  const numFact = (id) => reglementsFactures.find((f) => f.id === id)?.numero || '—';
+  const carte = (r) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, centimesEnEuros(r.montant_centimes)), elt('span', 'aide', MODES_REGLEMENT[r.mode]));
+    art.append(tete, elt('p', 'client-infos', [r.date_reglement, r.facture_vente_id ? `Facture ${numFact(r.facture_vente_id)}` : 'Sans facture', r.reference].filter(Boolean).join(' — ')));
+    if (peutDevis()) { const a = elt('div', 'org-actions'); a.append(boutonModule('Supprimer', 'danger', () => supprimerReglement(r))); art.append(a); }
+    return art;
+  };
+  $('#reglements-liste').replaceChildren(...(reglementsListe.length ? reglementsListe.map(carte) : [elt('p', 'aide', 'Aucun règlement pour l’instant.')]));
+}
+
+async function supprimerReglement(r) {
+  if (!confirm('Supprimer ce règlement ? Si la facture était payée, elle redeviendra « émise ».')) return;
+  const { error } = await sb.from('reglement').delete().eq('id', r.id);
+  if (error) { alert(error.message); return; }
+  await chargerReglements();
+}
+
+function ouvrirFormReglement() {
+  const f = $('#reglement-form'); f.reset(); f.classList.remove('hidden');
+  const sel = $('#reglement-facture');
+  sel.replaceChildren(new Option('— sans facture —', ''));
+  for (const fa of reglementsFactures) sel.add(new Option(`${fa.numero || '(brouillon)'} — ${fa.client_nom} — reste ${centimesEnEuros(Math.max(0, resteFacture(fa)))}`, fa.id));
+  sel.onchange = () => { const fa = reglementsFactures.find((x) => x.id === sel.value); if (fa) $('#reglement-montant').value = (Math.max(0, resteFacture(fa)) / 100).toFixed(2).replace('.', ','); };
+  $('#reglement-date').value = new Date().toISOString().slice(0, 10);
+  $('#reglement-facture').focus();
+}
+
+function fermerFormReglement() { $('#reglement-form').classList.add('hidden'); }
+
+async function soumettreReglement(ev) {
+  ev.preventDefault();
+  const montant = eurosEnCentimes($('#reglement-montant').value);
+  if (!montant) { alert('Montant invalide (ex. 120,00).'); return; }
+  const row = {
+    societe_id: selectedSociete,
+    facture_vente_id: $('#reglement-facture').value || null,
+    date_reglement: $('#reglement-date').value,
+    montant_centimes: montant,
+    mode: $('#reglement-mode').value,
+    reference: champOuNull($('#reglement-reference').value),
+  };
+  const { error } = await sb.from('reglement').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormReglement();
+  await chargerReglements();
+}
+
+$('#reglement-nouveau').addEventListener('click', ouvrirFormReglement);
+$('#reglement-form').addEventListener('submit', soumettreReglement);
+$('#reglement-annuler').addEventListener('click', fermerFormReglement);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
