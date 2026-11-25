@@ -752,6 +752,7 @@
             <button class="tab hidden" data-tab="clients" id="onglet-clients">Clients</button>
             <button class="tab hidden" data-tab="articles" id="onglet-articles">Articles</button>
             <button class="tab hidden" data-tab="devis" id="onglet-devis">Devis</button>
+            <button class="tab hidden" data-tab="factures" id="onglet-factures">Factures</button>
             <p class="nav-groupe">Administration</p>
             <button class="tab" data-tab="membres">Membres</button>
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
@@ -1039,6 +1040,16 @@
             <p class="aide">Choisis un client, ajoute des lignes d'articles ; les totaux se calculent tout seuls.</p>
             <div id="devis-liste"></div>
             <div id="devis-editeur" class="hidden"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Factures (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-factures" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Factures</h3><button type="button" id="facture-nouvelle">Nouvelle facture</button></div>
+            <p class="aide">Même principe que les devis, avec une date d'échéance et un statut de paiement.</p>
+            <div id="factures-liste"></div>
+            <div id="facture-editeur" class="hidden"></div>
           </div>
         </div>
 

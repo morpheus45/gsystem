@@ -265,16 +265,17 @@ function switchOnglet(tabId, calculer = true) {
       || (b.dataset.tab === 'saisies' && !modulesSaisis.length)
       || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'))
       || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'))
-      || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'));
+      || (b.dataset.tab === 'devis' && !modulesFinsOuverts.has('devis'))
+      || (b.dataset.tab === 'factures' && !modulesFinsOuverts.has('factures'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   // Barres de catégorie : visibles seulement si au moins un de leurs modules est allumé.
-  $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis'].some((c) => modulesFinsOuverts.has(c)));
+  $('#groupe-commerce').classList.toggle('hidden', !['clients', 'articles', 'devis', 'factures'].some((c) => modulesFinsOuverts.has(c)));
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles', 'panel-devis', 'panel-factures']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -290,6 +291,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-clients') chargerClients();
   if (tabId === 'panel-articles') chargerArticles();
   if (tabId === 'panel-devis') chargerDevis();
+  if (tabId === 'panel-factures') chargerFactures();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4673,6 +4675,136 @@ function renderDevisEditeur(d) {
 }
 
 $('#devis-nouveau').addEventListener('click', nouveauDevis);
+
+// === MODULE FACTURES (jumeau de Devis : tables facture_vente / facture_vente_ligne) ===
+const LIBELLE_STATUT_FACTURE = { brouillon: 'Brouillon', emise: 'Émise', payee: 'Payée', annulee: 'Annulée' };
+let facturesListe = [], facturesTiers = [], facturesArticles = [], factureOuverte = null, factureLignes = [];
+
+async function chargerFactures() {
+  if (!selectedSociete) return;
+  const [fv, ti, ar] = await Promise.all([
+    sb.from('facture_vente').select('id, numero, client_nom, date_facture, date_echeance, statut, total_ht_centimes, total_tva_centimes, total_ttc_centimes, tiers_id').eq('societe_id', selectedSociete).order('date_facture', { ascending: false }),
+    sb.from('tiers').select('id, nom').eq('societe_id', selectedSociete).eq('actif', true).order('nom'),
+    sb.from('articles').select('id, libelle, prix_ht_centimes, taux_tva').eq('societe_id', selectedSociete).eq('actif', true).order('libelle'),
+  ]);
+  if (fv.error) { $('#factures-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${fv.error.message}`)); return; }
+  facturesListe = fv.data || []; facturesTiers = ti.data || []; facturesArticles = ar.data || [];
+  const f = factureOuverte && facturesListe.find((x) => x.id === factureOuverte);
+  if (f) {
+    const { data } = await sb.from('facture_vente_ligne').select('id, article_id, libelle, quantite, prix_unitaire_centimes, remise_pct, taux_tva, ht_centimes, rang').eq('facture_vente_id', factureOuverte).order('rang');
+    factureLignes = data || [];
+    renderFactureEditeur(f);
+  } else { factureOuverte = null; renderFacturesListe(); }
+}
+
+function renderFacturesListe() {
+  $('#facture-editeur').classList.add('hidden');
+  $('#factures-liste').classList.remove('hidden');
+  $('#facture-nouvelle').classList.toggle('hidden', !peutDevis());
+  const carte = (f) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, f.numero || '(brouillon)'), elt('span', 'aide', f.client_nom));
+    art.append(tete, elt('p', 'client-infos', [f.date_facture, LIBELLE_STATUT_FACTURE[f.statut], `${centimesEnEuros(f.total_ttc_centimes)} TTC`].filter(Boolean).join(' — ')));
+    const actions = elt('div', 'org-actions');
+    actions.append(boutonModule('Ouvrir', 'secondary', () => { factureOuverte = f.id; chargerFactures(); }));
+    if (peutDevis()) actions.append(boutonModule('Supprimer', 'danger', () => supprimerFacture(f)));
+    art.append(actions);
+    return art;
+  };
+  $('#factures-liste').replaceChildren(...(facturesListe.length ? facturesListe.map(carte) : [elt('p', 'aide', 'Aucune facture pour l’instant.')]));
+}
+
+async function nouvelleFacture() {
+  const { data, error } = await sb.from('facture_vente').insert({ societe_id: selectedSociete, client_nom: 'Nouveau client', date_facture: new Date().toISOString().slice(0, 10) }).select('id').single();
+  if (error) { alert(error.message); return; }
+  factureOuverte = data.id; await chargerFactures();
+}
+
+async function supprimerFacture(f) {
+  if (!confirm(`Supprimer la facture ${f.numero || ''} ? Ses lignes partent avec.`)) return;
+  const { error } = await sb.from('facture_vente').delete().eq('id', f.id);
+  if (error) { alert(error.message); return; }
+  factureOuverte = null; await chargerFactures();
+}
+
+const majFacture = (champs) => sb.from('facture_vente').update(champs).eq('id', factureOuverte).then(({ error }) => { if (error) alert(error.message); return chargerFactures(); });
+const majLigneFacture = (id, champs) => sb.from('facture_vente_ligne').update(champs).eq('id', id).then(({ error }) => { if (error) alert(error.message); return chargerFactures(); });
+
+function ligneFactureRow(l, ro) {
+  const row = elt('div', 'devis-ligne');
+  if (facturesArticles.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— article —', ''));
+    for (const a of facturesArticles) sel.add(new Option(a.libelle, a.id));
+    sel.value = l.article_id || '';
+    sel.addEventListener('change', () => { const a = facturesArticles.find((x) => x.id === sel.value); if (a) majLigneFacture(l.id, { article_id: a.id, libelle: a.libelle, prix_unitaire_centimes: a.prix_ht_centimes, taux_tva: a.taux_tva }); });
+    row.append(sel);
+  }
+  const lib = elt('input'); lib.value = l.libelle; lib.placeholder = 'Libellé'; lib.disabled = ro;
+  lib.addEventListener('change', () => majLigneFacture(l.id, { libelle: lib.value.trim() || 'Ligne' }));
+  const qte = elt('input'); qte.type = 'number'; qte.min = 1; qte.value = l.quantite; qte.disabled = ro; qte.className = 'devis-qte';
+  qte.addEventListener('change', () => majLigneFacture(l.id, { quantite: Math.max(1, Math.round(Number(qte.value) || 1)) }));
+  const pu = elt('input'); pu.inputMode = 'decimal'; pu.value = (l.prix_unitaire_centimes / 100).toFixed(2).replace('.', ','); pu.disabled = ro; pu.className = 'devis-pu';
+  pu.addEventListener('change', () => { const c = eurosEnCentimes(pu.value); if (c === null) { alert('Prix invalide.'); return; } majLigneFacture(l.id, { prix_unitaire_centimes: c }); });
+  const rem = elt('input'); rem.type = 'number'; rem.min = 0; rem.max = 100; rem.value = l.remise_pct; rem.disabled = ro; rem.className = 'devis-rem'; rem.title = 'Remise %';
+  rem.addEventListener('change', () => majLigneFacture(l.id, { remise_pct: Math.min(100, Math.max(0, Number(rem.value) || 0)) }));
+  const tva = elt('select'); tva.disabled = ro;
+  for (const t of [20, 10, 5.5, 2.1, 0]) tva.add(new Option(`${String(t).replace('.', ',')} %`, String(t)));
+  tva.value = String(l.taux_tva); tva.addEventListener('change', () => majLigneFacture(l.id, { taux_tva: Number(tva.value) }));
+  row.append(lib, qte, pu, rem, tva, elt('span', 'devis-ligne-ht', `${centimesEnEuros(l.ht_centimes)} HT`));
+  if (!ro) row.append(boutonModule('✕', 'danger', () => sb.from('facture_vente_ligne').delete().eq('id', l.id).then(() => chargerFactures())));
+  return row;
+}
+
+async function ajouterLigneFacture() {
+  const { error } = await sb.from('facture_vente_ligne').insert({ facture_vente_id: factureOuverte, libelle: 'Nouvelle ligne', quantite: 1, prix_unitaire_centimes: 0, taux_tva: 20, rang: factureLignes.length });
+  if (error) { alert(error.message); return; }
+  await chargerFactures();
+}
+
+function renderFactureEditeur(f) {
+  $('#factures-liste').classList.add('hidden');
+  const z = $('#facture-editeur'); z.classList.remove('hidden'); z.replaceChildren();
+  const ro = !peutDevis();
+  const entete = elt('div', 'devis-entete');
+  entete.append(elt('h3', null, f.numero || 'Nouvelle facture'));
+  if (facturesTiers.length && !ro) {
+    const sel = elt('select');
+    sel.add(new Option('— choisir un client —', ''));
+    for (const t of facturesTiers) sel.add(new Option(t.nom, t.id));
+    sel.value = f.tiers_id || '';
+    sel.addEventListener('change', () => { const t = facturesTiers.find((x) => x.id === sel.value); if (t) majFacture({ tiers_id: t.id, client_nom: t.nom }); });
+    entete.append(champField('Client (module Clients)', sel));
+  }
+  const nom = elt('input'); nom.value = f.client_nom; nom.maxLength = 200; nom.disabled = ro;
+  nom.addEventListener('change', () => majFacture({ client_nom: nom.value.trim() || 'Client', tiers_id: null }));
+  const date = elt('input'); date.type = 'date'; date.value = f.date_facture; date.disabled = ro;
+  date.addEventListener('change', () => majFacture({ date_facture: date.value }));
+  const ech = elt('input'); ech.type = 'date'; ech.value = f.date_echeance || ''; ech.disabled = ro;
+  ech.addEventListener('change', () => majFacture({ date_echeance: ech.value || null }));
+  const statut = elt('select'); statut.disabled = ro;
+  for (const [v, lab] of Object.entries(LIBELLE_STATUT_FACTURE)) statut.add(new Option(lab, v));
+  statut.value = f.statut; statut.addEventListener('change', () => majFacture({ statut: statut.value }));
+  entete.append(champField('Nom du client', nom), champField('Date', date), champField('Échéance', ech), champField('Statut', statut));
+  z.append(entete);
+  const zl = elt('div', 'devis-lignes');
+  zl.append(elt('h4', null, 'Lignes'));
+  for (const l of factureLignes) zl.append(ligneFactureRow(l, ro));
+  if (!factureLignes.length) zl.append(elt('p', 'aide', 'Aucune ligne.'));
+  if (!ro) zl.append(boutonModule('Ajouter une ligne', 'secondary', ajouterLigneFacture));
+  z.append(zl);
+  const tot = elt('div', 'devis-totaux');
+  tot.append(elt('p', null, `Total HT : ${centimesEnEuros(f.total_ht_centimes)}`),
+    elt('p', null, `TVA : ${centimesEnEuros(f.total_tva_centimes)}`),
+    elt('p', 'devis-ttc', `Total TTC : ${centimesEnEuros(f.total_ttc_centimes)}`));
+  z.append(tot);
+  const actions = elt('div', 'org-actions');
+  actions.append(boutonModule('Fermer', 'secondary', () => { factureOuverte = null; chargerFactures(); }));
+  z.append(actions);
+}
+
+$('#facture-nouvelle').addEventListener('click', nouvelleFacture);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');
