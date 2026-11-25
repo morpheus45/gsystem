@@ -4302,15 +4302,43 @@ function renderModulesPerso() {
 // === PILOTAGE DES MODULES FINS : disponible (toi/Gilles) + allumé × support (la société) + demandes ===
 const NOM_SUPPORT = { bureau: 'Bureau', apk: 'APK', iphone: 'iPhone' };
 
+let profilsMetier = [];
+
 async function chargerPilotage() {
   if (!selectedSociete) return;
-  const [p, d] = await Promise.all([
+  const [p, d, pr] = await Promise.all([
     sb.rpc('pilotage_modules', { s: selectedSociete }),
     sb.from('demande_module').select('id, code').eq('societe_id', selectedSociete).eq('etat', 'en_attente'),
+    sb.from('profil_metier').select('code, libelle, recherche, modules').order('libelle'),
   ]);
   if (p.error) { $('#pilotage-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${p.error.message}`)); return; }
+  profilsMetier = pr.data || [];
+  renderProfils();
   renderPilotage(p.data || [], d.data || []);
 }
+
+const sansAccent = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+function renderProfils() {
+  const q = sansAccent($('#profil-recherche').value);
+  const liste = profilsMetier.filter((p) => !q || sansAccent(`${p.libelle} ${p.recherche}`).includes(q));
+  $('#profil-liste').replaceChildren(...(liste.length ? liste.map((p) => {
+    const l = elt('div', 'org-ligne');
+    const n = (p.modules || []).length;
+    l.append(elt('span', 'org-nom', `${p.libelle}${n ? ` — ${n} module${n > 1 ? 's' : ''}` : ' — socle seul'}`),
+      boutonModule('Appliquer', 'secondary', () => appliquerProfil(p)));
+    return l;
+  }) : [elt('p', 'aide', 'Aucun métier trouvé.')]));
+}
+
+async function appliquerProfil(p) {
+  if (!confirm(`Appliquer le profil « ${p.libelle} » ? Les modules correspondants deviendront disponibles, sans retirer ceux déjà présents.`)) return;
+  const { error } = await sb.rpc('appliquer_profil', { p_societe: selectedSociete, p_code: p.code });
+  if (error) { alert(error.message); return; }
+  await chargerPilotage();
+}
+
+$('#profil-recherche').addEventListener('input', renderProfils);
 
 async function reglerPilotage(rpc, args) {
   const { error } = await sb.rpc(rpc, args);

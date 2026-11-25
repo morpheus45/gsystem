@@ -93,3 +93,9 @@
 .devis-ttc { font-weight: 700; font-size: 16px; }
 
 .devis-ligne .inv-libelle { flex: 1 1 140px; min-width: 100px; }
+
+/* Profils métier (pilotage) */
+#pilotage-profils { margin-bottom: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--rayon-sm); background: var(--surface-2); }
+#pilotage-profils h4 { margin: 0 0 8px; }
+#profil-recherche { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--rayon-sm); background: var(--card); color: var(--text); margin-bottom: 8px; box-sizing: border-box; }
+#profil-liste { max-height: 280px; overflow: auto; }
