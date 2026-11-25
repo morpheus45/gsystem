@@ -17,6 +17,7 @@ import { reponses, lireSaisie } from '../core/saisies.js';
 import { exigence, etatDocument, limiteDocument } from '../core/documents.js';
 import { normaliserNir, normaliserPermis, masquer, grouperNir } from '../core/papiers.js';
 import { normaliserSiren, normaliserSiret, normaliserTelFr, normaliserEmail } from '../core/tiers.js';
+import { normaliserReference, normaliserEan13, normaliserLibelle } from '../core/articles.js';
 import { normaliserCodeTech } from '../core/code-tech.js';
 import { recapFacturation, montantsFacture, lignesManquantes } from '../core/facturation.js';
 import { variablesPaie, versCsv, texteCsv } from '../core/paie.js';
@@ -262,14 +263,15 @@ function switchOnglet(tabId, calculer = true) {
       || (['signalements', 'modules'].includes(b.dataset.tab) && !superAdmin)
       || (responsable ? !ongletDuResponsable(b.dataset.tab) : b.dataset.tab === 'messages' && !peutEcrire())
       || (b.dataset.tab === 'saisies' && !modulesSaisis.length)
-      || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'));
+      || (b.dataset.tab === 'clients' && !modulesFinsOuverts.has('clients'))
+      || (b.dataset.tab === 'articles' && !modulesFinsOuverts.has('articles'));
     b.classList.toggle('hidden', !!masque);
     b.classList.toggle('active', actif && !masque);
     if (actif && !masque) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');   // section ouverte du menu
   });
   if (responsable) reglerEcriture();
   placerPastille($('.tabs'));   // la pastille blanche glisse vers la section ouverte
-  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients']) {
+  for (const id of ['panel-bord', 'panel-membres', 'panel-techniciens', 'panel-vehicules', 'panel-paie', 'panel-facturation', 'panel-compta', 'panel-conges', 'panel-interventions', 'panel-messages', 'panel-saisies', 'panel-signalements', 'panel-modules', 'panel-clients', 'panel-articles']) {
     $(`#${id}`).classList.toggle('hidden', id !== tabId);
   }
   fermerPanneauVehicule();
@@ -283,6 +285,7 @@ function switchOnglet(tabId, calculer = true) {
   if (tabId === 'panel-signalements') chargerSignalements();
   if (tabId === 'panel-modules') chargerModules();
   if (tabId === 'panel-clients') chargerClients();
+  if (tabId === 'panel-articles') chargerArticles();
   if (tabId === 'panel-saisies') chargerSaisies();
   if (tabId === 'panel-membres') renderResponsables();
   noterPage();
@@ -4432,6 +4435,106 @@ async function soumettreClient(ev) {
 $('#client-nouveau').addEventListener('click', () => ouvrirFormClient(null));
 $('#client-form').addEventListener('submit', soumettreClient);
 $('#client-annuler').addEventListener('click', fermerFormClient);
+
+// === MODULE ARTICLES & TARIFS (module fin, gardé par le pilotage sur Bureau) ===
+let articles = [], articleEnEdition = null;
+
+const eurosEnCentimes = (txt) => {
+  const s = String(txt || '').trim().replace(',', '.');
+  if (s === '') return 0;
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  return Math.round(parseFloat(s) * 100);
+};
+const centimesEnEuros = (c) => (Number(c || 0) / 100).toFixed(2).replace('.', ',') + ' €';
+
+async function chargerArticles() {
+  if (!selectedSociete) return;
+  const { data, error } = await sb.from('articles')
+    .select('id, reference, libelle, ean13, prix_ht_centimes, taux_tva, unite, actif')
+    .eq('societe_id', selectedSociete).order('libelle');
+  if (error) { $('#articles-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${error.message}`)); return; }
+  articles = data || [];
+  renderArticles();
+}
+
+function renderArticles() {
+  const peut = superAdmin || ['admin', 'gestion'].includes(monRole);
+  $('#article-nouveau').classList.toggle('hidden', !peut);
+  const carte = (a) => {
+    const art = elt('article', 'client-carte');
+    const tete = elt('div', 'client-tete');
+    tete.append(elt('strong', null, a.libelle), elt('span', 'aide', a.reference || ''));
+    art.append(tete);
+    const infos = [`${centimesEnEuros(a.prix_ht_centimes)} HT`, `TVA ${String(a.taux_tva).replace('.', ',')} %`, a.unite, a.ean13 && `EAN ${a.ean13}`].filter(Boolean);
+    art.append(elt('p', 'client-infos', infos.join(' — ')));
+    if (peut) {
+      const actions = elt('div', 'org-actions');
+      actions.append(boutonModule('Modifier', 'secondary', () => ouvrirFormArticle(a)),
+        a.actif ? boutonModule('Désactiver', 'danger', () => majArticle(a, { actif: false }))
+                : boutonModule('Réactiver', 'secondary', () => majArticle(a, { actif: true })));
+      art.append(actions);
+    }
+    return art;
+  };
+  const actifs = articles.filter((a) => a.actif), inactifs = articles.filter((a) => !a.actif);
+  const enfants = actifs.length ? actifs.map(carte) : [elt('p', 'aide', 'Aucun article pour l’instant.')];
+  if (inactifs.length) enfants.push(elt('h4', null, 'Désactivés'), ...inactifs.map(carte));
+  $('#articles-liste').replaceChildren(...enfants);
+}
+
+function ouvrirFormArticle(a) {
+  articleEnEdition = a || null;
+  const f = $('#article-form');
+  f.reset();
+  $('#article-form-titre').textContent = a ? 'Modifier l’article' : 'Nouvel article';
+  $('#article-ref').value = a?.reference || '';
+  $('#article-libelle').value = a?.libelle || '';
+  $('#article-ean').value = a?.ean13 || '';
+  $('#article-prix').value = a ? (a.prix_ht_centimes / 100).toFixed(2).replace('.', ',') : '';
+  $('#article-tva').value = a ? String(a.taux_tva) : '20';
+  $('#article-unite').value = a?.unite || '';
+  f.classList.remove('hidden');
+  $('#article-libelle').focus();
+}
+
+function fermerFormArticle() { articleEnEdition = null; $('#article-form').classList.add('hidden'); }
+
+async function majArticle(a, champs) {
+  const { error } = await sb.from('articles').update(champs).eq('id', a.id);
+  if (error) { alert(error.message); return; }
+  await chargerArticles();
+}
+
+async function soumettreArticle(ev) {
+  ev.preventDefault();
+  const libelle = normaliserLibelle($('#article-libelle').value);
+  if (!libelle) { alert('Le libellé est obligatoire.'); return; }
+  let reference = null, ean13 = null;
+  if (champOuNull($('#article-ref').value)) {
+    reference = normaliserReference($('#article-ref').value);
+    if (!reference) { alert('Référence invalide (lettres, chiffres, - et _).'); return; }
+  }
+  if (champOuNull($('#article-ean').value)) {
+    ean13 = normaliserEan13($('#article-ean').value);
+    if (!ean13) { alert('Code-barres EAN-13 invalide.'); return; }
+  }
+  const prix = eurosEnCentimes($('#article-prix').value);
+  if (prix === null) { alert('Prix invalide (ex. 12,50).'); return; }
+  const row = {
+    societe_id: selectedSociete, reference, libelle, ean13,
+    prix_ht_centimes: prix, taux_tva: Number($('#article-tva').value), unite: champOuNull($('#article-unite').value),
+  };
+  const { error } = articleEnEdition
+    ? await sb.from('articles').update(row).eq('id', articleEnEdition.id)
+    : await sb.from('articles').insert(row);
+  if (error) { alert(error.message); return; }
+  fermerFormArticle();
+  await chargerArticles();
+}
+
+$('#article-nouveau').addEventListener('click', () => ouvrirFormArticle(null));
+$('#article-form').addEventListener('submit', soumettreArticle);
+$('#article-annuler').addEventListener('click', fermerFormArticle);
 
 function carteModulePerso(m) {
   const carte = elt('article', 'module-carte');

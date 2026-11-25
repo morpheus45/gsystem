@@ -753,6 +753,7 @@
             <button class="tab" data-tab="signalements" id="onglet-signalements">Signalements</button>
             <button class="tab hidden" data-tab="modules" id="onglet-modules">Modules</button>
             <button class="tab hidden" data-tab="clients" id="onglet-clients">Clients</button>
+            <button class="tab hidden" data-tab="articles" id="onglet-articles">Articles</button>
           </nav>
           <div class="nav-utilisateur" id="nav-utilisateur"><span class="avatar" id="nav-avatar" aria-hidden="true"></span><span class="nav-email" id="nav-email"></span></div>
           <button type="button" id="signaler-bug">Signaler un problème</button>
@@ -1001,6 +1002,31 @@
               <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="client-annuler" class="secondary">Annuler</button></div>
             </form>
             <div id="clients-liste"></div>
+          </div>
+        </div>
+
+        <!-- Panneau Articles & tarifs (module fin, visible si allumé sur Bureau) -->
+        <div id="panel-articles" class="tab-panel hidden" role="tabpanel">
+          <div class="section">
+            <div class="module-entete"><h3>Articles &amp; tarifs</h3><button type="button" id="article-nouveau">Ajouter un article</button></div>
+            <p class="aide">Le catalogue des produits et prestations. Alimentera devis et factures.</p>
+            <form id="article-form" class="hidden">
+              <h4 id="article-form-titre">Nouvel article</h4>
+              <div class="client-duo">
+                <div class="field"><label for="article-ref">Référence</label><input id="article-ref" maxlength="30" autocomplete="off"></div>
+                <div class="field"><label for="article-ean">Code-barres (EAN-13)</label><input id="article-ean" inputmode="numeric" maxlength="13" autocomplete="off"></div>
+              </div>
+              <div class="field"><label for="article-libelle">Libellé</label><input id="article-libelle" maxlength="120" autocomplete="off" required></div>
+              <div class="client-duo">
+                <div class="field"><label for="article-prix">Prix HT (€)</label><input id="article-prix" inputmode="decimal" autocomplete="off" placeholder="0,00"></div>
+                <div class="field"><label for="article-tva">TVA</label><select id="article-tva">
+                  <option value="20">20 %</option><option value="10">10 %</option><option value="5.5">5,5 %</option><option value="2.1">2,1 %</option><option value="0">0 %</option>
+                </select></div>
+              </div>
+              <div class="field"><label for="article-unite">Unité</label><input id="article-unite" maxlength="20" autocomplete="off" placeholder="pièce, kg, litre…"></div>
+              <div class="org-actions"><button type="submit">Enregistrer</button><button type="button" id="article-annuler" class="secondary">Annuler</button></div>
+            </form>
+            <div id="articles-liste"></div>
           </div>
         </div>
 
