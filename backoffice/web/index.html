@@ -713,6 +713,17 @@
               <div class="module-entete"><h3 id="org-modules-titre">Modules</h3><button type="button" id="org-fermer" class="secondary">Fermer</button></div>
               <p id="org-modules-aide" class="aide"></p>
               <div id="org-modules-contenu"></div>
+              <div id="org-pilotage" class="hidden">
+                <h3>Pilotage des modules fins</h3>
+                <p class="aide">Rends un module disponible, puis allume-le là où il doit servir (Bureau / APK / iPhone). Un module ne tourne que s'il est disponible ET allumé sur le support.</p>
+                <div id="pilotage-profils">
+                  <h4>Profils métier — les bons modules en un clic</h4>
+                  <input type="search" id="profil-recherche" placeholder="Chercher un métier : loueur, e-commerce, négoce, garage…" autocomplete="off">
+                  <div id="profil-liste"></div>
+                </div>
+                <div id="pilotage-demandes"></div>
+                <div id="pilotage-liste"></div>
+              </div>
             </div>
           </div>
         </section>
@@ -942,17 +953,6 @@
               <h3 id="modules-societe-titre">Modules de la société</h3>
               <p class="aide">Un module désactivé disparaît du menu de cette société ; ses données restent en base.</p>
               <div id="modules-societe" class="modules-liste"></div>
-            </div>
-            <div class="section" id="pilotage-section">
-              <h3>Pilotage des modules fins</h3>
-              <p class="aide">Rends un module disponible, puis allume-le là où il doit servir (Bureau / APK / iPhone). Un module ne tourne que s'il est disponible ET allumé sur le support.</p>
-              <div id="pilotage-profils">
-                <h4>Profils métier — les bons modules en un clic</h4>
-                <input type="search" id="profil-recherche" placeholder="Chercher un métier : loueur, e-commerce, négoce, garage…" autocomplete="off">
-                <div id="profil-liste"></div>
-              </div>
-              <div id="pilotage-demandes"></div>
-              <div id="pilotage-liste"></div>
             </div>
             <div class="section">
               <div class="module-entete"><h3>Modules personnalisés</h3><button type="button" id="module-nouveau">Créer un module</button></div>

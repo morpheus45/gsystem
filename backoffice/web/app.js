@@ -593,7 +593,7 @@ function renderOrgModules() {
   const zone = $('#org-modules'), { h, s } = orgCible || {};
   const holding = holdings.find((x) => x.id === h), societe = societes.find((x) => x.id === s);
   zone.classList.toggle('hidden', !holding && !societe);
-  if (!holding && !societe) return;
+  if (!holding && !societe) { $('#org-pilotage').classList.add('hidden'); pilotageSociete = null; return; }
   $('#org-modules-titre').textContent = `Modules de ${holding ? `la holding ${holding.nom}` : societe.nom}`;
   const suit = !!societe?.holding_id;
   $('#org-modules-aide').textContent = holding ? 'S’applique à toutes ses sociétés, sauf celles qui ont leur propre réglage.'
@@ -651,6 +651,10 @@ function renderOrgModules() {
     bloc('Back-office', 'Un module désactivé disparaît du menu ; ses données restent.', bo),
     bloc('Tuiles des téléphones (APK et iPhone)', 'Cacher une tuile n’efface rien. Clôture et Envoi mensuel restent toujours visibles.', tuiles),
     bloc('Modules que tu as créés', perso.length ? 'Choisis où chacun sert.' : 'Aucun module créé pour l’instant : onglet Modules d’une société → Créer un module.', perso));
+  // Pilotage des modules fins + profils métier : seulement pour une société (pas une holding).
+  const zp = $('#org-pilotage');
+  if (societe) { zp.classList.remove('hidden'); pilotageSociete = s; chargerPilotage(); }
+  else { zp.classList.add('hidden'); pilotageSociete = null; }
 }
 
 $('#org-creer').addEventListener('submit', async (e) => {
@@ -4262,7 +4266,6 @@ function boutonModule(texte, classe, action) {
 async function chargerModules() {
   if (!superAdmin) return;
   renderModulesSociete();
-  chargerPilotage();
   fermerEditeurModule();
   chargerReglesDocuments();
   chargerTuilesApk();
@@ -4302,13 +4305,13 @@ function renderModulesPerso() {
 // === PILOTAGE DES MODULES FINS : disponible (toi/Gilles) + allumé × support (la société) + demandes ===
 const NOM_SUPPORT = { bureau: 'Bureau', apk: 'APK', iphone: 'iPhone' };
 
-let profilsMetier = [];
+let profilsMetier = [], pilotageSociete = null;
 
 async function chargerPilotage() {
-  if (!selectedSociete) return;
+  if (!pilotageSociete) return;
   const [p, d, pr] = await Promise.all([
-    sb.rpc('pilotage_modules', { s: selectedSociete }),
-    sb.from('demande_module').select('id, code').eq('societe_id', selectedSociete).eq('etat', 'en_attente'),
+    sb.rpc('pilotage_modules', { s: pilotageSociete }),
+    sb.from('demande_module').select('id, code').eq('societe_id', pilotageSociete).eq('etat', 'en_attente'),
     sb.from('profil_metier').select('code, libelle, recherche, modules').order('libelle'),
   ]);
   if (p.error) { $('#pilotage-liste').replaceChildren(elt('p', 'aide', `Lecture impossible : ${p.error.message}`)); return; }
@@ -4333,7 +4336,7 @@ function renderProfils() {
 
 async function appliquerProfil(p) {
   if (!confirm(`Appliquer le profil « ${p.libelle} » ? Les modules correspondants deviendront disponibles, sans retirer ceux déjà présents.`)) return;
-  const { error } = await sb.rpc('appliquer_profil', { p_societe: selectedSociete, p_code: p.code });
+  const { error } = await sb.rpc('appliquer_profil', { p_societe: pilotageSociete, p_code: p.code });
   if (error) { alert(error.message); return; }
   await chargerPilotage();
 }
@@ -4350,7 +4353,7 @@ function lignePilotage(m) {
   const boite = elt('div', 'pilotage-module'), tete = elt('div', 'org-ligne');
   const dispo = elt('label', 'pilotage-dispo'), cd = elt('input');
   cd.type = 'checkbox'; cd.checked = m.disponible;
-  cd.addEventListener('change', () => reglerPilotage('rendre_disponible', { p_societe: selectedSociete, p_code: m.code, p_actif: cd.checked }));
+  cd.addEventListener('change', () => reglerPilotage('rendre_disponible', { p_societe: pilotageSociete, p_code: m.code, p_actif: cd.checked }));
   dispo.append(cd, document.createTextNode(' Disponible'));
   tete.append(elt('span', 'org-nom', m.libelle), dispo);
   boite.append(tete);
@@ -4360,7 +4363,7 @@ function lignePilotage(m) {
     for (const sup of m.supports) {
       const lab = elt('label'), c = elt('input');
       c.type = 'checkbox'; c.checked = m.allumes.includes(sup);
-      c.addEventListener('change', () => reglerPilotage('allumer_module', { p_societe: selectedSociete, p_code: m.code, p_support: sup, p_actif: c.checked }));
+      c.addEventListener('change', () => reglerPilotage('allumer_module', { p_societe: pilotageSociete, p_code: m.code, p_support: sup, p_actif: c.checked }));
       lab.append(c, document.createTextNode(NOM_SUPPORT[sup] || sup));
       f.append(lab);
     }
